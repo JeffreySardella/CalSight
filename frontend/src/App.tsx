@@ -10,6 +10,10 @@ export default function App() {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       <Header onMenuToggle={() => setFilterOpen((o) => !o)} />
 
       <div className="app-body">

@@ -1,3 +1,24 @@
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  background: #f59e0b;
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  border-radius: 0 0 0.5rem 0.5rem;
+  z-index: 9999;
+  text-decoration: none;
+  font-family: Inter, sans-serif;
+  font-size: 0.875rem;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: none;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
 .app-body {
   display: flex;
   flex: 1;
