@@ -1,0 +1,63 @@
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.map-section {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.charts-aside {
+  width: 320px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-left: 1px solid #1e2533;
+}
+
+.filter-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+}
+
+@media (max-width: 1023px) {
+  .charts-aside {
+    width: 280px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-body {
+    overflow: visible;
+    flex-direction: column;
+  }
+
+  .app-main {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .map-section {
+    height: 50vh;
+    min-height: 280px;
+  }
+
+  .charts-aside {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #1e2533;
+    overflow-y: visible;
+  }
+}
