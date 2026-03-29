@@ -172,7 +172,7 @@ export default function AboutPage() {
                 Project Lead & Full-Stack Developer
               </p>
               <p className="text-xs text-on-surface-variant leading-normal">
-                With a background in full-stack systems, Jeffrey architects the data pipelines that transform GitHub activity into actionable developer insights.
+                Jeffrey founded CalSight and leads project direction, design system, and architecture for making California crash data accessible.
               </p>
             </div>
           </div>

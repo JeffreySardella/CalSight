@@ -4,8 +4,8 @@ import logo from "../assets/logo.png";
 const navLinks = [
   { to: "/", label: "Map" },
   { to: "/stats", label: "Stats" },
-  { to: "/about", label: "About" },
   { to: "/ask-ai", label: "Ask AI" },
+  { to: "/about", label: "About" },
 ];
 
 export default function NavBar() {

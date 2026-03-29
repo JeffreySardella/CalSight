@@ -34,6 +34,23 @@
   width: 100%;
 }
 
+/* Page transition animation */
+.page-enter {
+  animation: scaleIn 0.15s ease-out;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0.8; transform: scale(0.99); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Respect OS-level reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;

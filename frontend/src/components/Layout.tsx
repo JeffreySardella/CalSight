@@ -28,7 +28,7 @@ export default function Layout() {
           <Outlet />
         </main>
       ) : (
-        <div className="pt-16 min-h-screen flex flex-col pb-20 md:pb-0">
+        <div key={location.pathname} className="page-enter pt-16 min-h-screen flex flex-col pb-20 md:pb-0">
           <main className="flex-1">
             <Outlet />
           </main>
