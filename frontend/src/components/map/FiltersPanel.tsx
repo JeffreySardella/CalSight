@@ -69,7 +69,13 @@ export default function FiltersPanel() {
   function toggleYear(year: number) {
     setSelectedYears((prev) => {
       const next = new Set(prev);
-      next.has(year) ? next.delete(year) : next.add(year);
+
+      if (next.has(year)) {
+        next.delete(year);
+      } else {
+        next.add(year);
+      }
+
       return next;
     });
   }
@@ -77,9 +83,13 @@ export default function FiltersPanel() {
   function toggleSeverity(severity: string) {
     setSelectedSeverities((prev) => {
       const next = new Set(prev);
-      next.has(severity)
-        ? next.delete(severity)
-        : next.add(severity);
+
+      if (next.has(severity)) {
+        next.delete(severity);
+      } else {
+        next.add(severity);
+      }
+
       return next;
     });
   }
