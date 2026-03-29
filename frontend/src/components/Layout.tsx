@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import NavBar from "./NavBar";
 import Footer from "./Footer";
@@ -6,6 +7,18 @@ import BottomTabBar from "./BottomTabBar";
 export default function Layout() {
   const location = useLocation();
   const isMapPage = location.pathname === "/";
+
+  // Scroll to hash anchor when navigating (e.g., /about#data-sources)
+  useEffect(() => {
+    if (location.hash) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 100);
+      }
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [location]);
 
   return (
     <>

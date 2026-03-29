@@ -14,7 +14,7 @@ export default function AboutPage() {
       </section>
 
       {/* Our Mission Section */}
-      <section className="py-16 md:py-24">
+      <section id="mission" className="py-16 md:py-24">
         <div className="space-y-12">
           <span className="font-label text-xs uppercase tracking-[0.3em] text-on-surface-variant block">
             OUR MISSION
@@ -46,7 +46,7 @@ export default function AboutPage() {
       </section>
 
       {/* Data Sources Section */}
-      <section className="py-16 md:py-24 space-y-12">
+      <section id="data-sources" className="py-16 md:py-24 space-y-12">
         <span className="font-label text-xs uppercase tracking-[0.3em] text-on-surface-variant">
           DATA SOURCES
         </span>
@@ -164,55 +164,107 @@ export default function AboutPage() {
         <div className="flex overflow-x-auto gap-6 pb-8 snap-x no-scrollbar md:grid md:grid-cols-3">
           <div className="min-w-[240px] snap-start space-y-4 p-6 bg-surface-container-low rounded-xl">
             <div className="w-16 h-16 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-bold text-xl font-headline">
-              ES
+              JS
             </div>
             <div>
-              <h4 className="font-bold text-on-surface">Elena Sorvino</h4>
+              <h4 className="font-bold text-on-surface">Jeffrey Sardella</h4>
               <p className="text-xs text-primary font-medium mb-2">
-                Director of Data Science
+                Project Lead & Full-Stack Developer
               </p>
               <p className="text-xs text-on-surface-variant leading-normal">
-                Formerly of the DOT, Elena leads our algorithmic transparency
-                initiatives.
+                With a background in full-stack systems, Jeffrey architects the data pipelines that transform GitHub activity into actionable developer insights.
               </p>
             </div>
           </div>
 
           <div className="min-w-[240px] snap-start space-y-4 p-6 bg-surface-container-low rounded-xl">
             <div className="w-16 h-16 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center font-bold text-xl font-headline">
-              MJ
+              MS
             </div>
             <div>
-              <h4 className="font-bold text-on-surface">Marcus Jensen</h4>
+              <h4 className="font-bold text-on-surface">Maksim Shkrabak</h4>
               <p className="text-xs text-primary font-medium mb-2">
-                Lead Systems Architect
+                Put what title you want here
               </p>
               <p className="text-xs text-on-surface-variant leading-normal">
-                Marcus manages our distributed pipeline for real-time traffic
-                record ingestion.
+                short description of what you do, your background, and your role in the project. You can also include any relevant experience or skills that contribute to the project&#39;s success.
               </p>
             </div>
           </div>
 
           <div className="min-w-[240px] snap-start space-y-4 p-6 bg-surface-container-low rounded-xl">
             <div className="w-16 h-16 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center font-bold text-xl font-headline">
-              LY
+              JL
             </div>
             <div>
-              <h4 className="font-bold text-on-surface">Lana Yang</h4>
+              <h4 className="font-bold text-on-surface">John Longarini</h4>
               <p className="text-xs text-primary font-medium mb-2">
-                Civic Design Lead
+                Put what title you want here
               </p>
               <p className="text-xs text-on-surface-variant leading-normal">
-                Lana ensures CalSight&rsquo;s visual language is accessible to
-                all California citizens.
+                short description of what you do, your background, and your role in the project. You can also include any relevant experience or skills that contribute to the project&#39;s success.
               </p>
             </div>
           </div>
+
+          <div className="min-w-[240px] snap-start space-y-4 p-6 bg-surface-container-low rounded-xl">
+            <div className="w-16 h-16 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center font-bold text-xl font-headline">
+              GK
+            </div>
+            <div>
+              <h4 className="font-bold text-on-surface">Gavin Kabel</h4>
+              <p className="text-xs text-primary font-medium mb-2">
+                Put what title you want here
+              </p>
+              <p className="text-xs text-on-surface-variant leading-normal">
+                short description of what you do, your background, and your role in the project. You can also include any relevant experience or skills that contribute to the project&#39;s success.
+              </p>
+            </div>
+          </div>
+
         </div>
         <p className="text-xs text-on-surface-variant/50 italic md:hidden">
           Scroll for more
         </p>
+      </section>
+
+      {/* Privacy Policy Section */}
+      <section id="privacy" className="py-16 md:py-24 mb-12">
+        <span className="font-label text-xs uppercase tracking-[0.3em] text-on-surface-variant block mb-10">
+          PRIVACY POLICY
+        </span>
+        <div className="space-y-6 text-on-surface-variant leading-relaxed text-sm">
+          <p>
+            CalSight is a public civic data tool. All crash data displayed is
+            sourced from publicly available California government datasets
+            (CCRS, SWITRS) and contains no personally identifiable information.
+          </p>
+          <p>
+            <span className="font-semibold text-on-surface">AI Features:</span>{" "}
+            Questions submitted through the Ask AI feature are processed by
+            Google&rsquo;s Gemini API to generate responses. Your questions are
+            sent to Google&rsquo;s servers for processing but are not stored,
+            logged, or used for training by CalSight. Google&rsquo;s own data
+            handling practices apply to API interactions.
+          </p>
+          <p>
+            <span className="font-semibold text-on-surface">Analytics:</span>{" "}
+            CalSight does not use cookies, tracking pixels, or third-party
+            analytics. No personal data is collected, stored, or shared.
+          </p>
+            <p>
+              <span className="font-semibold text-on-surface">Contact:</span>{" "}
+              For questions about data handling, reach out via the project&rsquo;s{" "}
+              <a 
+                href="https://github.com/JeffreySardella/CalSight" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline decoration-on-surface-variant/30 hover:text-on-surface transition-colors"
+              >
+                GitHub repository
+              </a>.
+            </p>
+        </div>
       </section>
     </main>
   );
