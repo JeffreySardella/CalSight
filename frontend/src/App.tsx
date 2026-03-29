@@ -6,7 +6,6 @@ import AboutPage from "./pages/AboutPage";
 import AskAiPage from "./pages/AskAiPage";
 
 export default function App() {
-  const [filterOpen, setFilterOpen] = useState(false);
 
   return (
     <BrowserRouter>
