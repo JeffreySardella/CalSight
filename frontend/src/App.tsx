@@ -1,45 +1,30 @@
-import { useState } from "react";
-import Header from "./components/Header";
-import FilterSidebar from "./components/FilterSidebar";
-import MapPanel from "./components/MapPanel";
-import ChartsPanel from "./components/ChartsPanel";
-import "./App.css";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import MapPage from "./pages/MapPage";
+import StatsPage from "./pages/StatsPage";
+import AboutPage from "./pages/AboutPage";
+import AskAiPage from "./pages/AskAiPage";
 
 export default function App() {
-  const [filterOpen, setFilterOpen] = useState(false);
 
   return (
-    <>
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
-
-      <Header onMenuToggle={() => setFilterOpen((o) => !o)} />
-
-      <div className="app-body">
-        <FilterSidebar
-          isOpen={filterOpen}
-          onClose={() => setFilterOpen(false)}
-        />
-
-        {filterOpen && (
-          <div
-            className="filter-overlay"
-            onClick={() => setFilterOpen(false)}
-            aria-hidden="true"
-          />
-        )}
-
-        <main id="main-content" className="app-main">
-          <section className="map-section" aria-label="Crash density map">
-            <MapPanel />
-          </section>
-
-          <aside className="charts-aside" aria-label="Statistics and charts">
-            <ChartsPanel />
-          </aside>
-        </main>
-      </div>
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<MapPage />} />
+          <Route path="stats" element={<StatsPage />} />
+          <Route path="about" element={<AboutPage />} />
+          <Route path="ask-ai" element={<AskAiPage />} />
+        </Route>
+      </Routes>
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.03] z-[60]"
+        style={{
+          backgroundImage:
+            "url('https://www.transparenttextures.com/patterns/natural-paper.png')",
+          backgroundRepeat: "repeat",
+        }}
+      />
+    </BrowserRouter>
   );
 }
