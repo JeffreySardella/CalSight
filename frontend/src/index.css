@@ -183,3 +183,62 @@
     scrollbar-width: none;
   }
 }
+
+/* ── Print styles: Stats page ── */
+@media print {
+  /* Hide non-content UI */
+  nav,
+  footer,
+  .mobile-share-fab,
+  button,
+  a,
+  .no-scrollbar {
+    display: none !important;
+  }
+
+  /* Reset page background to white */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Remove shadows and decorative backgrounds from cards */
+  .ambient-shadow {
+    box-shadow: none !important;
+  }
+
+  .bg-surface-container-lowest,
+  .bg-surface-container-low,
+  .bg-surface-container,
+  .bg-surface-container-high {
+    background: white !important;
+    border: 1px solid #ccc !important;
+  }
+
+  /* Make charts print at full width and sensible height */
+  .grid-cols-12 > div {
+    width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* Methodology footer: always visible, no opacity gating */
+  section:last-of-type {
+    opacity: 1 !important;
+    border-top: 1px solid #ccc;
+  }
+
+  /* Black and white friendly — replace color-dependent chart bars */
+  .bg-primary,
+  .bg-primary-container {
+    background: #333 !important;
+  }
+
+  .bg-error {
+    background: #666 !important;
+  }
+
+  /* Ensure text is black */
+  * {
+    color: black !important;
+  }
+}
