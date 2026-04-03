@@ -9,7 +9,7 @@ const tabs = [
 
 export default function BottomTabBar() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-surface-container-lowest shadow-[0_-1px_3px_rgba(0,0,0,0.08)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-surface-container-lowest bottom-tab-shadow">
       <div className="flex items-center justify-around h-20">
         {tabs.map((tab) => (
           <NavLink

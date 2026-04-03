@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "./context/ThemeContext";
 import Layout from "./components/Layout";
 import MapPage from "./pages/MapPage";
 import StatsPage from "./pages/StatsPage";
@@ -8,6 +9,7 @@ import AskAiPage from "./pages/AskAiPage";
 export default function App() {
 
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
@@ -25,7 +27,7 @@ export default function App() {
         </Route>
       </Routes>
       <div
-        className="fixed inset-0 pointer-events-none opacity-[0.03] z-[60]"
+        className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-0 z-[60]"
         style={{
           backgroundImage:
             "url('https://www.transparenttextures.com/patterns/natural-paper.png')",
@@ -33,5 +35,6 @@ export default function App() {
         }}
       />
     </BrowserRouter>
+    </ThemeProvider>
   );
 }

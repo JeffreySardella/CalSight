@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import logo from "../assets/logo.png";
+import SettingsPopover from "./SettingsPopover";
 
 const navLinks = [
   { to: "/", label: "Map" },
@@ -9,6 +11,8 @@ const navLinks = [
 ];
 
 export default function NavBar() {
+  const [showSettings, setShowSettings] = useState(false);
+
   return (
     <header className="bg-surface fixed top-0 z-50 flex w-full items-center justify-between px-6 py-3 h-16">
       <div className="flex items-center gap-8">
@@ -38,11 +42,17 @@ export default function NavBar() {
         </nav>
       </div>
 
-      {/* Desktop: settings gear only */}
-      <div className="hidden md:flex items-center">
-        <button className="p-2 hover:bg-surface-container rounded-md transition-all text-primary">
+      {/* Desktop: settings gear + popover */}
+      <div className="hidden md:flex items-center relative">
+        <button
+          onClick={() => setShowSettings((prev) => !prev)}
+          className="p-2 hover:bg-surface-container rounded-md transition-all text-primary"
+        >
           <span className="material-symbols-outlined">settings</span>
         </button>
+        {showSettings && (
+          <SettingsPopover onClose={() => setShowSettings(false)} />
+        )}
       </div>
     </header>
   );
