@@ -18,6 +18,7 @@ import AiInsightCard from "../components/map/AiInsightCard";
 import SearchPill from "../components/map/SearchPill";
 import Breadcrumb from "../components/map/Breadcrumb";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
+import { Helmet } from "react-helmet-async";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -73,6 +74,17 @@ export default function MapPage() {
 
   return (
     <>
+      <Helmet>
+        <title>CalSight | Map Explorer</title>
+        <meta name="description" content="Explore California crash data on an interactive map by county, cause, and severity." />
+        <meta property="og:title" content="CalSight | Map Explorer" />
+        <meta property="og:description" content="Explore California crash data on an interactive map." />
+        <meta property="og:image" content="/og-image.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="CalSight | Map Explorer" />
+        <meta name="twitter:description" content="Explore California crash data on an interactive map." />
+      </Helmet>
+      
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:flex h-full z-40">
         <IconRail activePanel={activePanel} onPanelToggle={handleToggle} />
