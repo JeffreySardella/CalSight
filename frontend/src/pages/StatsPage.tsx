@@ -86,9 +86,22 @@ function DonutRing({
   );
 }
 
+import { Helmet } from "react-helmet-async";
+
 export default function StatsPage() {
   return (
     <main className="max-w-[1200px] mx-auto px-6 py-8 space-y-8 relative">
+      <Helmet>
+        <title>CalSight | Stats Dashboard</title>
+        <meta name="description" content="Explore California crash statistics by year, cause, time of day, and severity." />
+        <meta property="og:title" content="CalSight | Stats Dashboard" />
+        <meta property="og:description" content="Explore California crash statistics by year, cause, time of day, and severity." />
+        <meta property="og:image" content="/og-image.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="CalSight | Stats Dashboard" />
+        <meta name="twitter:description" content="Explore California crash statistics by year, cause, time of day, and severity." />
+      </Helmet>
+      
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full md:w-auto">
