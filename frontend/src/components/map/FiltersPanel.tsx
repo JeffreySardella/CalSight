@@ -1,115 +1,213 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { YEARS, CA_COUNTIES, CAUSES } from "../../hooks/useFilterParams";
+import SearchableMultiSelect from "../ui/SearchableMultiSelect";
 
-const YEARS = [2020, 2021, 2022, 2023, 2024, 2025] as const;
 const SEVERITIES = ["Fatal", "Severe Injury", "Minor Injury", "Property Damage Only"] as const;
 
-const INITIAL_YEARS = new Set([2020, 2023]);
-const INITIAL_SEVERITIES = new Set(["Fatal"]);
+const DISPLAY_YEAR_COUNT = 6;
+const displayYears = YEARS.slice(-DISPLAY_YEAR_COUNT);
 
-export default function FiltersPanel() {
-  const [selectedYears, setSelectedYears] = useState<Set<number>>(
-    () => new Set(INITIAL_YEARS),
+const countyOptions = [
+  { value: "__all__", label: "All Counties (Statewide)" },
+  ...CA_COUNTIES.map((c) => ({ value: c, label: c })),
+];
+
+interface FiltersPanelProps {
+  selectedYears: Set<number>;
+  selectedSeverities: Set<string>;
+  selectedCounties: Set<string>;
+  selectedCauses: Set<string>;
+  onToggleYear: (year: number) => void;
+  onSetYearRange: (from: number, to: number) => void;
+  onClearYears: () => void;
+  onToggleSeverity: (severity: string) => void;
+  onToggleCounty: (county: string) => void;
+  onClearCounties: () => void;
+  onToggleCause: (cause: string) => void;
+  resetKey?: number;
+}
+
+export default function FiltersPanel({
+  selectedYears,
+  selectedSeverities,
+  selectedCounties,
+  selectedCauses,
+  onToggleYear,
+  onSetYearRange,
+  onClearYears,
+  onToggleSeverity,
+  onToggleCounty,
+  onClearCounties,
+  onToggleCause,
+  resetKey = 0,
+}: FiltersPanelProps) {
+  const [showRange, setShowRange] = useState(false);
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
+
+  const sortedYears = [...selectedYears].sort((a, b) => a - b);
+
+  // Detect if the selected years form a contiguous range (3+ years in a row)
+  const isContiguousRange = sortedYears.length >= 3 && sortedYears.every(
+    (y, i) => i === 0 || y === sortedYears[i - 1] + 1,
   );
-  const [selectedSeverities, setSelectedSeverities] = useState<Set<string>>(
-    () => new Set(INITIAL_SEVERITIES),
-  );
+  const rangeLabel = isContiguousRange
+    ? `${sortedYears[0]}–${sortedYears[sortedYears.length - 1]}`
+    : null;
 
-  useEffect(() => {
-    function handleClear() {
-      setSelectedYears(new Set(INITIAL_YEARS));
-      setSelectedSeverities(new Set(INITIAL_SEVERITIES));
-    }
-    window.addEventListener("filters:clear-all", handleClear);
-    return () => window.removeEventListener("filters:clear-all", handleClear);
-  }, []);
-
-  function toggleYear(year: number) {
-    setSelectedYears((prev) => {
-      const next = new Set(prev);
-      if (next.has(year)) {
-        next.delete(year);
-      } else {
-        next.add(year);
-      }
-      return next;
-    });
-  }
-
-  function toggleSeverity(severity: string) {
-    setSelectedSeverities((prev) => {
-      const next = new Set(prev);
-      if (next.has(severity)) {
-        next.delete(severity);
-      } else {
-        next.add(severity);
-      }
-      return next;
-    });
+  function handleRangeSubmit() {
+    const a = parseInt(rangeFrom, 10);
+    const b = parseInt(rangeTo, 10);
+    if (Number.isNaN(a) || Number.isNaN(b)) return;
+    const from = Math.min(a, b);
+    const to = Math.max(a, b);
+    onSetYearRange(from, to);
+    setShowRange(false);
+    setRangeFrom("");
+    setRangeTo("");
   }
 
   return (
     <div className="space-y-8 pb-32">
-      {/* County Selector */}
+      {/* County */}
       <div className="space-y-2">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           County
         </label>
-        <div className="relative">
-          <select className="w-full bg-surface-container-high border-none focus:border-primary focus:ring-0 text-sm py-3 px-4 rounded-t-sm appearance-none cursor-pointer">
-            <option value="">Select County...</option>
-            <option value="alameda">Alameda</option>
-            <option value="fresno">Fresno</option>
-            <option value="los-angeles">Los Angeles</option>
-            <option value="sacramento">Sacramento</option>
-            <option value="san-diego">San Diego</option>
-            <option value="san-francisco">San Francisco</option>
-          </select>
-          <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant text-lg">
-            expand_more
-          </span>
-        </div>
+        <SearchableMultiSelect
+          options={countyOptions}
+          selected={selectedCounties.size === 0 ? new Set(["__all__"]) : selectedCounties}
+          onToggle={(value) => {
+            if (value === "__all__") {
+              onClearCounties();
+            } else {
+              onToggleCounty(value);
+            }
+          }}
+          placeholder="Search California Counties..."
+          resetKey={resetKey}
+        />
       </div>
 
-      {/* Year Range */}
+      {/* Year */}
       <div className="space-y-3">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Year
         </label>
-        <div className="flex flex-wrap gap-2">
-          {YEARS.map((year) => (
+
+        {showRange ? (
+          /* Range input mode */
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={rangeFrom}
+                onChange={(e) => setRangeFrom(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleRangeSubmit(); }}
+                placeholder="From"
+                autoFocus
+                className="w-20 px-3 py-2.5 rounded-lg text-xs font-semibold bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20 text-center"
+              />
+              <span className="text-on-surface-variant text-xs">–</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={rangeTo}
+                onChange={(e) => setRangeTo(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleRangeSubmit(); }}
+                placeholder="To"
+                className="w-20 px-3 py-2.5 rounded-lg text-xs font-semibold bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20 text-center"
+              />
+              <button
+                type="button"
+                onClick={handleRangeSubmit}
+                className="p-2.5 rounded-lg bg-primary text-on-primary hover:opacity-90 transition-all"
+              >
+                <span className="material-symbols-outlined text-[18px]">check</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowRange(false); setRangeFrom(""); setRangeTo(""); }}
+                className="text-on-surface-variant hover:text-on-surface"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+            <p className="text-[10px] text-on-surface-variant">
+              e.g. 2001 – 2015
+            </p>
+          </div>
+        ) : rangeLabel ? (
+          /* Range pill — click text to edit, click X to clear */
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center bg-primary text-on-primary rounded-full text-xs font-semibold">
+              <button
+                onClick={() => {
+                  setRangeFrom(String(sortedYears[0]));
+                  setRangeTo(String(sortedYears[sortedYears.length - 1]));
+                  setShowRange(true);
+                }}
+                className="pl-3 pr-1 py-1.5 hover:opacity-80 transition-opacity"
+              >
+                {rangeLabel}
+              </button>
+              <button
+                onClick={() => onClearYears()}
+                className="pr-2.5 pl-0.5 py-1.5 hover:opacity-70 transition-opacity"
+              >
+                <span className="material-symbols-outlined text-[14px]">close</span>
+              </button>
+            </span>
+          </div>
+        ) : (
+          /* Quick pick mode — individual year pills */
+          <div className="flex flex-wrap gap-2">
+            {displayYears.map((year) => (
+              <button
+                key={year}
+                onClick={() => onToggleYear(year)}
+                className={
+                  selectedYears.has(year)
+                    ? "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-all"
+                    : "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-all"
+                }
+              >
+                {year}
+              </button>
+            ))}
             <button
-              key={year}
-              onClick={() => toggleYear(year)}
-              className={
-                selectedYears.has(year)
-                  ? "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-all"
-                  : "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-all"
-              }
+              onClick={() => setShowRange(true)}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-all border border-dashed border-outline-variant"
             >
-              {year}
+              Range
             </button>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Cause Type */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Cause Type
         </label>
-        <div className="relative">
-          <select className="w-full bg-surface-container-high border-none focus:border-primary focus:ring-0 text-sm py-3 px-4 rounded-t-sm appearance-none cursor-pointer">
-            <option value="">All Causes</option>
-            <option value="dui">DUI</option>
-            <option value="speeding">Speeding</option>
-            <option value="distracted">Distracted Driving</option>
-            <option value="weather">Weather-Related</option>
-            <option value="lane-change">Unsafe Lane Change</option>
-            <option value="other">Other</option>
-          </select>
-          <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant text-lg">
-            expand_more
-          </span>
+        <div className="flex flex-wrap gap-2">
+          {CAUSES.map((cause) => (
+            <button
+              key={cause.value}
+              onClick={() => onToggleCause(cause.value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                selectedCauses.has(cause.value)
+                  ? "bg-primary text-on-primary"
+                  : "bg-surface-container-high text-on-surface-variant hover:bg-surface-variant"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[14px]">
+                {cause.icon}
+              </span>
+              {cause.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -122,7 +220,7 @@ export default function FiltersPanel() {
           {SEVERITIES.map((severity) => (
             <button
               key={severity}
-              onClick={() => toggleSeverity(severity)}
+              onClick={() => onToggleSeverity(severity)}
               className={
                 selectedSeverities.has(severity)
                   ? "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-all"
@@ -138,24 +236,17 @@ export default function FiltersPanel() {
   );
 }
 
-export function FiltersPanelFooter() {
+interface FiltersPanelFooterProps {
+  onClear?: () => void;
+}
+
+export function FiltersPanelFooter({ onClear }: FiltersPanelFooterProps) {
   return (
-    <div className="flex flex-col gap-4">
-      <button
-        onClick={() => {
-          console.log("Filters cleared");
-          window.dispatchEvent(new CustomEvent("filters:clear-all"));
-        }}
-        className="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors mx-auto underline-offset-4 hover:underline"
-      >
-        Clear All
-      </button>
-      <button
-        onClick={() => console.log("Filters applied")}
-        className="w-full bg-primary text-on-primary py-4 rounded-md text-[11px] font-bold tracking-[0.2em] uppercase hover:opacity-90 shadow-lg shadow-primary/20 transition-all"
-      >
-        Apply Filters
-      </button>
-    </div>
+    <button
+      onClick={() => { if (onClear) onClear(); }}
+      className="w-full text-[11px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors underline-offset-4 hover:underline py-4"
+    >
+      Clear All
+    </button>
   );
 }

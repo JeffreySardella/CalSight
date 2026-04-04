@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useFilterParams } from "../hooks/useFilterParams";
 import IconRail from "../components/map/IconRail";
 import SidePanel from "../components/map/SidePanel";
 import FiltersPanel, {
@@ -7,9 +8,6 @@ import FiltersPanel, {
 import LayersPanel, {
   LayersPanelFooter,
 } from "../components/map/LayersPanel";
-import DemographicsPanel, {
-  DemographicsPanelFooter,
-} from "../components/map/DemographicsPanel";
 import DataExportPanel, {
   DataExportPanelFooter,
 } from "../components/map/DataExportPanel";
@@ -22,14 +20,47 @@ import MobileFilterSheet from "../components/map/MobileFilterSheet";
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
   layers: { title: "Layers", subtitle: "Map Configuration" },
-  demographics: { title: "Demographics", subtitle: "Los Angeles County" },
   export: { title: "Data Export", subtitle: "Export Explorer" },
 };
 
+const VALID_PANELS = new Set(Object.keys(PANEL_META));
+
 export default function MapPage() {
+  const {
+    selectedYears,
+    selectedSeverities,
+    selectedCounties,
+    selectedCauses,
+    toggleYear,
+    setYearRange,
+    clearYears,
+    toggleSeverity,
+    toggleCounty,
+    clearCounties,
+    toggleCause,
+    clearFilters,
+    panel: panelParam,
+    clearPanel,
+  } = useFilterParams();
+
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showInsight, setShowInsight] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+
+  function handleClearAll() {
+    clearFilters();
+    setResetKey((k) => k + 1);
+  }
+
+  // If URL has ?panel=filters, open that panel then clean the param.
+  // replace: true in clearPanel() prevents a back-button loop.
+  useEffect(() => {
+    if (panelParam && VALID_PANELS.has(panelParam)) {
+      setActivePanel(panelParam);
+      clearPanel();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleToggle(panel: string) {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -44,11 +75,24 @@ export default function MapPage() {
   function renderPanelContent() {
     switch (activePanel) {
       case "filters":
-        return <FiltersPanel />;
+        return (
+          <FiltersPanel
+            selectedYears={selectedYears}
+            selectedSeverities={selectedSeverities}
+            selectedCounties={selectedCounties}
+            selectedCauses={selectedCauses}
+            onToggleYear={toggleYear}
+            onSetYearRange={setYearRange}
+            onClearYears={clearYears}
+            onToggleSeverity={toggleSeverity}
+            onToggleCounty={toggleCounty}
+            onClearCounties={clearCounties}
+            onToggleCause={toggleCause}
+            resetKey={resetKey}
+          />
+        );
       case "layers":
         return <LayersPanel />;
-      case "demographics":
-        return <DemographicsPanel />;
       case "export":
         return <DataExportPanel />;
       default:
@@ -59,11 +103,9 @@ export default function MapPage() {
   function renderPanelFooter() {
     switch (activePanel) {
       case "filters":
-        return <FiltersPanelFooter />;
+        return <FiltersPanelFooter onClear={handleClearAll} />;
       case "layers":
         return <LayersPanelFooter />;
-      case "demographics":
-        return <DemographicsPanelFooter />;
       case "export":
         return <DataExportPanelFooter />;
       default:
@@ -117,6 +159,42 @@ export default function MapPage() {
       <MobileFilterSheet
         isOpen={showMobileFilters}
         onClose={() => setShowMobileFilters(false)}
+        onClear={handleClearAll}
+        tabs={[
+          {
+            key: "filters",
+            label: "Filters",
+            icon: "filter_list",
+            content: (
+              <FiltersPanel
+                selectedYears={selectedYears}
+                selectedSeverities={selectedSeverities}
+                selectedCounties={selectedCounties}
+                selectedCauses={selectedCauses}
+                onToggleYear={toggleYear}
+                onSetYearRange={setYearRange}
+                onClearYears={clearYears}
+                onToggleSeverity={toggleSeverity}
+                onToggleCounty={toggleCounty}
+                onClearCounties={clearCounties}
+                onToggleCause={toggleCause}
+                resetKey={resetKey}
+              />
+            ),
+          },
+          {
+            key: "layers",
+            label: "Layers",
+            icon: "layers",
+            content: <LayersPanel />,
+          },
+          {
+            key: "export",
+            label: "Export",
+            icon: "file_download",
+            content: <DataExportPanel />,
+          },
+        ]}
       />
     </>
   );

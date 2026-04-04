@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useState, useRef } from "react";
+import { NavLink, useSearchParams } from "react-router-dom";
 import logo from "../assets/logo.png";
 import SettingsPopover from "./SettingsPopover";
 
@@ -12,6 +12,21 @@ const navLinks = [
 
 export default function NavBar() {
   const [showSettings, setShowSettings] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const [searchParams] = useSearchParams();
+
+  // Preserve filter params (year, severity) when navigating between pages
+  const filterParams = new URLSearchParams();
+  const year = searchParams.get("year");
+  const severity = searchParams.get("severity");
+  const county = searchParams.get("county");
+  const cause = searchParams.get("cause");
+  if (year) filterParams.set("year", year);
+  if (severity) filterParams.set("severity", severity);
+  if (county) filterParams.set("county", county);
+  if (cause) filterParams.set("cause", cause);
+  const qs = filterParams.toString();
+
 
   return (
     <header className="bg-surface fixed top-0 z-50 flex w-full items-center justify-between px-6 py-3 h-16">
@@ -26,7 +41,7 @@ export default function NavBar() {
           {navLinks.map((link) => (
             <NavLink
               key={link.to}
-              to={link.to}
+              to={qs ? `${link.to}?${qs}` : link.to}
               end={link.to === "/"}
               className={({ isActive }) =>
                 `font-headline tracking-tight text-sm font-semibold transition-colors ${
@@ -42,8 +57,8 @@ export default function NavBar() {
         </nav>
       </div>
 
-      {/* Desktop: settings gear + popover */}
-      <div className="hidden md:flex items-center relative">
+      {/* Settings gear + popover */}
+      <div ref={settingsRef} className="flex items-center relative">
         <button
           onClick={() => setShowSettings((prev) => !prev)}
           className="p-2 hover:bg-surface-container rounded-md transition-all text-primary"
@@ -51,7 +66,7 @@ export default function NavBar() {
           <span className="material-symbols-outlined">settings</span>
         </button>
         {showSettings && (
-          <SettingsPopover onClose={() => setShowSettings(false)} />
+          <SettingsPopover onClose={() => setShowSettings(false)} containerRef={settingsRef} />
         )}
       </div>
     </header>

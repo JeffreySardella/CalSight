@@ -11,18 +11,18 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
 
 interface SettingsPopoverProps {
   onClose: () => void;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function SettingsPopover({ onClose }: SettingsPopoverProps) {
+export default function SettingsPopover({ onClose, containerRef }: SettingsPopoverProps) {
   const { theme, setTheme } = useTheme();
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node)
-      ) {
+      const target = e.target as Node;
+      if (popoverRef.current && !popoverRef.current.contains(target) &&
+          (!containerRef?.current || !containerRef.current.contains(target))) {
         onClose();
       }
     }

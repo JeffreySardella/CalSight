@@ -1,6 +1,6 @@
 export default function SearchPill() {
   return (
-    <div className="absolute bottom-20 md:bottom-8 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 z-10 flex items-center gap-1 p-1 bg-surface-container-lowest/90 backdrop-blur-md rounded-full ambient-shadow ghost-border">
+    <div className="absolute bottom-28 md:bottom-8 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 z-10 flex items-center gap-1 p-1 bg-white dark:bg-neutral-800 rounded-full shadow-lg">
       {/* Search button */}
       <button className="flex items-center gap-2 flex-1 md:flex-none px-6 py-3 bg-primary text-on-primary rounded-full transition-all hover:opacity-90">
         <span className="material-symbols-outlined text-lg">search</span>

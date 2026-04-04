@@ -146,6 +146,17 @@
   }
 }
 
+/* Bottom padding that accounts for the tab bar + iPhone safe area */
+.pb-safe-bottom {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+@media (min-width: 768px) {
+  .pb-safe-bottom {
+    padding-bottom: 0 !important;
+  }
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   display: inline-block;
