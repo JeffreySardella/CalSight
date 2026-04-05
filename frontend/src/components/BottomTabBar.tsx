@@ -1,4 +1,5 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useSearchParams } from "react-router-dom";
+import { buildFilterQS } from "../hooks/useFilterParams";
 
 const tabs = [
   { to: "/", icon: "map", label: "Map" },
@@ -8,13 +9,17 @@ const tabs = [
 ] as const;
 
 export default function BottomTabBar() {
+  const [searchParams] = useSearchParams();
+
+  const qs = buildFilterQS(searchParams);
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-surface-container-lowest shadow-[0_-1px_3px_rgba(0,0,0,0.08)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-surface-container-lowest bottom-tab-shadow" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="flex items-center justify-around h-20">
         {tabs.map((tab) => (
           <NavLink
             key={tab.to}
-            to={tab.to}
+            to={qs ? `${tab.to}?${qs}` : tab.to}
             end={tab.to === "/"}
             className={({ isActive }) =>
               `flex flex-col items-center gap-1 transition-colors ${

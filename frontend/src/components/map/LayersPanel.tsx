@@ -14,7 +14,7 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
       }`}
     >
       <div
-        className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${
+        className={`absolute top-0.5 w-3 h-3 bg-surface-container-lowest rounded-full transition-all ${
           enabled ? "right-0.5" : "left-0.5"
         }`}
       />

@@ -1,3 +1,10 @@
+import { useState } from "react";
+import { useFilterParams, YEARS, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
+import MobileFilterSheet from "../components/map/MobileFilterSheet";
+import FiltersPanel from "../components/map/FiltersPanel";
+import LayersPanel from "../components/map/LayersPanel";
+import DataExportPanel from "../components/map/DataExportPanel";
+
 const HOURLY_HEIGHTS = [
   20, 15, 12, 10, 14, 18, 45, 65, 80, 70, 60, 55, 62, 68, 75, 85, 100, 92,
   88, 75, 60, 50, 40, 30,
@@ -86,22 +93,49 @@ function DonutRing({
   );
 }
 
-import { Helmet } from "react-helmet-async";
-
 export default function StatsPage() {
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  const filters = useFilterParams();
+
+  const years = filters.selectedYears;
+  const severities = filters.selectedSeverities;
+  const counties = filters.selectedCounties;
+  const causes = filters.selectedCauses;
+
+  function handleClearAll() {
+    filters.clearFilters();
+    setResetKey((k) => k + 1);
+  }
+
+  // Build typed chips so each one knows how to remove itself.
+  // Collapse "all selected" into a single summary chip.
+  const sortedYears = [...years].sort((a, b) => a - b);
+  type Chip = { label: string; onRemove: () => void };
+
+  const yearChips: Chip[] = years.size === YEARS.length
+    ? [{ label: "All Years", onRemove: () => filters.clearYears() }]
+    : sortedYears.length >= 3 && sortedYears.every((y, i) => i === 0 || y === sortedYears[i - 1] + 1)
+      ? [{ label: `${sortedYears[0]}–${sortedYears[sortedYears.length - 1]}`, onRemove: () => filters.clearYears() }]
+      : sortedYears.map((y) => ({ label: String(y), onRemove: () => filters.toggleYear(y) }));
+
+  const severityChips: Chip[] = severities.size === SEVERITIES.length
+    ? [{ label: "All Severities", onRemove: () => filters.clearSeverities() }]
+    : [...severities].map((s) => ({ label: s, onRemove: () => filters.toggleSeverity(s) }));
+
+  const causeChips: Chip[] = causes.size === CAUSE_OPTIONS.length
+    ? [{ label: "All Causes", onRemove: () => filters.clearCauses() }]
+    : [...causes].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCause(c) }));
+
+  const chips: Chip[] = [
+    ...[...counties].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCounty(c) })),
+    ...yearChips,
+    ...causeChips,
+    ...severityChips,
+  ];
+
   return (
-    <main className="max-w-[1200px] mx-auto px-6 py-8 space-y-8 relative">
-      <Helmet>
-        <title>CalSight | Stats Dashboard</title>
-        <meta name="description" content="Explore California crash statistics by year, cause, time of day, and severity." />
-        <meta property="og:title" content="CalSight | Stats Dashboard" />
-        <meta property="og:description" content="Explore California crash statistics by year, cause, time of day, and severity." />
-        <meta property="og:image" content="/og-image.png" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="CalSight | Stats Dashboard" />
-        <meta name="twitter:description" content="Explore California crash statistics by year, cause, time of day, and severity." />
-      </Helmet>
-      
+    <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full md:w-auto">
@@ -109,30 +143,32 @@ export default function StatsPage() {
             Filters:
           </span>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {["Los Angeles County", "2023", "Fatal"].map((chip) => (
+            {chips.map((chip) => (
               <span
-                key={chip}
+                key={chip.label}
                 className="inline-flex items-center gap-1 bg-surface-container-highest px-3 py-1 rounded-full text-xs font-medium text-on-surface whitespace-nowrap"
               >
-                {chip}
-                <span className="material-symbols-outlined text-[16px] cursor-pointer">
-                  close
-                </span>
+                {chip.label}
+                <button onClick={chip.onRemove} className="hover:text-error transition-colors">
+                  <span className="material-symbols-outlined text-[16px]">
+                    close
+                  </span>
+                </button>
               </span>
             ))}
           </div>
         </div>
-        <a
+        <button
+          onClick={() => setShowMobileFilters(true)}
           className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline flex-shrink-0"
-          href="#"
         >
           Edit Filters
           <span className="material-symbols-outlined text-[16px]">tune</span>
-        </a>
+        </button>
       </section>
 
       {/* Hero Metrics Row */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Total Incidents */}
         <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
           <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
@@ -198,9 +234,9 @@ export default function StatsPage() {
       </section>
 
       {/* Bento Chart Grid */}
-      <section className="grid grid-cols-12 gap-6">
+      <section className="grid grid-cols-12 gap-4 md:gap-6">
         {/* Crash Density by Hour */}
-        <div className="col-span-12 md:col-span-8 bg-surface-container-lowest rounded-lg p-8 ambient-shadow">
+        <div className="col-span-12 md:col-span-8 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
           <div className="flex justify-between items-start mb-10">
             <div>
               <h3 className="text-on-surface font-headline font-bold text-lg leading-tight">
@@ -249,7 +285,7 @@ export default function StatsPage() {
         </div>
 
         {/* Primary Cause */}
-        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-8 ambient-shadow">
+        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
           <h3 className="text-on-surface font-headline font-bold text-lg mb-8 leading-tight">
             Primary Cause
           </h3>
@@ -275,7 +311,7 @@ export default function StatsPage() {
         </div>
 
         {/* Incidents by Year */}
-        <div className="col-span-12 bg-surface-container-lowest rounded-lg p-8 ambient-shadow">
+        <div className="col-span-12 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
             <div>
               <h3 className="text-on-surface font-headline font-bold text-xl leading-tight">
@@ -300,7 +336,7 @@ export default function StatsPage() {
               </button>
             </div>
           </div>
-          <div className="h-64 flex items-end justify-between gap-4 px-4 pb-2">
+          <div className="h-48 md:h-64 flex items-end justify-between gap-2 md:gap-4 px-2 md:px-4 pb-2">
             {YEARLY_DATA.map(({ year, height, isPeak }) => (
               <div
                 key={year}
@@ -333,7 +369,7 @@ export default function StatsPage() {
       </section>
 
       {/* Mobile share FAB */}
-      <button className="fixed bottom-24 right-6 z-40 md:hidden w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity">
+      <button className="fixed bottom-28 right-4 z-40 md:hidden w-12 h-12 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity">
         <span
           className="material-symbols-outlined text-[24px]"
           style={{ fontVariationSettings: "'FILL' 1" }}
@@ -372,6 +408,56 @@ export default function StatsPage() {
           </div>
         </div>
       </section>
+
+      {/* Mobile filter sheet overlay */}
+      <MobileFilterSheet
+        isOpen={showMobileFilters}
+        onClose={() => setShowMobileFilters(false)}
+        onClear={handleClearAll}
+        tabs={[
+          {
+            key: "filters",
+            label: "Filters",
+            icon: "filter_list",
+            content: (
+              <FiltersPanel
+                selectedYears={filters.selectedYears}
+                selectedSeverities={filters.selectedSeverities}
+                selectedCounties={filters.selectedCounties}
+                selectedCauses={filters.selectedCauses}
+                onToggleYear={filters.toggleYear}
+                onSetYearRange={filters.setYearRange}
+                onClearYears={filters.clearYears}
+                onSetYears={filters.setYears}
+                onSetAllYears={filters.setAllYears}
+                onToggleSeverity={filters.toggleSeverity}
+                onSetSeverities={filters.setSeverities}
+                onSetAllSeverities={filters.setAllSeverities}
+                onClearSeverities={filters.clearSeverities}
+                onToggleCounty={filters.toggleCounty}
+                onClearCounties={filters.clearCounties}
+                onToggleCause={filters.toggleCause}
+                onSetCauses={filters.setCauses}
+                onSetAllCauses={filters.setAllCauses}
+                onClearCauses={filters.clearCauses}
+                resetKey={resetKey}
+              />
+            ),
+          },
+          {
+            key: "layers",
+            label: "Layers",
+            icon: "layers",
+            content: <LayersPanel />,
+          },
+          {
+            key: "export",
+            label: "Export",
+            icon: "file_download",
+            content: <DataExportPanel />,
+          },
+        ]}
+      />
     </main>
   );
 }

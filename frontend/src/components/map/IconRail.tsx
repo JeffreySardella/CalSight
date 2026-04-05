@@ -6,7 +6,6 @@ interface IconRailProps {
 const icons = [
   { panel: "filters", icon: "filter_list", label: "Filters" },
   { panel: "layers", icon: "layers", label: "Layers" },
-  { panel: "demographics", icon: "groups", label: "Demographics" },
   { panel: "export", icon: "file_download", label: "Data Export" },
 ] as const;
 

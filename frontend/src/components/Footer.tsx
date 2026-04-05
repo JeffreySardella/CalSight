@@ -1,3 +1,12 @@
+import { Link } from "react-router-dom";
+
+const footerLinks = [
+  { label: "Data Sources", to: "/about#data-sources" },
+  { label: "Methodology", to: "/about#mission" },
+  { label: "Project Info", to: "/about" },
+  { label: "Privacy Policy", to: "/about#privacy" },
+];
+
 export default function Footer() {
   return (
     <footer className="bg-surface-container pb-24 md:pb-12 pt-12 flex flex-col md:flex-row justify-between items-center px-8 w-full">
@@ -10,17 +19,15 @@ export default function Footer() {
         </p>
       </div>
       <div className="flex flex-wrap justify-center md:justify-start gap-4 md:gap-8 font-body text-xs uppercase tracking-widest">
-        {["Data Sources", "Methodology", "Project Info", "Privacy Policy"].map(
-          (label) => (
-            <a
-              key={label}
-              href="#"
-              className="text-on-surface-variant hover:underline decoration-outline-variant opacity-80 hover:opacity-100 transition-opacity"
-            >
-              {label}
-            </a>
-          )
-        )}
+        {footerLinks.map((link) => (
+          <Link
+            key={link.label}
+            to={link.to}
+            className="text-on-surface-variant hover:underline decoration-outline-variant opacity-80 hover:opacity-100 transition-opacity"
+          >
+            {link.label}
+          </Link>
+        ))}
       </div>
     </footer>
   );
