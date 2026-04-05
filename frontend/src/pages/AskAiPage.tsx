@@ -34,22 +34,11 @@ const communityInquiries = [
 ] as const;
 
 import { useState } from "react";
-import { Helmet } from "react-helmet-async";
 
 export default function AskAiPage() {
   const [inputValue, setInputValue] = useState("");
   return (
     <div className="max-w-[840px] mx-auto px-6 pt-32 pb-24 min-h-screen">
-      <Helmet>
-        <title>CalSight | Ask AI</title>
-        <meta name="description" content="Ask natural language questions about California crash data and get AI-powered insights." />
-        <meta property="og:title" content="CalSight | Ask AI" />
-        <meta property="og:description" content="Ask natural language questions about California crash data and get AI-powered insights." />
-        <meta property="og:image" content="/og-image.png" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="CalSight | Ask AI" />
-        <meta name="twitter:description" content="Ask natural language questions about California crash data and get AI-powered insights." />
-      </Helmet>
       
       {/* Header */}
       <section className="mb-12 text-center md:text-left">

@@ -1,29 +1,6 @@
-import { Helmet } from "react-helmet-async";
-
 export default function AboutPage() {
   return (
     <main className="max-w-[900px] mx-auto px-6 md:px-0">
-      <Helmet>
-        <title>CalSight | About</title>
-        <meta name="description" content="CalSight is an open source civic tech tool making California crash data explorable for residents, journalists, and policymakers." />
-        <meta property="og:title" content="CalSight | About" />
-        <meta property="og:description" content="CalSight is an open source civic tech tool making California crash data explorable for residents, journalists, and policymakers." />
-        <meta property="og:image" content="/og-image.png" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="CalSight | About" />
-        <meta name="twitter:description" content="CalSight is an open source civic tech tool making California crash data explorable for residents, journalists, and policymakers." />
-        <script type="application/ld+json">{JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "CalSight",
-          "url": "https://calsight.io",
-          "description": "California Crash Data Explorer — open source civic tech tool.",
-          "creator": {
-            "@type": "Organization",
-            "name": "CalSight"
-          }
-        })}</script>
-      </Helmet>
 
       {/* Hero Section */}
       <section className="py-24 md:py-32 flex flex-col items-center text-center">
