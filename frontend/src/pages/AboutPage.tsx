@@ -84,9 +84,19 @@ export default function AboutPage() {
                 California Crash Reporting System
               </p>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
-              Primary Record Set
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
+                Primary Record Set
+              </p>
+              <a
+                href="https://data.ca.gov/dataset/ccrs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between h-48">
@@ -98,9 +108,19 @@ export default function AboutPage() {
                 Statewide Integrated Traffic Records
               </p>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
-              Historical Metadata
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
+                Historical Metadata
+              </p>
+              <a
+                href="https://www.chp.ca.gov/programs-services/services-information/switrs-statewide-integrated-traffic-records-system"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between h-48">
@@ -112,9 +132,19 @@ export default function AboutPage() {
                 Demographic &amp; Economic Context
               </p>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
-              Socio-economic Overlay
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
+                Socio-economic Overlay
+              </p>
+              <a
+                href="https://data.census.gov/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between h-48">
@@ -126,9 +156,19 @@ export default function AboutPage() {
                 California Highway Patrol Enforcement
               </p>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
-              Operational Data
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
+                Operational Data
+              </p>
+              <a
+                href="https://www.chp.ca.gov/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
         </div>
       </section>
