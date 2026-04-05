@@ -41,7 +41,7 @@ export const CAUSES = [
   { value: "other", label: "Other", icon: "more_horiz" },
 ] as const;
 
-const CAUSE_VALUES = new Set(CAUSES.map((c) => c.value));
+const CAUSE_VALUES: Set<string> = new Set(CAUSES.map((c) => c.value));
 
 const DEFAULT_YEARS = new Set([2020, 2023]);
 const DEFAULT_SEVERITIES = new Set<string>(["Fatal"]);
