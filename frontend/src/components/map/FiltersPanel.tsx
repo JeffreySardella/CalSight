@@ -1,223 +1,300 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState } from "react";
+import { YEARS, CA_COUNTIES, CAUSES, SEVERITIES } from "../../hooks/useFilterParams";
+import SearchableMultiSelect from "../ui/SearchableMultiSelect";
 
-const YEARS = [2020, 2021, 2022, 2023, 2024, 2025] as const;
-const SEVERITIES = ["Fatal", "Severe Injury", "Minor Injury", "Property Damage Only"] as const;
+const DISPLAY_YEAR_COUNT = 6;
+const displayYears = YEARS.slice(-DISPLAY_YEAR_COUNT);
 
-const INITIAL_YEARS = new Set([2020, 2023]);
-const INITIAL_SEVERITIES = new Set(["Fatal"]);
+const PILL_ACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-all";
+const PILL_INACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-all";
 
-const COUNTIES = [
-  "Alameda","Alpine","Amador","Butte","Calaveras","Colusa","Contra Costa",
-  "Del Norte","El Dorado","Fresno","Glenn","Humboldt","Imperial","Inyo",
-  "Kern","Kings","Lake","Lassen","Los Angeles","Madera","Marin","Mariposa",
-  "Mendocino","Merced","Modoc","Mono","Monterey","Napa","Nevada","Orange",
-  "Placer","Plumas","Riverside","Sacramento","San Benito","San Bernardino",
-  "San Diego","San Francisco","San Joaquin","San Luis Obispo","San Mateo",
-  "Santa Barbara","Santa Clara","Santa Cruz","Shasta","Sierra","Siskiyou",
-  "Solano","Sonoma","Stanislaus","Sutter","Tehama","Trinity","Tulare",
-  "Tuolumne","Ventura","Yolo","Yuba"
-] as const;
+const countyOptions = [
+  { value: "__all__", label: "All Counties (Statewide)" },
+  ...CA_COUNTIES.map((c) => ({ value: c, label: c })),
+];
 
-export default function FiltersPanel() {
-  const [selectedYears, setSelectedYears] = useState<Set<number>>(
-    () => new Set(INITIAL_YEARS),
-  );
-  const [selectedSeverities, setSelectedSeverities] = useState<Set<string>>(
-    () => new Set(INITIAL_SEVERITIES),
-  );
-  const [selectedCounty, setSelectedCounty] = useState("");
-  const [countyQuery, setCountyQuery] = useState("");
-  const [isCountyOpen, setIsCountyOpen] = useState(false);
+interface FiltersPanelProps {
+  selectedYears: Set<number>;
+  selectedSeverities: Set<string>;
+  selectedCounties: Set<string>;
+  selectedCauses: Set<string>;
+  onToggleYear: (year: number) => void;
+  onSetYearRange: (from: number, to: number) => void;
+  onSetYears?: (years: Set<number>) => void;
+  onClearYears: () => void;
+  onSetAllYears?: () => void;
+  onToggleSeverity: (severity: string) => void;
+  onSetSeverities?: (severities: Set<string>) => void;
+  onSetAllSeverities?: () => void;
+  onClearSeverities?: () => void;
+  onToggleCounty: (county: string) => void;
+  onClearCounties: () => void;
+  onToggleCause: (cause: string) => void;
+  onSetCauses?: (causes: Set<string>) => void;
+  onSetAllCauses?: () => void;
+  onClearCauses?: () => void;
+  resetKey?: number;
+}
 
-  const countyRef = useRef<HTMLDivElement | null>(null);
+export default function FiltersPanel({
+  selectedYears,
+  selectedSeverities,
+  selectedCounties,
+  selectedCauses,
+  onToggleYear,
+  onSetYearRange,
+  onSetYears,
+  onClearYears,
+  onSetAllYears,
+  onToggleSeverity,
+  onSetSeverities,
+  onSetAllSeverities,
+  onClearSeverities,
+  onToggleCounty,
+  onClearCounties,
+  onToggleCause,
+  onSetCauses,
+  onSetAllCauses,
+  onClearCauses,
+  resetKey = 0,
+}: FiltersPanelProps) {
+  // "range" = from–to input, "custom" = single year input, null = default pill view
+  const [inputMode, setInputMode] = useState<"range" | "custom" | null>(null);
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
+  const [customInput, setCustomInput] = useState("");
 
-  useEffect(() => {
-    function handleClear() {
-      setSelectedYears(new Set(INITIAL_YEARS));
-      setSelectedSeverities(new Set(INITIAL_SEVERITIES));
-      setSelectedCounty("");
-      setCountyQuery("");
-      setIsCountyOpen(false);
-    }
-    window.addEventListener("filters:clear-all", handleClear);
-    return () => window.removeEventListener("filters:clear-all", handleClear);
-  }, []);
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        countyRef.current &&
-        !countyRef.current.contains(event.target as Node)
-      ) {
-        setIsCountyOpen(false);
-      }
-    }
+  // Stash previous selections so "All" toggle can restore them
+  const [prevYears, setPrevYears] = useState<Set<number> | null>(null);
+  const [prevCauses, setPrevCauses] = useState<Set<string> | null>(null);
+  const [prevSeverities, setPrevSeverities] = useState<Set<string> | null>(null);
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const allYearsSelected = selectedYears.size === YEARS.length;
+  const allCausesSelected = selectedCauses.size === CAUSES.length;
+  const allSeveritiesSelected = selectedSeverities.size === SEVERITIES.length;
 
-  const filteredCounties = useMemo(() => {
-    const query = countyQuery.trim().toLowerCase();
-    if (!query) return COUNTIES;
-
-    return COUNTIES.filter((county) =>
-      county.toLowerCase().includes(query)
-    );
-  }, [countyQuery]);
-
-  function toggleYear(year: number) {
-    setSelectedYears((prev) => {
-      const next = new Set(prev);
-
-      if (next.has(year)) {
-        next.delete(year);
+  function makeAllToggle<T>(
+    allSelected: boolean,
+    current: Set<T>,
+    prev: Set<T> | null,
+    setPrev: (s: Set<T> | null) => void,
+    setAll: (() => void) | undefined,
+    clear: (() => void) | undefined,
+    restore: ((s: Set<T>) => void) | undefined,
+  ) {
+    return () => {
+      if (allSelected) {
+        if (prev && prev.size > 0 && restore) {
+          restore(prev);
+        } else if (clear) {
+          clear();
+        }
+        setPrev(null);
       } else {
-        next.add(year);
+        setPrev(new Set(current));
+        setAll?.();
       }
-
-      return next;
-    });
+    };
   }
 
-  function toggleSeverity(severity: string) {
-    setSelectedSeverities((prev) => {
-      const next = new Set(prev);
+  const sortedYears = [...selectedYears].sort((a, b) => a - b);
+  const displaySet = new Set(displayYears);
+  const customYears = sortedYears.filter((y) => !displaySet.has(y));
 
-      if (next.has(severity)) {
-        next.delete(severity);
-      } else {
-        next.add(severity);
-      }
-
-      return next;
-    });
+  function handleRangeSubmit() {
+    const a = parseInt(rangeFrom, 10);
+    const b = parseInt(rangeTo, 10);
+    if (Number.isNaN(a) || Number.isNaN(b)) return;
+    onSetYearRange(Math.min(a, b), Math.max(a, b));
+    setInputMode(null);
+    setRangeFrom("");
+    setRangeTo("");
   }
 
-  function selectCounty(county: string) {
-    setSelectedCounty(county);
-    setCountyQuery(county);
-    setIsCountyOpen(false);
+  function handleCustomSubmit() {
+    const y = parseInt(customInput, 10);
+    if (Number.isNaN(y) || !YEARS.includes(y)) return;
+    if (!selectedYears.has(y)) onToggleYear(y);
+    setCustomInput("");
   }
 
   return (
     <div className="space-y-8 pb-32">
-
       {/* County */}
       <div className="space-y-2">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           County
         </label>
-
-        <div className="relative" ref={countyRef}>
-          <input
-            type="text"
-            value={countyQuery}
-            onChange={(e) => {
-              setCountyQuery(e.target.value);
-              setSelectedCounty("");
-              setIsCountyOpen(true);
-            }}
-            onFocus={() => setIsCountyOpen(true)}
-            placeholder="Search county..."
-            className="w-full bg-surface-container-high border-none focus:border-primary focus:ring-0 text-sm py-3 px-4 pr-20 rounded-t-sm appearance-none"
-          />
-
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-
-            {countyQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setCountyQuery("");
-                  setSelectedCounty("");
-                  setIsCountyOpen(false);
-                }}
-                className="text-on-surface-variant hover:text-on-surface transition-colors translate-y-0.5"
-              >
-                <span className="material-symbols-outlined text-[18px]">
-                  close
-                </span>
-              </button>
-            )}
-
-            <span className="material-symbols-outlined text-on-surface-variant text-[18px] pointer-events-none">
-              expand_more
-            </span>
-
-          </div>
-
-          {isCountyOpen && (
-            <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-md bg-surface-container-high shadow-lg">
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedCounty("");
-                  setCountyQuery("");
-                  setIsCountyOpen(false);
-                }}
-                className="w-full px-4 py-3 text-left text-sm hover:bg-surface-variant"
-              >
-                All Counties
-              </button>
-
-              {filteredCounties.map((county) => (
-                <button
-                  key={county}
-                  type="button"
-                  onClick={() => selectCounty(county)}
-                  className={
-                    selectedCounty === county
-                      ? "w-full px-4 py-3 text-left text-sm bg-surface-variant"
-                      : "w-full px-4 py-3 text-left text-sm hover:bg-surface-variant"
-                  }
-                >
-                  {county}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <SearchableMultiSelect
+          options={countyOptions}
+          selected={selectedCounties.size === 0 ? new Set(["__all__"]) : selectedCounties}
+          onToggle={(value) => {
+            if (value === "__all__") {
+              onClearCounties();
+            } else {
+              onToggleCounty(value);
+            }
+          }}
+          placeholder="Search California Counties..."
+          resetKey={resetKey}
+        />
       </div>
 
-      {/* Year Range */}
+      {/* Year */}
       <div className="space-y-3">
         <label className="text-[10px] font-bold uppercase tracking-widest">
           Year
         </label>
+
+        {/* Quick pick pills — always visible unless All is active */}
         <div className="flex flex-wrap gap-2">
-          {YEARS.map((year) => (
+          {onSetAllYears && (
             <button
-              key={year}
-              onClick={() => toggleYear(year)}
-              className={
-                selectedYears.has(year)
-                  ? "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary"
-                  : "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high"
-              }
+              onClick={makeAllToggle(allYearsSelected, selectedYears, prevYears, setPrevYears, onSetAllYears, onClearYears, onSetYears)}
+              className={allYearsSelected ? PILL_ACTIVE : PILL_INACTIVE}
             >
-              {year}
+              All
             </button>
-          ))}
+          )}
+          {!allYearsSelected && (
+            <>
+              {displayYears.map((year) => (
+                <button
+                  key={year}
+                  onClick={() => onToggleYear(year)}
+                  className={
+                    selectedYears.has(year)
+                      ? PILL_ACTIVE
+                      : PILL_INACTIVE
+                  }
+                >
+                  {year}
+                </button>
+              ))}
+            </>
+          )}
         </div>
+
+        {/* Custom year pills — removable */}
+        {!allYearsSelected && customYears.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {customYears.map((y) => (
+              <span
+                key={y}
+                className="inline-flex items-center bg-tertiary-container text-on-tertiary-container rounded-full text-xs font-semibold"
+              >
+                <span className="pl-2.5 pr-1 py-1">{y}</span>
+                <button
+                  onClick={() => onToggleYear(y)}
+                  className="pr-2 pl-0.5 py-1 hover:opacity-70 transition-opacity"
+                >
+                  <span className="material-symbols-outlined text-[12px]">close</span>
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Range / Custom input modes */}
+        {!allYearsSelected && (
+          <>
+            {inputMode === "range" ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={rangeFrom}
+                    onChange={(e) => setRangeFrom(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleRangeSubmit(); }}
+                    placeholder="From"
+                    autoFocus
+                    className="w-20 px-3 py-2.5 rounded-lg text-xs font-semibold bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20 text-center"
+                  />
+                  <span className="text-on-surface-variant text-xs">–</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={rangeTo}
+                    onChange={(e) => setRangeTo(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleRangeSubmit(); }}
+                    placeholder="To"
+                    className="w-20 px-3 py-2.5 rounded-lg text-xs font-semibold bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20 text-center"
+                  />
+                  <button type="button" onClick={handleRangeSubmit} className="p-2.5 rounded-lg bg-primary text-on-primary hover:opacity-90 transition-all">
+                    <span className="material-symbols-outlined text-[18px]">check</span>
+                  </button>
+                  <button type="button" onClick={() => { setInputMode(null); setRangeFrom(""); setRangeTo(""); }} className="text-on-surface-variant hover:text-on-surface">
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-on-surface-variant">e.g. 2001 – 2015</p>
+              </div>
+            ) : inputMode === "custom" ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCustomSubmit(); }}
+                  placeholder="Year"
+                  autoFocus
+                  className="w-20 px-3 py-2.5 rounded-lg text-xs font-semibold bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20 text-center"
+                />
+                <button type="button" onClick={handleCustomSubmit} className="p-2.5 rounded-lg bg-primary text-on-primary hover:opacity-90 transition-all">
+                  <span className="material-symbols-outlined text-[18px]">add</span>
+                </button>
+                <button type="button" onClick={() => { setInputMode(null); setCustomInput(""); }} className="text-on-surface-variant hover:text-on-surface">
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setInputMode("range")}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-all border border-dashed border-outline-variant"
+                >
+                  Range
+                </button>
+                <button
+                  onClick={() => setInputMode("custom")}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-all border border-dashed border-outline-variant"
+                >
+                  Custom
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Cause Type */}
-      <div className="space-y-2">
-        <label className="text-[10px] font-bold uppercase tracking-widest">
+      <div className="space-y-3">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Cause Type
         </label>
-        <div className="relative">
-          <select className="w-full bg-surface-container-high text-sm py-3 px-4 rounded-t-sm">
-            <option value="">All Causes</option>
-            <option value="dui">DUI</option>
-            <option value="speeding">Speeding</option>
-            <option value="distracted">Distracted Driving</option>
-            <option value="weather">Weather</option>
-            <option value="lane-change">Lane Change</option>
-            <option value="other">Other</option>
-          </select>
+        <div className="flex flex-wrap gap-2">
+          {onSetAllCauses && onClearCauses && (
+            <button
+              onClick={makeAllToggle(allCausesSelected, selectedCauses, prevCauses, setPrevCauses, onSetAllCauses, onClearCauses, onSetCauses)}
+              className={allCausesSelected ? PILL_ACTIVE : PILL_INACTIVE}
+            >
+              All
+            </button>
+          )}
+          {!allCausesSelected && CAUSES.map((cause) => (
+            <button
+              key={cause.value}
+              onClick={() => onToggleCause(cause.value)}
+              className={`flex items-center gap-1.5 ${selectedCauses.has(cause.value) ? PILL_ACTIVE : PILL_INACTIVE}`}
+            >
+              <span className="material-symbols-outlined text-[14px]">
+                {cause.icon}
+              </span>
+              {cause.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -227,14 +304,26 @@ export default function FiltersPanel() {
           Severity
         </label>
         <div className="flex flex-wrap gap-2">
-          {SEVERITIES.map((severity) => (
+          {onSetAllSeverities && onClearSeverities && (
+            <button
+              onClick={makeAllToggle(allSeveritiesSelected, selectedSeverities, prevSeverities, setPrevSeverities, onSetAllSeverities, onClearSeverities, onSetSeverities)}
+              className={
+                allSeveritiesSelected
+                  ? PILL_ACTIVE
+                  : PILL_INACTIVE
+              }
+            >
+              All
+            </button>
+          )}
+          {!allSeveritiesSelected && SEVERITIES.map((severity) => (
             <button
               key={severity}
-              onClick={() => toggleSeverity(severity)}
+              onClick={() => onToggleSeverity(severity)}
               className={
                 selectedSeverities.has(severity)
-                  ? "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary"
-                  : "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high"
+                  ? PILL_ACTIVE
+                  : PILL_INACTIVE
               }
             >
               {severity}
@@ -246,24 +335,17 @@ export default function FiltersPanel() {
   );
 }
 
-export function FiltersPanelFooter() {
+interface FiltersPanelFooterProps {
+  onClear?: () => void;
+}
+
+export function FiltersPanelFooter({ onClear }: FiltersPanelFooterProps) {
   return (
-    <div className="flex flex-col gap-4">
-      <button
-        onClick={() => {
-          console.log("Filters cleared");
-          window.dispatchEvent(new CustomEvent("filters:clear-all"));
-        }}
-        className="text-[11px] font-bold uppercase tracking-widest"
-      >
-        Clear All
-      </button>
-      <button 
-        onClick={() => console.log("Filters applied")}
-        className="w-full bg-primary text-on-primary py-4 rounded-md text-[11px] font-bold uppercase"
-      >
-        Apply Filters
-      </button>
-    </div>
+    <button
+      onClick={() => { if (onClear) onClear(); }}
+      className="w-full text-[11px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors underline-offset-4 hover:underline py-4"
+    >
+      Clear All
+    </button>
   );
 }
