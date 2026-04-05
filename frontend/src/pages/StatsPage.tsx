@@ -93,6 +93,8 @@ function DonutRing({
   );
 }
 
+import { Helmet } from "react-helmet-async";
+
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);

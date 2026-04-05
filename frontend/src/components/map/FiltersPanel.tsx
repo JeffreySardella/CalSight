@@ -118,6 +118,12 @@ export default function FiltersPanel({
     setCustomInput("");
   }
 
+  function selectCounty(county: string) {
+    setSelectedCounty(county);
+    setCountyQuery(county);
+    setIsCountyOpen(false);
+  }
+
   return (
     <div className="space-y-8 pb-32">
       {/* County */}
@@ -142,7 +148,7 @@ export default function FiltersPanel({
 
       {/* Year */}
       <div className="space-y-3">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <label className="text-[10px] font-bold uppercase tracking-widest">
           Year
         </label>
 
@@ -300,7 +306,7 @@ export default function FiltersPanel({
 
       {/* Severity */}
       <div className="space-y-3">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <label className="text-[10px] font-bold uppercase tracking-widest">
           Severity
         </label>
         <div className="flex flex-wrap gap-2">

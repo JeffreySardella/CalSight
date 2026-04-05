@@ -1,6 +1,30 @@
+import { Helmet } from "react-helmet-async";
+
 export default function AboutPage() {
   return (
     <main className="max-w-[900px] mx-auto px-6 md:px-0">
+      <Helmet>
+        <title>CalSight | About</title>
+        <meta name="description" content="CalSight is an open source civic tech tool making California crash data explorable for residents, journalists, and policymakers." />
+        <meta property="og:title" content="CalSight | About" />
+        <meta property="og:description" content="CalSight is an open source civic tech tool making California crash data explorable for residents, journalists, and policymakers." />
+        <meta property="og:image" content="/og-image.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="CalSight | About" />
+        <meta name="twitter:description" content="CalSight is an open source civic tech tool making California crash data explorable for residents, journalists, and policymakers." />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "CalSight",
+          "url": "https://calsight.io",
+          "description": "California Crash Data Explorer — open source civic tech tool.",
+          "creator": {
+            "@type": "Organization",
+            "name": "CalSight"
+          }
+        })}</script>
+      </Helmet>
+
       {/* Hero Section */}
       <section className="py-24 md:py-32 flex flex-col items-center text-center">
         <h1 className="font-headline text-4xl md:text-7xl font-bold tracking-tighter text-on-surface mb-8">
@@ -60,9 +84,19 @@ export default function AboutPage() {
                 California Crash Reporting System
               </p>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
-              Primary Record Set
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
+                Primary Record Set
+              </p>
+              <a
+                href="https://data.ca.gov/dataset/ccrs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between h-48">
@@ -74,9 +108,19 @@ export default function AboutPage() {
                 Statewide Integrated Traffic Records
               </p>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
-              Historical Metadata
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
+                Historical Metadata
+              </p>
+              <a
+                href="https://www.chp.ca.gov/programs-services/services-information/switrs-statewide-integrated-traffic-records-system"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between h-48">
@@ -88,9 +132,19 @@ export default function AboutPage() {
                 Demographic &amp; Economic Context
               </p>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
-              Socio-economic Overlay
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
+                Socio-economic Overlay
+              </p>
+              <a
+                href="https://data.census.gov/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between h-48">
@@ -102,9 +156,19 @@ export default function AboutPage() {
                 California Highway Patrol Enforcement
               </p>
             </div>
-            <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
-              Operational Data
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">
+                Operational Data
+              </p>
+              <a
+                href="https://www.chp.ca.gov/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Learn More
+              </a>
+            </div>
           </div>
         </div>
       </section>
