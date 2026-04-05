@@ -118,12 +118,6 @@ export default function FiltersPanel({
     setCustomInput("");
   }
 
-  function selectCounty(county: string) {
-    setSelectedCounty(county);
-    setCountyQuery(county);
-    setIsCountyOpen(false);
-  }
-
   return (
     <div className="space-y-8 pb-32">
       {/* County */}
