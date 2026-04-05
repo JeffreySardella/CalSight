@@ -11,7 +11,7 @@ export const YEARS: number[] = Array.from(
   (_, i) => START_YEAR + i,
 );
 
-const SEVERITIES = [
+export const SEVERITIES = [
   "Fatal",
   "Severe Injury",
   "Minor Injury",
@@ -47,7 +47,6 @@ const DEFAULT_YEARS = new Set([2020, 2023]);
 const DEFAULT_SEVERITIES = new Set<string>(["Fatal"]);
 
 // ── Slug utilities ──
-// URLs look nicer with "severe-injury" than "Severe%20Injury"
 
 export function slugify(value: string): string {
   return value.toLowerCase().replace(/ /g, "-");
@@ -122,6 +121,19 @@ export function parseCauses(param: string | null): Set<string> {
   return new Set(parsed);
 }
 
+// ── Shared utilities ──
+
+const FILTER_KEYS = ["year", "severity", "county", "cause"] as const;
+
+export function buildFilterQS(searchParams: URLSearchParams): string {
+  const params = new URLSearchParams();
+  for (const key of FILTER_KEYS) {
+    const val = searchParams.get(key);
+    if (val != null) params.set(key, val);
+  }
+  return params.toString();
+}
+
 // ── The hook ──
 // MapPage calls this. It reads the URL, returns clean state,
 // and provides functions that update both state AND the URL at once.
@@ -161,15 +173,23 @@ export function useFilterParams() {
   }
 
   function setYearRange(from: number, to: number) {
-    const next = new Set<number>();
+    const next = new Set(selectedYears);
     for (let y = from; y <= to; y++) {
       if (YEARS.includes(y)) next.add(y);
     }
     updateParams(next, selectedSeverities, selectedCounties, selectedCauses);
   }
 
+  function setYears(years: Set<number>) {
+    updateParams(years, selectedSeverities, selectedCounties, selectedCauses);
+  }
+
   function clearYears() {
     updateParams(new Set(), selectedSeverities, selectedCounties, selectedCauses);
+  }
+
+  function setAllYears() {
+    updateParams(new Set(YEARS), selectedSeverities, selectedCounties, selectedCauses);
   }
 
   function toggleSeverity(severity: string) {
@@ -197,6 +217,32 @@ export function useFilterParams() {
     updateParams(selectedYears, selectedSeverities, selectedCounties, next);
   }
 
+  function setCauses(causes: Set<string>) {
+    updateParams(selectedYears, selectedSeverities, selectedCounties, causes);
+  }
+
+  function setAllCauses() {
+    const all = new Set(CAUSES.map((c) => c.value));
+    updateParams(selectedYears, selectedSeverities, selectedCounties, all);
+  }
+
+  function clearCauses() {
+    updateParams(selectedYears, selectedSeverities, selectedCounties, new Set());
+  }
+
+  function setSeverities(severities: Set<string>) {
+    updateParams(selectedYears, severities, selectedCounties, selectedCauses);
+  }
+
+  function setAllSeverities() {
+    const all = new Set<string>(SEVERITIES);
+    updateParams(selectedYears, new Set(all), selectedCounties, selectedCauses);
+  }
+
+  function clearSeverities() {
+    updateParams(selectedYears, new Set(), selectedCounties, selectedCauses);
+  }
+
   function clearFilters() {
     setSearchParams({ year: "", severity: "" }, { replace: true });
   }
@@ -215,11 +261,19 @@ export function useFilterParams() {
     selectedCauses,
     toggleYear,
     setYearRange,
+    setYears,
     clearYears,
+    setAllYears,
     toggleSeverity,
     toggleCounty,
     clearCounties,
     toggleCause,
+    setCauses,
+    setAllCauses,
+    clearCauses,
+    setSeverities,
+    setAllSeverities,
+    clearSeverities,
     clearFilters,
     panel,
     clearPanel,

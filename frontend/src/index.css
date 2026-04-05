@@ -168,6 +168,21 @@
   width: 100%;
 }
 
+.county-focus-tooltip {
+  background: rgba(0, 0, 0, 0.8);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.county-focus-tooltip::before {
+  display: none;
+}
+
 /* Page transition animation */
 .page-enter {
   animation: scaleIn 0.15s ease-out;

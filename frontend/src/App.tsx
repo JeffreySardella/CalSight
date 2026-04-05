@@ -7,23 +7,15 @@ import AboutPage from "./pages/AboutPage";
 import AskAiPage from "./pages/AskAiPage";
 
 export default function App() {
-
   return (
     <ThemeProvider>
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          {/* 1. Primary Landing: The Interactive Map */}
-          <Route index element={<MapPage />} /> 
-          
-          {/* 2. Quantitative Data: Charts and Graphs */}
-          <Route path="stats" element={<StatsPage />} /> 
-          
-          {/* 3. Qualitative Insights: AI Queries */}
-          <Route path="ask-ai" element={<AskAiPage />} /> 
-          
-          {/* 4. Project Context: Team and Privacy */}
-          <Route path="about" element={<AboutPage />} /> 
+          <Route index element={<MapPage />} />
+          <Route path="stats" element={<StatsPage />} />
+          <Route path="ask-ai" element={<AskAiPage />} />
+          <Route path="about" element={<AboutPage />} />
         </Route>
       </Routes>
       <div

@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
-import { useFilterParams } from "../hooks/useFilterParams";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { Map as LeafletMap } from "leaflet";
+import { useFilterParams, CA_COUNTIES } from "../hooks/useFilterParams";
+import { useMapKeyboard } from "../hooks/useMapKeyboard";
+import KeyboardHelpModal from "../components/map/KeyboardHelpModal";
 import IconRail from "../components/map/IconRail";
 import SidePanel from "../components/map/SidePanel";
 import FiltersPanel, {
@@ -33,11 +36,19 @@ export default function MapPage() {
     selectedCauses,
     toggleYear,
     setYearRange,
+    setYears,
     clearYears,
+    setAllYears,
     toggleSeverity,
     toggleCounty,
     clearCounties,
     toggleCause,
+    setCauses,
+    setAllCauses,
+    clearCauses,
+    setSeverities,
+    setAllSeverities,
+    clearSeverities,
     clearFilters,
     panel: panelParam,
     clearPanel,
@@ -47,11 +58,48 @@ export default function MapPage() {
   const [showInsight, setShowInsight] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [focusedCounty, setFocusedCounty] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [insightCounty, setInsightCounty] = useState("Fresno");
+  const mapRef = useRef<LeafletMap | null>(null);
+
+  const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
+
+  const handleMapReady = useCallback((map: LeafletMap) => {
+    mapRef.current = map;
+  }, []);
+
+  const handleSelectCounty = useCallback((name: string) => {
+    setInsightCounty(name);
+    setShowInsight(true);
+  }, []);
 
   function handleClearAll() {
     clearFilters();
     setResetKey((k) => k + 1);
   }
+
+  const handleCloseOverlay = useCallback(() => {
+    if (showHelp) {
+      setShowHelp(false);
+    } else if (showInsight) {
+      setShowInsight(false);
+    } else if (activePanel) {
+      setActivePanel(null);
+    } else if (showMobileFilters) {
+      setShowMobileFilters(false);
+    }
+  }, [showHelp, showInsight, activePanel, showMobileFilters]);
+
+  useMapKeyboard({
+    map: mapRef.current,
+    counties: countyNames,
+    focusedCounty,
+    onFocusCounty: setFocusedCounty,
+    onSelectCounty: handleSelectCounty,
+    onCloseOverlay: handleCloseOverlay,
+    onToggleHelp: () => setShowHelp((prev) => !prev),
+  });
 
   // If URL has ?panel=filters, open that panel then clean the param.
   // replace: true in clearPanel() prevents a back-button loop.
@@ -72,25 +120,33 @@ export default function MapPage() {
 
   const meta = activePanel ? PANEL_META[activePanel] : null;
 
+  const filtersPanelProps = {
+    selectedYears,
+    selectedSeverities,
+    selectedCounties,
+    selectedCauses,
+    onToggleYear: toggleYear,
+    onSetYearRange: setYearRange,
+    onSetYears: setYears,
+    onClearYears: clearYears,
+    onSetAllYears: setAllYears,
+    onToggleSeverity: toggleSeverity,
+    onSetSeverities: setSeverities,
+    onSetAllSeverities: setAllSeverities,
+    onClearSeverities: clearSeverities,
+    onToggleCounty: toggleCounty,
+    onClearCounties: clearCounties,
+    onToggleCause: toggleCause,
+    onSetCauses: setCauses,
+    onSetAllCauses: setAllCauses,
+    onClearCauses: clearCauses,
+    resetKey,
+  };
+
   function renderPanelContent() {
     switch (activePanel) {
       case "filters":
-        return (
-          <FiltersPanel
-            selectedYears={selectedYears}
-            selectedSeverities={selectedSeverities}
-            selectedCounties={selectedCounties}
-            selectedCauses={selectedCauses}
-            onToggleYear={toggleYear}
-            onSetYearRange={setYearRange}
-            onClearYears={clearYears}
-            onToggleSeverity={toggleSeverity}
-            onToggleCounty={toggleCounty}
-            onClearCounties={clearCounties}
-            onToggleCause={toggleCause}
-            resetKey={resetKey}
-          />
-        );
+        return <FiltersPanel {...filtersPanelProps} />;
       case "layers":
         return <LayersPanel />;
       case "export":
@@ -137,7 +193,12 @@ export default function MapPage() {
 
       {/* Map canvas + floating overlays */}
       <section className="flex-1 relative transition-all duration-300">
-        <MapCanvas />
+        <MapCanvas
+          focusedCounty={focusedCounty}
+          onFocusCounty={setFocusedCounty}
+          onSelectCounty={handleSelectCounty}
+          onMapReady={handleMapReady}
+        />
 
         {/* Mobile-only floating Filters chip */}
         <button
@@ -149,9 +210,9 @@ export default function MapPage() {
         </button>
 
         {showInsight && (
-          <AiInsightCard onClose={() => setShowInsight(false)} />
+          <AiInsightCard onClose={() => setShowInsight(false)} countyName={insightCounty} />
         )}
-        <SearchPill />
+        <SearchPill map={mapRef.current} />
         <Breadcrumb />
       </section>
 
@@ -166,20 +227,7 @@ export default function MapPage() {
             label: "Filters",
             icon: "filter_list",
             content: (
-              <FiltersPanel
-                selectedYears={selectedYears}
-                selectedSeverities={selectedSeverities}
-                selectedCounties={selectedCounties}
-                selectedCauses={selectedCauses}
-                onToggleYear={toggleYear}
-                onSetYearRange={setYearRange}
-                onClearYears={clearYears}
-                onToggleSeverity={toggleSeverity}
-                onToggleCounty={toggleCounty}
-                onClearCounties={clearCounties}
-                onToggleCause={toggleCause}
-                resetKey={resetKey}
-              />
+              <FiltersPanel {...filtersPanelProps} />
             ),
           },
           {
@@ -195,6 +243,11 @@ export default function MapPage() {
             content: <DataExportPanel />,
           },
         ]}
+      />
+
+      <KeyboardHelpModal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
       />
     </>
   );

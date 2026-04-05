@@ -1,8 +1,9 @@
 interface AiInsightCardProps {
   onClose: () => void;
+  countyName?: string;
 }
 
-export default function AiInsightCard({ onClose }: AiInsightCardProps) {
+export default function AiInsightCard({ onClose, countyName = "Fresno" }: AiInsightCardProps) {
   return (
     <div className="fixed bottom-24 left-4 right-4 md:absolute md:bottom-auto md:left-auto md:right-[10%] md:top-[25%] z-30 md:w-[340px] bg-surface-container-lowest/90 backdrop-blur-md p-6 rounded-xl ambient-shadow ghost-border flex flex-col gap-4">
       {/* Header */}
@@ -21,7 +22,7 @@ export default function AiInsightCard({ onClose }: AiInsightCardProps) {
       {/* Title + description */}
       <div className="space-y-1">
         <h3 className="font-headline text-2xl font-bold text-on-surface tracking-tight leading-tight">
-          Fresno County
+          {countyName} County
         </h3>
         <p className="text-xs text-on-surface-variant leading-relaxed">
           Significant increase in commercial traffic detected along the CA-99

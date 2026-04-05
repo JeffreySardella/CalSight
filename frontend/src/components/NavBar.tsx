@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { NavLink, useSearchParams } from "react-router-dom";
+import { buildFilterQS } from "../hooks/useFilterParams";
 import logo from "../assets/logo.png";
 import SettingsPopover from "./SettingsPopover";
 
@@ -15,17 +16,7 @@ export default function NavBar() {
   const settingsRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
 
-  // Preserve filter params (year, severity) when navigating between pages
-  const filterParams = new URLSearchParams();
-  const year = searchParams.get("year");
-  const severity = searchParams.get("severity");
-  const county = searchParams.get("county");
-  const cause = searchParams.get("cause");
-  if (year) filterParams.set("year", year);
-  if (severity) filterParams.set("severity", severity);
-  if (county) filterParams.set("county", county);
-  if (cause) filterParams.set("cause", cause);
-  const qs = filterParams.toString();
+  const qs = buildFilterQS(searchParams);
 
 
   return (

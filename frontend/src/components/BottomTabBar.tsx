@@ -1,4 +1,5 @@
 import { NavLink, useSearchParams } from "react-router-dom";
+import { buildFilterQS } from "../hooks/useFilterParams";
 
 const tabs = [
   { to: "/", icon: "map", label: "Map" },
@@ -10,16 +11,7 @@ const tabs = [
 export default function BottomTabBar() {
   const [searchParams] = useSearchParams();
 
-  const filterParams = new URLSearchParams();
-  const year = searchParams.get("year");
-  const severity = searchParams.get("severity");
-  const county = searchParams.get("county");
-  const cause = searchParams.get("cause");
-  if (year) filterParams.set("year", year);
-  if (severity) filterParams.set("severity", severity);
-  if (county) filterParams.set("county", county);
-  if (cause) filterParams.set("cause", cause);
-  const qs = filterParams.toString();
+  const qs = buildFilterQS(searchParams);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-surface-container-lowest bottom-tab-shadow" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>

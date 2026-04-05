@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { useFilterParams, parseYears, parseSeverities, parseCounties, parseCauses } from "../hooks/useFilterParams";
+import { useFilterParams, YEARS, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
 import LayersPanel from "../components/map/LayersPanel";
@@ -95,39 +94,45 @@ function DonutRing({
 }
 
 export default function StatsPage() {
-  const [searchParams] = useSearchParams();
-  const years = parseYears(searchParams.get("year"));
-  const severities = parseSeverities(searchParams.get("severity"));
-  const counties = parseCounties(searchParams.get("county"));
-  const causes = parseCauses(searchParams.get("cause"));
-
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const filters = useFilterParams();
+
+  const years = filters.selectedYears;
+  const severities = filters.selectedSeverities;
+  const counties = filters.selectedCounties;
+  const causes = filters.selectedCauses;
 
   function handleClearAll() {
     filters.clearFilters();
     setResetKey((k) => k + 1);
   }
 
-  // Collapse contiguous years into a range label
+  // Build typed chips so each one knows how to remove itself.
+  // Collapse "all selected" into a single summary chip.
   const sortedYears = [...years].sort((a, b) => a - b);
-  const isRange = sortedYears.length >= 3 && sortedYears.every(
-    (y, i) => i === 0 || y === sortedYears[i - 1] + 1,
-  );
-  const yearChips = isRange
-    ? [`${sortedYears[0]}–${sortedYears[sortedYears.length - 1]}`]
-    : sortedYears.map(String);
+  type Chip = { label: string; onRemove: () => void };
 
-  const filterChips = [
-    ...[...counties].sort(),
+  const yearChips: Chip[] = years.size === YEARS.length
+    ? [{ label: "All Years", onRemove: () => filters.clearYears() }]
+    : sortedYears.length >= 3 && sortedYears.every((y, i) => i === 0 || y === sortedYears[i - 1] + 1)
+      ? [{ label: `${sortedYears[0]}–${sortedYears[sortedYears.length - 1]}`, onRemove: () => filters.clearYears() }]
+      : sortedYears.map((y) => ({ label: String(y), onRemove: () => filters.toggleYear(y) }));
+
+  const severityChips: Chip[] = severities.size === SEVERITIES.length
+    ? [{ label: "All Severities", onRemove: () => filters.clearSeverities() }]
+    : [...severities].map((s) => ({ label: s, onRemove: () => filters.toggleSeverity(s) }));
+
+  const causeChips: Chip[] = causes.size === CAUSE_OPTIONS.length
+    ? [{ label: "All Causes", onRemove: () => filters.clearCauses() }]
+    : [...causes].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCause(c) }));
+
+  const chips: Chip[] = [
+    ...[...counties].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCounty(c) })),
     ...yearChips,
-    ...[...causes].sort(),
-    ...severities,
+    ...causeChips,
+    ...severityChips,
   ];
-
-  const editParams = new URLSearchParams(searchParams);
-  editParams.set("panel", "filters");
 
   return (
     <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
@@ -138,30 +143,24 @@ export default function StatsPage() {
             Filters:
           </span>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {filterChips.map((chip) => (
+            {chips.map((chip) => (
               <span
-                key={chip}
+                key={chip.label}
                 className="inline-flex items-center gap-1 bg-surface-container-highest px-3 py-1 rounded-full text-xs font-medium text-on-surface whitespace-nowrap"
               >
-                {chip}
-                <span className="material-symbols-outlined text-[16px] cursor-pointer">
-                  close
-                </span>
+                {chip.label}
+                <button onClick={chip.onRemove} className="hover:text-error transition-colors">
+                  <span className="material-symbols-outlined text-[16px]">
+                    close
+                  </span>
+                </button>
               </span>
             ))}
           </div>
         </div>
-        {/* Desktop: link to map filters. Mobile: open sheet overlay */}
-        <Link
-          to={`/?${editParams.toString()}`}
-          className="hidden md:flex text-primary text-xs font-bold uppercase tracking-wider items-center gap-1 hover:underline flex-shrink-0"
-        >
-          Edit Filters
-          <span className="material-symbols-outlined text-[16px]">tune</span>
-        </Link>
         <button
           onClick={() => setShowMobileFilters(true)}
-          className="md:hidden text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline flex-shrink-0"
+          className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline flex-shrink-0"
         >
           Edit Filters
           <span className="material-symbols-outlined text-[16px]">tune</span>
@@ -429,10 +428,18 @@ export default function StatsPage() {
                 onToggleYear={filters.toggleYear}
                 onSetYearRange={filters.setYearRange}
                 onClearYears={filters.clearYears}
+                onSetYears={filters.setYears}
+                onSetAllYears={filters.setAllYears}
                 onToggleSeverity={filters.toggleSeverity}
+                onSetSeverities={filters.setSeverities}
+                onSetAllSeverities={filters.setAllSeverities}
+                onClearSeverities={filters.clearSeverities}
                 onToggleCounty={filters.toggleCounty}
                 onClearCounties={filters.clearCounties}
                 onToggleCause={filters.toggleCause}
+                onSetCauses={filters.setCauses}
+                onSetAllCauses={filters.setAllCauses}
+                onClearCauses={filters.clearCauses}
                 resetKey={resetKey}
               />
             ),

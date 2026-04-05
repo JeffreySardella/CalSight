@@ -43,7 +43,7 @@ export default function MobileFilterSheet({
   const currentTab = tabs.find((t) => t.key === activeTab) ?? tabs[0];
 
   return (
-    <div className="fixed inset-0 z-[100] md:hidden">
+    <div className="fixed inset-0 z-[100]">
       {/* Dimmed backdrop */}
       <div
         className={`absolute inset-0 bg-on-surface/20 backdrop-blur-sm transition-opacity duration-300 ${
@@ -52,11 +52,12 @@ export default function MobileFilterSheet({
         onClick={onClose}
       />
 
-      {/* Bottom sheet */}
+      {/* Mobile: bottom sheet. Desktop: centered modal */}
       <div
-        className={`absolute bottom-0 left-0 right-0 rounded-t-xl bg-surface-container-lowest max-h-[80vh] flex flex-col transition-transform duration-300 ease-out ${
-          visible ? "translate-y-0" : "translate-y-full"
-        }`}
+        className={`absolute bg-surface-container-lowest max-h-[80vh] flex flex-col transition-all duration-300 ease-out
+          bottom-0 left-0 right-0 rounded-t-xl
+          md:bottom-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:w-[480px] md:max-w-[90vw] md:ambient-shadow
+          ${visible ? "translate-y-0 md:opacity-100 md:scale-100" : "translate-y-full md:opacity-0 md:scale-95 md:translate-y-0"}`}
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1">

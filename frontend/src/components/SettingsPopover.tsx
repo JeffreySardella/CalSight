@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useTheme } from "../context/ThemeContext";
-
-type Theme = "light" | "dark" | "system";
+import { useTheme, type Theme } from "../context/ThemeContext";
 
 const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
   { value: "light", label: "Light", icon: "light_mode" },
