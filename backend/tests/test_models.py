@@ -4,7 +4,7 @@ These tests verify model definitions are correct by inspecting
 the table metadata — no database connection needed.
 """
 
-from sqlalchemy import String, inspect
+from sqlalchemy import String
 
 from app.models import County, Crash, Demographic, CountyInsight, CountyInsightDetail, EtlRun
 
