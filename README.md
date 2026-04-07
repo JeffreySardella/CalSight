@@ -63,14 +63,45 @@ npm run dev
 
 Requires a running PostgreSQL instance — update `DATABASE_URL` in `.env`.
 
+## Database
+
+PostgreSQL 16 with schema managed by Alembic migrations.
+
+### Tables
+
+| Table | Purpose |
+|-------|---------|
+| `counties` | 58 California counties — FIPS codes, coordinates, boundaries |
+| `crashes` | Individual crash records from CCRS (indexed by county, date, cause) |
+| `demographics` | Yearly Census ACS data per county (population, income, commute modes) |
+| `county_insights` | Pre-computed summary stats and AI narrative per county/year |
+| `county_insight_details` | Granular breakdowns by category (collision type, cause, etc.) |
+| `etl_runs` | ETL pipeline execution history |
+
+### Migrations
+
+```bash
+# Run migrations (done automatically on docker-compose up)
+cd backend
+alembic upgrade head
+
+# Seed counties table
+python -m app.seed_counties
+
+# Create a new migration after changing models
+alembic revision --autogenerate -m "description of change"
+```
+
 ## Project Structure
 
 ```
 CalSight/
 ├── backend/
 │   ├── app/          # FastAPI application
+│   ├── migrations/   # Alembic database migrations
 │   ├── etl/          # Data pipeline (CKAN API → PostgreSQL)
 │   ├── tests/        # Backend tests
+│   ├── alembic.ini
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/

@@ -1,7 +1,7 @@
 """Seed the counties table with all 58 California counties."""
 
-from app.database import SessionLocal, engine
-from app.models import Base, County
+from app.database import SessionLocal
+from app.models import County
 
 # California counties: code, name, FIPS, center lat, center lng
 COUNTIES = [
@@ -67,7 +67,6 @@ COUNTIES = [
 
 
 def seed():
-    Base.metadata.create_all(engine)
     db = SessionLocal()
     try:
         existing = db.query(County).count()
