@@ -9,6 +9,11 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calsight"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   backend:
     build: ./backend
@@ -17,7 +22,8 @@ services:
     environment:
       DATABASE_URL: postgresql://calsight:calsight_dev@db:5432/calsight
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -28,6 +34,8 @@ services:
       - "5173:5173"
     depends_on:
       - backend
+    environment:
+      VITE_API_TARGET: http://backend:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules

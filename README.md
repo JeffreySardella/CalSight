@@ -35,12 +35,23 @@ Takes millions of crash records from California's [Crash Reporting System (CCRS)
 ```bash
 git clone https://github.com/JeffreySardella/CalSight.git
 cd CalSight
-docker-compose up
+docker-compose up --build
 ```
 
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:8000
 - API docs: http://localhost:8000/docs
+
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and reset database
+docker-compose down -v
+
+# Rebuild after dependency changes
+docker-compose up --build
+```
 
 ### Run Without Docker
 
