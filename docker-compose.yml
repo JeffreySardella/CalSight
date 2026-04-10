@@ -21,6 +21,8 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://calsight:calsight_dev@db:5432/calsight
+      CORS_ORIGINS: http://localhost:5173
+      DEBUG: "true"
     depends_on:
       db:
         condition: service_healthy
