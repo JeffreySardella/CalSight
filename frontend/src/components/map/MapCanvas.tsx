@@ -8,8 +8,8 @@ const CA_CENTER: [number, number] = [37.2, -119.5];
 const CA_ZOOM = 6;
 
 const CA_BOUNDS: LatLngBoundsExpression = [
-  [32.0, -125.0],
-  [42.5, -114.0],
+  [28.0, -127.0],
+  [46.0, -112.0],
 ];
 
 interface MapCanvasProps {

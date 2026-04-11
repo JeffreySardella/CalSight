@@ -24,11 +24,11 @@ export default function Layout() {
     <>
       <NavBar />
       {isMapPage ? (
-        <main className="pt-16 flex h-screen overflow-hidden">
+        <main className="pt-12 pb-14 md:pt-16 md:pb-0 flex h-dvh overflow-hidden">
           <Outlet />
         </main>
       ) : (
-        <div key={location.pathname} className="page-enter pt-16 min-h-screen flex flex-col pb-28 md:pb-0">
+        <div key={location.pathname} className="page-enter pt-12 md:pt-16 min-h-screen flex flex-col pb-20 md:pb-0">
           <main className="flex-1">
             <Outlet />
           </main>

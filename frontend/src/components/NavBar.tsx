@@ -20,7 +20,7 @@ export default function NavBar() {
 
 
   return (
-    <header className="bg-surface fixed top-0 z-50 flex w-full items-center justify-between px-6 py-3 h-16">
+    <header className="bg-surface fixed top-0 z-50 flex w-full items-center justify-between px-4 py-2 h-12 md:px-6 md:py-3 md:h-16">
       <div className="flex items-center gap-8">
         <NavLink to="/" className="flex items-center gap-2">
           <img src={logo} alt="CalSight" className="h-7 w-auto" />

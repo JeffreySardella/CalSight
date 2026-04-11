@@ -9,6 +9,8 @@ function createMockMap() {
     setView: vi.fn(),
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
   } as unknown as LeafletMap;
 }
 
