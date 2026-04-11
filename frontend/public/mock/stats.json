@@ -1,0 +1,25 @@
+{
+  "totalIncidents": 12482,
+  "avgResponseTime": 6.2,
+  "visionZeroProgress": 82,
+  "hourlyDistribution": [20, 15, 12, 10, 14, 18, 45, 65, 80, 70, 60, 55, 62, 68, 75, 85, 100, 92, 88, 75, 60, 50, 40, 30],
+  "yearlyTrends": [
+    { "year": 2014, "count": 9800 },
+    { "year": 2015, "count": 10200 },
+    { "year": 2016, "count": 10500 },
+    { "year": 2017, "count": 11000 },
+    { "year": 2018, "count": 11500 },
+    { "year": 2019, "count": 12000 },
+    { "year": 2020, "count": 11800 },
+    { "year": 2021, "count": 12200 },
+    { "year": 2022, "count": 12350 },
+    { "year": 2023, "count": 12482 }
+  ],
+  "topCauses": [
+    { "cause": "Speeding", "pct": 42, "count": 5292 },
+    { "cause": "Distracted Driving", "pct": 25, "count": 3120 },
+    { "cause": "Drunk Driving", "pct": 15, "count": 1872 },
+    { "cause": "Reckless Driving", "pct": 10, "count": 1248 },
+    { "cause": "Weather Conditions", "pct": 8, "count": 998 }
+  ]
+}
