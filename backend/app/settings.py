@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Comma-separated origins, e.g. "http://localhost:5173,https://calsight.example.com"
     cors_origins: str = "http://localhost:5173"
 
+    # -- Census --
+    census_api_key: str = ""
+
     # -- App --
     debug: bool = True
 
