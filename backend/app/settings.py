@@ -24,12 +24,25 @@ class Settings(BaseSettings):
     # -- Database --
     database_url: str = "postgresql://calsight:calsight_dev@localhost:5433/calsight"
 
+    # Azure connection string. If set in .env, we use this instead of
+    # the local default above. The shared .env is posted in Discord so
+    # everyone queries the same loaded 25M-row dataset. If it's missing
+    # (or empty) the app falls back to the local Postgres URL so a fresh
+    # clone of the repo still boots against `docker compose up db`.
+    database_url_azure: str = ""
+
     # -- CORS --
     # Comma-separated origins, e.g. "http://localhost:5173,https://calsight.example.com"
     cors_origins: str = "http://localhost:5173"
 
     # -- Census --
     census_api_key: str = ""
+
+    # -- NOAA --
+    noaa_api_token: str = ""
+
+    # -- BLS (Bureau of Labor Statistics) --
+    bls_api_key: str = ""
 
     # -- App --
     debug: bool = True
@@ -38,6 +51,19 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         """Parse the comma-separated CORS_ORIGINS string into a list."""
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def effective_database_url(self) -> str:
+        """Pick which database URL to actually connect to.
+
+        If DATABASE_URL_AZURE is set in .env, we use that (team default —
+        everyone queries the shared 25M-row dataset). If it's missing or
+        empty, we fall back to DATABASE_URL so `docker compose up db` and
+        fresh clones still boot without extra setup.
+        """
+        if self.database_url_azure:
+            return self.database_url_azure
+        return self.database_url
 
 
 # Single instance — import this everywhere instead of creating new Settings()
