@@ -26,6 +26,7 @@ from sqlalchemy import select
 from app.database import SessionLocal
 from app.models import County, Demographic
 from app.settings import settings
+from etl._utils import track_etl_run
 from etl.census_api import fetch_county_demographics
 
 logging.basicConfig(
@@ -80,15 +81,39 @@ def transform_to_demographic_kwargs(
     return {
         "county_code": county_code,
         "year": year,
+        # Core
         "population": api_row.get("population"),
         "median_age": api_row.get("median_age"),
         "median_income": api_row.get("median_income"),
+        # Commute
         "commute_drive_alone_pct": api_row.get("commute_drive_alone_pct"),
         "commute_carpool_pct": api_row.get("commute_carpool_pct"),
         "commute_transit_pct": api_row.get("commute_transit_pct"),
         "commute_walk_pct": api_row.get("commute_walk_pct"),
         "commute_bike_pct": api_row.get("commute_bike_pct"),
         "commute_wfh_pct": api_row.get("commute_wfh_pct"),
+        # Race/Ethnicity
+        "pct_white": api_row.get("pct_white"),
+        "pct_black": api_row.get("pct_black"),
+        "pct_asian": api_row.get("pct_asian"),
+        "pct_hispanic": api_row.get("pct_hispanic"),
+        "pct_other_race": api_row.get("pct_other_race"),
+        # Age distribution
+        "pct_under_18": api_row.get("pct_under_18"),
+        "pct_18_24": api_row.get("pct_18_24"),
+        "pct_25_44": api_row.get("pct_25_44"),
+        "pct_45_64": api_row.get("pct_45_64"),
+        "pct_65_plus": api_row.get("pct_65_plus"),
+        # Socioeconomic
+        "poverty_rate": api_row.get("poverty_rate"),
+        "pct_bachelors_or_higher": api_row.get("pct_bachelors_or_higher"),
+        "pct_high_school_or_higher": api_row.get("pct_high_school_or_higher"),
+        # Transportation / Housing
+        "pct_no_vehicle": api_row.get("pct_no_vehicle"),
+        "pct_owner_occupied_housing": api_row.get("pct_owner_occupied_housing"),
+        # Language
+        "pct_english_only": api_row.get("pct_english_only"),
+        "pct_spanish_speaking": api_row.get("pct_spanish_speaking"),
     }
 
 
@@ -122,6 +147,7 @@ def upsert_demographics(session, rows: list[dict]) -> tuple[int, int]:
     return inserted, updated
 
 
+@track_etl_run("demographics")
 def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
     """Main ETL entry point."""
     api_key = settings.census_api_key
