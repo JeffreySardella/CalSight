@@ -23,7 +23,6 @@ import logging
 import time
 
 import httpx
-from sqlalchemy import extract, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import SessionLocal

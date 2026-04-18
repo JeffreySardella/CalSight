@@ -11,7 +11,7 @@ Two test classes:
 import httpx
 import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 from etl.ckan_api import (
     transform_ccrs,

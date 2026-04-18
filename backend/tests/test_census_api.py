@@ -10,7 +10,7 @@ The client now makes 2 requests per year:
 
 import httpx
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 from etl.census_api import (
     fetch_county_demographics,
