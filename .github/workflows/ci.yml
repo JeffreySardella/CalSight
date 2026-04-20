@@ -12,6 +12,20 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: calsight
+          POSTGRES_PASSWORD: calsight_dev
+          POSTGRES_DB: calsight
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,7 +33,13 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: ruff check .
-      - run: pytest
+      - name: Run unit tests
+        run: pytest -m "not integration"
+      - name: Run integration tests
+        env:
+          TEST_DATABASE_URL: postgresql://calsight:calsight_dev@localhost:5433/calsight_test
+          TEST_DATABASE_ADMIN_URL: postgresql://calsight:calsight_dev@localhost:5433/postgres
+        run: pytest -m integration
 
   frontend:
     runs-on: ubuntu-latest
