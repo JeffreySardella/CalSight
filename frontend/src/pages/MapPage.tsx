@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFilterParams, CA_COUNTIES } from "../hooks/useFilterParams";
 import { useMapKeyboard } from "../hooks/useMapKeyboard";
+import { LayersStateProvider, useLayersState } from "../hooks/useLayersState";
+import ChoroplethLegend from "../components/map/ChoroplethLegend";
+import { useChoroplethData } from "../hooks/useChoroplethData";
 import KeyboardHelpModal from "../components/map/KeyboardHelpModal";
 import IconRail from "../components/map/IconRail";
 import SidePanel from "../components/map/SidePanel";
@@ -28,7 +32,7 @@ const PANEL_META: Record<string, { title: string; subtitle: string }> = {
 
 const VALID_PANELS = new Set(Object.keys(PANEL_META));
 
-export default function MapPage() {
+function MapPageInner() {
   const {
     selectedYears,
     selectedSeverities,
@@ -214,6 +218,7 @@ export default function MapPage() {
         )}
         <SearchPill map={mapRef.current} />
         <Breadcrumb />
+        <ChoroplethLegendContainer />
       </section>
 
       {/* Mobile filter bottom sheet */}
@@ -250,5 +255,36 @@ export default function MapPage() {
         onClose={() => setShowHelp(false)}
       />
     </>
+  );
+}
+
+export default function MapPage() {
+  return (
+    <LayersStateProvider>
+      <MapPageInner />
+    </LayersStateProvider>
+  );
+}
+
+function ChoroplethLegendContainer() {
+  const { selectedYears, selectedSeverities, selectedCauses } = useFilterParams();
+  const { measure } = useLayersState();
+  const queryClient = useQueryClient();
+  const filters = useMemo(
+    () => ({
+      years: [...selectedYears].sort((a, b) => a - b),
+      severities: [...selectedSeverities],
+      causes: [...selectedCauses],
+    }),
+    [selectedYears, selectedSeverities, selectedCauses],
+  );
+  const { demographicsAvailable, isError, isLoading } = useChoroplethData(measure, filters);
+  return (
+    <ChoroplethLegend
+      demographicsAvailable={demographicsAvailable}
+      isLoading={isLoading}
+      isError={isError}
+      onRetry={() => queryClient.invalidateQueries({ queryKey: ["choropleth"] })}
+    />
   );
 }

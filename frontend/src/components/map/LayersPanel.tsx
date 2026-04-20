@@ -1,4 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useLayersState, type OtherLayerKey } from "../../hooks/useLayersState";
+import { MEASURES } from "../../lib/choropleth/measures";
+import { PALETTES, getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
+import { useIsDark } from "../../context/ThemeContext";
 
 interface ToggleProps {
   enabled: boolean;
@@ -22,82 +26,37 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
   );
 }
 
-type LayerKey =
-  | "choropleth"
-  | "heatmap"
-  | "incidents"
-  | "countyBoundaries"
-  | "roadTypes"
-  | "schoolZones"
-  | "hospitals";
-
-type PaletteKey = "default" | "warm" | "cool" | "colorblind";
-
-const DATA_VIZ_LAYERS: { key: LayerKey; label: string }[] = [
-  { key: "choropleth", label: "Choropleth" },
-  { key: "heatmap", label: "Heatmap" },
-  { key: "incidents", label: "Incident Points" },
-];
-
-const MAP_FEATURE_LAYERS: { key: LayerKey; label: string }[] = [
+const MAP_FEATURE_LAYERS: { key: OtherLayerKey; label: string }[] = [
   { key: "countyBoundaries", label: "County Boundaries" },
   { key: "roadTypes", label: "Road Types" },
   { key: "schoolZones", label: "School Zones" },
   { key: "hospitals", label: "Hospitals" },
 ];
 
-const PALETTES: { key: PaletteKey; label: string; gradient: string }[] = [
-  {
-    key: "default",
-    label: "Default",
-    gradient: "bg-gradient-to-r from-slate-400 to-primary",
-  },
-  {
-    key: "warm",
-    label: "Warm",
-    gradient: "bg-gradient-to-r from-amber-400 to-red-500",
-  },
-  {
-    key: "cool",
-    label: "Cool",
-    gradient: "bg-gradient-to-r from-teal-400 to-green-500",
-  },
-  {
-    key: "colorblind",
-    label: "Colorblind Safe",
-    gradient: "bg-gradient-to-r from-orange-400 via-white to-blue-500",
-  },
-];
-
-const INITIAL_LAYERS: Record<LayerKey, boolean> = {
-  choropleth: true,
-  heatmap: false,
-  incidents: false,
-  countyBoundaries: true,
-  roadTypes: false,
-  schoolZones: false,
-  hospitals: false,
+const PALETTE_LABELS: Record<PaletteKey, string> = {
+  default: "Default",
+  warm: "Warm",
+  cool: "Cool",
+  colorblind: "Colorblind Safe",
 };
 
 export default function LayersPanel() {
-  const [layers, setLayers] = useState<Record<LayerKey, boolean>>(
-    () => ({ ...INITIAL_LAYERS }),
-  );
-
-  const [activePalette, setActivePalette] = useState<PaletteKey>("default");
+  const {
+    choroplethOn, setChoroplethOn,
+    measure, setMeasure,
+    palette: activePalette, setPalette,
+    otherLayers, toggleOtherLayer,
+    reset,
+  } = useLayersState();
+  const isDark = useIsDark();
 
   useEffect(() => {
     function handleReset() {
-      setLayers({ ...INITIAL_LAYERS });
-      setActivePalette("default");
+      reset();
     }
     window.addEventListener("layers:reset-defaults", handleReset);
     return () => window.removeEventListener("layers:reset-defaults", handleReset);
-  }, []);
-
-  function toggleLayer(key: LayerKey) {
-    setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
+  }, [reset]);
 
   return (
     <div className="space-y-8 pb-32 px-0">
@@ -107,20 +66,47 @@ export default function LayersPanel() {
           Data Visualization
         </label>
         <div className="space-y-3">
-          {DATA_VIZ_LAYERS.map(({ key, label }) => (
-            <div key={key} className="flex justify-between items-center">
-              <span
-                className={`text-sm font-medium ${
-                  layers[key] ? "text-on-surface" : "text-on-surface-variant"
-                }`}
-              >
-                {label}
-              </span>
-              <Toggle
-                enabled={layers[key]}
-                onToggle={() => toggleLayer(key)}
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${choroplethOn ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Choropleth
+            </span>
+            <Toggle enabled={choroplethOn} onToggle={() => setChoroplethOn(!choroplethOn)} />
+          </div>
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.heatmap ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Heatmap
+            </span>
+            <Toggle enabled={otherLayers.heatmap} onToggle={() => toggleOtherLayer("heatmap")} />
+          </div>
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.incidents ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Incident Points
+            </span>
+            <Toggle enabled={otherLayers.incidents} onToggle={() => toggleOtherLayer("incidents")} />
+          </div>
+        </div>
+      </div>
+
+      {/* Measure */}
+      <div className="space-y-4">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          Measure
+        </label>
+        <div className="space-y-2">
+          {Object.values(MEASURES).map((m) => (
+            <label key={m.key} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="measure"
+                value={m.key}
+                checked={measure === m.key}
+                onChange={() => setMeasure(m.key)}
+                className="accent-primary"
               />
-            </div>
+              <span className={`text-sm ${measure === m.key ? "text-on-surface font-medium" : "text-on-surface-variant"}`}>
+                {m.label}
+              </span>
+            </label>
           ))}
         </div>
       </div>
@@ -133,17 +119,10 @@ export default function LayersPanel() {
         <div className="space-y-3">
           {MAP_FEATURE_LAYERS.map(({ key, label }) => (
             <div key={key} className="flex justify-between items-center">
-              <span
-                className={`text-sm font-medium ${
-                  layers[key] ? "text-on-surface" : "text-on-surface-variant"
-                }`}
-              >
+              <span className={`text-sm font-medium ${otherLayers[key] ? "text-on-surface" : "text-on-surface-variant"}`}>
                 {label}
               </span>
-              <Toggle
-                enabled={layers[key]}
-                onToggle={() => toggleLayer(key)}
-              />
+              <Toggle enabled={otherLayers[key]} onToggle={() => toggleOtherLayer(key)} />
             </div>
           ))}
         </div>
@@ -155,25 +134,22 @@ export default function LayersPanel() {
           Color Palette
         </label>
         <div className="grid grid-cols-2 gap-3">
-          {PALETTES.map(({ key, label, gradient }) => (
+          {(Object.keys(PALETTES) as PaletteKey[]).map((key) => (
             <button
               key={key}
-              onClick={() => setActivePalette(key)}
+              onClick={() => setPalette(key)}
               className={`p-2 rounded-xl text-left transition-all ${
-                activePalette === key
-                  ? "bg-primary-container"
-                  : "hover:bg-surface-container"
+                activePalette === key ? "bg-primary-container" : "hover:bg-surface-container"
               }`}
             >
-              <div className={`h-12 w-full rounded-lg ${gradient} mb-2`} />
-              <span
-                className={`text-[10px] font-semibold block text-center ${
-                  activePalette === key
-                    ? "text-on-primary-container"
-                    : "text-on-surface-variant"
-                }`}
-              >
-                {label}
+              <div
+                className="h-12 w-full rounded-lg mb-2"
+                style={{ background: `linear-gradient(to right, ${getPalette(key, isDark).join(", ")})` }}
+              />
+              <span className={`text-[10px] font-semibold block text-center ${
+                activePalette === key ? "text-on-primary-container" : "text-on-surface-variant"
+              }`}>
+                {PALETTE_LABELS[key]}
               </span>
             </button>
           ))}
