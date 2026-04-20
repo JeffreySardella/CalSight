@@ -3,9 +3,12 @@
 These use mocking — we fake the HTTP responses so tests don't hit
 the real Census API. This makes tests fast, reliable, and free.
 
-The client now makes 2 requests per year:
-  1. Profile request (race, poverty, education, housing, language, commute)
-  2. Age distribution request (B01001 sex-by-age cells)
+The client now makes 4 requests per year:
+  1. Profile (population, income, race, commute, housing, language, per-capita
+     income, travel time, foreign-born, rent burden, school enrollment, vets)
+  2. Age distribution (B01001 sex-by-age cells, 5 brackets + sex totals)
+  3. Education (B15003, optional — not available pre-2012 ACS5)
+  4. Disability (B18101, optional — graceful skip on missing)
 """
 
 import httpx
@@ -14,9 +17,10 @@ from unittest.mock import patch, MagicMock
 
 from etl.census_api import (
     fetch_county_demographics,
-    PROFILE_VARIABLES,
     AGE_VARIABLES,
+    DISABILITY_VARIABLES,
     EDUCATION_VARIABLES,
+    PROFILE_VARIABLES,
     _pct,
     _sum_cells,
 )
@@ -51,6 +55,19 @@ MOCK_PROFILE_ROW = [
     "900000",   # B16001_001E lang_total
     "540000",   # B16001_002E english_only (60%)
     "270000",   # B16001_003E spanish (30%)
+    "40000",    # B19301_001E per_capita_income
+    "24000000", # B08013_001E travel_time_agg (24M minutes / 800K commute_total = 30 min mean)
+    "1000000",  # B05002_001E birth_total
+    "250000",   # B05002_013E birth_foreign (25%)
+    "200000",   # B25070_001E rent_total
+    "30000",    # B25070_007E rent 30-34.9%
+    "20000",    # B25070_008E rent 35-39.9%
+    "20000",    # B25070_009E rent 40-49.9%
+    "30000",    # B25070_010E rent 50%+
+    "950000",   # B14001_001E school_total (pop 3+)
+    "247000",   # B14001_002E school_enrolled (26%)
+    "700000",   # B21001_001E vet_total
+    "70000",    # B21001_002E vet_veteran (10%)
     "06",       # state
     "001",      # county (Alameda)
 ]
@@ -75,47 +92,27 @@ def _build_age_row():
     row = {}
     row["B01001_001E"] = "1000000"
 
-    # Male under 18: cells 003-006 = 30k each = 120k
-    for i in [3, 4, 5, 6]:
-        row[f"B01001_{i:03d}E"] = "30000"
-    # Female under 18: cells 027-030 = 25k each = 100k
-    for i in [27, 28, 29, 30]:
-        row[f"B01001_{i:03d}E"] = "25000"
-    # Total under 18: 120k + 100k = 220k (22%)
+    # Under-18: M cells 3-6 = 30k ea (120k); F cells 27-30 = 25k ea (100k) → 220k
+    # 18-24: M cells 7-10 = 12.5k; F cells 31-34 = 12.5k → 100k
+    # 25-44: M cells 11-14 = 35k; F cells 35-38 = 35k → 280k
+    # 45-64: M cells 15-19 = 26k; F cells 39-43 = 26k → 260k
+    # 65+:   M cells 20-25 = 11,667; F cells 44-49 = 11,667 → ~140k
+    _bucket_values = [
+        ([3, 4, 5, 6],              "30000"),
+        ([27, 28, 29, 30],          "25000"),
+        ([7, 8, 9, 10],             "12500"),
+        ([31, 32, 33, 34],          "12500"),
+        ([11, 12, 13, 14],          "35000"),
+        ([35, 36, 37, 38],          "35000"),
+        ([15, 16, 17, 18, 19],      "26000"),
+        ([39, 40, 41, 42, 43],      "26000"),
+        ([20, 21, 22, 23, 24, 25],  "11667"),
+        ([44, 45, 46, 47, 48, 49],  "11667"),
+    ]
+    for cells, value in _bucket_values:
+        for i in cells:
+            row[f"B01001_{i:03d}E"] = value
 
-    # Male 18-24: cells 007-010 = 12.5k each = 50k
-    for i in [7, 8, 9, 10]:
-        row[f"B01001_{i:03d}E"] = "12500"
-    # Female 18-24: cells 031-034 = 12.5k each = 50k
-    for i in [31, 32, 33, 34]:
-        row[f"B01001_{i:03d}E"] = "12500"
-    # Total 18-24: 50k + 50k = 100k (10%)
-
-    # Male 25-44: cells 011-014 = 35k each = 140k
-    for i in [11, 12, 13, 14]:
-        row[f"B01001_{i:03d}E"] = "35000"
-    # Female 25-44: cells 035-038 = 35k each = 140k
-    for i in [35, 36, 37, 38]:
-        row[f"B01001_{i:03d}E"] = "35000"
-    # Total 25-44: 140k + 140k = 280k (28%)
-
-    # Male 45-64: cells 015-019 = 26k each = 130k
-    for i in [15, 16, 17, 18, 19]:
-        row[f"B01001_{i:03d}E"] = "26000"
-    # Female 45-64: cells 039-043 = 26k each = 130k
-    for i in [39, 40, 41, 42, 43]:
-        row[f"B01001_{i:03d}E"] = "26000"
-    # Total 45-64: 130k + 130k = 260k (26%)
-
-    # Male 65+: cells 020-025 = ~11.67k each ≈ 70k
-    for i in [20, 21, 22, 23, 24, 25]:
-        row[f"B01001_{i:03d}E"] = "11667"
-    # Female 65+: cells 044-049 = ~11.67k each ≈ 70k
-    for i in [44, 45, 46, 47, 48, 49]:
-        row[f"B01001_{i:03d}E"] = "11667"
-    # Total 65+: ~70k + ~70k = ~140k (14%)
-
-    # Convert to list matching header order
     return [row.get(var, "0") for var in AGE_VARIABLES] + ["06", "001"]
 
 
@@ -144,29 +141,34 @@ MOCK_EDU_ROW = [
 MOCK_EDU_JSON = [MOCK_EDU_HEADER, MOCK_EDU_ROW]
 
 
+# ── Mock data for Request 4: disability ───────────────────────────────
+
+MOCK_DISABILITY_HEADER = DISABILITY_VARIABLES + ["state", "county"]
+
+# Universe 1,000,000; "with a disability" cells total 100,000 (10%)
+# 12 cells × ~8,333 each ≈ 100K
+MOCK_DISABILITY_ROW = ["1000000"] + ["8333"] * 12 + ["06", "001"]
+
+MOCK_DISABILITY_JSON = [MOCK_DISABILITY_HEADER, MOCK_DISABILITY_ROW]
+
+
 # ── Helpers ───────────────────────────────────────────────────────────
 
 def _mock_responses():
-    """Create three mock httpx responses: profile, age, education."""
-    profile_resp = MagicMock()
-    profile_resp.json.return_value = MOCK_PROFILE_JSON
-    profile_resp.raise_for_status = MagicMock()
-
-    age_resp = MagicMock()
-    age_resp.json.return_value = MOCK_AGE_JSON
-    age_resp.raise_for_status = MagicMock()
-
-    edu_resp = MagicMock()
-    edu_resp.json.return_value = MOCK_EDU_JSON
-    edu_resp.raise_for_status = MagicMock()
-
-    return [profile_resp, age_resp, edu_resp]
+    """Create four mock httpx responses: profile, age, education, disability."""
+    responses = []
+    for payload in (MOCK_PROFILE_JSON, MOCK_AGE_JSON, MOCK_EDU_JSON, MOCK_DISABILITY_JSON):
+        resp = MagicMock()
+        resp.json.return_value = payload
+        resp.raise_for_status = MagicMock()
+        responses.append(resp)
+    return responses
 
 
 class TestFetchCountyDemographics:
     @patch("etl.census_api.httpx.get")
     def test_returns_parsed_rows_with_all_fields(self, mock_get):
-        """Profile + age data merge into one dict per county."""
+        """Profile + age + disability data merge into one dict per county."""
         mock_get.side_effect = _mock_responses()
 
         rows = fetch_county_demographics(year=2022, api_key="fake-key")
@@ -196,20 +198,23 @@ class TestFetchCountyDemographics:
         assert row["poverty_rate"] == pytest.approx(12.0)
 
         # Education
-        # HS or higher = 150k+30k+60k+90k+42k+120k+48k+12k+6k = 558k / 600k = 93%
         assert row["pct_high_school_or_higher"] == pytest.approx(93.0)
-        # Bachelor's+ = 120k+48k+12k+6k = 186k / 600k = 31%
         assert row["pct_bachelors_or_higher"] == pytest.approx(31.0)
 
-        # Vehicle (28k / 400k = 7%)
+        # Vehicle / Housing / Language
         assert row["pct_no_vehicle"] == pytest.approx(7.0)
-
-        # Housing (209k / 380k = 55%)
         assert row["pct_owner_occupied_housing"] == pytest.approx(55.0, abs=0.1)
-
-        # Language
         assert row["pct_english_only"] == pytest.approx(60.0)
         assert row["pct_spanish_speaking"] == pytest.approx(30.0)
+
+        # New fields from this PR
+        assert row["per_capita_income"] == 40000
+        assert row["mean_travel_time_to_work"] == pytest.approx(30.0)  # 15M / 500K
+        assert row["pct_foreign_born"] == pytest.approx(25.0)
+        assert row["pct_rent_burdened"] == pytest.approx(50.0)  # 100K / 200K
+        assert row["pct_enrolled_in_school"] == pytest.approx(26.0)  # 247K / 950K
+        assert row["pct_veteran"] == pytest.approx(10.0)
+        assert row["pct_with_disability"] == pytest.approx(10.0, abs=0.01)  # ~100K / 1M
 
     @patch("etl.census_api.httpx.get")
     def test_age_distribution_percentages(self, mock_get):
@@ -223,17 +228,16 @@ class TestFetchCountyDemographics:
         assert row["pct_18_24"] == pytest.approx(10.0)
         assert row["pct_25_44"] == pytest.approx(28.0)
         assert row["pct_45_64"] == pytest.approx(26.0)
-        # 65+ = 11667*12 = 140004 / 1000000 ≈ 14%
         assert row["pct_65_plus"] == pytest.approx(14.0, abs=0.01)
 
     @patch("etl.census_api.httpx.get")
-    def test_makes_three_api_requests(self, mock_get):
-        """Should hit the Census API three times: profile + age + education."""
+    def test_makes_four_api_requests(self, mock_get):
+        """Should hit the Census API four times: profile + age + education + disability."""
         mock_get.side_effect = _mock_responses()
 
         fetch_county_demographics(year=2022, api_key="fake-key")
 
-        assert mock_get.call_count == 3
+        assert mock_get.call_count == 4
 
     @patch("etl.census_api.httpx.get")
     def test_uses_acs5_for_2010_and_later(self, mock_get):
@@ -242,7 +246,6 @@ class TestFetchCountyDemographics:
 
         fetch_county_demographics(year=2015, api_key="fake-key")
 
-        # Both requests should use acs5
         for c in mock_get.call_args_list:
             assert "/acs/acs5" in c[0][0]
 
@@ -271,17 +274,17 @@ class TestFetchCountyDemographics:
             MOCK_EDU_HEADER,
             [None] * len(EDUCATION_VARIABLES) + ["06", "003"],
         ]
-        null_profile_resp = MagicMock()
-        null_profile_resp.json.return_value = null_profile
-        null_profile_resp.raise_for_status = MagicMock()
-        null_age_resp = MagicMock()
-        null_age_resp.json.return_value = null_age
-        null_age_resp.raise_for_status = MagicMock()
-        null_edu_resp = MagicMock()
-        null_edu_resp.json.return_value = null_edu
-        null_edu_resp.raise_for_status = MagicMock()
-
-        mock_get.side_effect = [null_profile_resp, null_age_resp, null_edu_resp]
+        null_disability = [
+            MOCK_DISABILITY_HEADER,
+            [None] * len(DISABILITY_VARIABLES) + ["06", "003"],
+        ]
+        resps = []
+        for payload in (null_profile, null_age, null_edu, null_disability):
+            r = MagicMock()
+            r.json.return_value = payload
+            r.raise_for_status = MagicMock()
+            resps.append(r)
+        mock_get.side_effect = resps
 
         rows = fetch_county_demographics(year=2006, api_key="fake-key")
 
@@ -290,6 +293,8 @@ class TestFetchCountyDemographics:
         assert rows[0]["pct_white"] is None
         assert rows[0]["pct_under_18"] is None
         assert rows[0]["poverty_rate"] is None
+        assert rows[0]["per_capita_income"] is None
+        assert rows[0]["pct_with_disability"] is None
 
     @patch("etl.census_api.httpx.get")
     def test_retries_on_server_error(self, mock_get):

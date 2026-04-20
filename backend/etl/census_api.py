@@ -1,17 +1,21 @@
 """Pull demographic data from the Census Bureau ACS API.
 
-Gets 28 fields per county per year — population, income, race/ethnicity,
-age brackets, poverty, education, vehicle ownership, housing, and language.
-Uses the ACS 5-year estimates for 2010+ (all 58 counties) and 1-year
-estimates for 2005-2009 (only covers counties over 65K population).
+Gets ~36 fields per county per year — population, income, race/ethnicity,
+age brackets, poverty, education, vehicle ownership, housing, language,
+sex distribution, travel time, foreign-born share, rent burden, school
+enrollment, veteran status, and disability rate. Uses the ACS 5-year
+estimates for 2010+ (all 58 counties) and 1-year estimates for 2005-2009
+(only covers counties over 65K population).
 
-We make up to 3 API requests per year because the Census caps you at
+We make up to 4 API requests per year because the Census caps you at
 50 variables per request:
-  1. Core stuff — population, income, commute, race, poverty, vehicles,
-     housing, language (24 variables)
-  2. Age distribution — 47 cells from B01001 that we sum into 5 brackets
+  1. Profile — core + per-capita income, travel time, foreign-born,
+     rent burden, school enrollment, veteran status (~38 variables)
+  2. Age distribution — 47 cells from B01001 summed into 5 brackets +
+     sex totals
   3. Education — B15003, but this table doesn't exist before 2012 in the
      5-year data so we just skip it gracefully for older years
+  4. Disability — B18101 sex-by-age-by-disability (13 variables)
 """
 
 import time
@@ -54,7 +58,48 @@ PROFILE_VARIABLES = {
     "B16001_001E": "lang_total",        # Population 5 years and over
     "B16001_002E": "lang_english_only",
     "B16001_003E": "lang_spanish",
+    # Per-capita income (B19301 — single value, no division needed)
+    "B19301_001E": "per_capita_income",
+    # Travel time to work: aggregate minutes / total workers 16+ who commuted.
+    # Reuses B08006_001E (commute_total above) as the denominator — same
+    # universe as B08301_001E but B08301 isn't published for ACS1 2005.
+    "B08013_001E": "travel_time_agg",
+    # Place of Birth (B05002 — foreign-born share)
+    "B05002_001E": "birth_total",
+    "B05002_013E": "birth_foreign",     # Foreign born
+    # Gross Rent as % of Household Income (B25070 — rent-burdened %)
+    "B25070_001E": "rent_total",        # Total renter households
+    "B25070_007E": "rent_30_34",        # 30-34.9% of income in rent
+    "B25070_008E": "rent_35_39",        # 35-39.9%
+    "B25070_009E": "rent_40_49",        # 40-49.9%
+    "B25070_010E": "rent_50_plus",      # 50%+ — severely cost-burdened
+    # School Enrollment (B14001 — pop 3+)
+    "B14001_001E": "school_total",
+    "B14001_002E": "school_enrolled",
+    # Veteran Status (B21001 — civilian pop 18+)
+    "B21001_001E": "vet_total",
+    "B21001_002E": "vet_veteran",
 }
+
+# ── Request 4: disability (13 variables) ──────────────────────────────
+# B18101 — Sex by Age by Disability Status. We pull the total and the
+# twelve "With a disability" cells (6 age brackets × 2 sexes), sum them,
+# divide by total to get the overall disability rate.
+DISABILITY_VARIABLES = [
+    "B18101_001E",                       # total universe
+    # Male "with a disability" cells (6 age brackets)
+    "B18101_004E", "B18101_007E", "B18101_010E",
+    "B18101_013E", "B18101_016E", "B18101_019E",
+    # Female "with a disability" cells (6 age brackets)
+    "B18101_023E", "B18101_026E", "B18101_029E",
+    "B18101_032E", "B18101_035E", "B18101_038E",
+]
+_DISABILITY_WITH_CELLS = [
+    "B18101_004E", "B18101_007E", "B18101_010E",
+    "B18101_013E", "B18101_016E", "B18101_019E",
+    "B18101_023E", "B18101_026E", "B18101_029E",
+    "B18101_032E", "B18101_035E", "B18101_038E",
+]
 
 # ── Request 3 (optional): education (10 variables) ────────────────────
 # B15003 — Educational Attainment for 25+
@@ -242,6 +287,37 @@ def _process_profile(record: dict) -> dict:
     lang_english = _safe_int(record.get("B16001_002E"))
     lang_spanish = _safe_int(record.get("B16001_003E"))
 
+    # Per-capita income — direct from B19301
+    per_capita_income = _safe_int(record.get("B19301_001E"))
+
+    # Mean travel time to work (minutes) = aggregate minutes / workers 16+
+    # who commute. Uses commute_total above (same universe as B08301).
+    travel_agg = _safe_int(record.get("B08013_001E"))
+    mean_travel_time = None
+    if travel_agg is not None and commute_total is not None and commute_total > 0:
+        mean_travel_time = round(travel_agg / commute_total, 2)
+
+    # Foreign-born share
+    birth_total = _safe_int(record.get("B05002_001E"))
+    birth_foreign = _safe_int(record.get("B05002_013E"))
+
+    # Rent burden — renters paying 30%+ of income (HUD definition)
+    rent_total = _safe_int(record.get("B25070_001E"))
+    rent_burdened_cells = [
+        _safe_int(record.get(f"B25070_{i:03d}E")) for i in (7, 8, 9, 10)
+    ]
+    rent_burdened = None
+    if any(v is not None for v in rent_burdened_cells):
+        rent_burdened = sum(v for v in rent_burdened_cells if v is not None)
+
+    # School enrollment (pop 3+)
+    school_total = _safe_int(record.get("B14001_001E"))
+    school_enrolled = _safe_int(record.get("B14001_002E"))
+
+    # Veteran status (civilian pop 18+)
+    vet_total = _safe_int(record.get("B21001_001E"))
+    vet_veteran = _safe_int(record.get("B21001_002E"))
+
     return {
         "county_fips": record["county"],
         "population": population,
@@ -265,6 +341,12 @@ def _process_profile(record: dict) -> dict:
         "pct_owner_occupied_housing": _pct(housing_owner, housing_total),
         "pct_english_only": _pct(lang_english, lang_total),
         "pct_spanish_speaking": _pct(lang_spanish, lang_total),
+        "per_capita_income": per_capita_income,
+        "mean_travel_time_to_work": mean_travel_time,
+        "pct_foreign_born": _pct(birth_foreign, birth_total),
+        "pct_rent_burdened": _pct(rent_burdened, rent_total),
+        "pct_enrolled_in_school": _pct(school_enrolled, school_total),
+        "pct_veteran": _pct(vet_veteran, vet_total),
     }
 
 
@@ -272,6 +354,7 @@ def _process_age(record: dict) -> dict:
     """Process a single county row from the age distribution request.
 
     Sums male + female cells into 5 age brackets, then converts to percentages.
+    Also computes total male / female percentages (sums across all age cells).
     """
     total_pop = _safe_int(record.get("B01001_001E"))
 
@@ -288,6 +371,13 @@ def _process_age(record: dict) -> dict:
         else:
             brackets[bracket_name] = None
 
+    # Sex totals — sum across all male age cells (3-25) and female age cells
+    # (27-49). Used independently of the age brackets for sex distribution.
+    all_male_cells = list(range(3, 26))
+    all_female_cells = list(range(27, 50))
+    male_total = _sum_cells(record, all_male_cells)
+    female_total = _sum_cells(record, all_female_cells)
+
     return {
         "county_fips": record["county"],
         "pct_under_18": _pct(brackets["under_18"], total_pop),
@@ -295,6 +385,28 @@ def _process_age(record: dict) -> dict:
         "pct_25_44": _pct(brackets["25_44"], total_pop),
         "pct_45_64": _pct(brackets["45_64"], total_pop),
         "pct_65_plus": _pct(brackets["65_plus"], total_pop),
+        "pct_male": _pct(male_total, total_pop),
+        "pct_female": _pct(female_total, total_pop),
+    }
+
+
+def _process_disability(record: dict) -> dict:
+    """Process a single county row from the B18101 disability request.
+
+    Sums the twelve "With a disability" cells (6 age brackets × 2 sexes)
+    and divides by the total universe to get the overall disability rate.
+    """
+    total = _safe_int(record.get("B18101_001E"))
+    with_disability_cells = [
+        _safe_int(record.get(cell)) for cell in _DISABILITY_WITH_CELLS
+    ]
+    with_disability = None
+    if any(v is not None for v in with_disability_cells):
+        with_disability = sum(v for v in with_disability_cells if v is not None)
+
+    return {
+        "county_fips": record["county"],
+        "pct_with_disability": _pct(with_disability, total),
     }
 
 
@@ -366,6 +478,19 @@ def fetch_county_demographics(year: int, api_key: str) -> list[dict]:
     except (httpx.HTTPStatusError, httpx.RequestError):
         logger.info("Education data (B15003) not available for %d — skipping", year)
 
+    # Request 4 (optional): disability — B18101. Skip gracefully if absent.
+    disability_by_fips = {}
+    try:
+        disability_codes = ",".join(DISABILITY_VARIABLES)
+        disability_url = _build_url(year, api_key, disability_codes)
+        disability_data = _fetch_with_retry(disability_url)
+        disability_rows = _parse_response(disability_data)
+        for row in disability_rows:
+            disability_result = _process_disability(row)
+            disability_by_fips[disability_result["county_fips"]] = disability_result
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        logger.info("Disability data (B18101) not available for %d — skipping", year)
+
     # Build lookup for age data by county FIPS
     age_by_fips = {}
     for row in age_rows:
@@ -386,6 +511,8 @@ def fetch_county_demographics(year: int, api_key: str) -> list[dict]:
             "pct_25_44": age_result.get("pct_25_44"),
             "pct_45_64": age_result.get("pct_45_64"),
             "pct_65_plus": age_result.get("pct_65_plus"),
+            "pct_male": age_result.get("pct_male"),
+            "pct_female": age_result.get("pct_female"),
         })
 
         # Merge in education data if available
@@ -393,6 +520,11 @@ def fetch_county_demographics(year: int, api_key: str) -> list[dict]:
         if edu_result:
             profile_result["pct_high_school_or_higher"] = edu_result.get("pct_high_school_or_higher")
             profile_result["pct_bachelors_or_higher"] = edu_result.get("pct_bachelors_or_higher")
+
+        # Merge in disability data if available
+        disability_result = disability_by_fips.get(fips, {})
+        if disability_result:
+            profile_result["pct_with_disability"] = disability_result.get("pct_with_disability")
 
         results.append(profile_result)
 

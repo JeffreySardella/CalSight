@@ -254,6 +254,41 @@ class Demographic(Base):
     pct_45_64 = Column(Float)              # middle age
     pct_65_plus = Column(Float)            # elderly — most vulnerable as pedestrians
 
+    # Sex distribution — also derived from B01001 (sums of male and female
+    # age cells respectively, divided by total population). Useful for
+    # cross-referencing with crash_parties.gender / crash_victims.gender.
+    pct_male = Column(Float)
+    pct_female = Column(Float)
+
+    # Economic — per-capita alternative to median_income (household).
+    # From Census table B19301.
+    per_capita_income = Column(Integer)
+
+    # Exposure proxy — longer commutes = more time on roads = more crash
+    # chances, independent of skill. From B08013 (aggregate minutes) / B08301
+    # (workers 16+).
+    mean_travel_time_to_work = Column(Float)  # minutes
+
+    # Equity lens — language/cultural barriers hypothesis. From B05002.
+    pct_foreign_born = Column(Float)
+
+    # Stress proxy — renters paying 30%+ of income (HUD's "rent-burdened"
+    # threshold). Sum of B25070 cells 007-010 / total renters.
+    pct_rent_burdened = Column(Float)
+
+    # Kids-on-roads signal — enrolled in school (nursery through graduate).
+    # From B14001 (pop 3+).
+    pct_enrolled_in_school = Column(Float)
+
+    # Niche risk correlate — veterans have higher motorcycle crash rates in
+    # national studies. From B21001 (civilian pop 18+).
+    pct_veteran = Column(Float)
+
+    # Pedestrian vulnerability angle — people with disabilities are
+    # over-represented in pedestrian fatalities. From B18101 (sex by age by
+    # disability status), summed across all "with a disability" cells.
+    pct_with_disability = Column(Float)
+
     # Socioeconomic — poverty is from B17001, education from B15003.
     # Education is null for some years because the Census didn't publish
     # B15003 until 2012 in the ACS 5-year data.

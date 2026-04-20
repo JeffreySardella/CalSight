@@ -104,6 +104,17 @@ def transform_to_demographic_kwargs(
         "pct_25_44": api_row.get("pct_25_44"),
         "pct_45_64": api_row.get("pct_45_64"),
         "pct_65_plus": api_row.get("pct_65_plus"),
+        # Sex
+        "pct_male": api_row.get("pct_male"),
+        "pct_female": api_row.get("pct_female"),
+        # Economic / exposure / equity / niche
+        "per_capita_income": api_row.get("per_capita_income"),
+        "mean_travel_time_to_work": api_row.get("mean_travel_time_to_work"),
+        "pct_foreign_born": api_row.get("pct_foreign_born"),
+        "pct_rent_burdened": api_row.get("pct_rent_burdened"),
+        "pct_enrolled_in_school": api_row.get("pct_enrolled_in_school"),
+        "pct_veteran": api_row.get("pct_veteran"),
+        "pct_with_disability": api_row.get("pct_with_disability"),
         # Socioeconomic
         "poverty_rate": api_row.get("poverty_rate"),
         "pct_bachelors_or_higher": api_row.get("pct_bachelors_or_higher"),
