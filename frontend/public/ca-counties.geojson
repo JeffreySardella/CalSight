@@ -5,6 +5,7 @@
       "type": "Feature",
       "properties": {
         "name": "Alameda",
+        "county_code": 1,
         "cartodb_id": 1,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -155,6 +156,7 @@
       "type": "Feature",
       "properties": {
         "name": "Alpine",
+        "county_code": 2,
         "cartodb_id": 2,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -261,6 +263,7 @@
       "type": "Feature",
       "properties": {
         "name": "Amador",
+        "county_code": 3,
         "cartodb_id": 3,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -444,6 +447,7 @@
       "type": "Feature",
       "properties": {
         "name": "Butte",
+        "county_code": 4,
         "cartodb_id": 4,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -684,6 +688,7 @@
       "type": "Feature",
       "properties": {
         "name": "Calaveras",
+        "county_code": 5,
         "cartodb_id": 5,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -878,6 +883,7 @@
       "type": "Feature",
       "properties": {
         "name": "Colusa",
+        "county_code": 6,
         "cartodb_id": 6,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -1037,6 +1043,7 @@
       "type": "Feature",
       "properties": {
         "name": "Contra Costa",
+        "county_code": 7,
         "cartodb_id": 7,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -1247,6 +1254,7 @@
       "type": "Feature",
       "properties": {
         "name": "Del Norte",
+        "county_code": 8,
         "cartodb_id": 8,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -1383,6 +1391,7 @@
       "type": "Feature",
       "properties": {
         "name": "Tuolumne",
+        "county_code": 55,
         "cartodb_id": 55,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -1702,6 +1711,7 @@
       "type": "Feature",
       "properties": {
         "name": "El Dorado",
+        "county_code": 9,
         "cartodb_id": 9,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -1938,6 +1948,7 @@
       "type": "Feature",
       "properties": {
         "name": "Fresno",
+        "county_code": 10,
         "cartodb_id": 10,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -2354,6 +2365,7 @@
       "type": "Feature",
       "properties": {
         "name": "Glenn",
+        "county_code": 11,
         "cartodb_id": 11,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -2470,6 +2482,7 @@
       "type": "Feature",
       "properties": {
         "name": "Humboldt",
+        "county_code": 12,
         "cartodb_id": 12,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -2691,6 +2704,7 @@
       "type": "Feature",
       "properties": {
         "name": "Inyo",
+        "county_code": 14,
         "cartodb_id": 14,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -2943,6 +2957,7 @@
       "type": "Feature",
       "properties": {
         "name": "Lake",
+        "county_code": 17,
         "cartodb_id": 17,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -3144,6 +3159,7 @@
       "type": "Feature",
       "properties": {
         "name": "San Diego",
+        "county_code": 37,
         "cartodb_id": 37,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -3297,6 +3313,7 @@
       "type": "Feature",
       "properties": {
         "name": "San Francisco",
+        "county_code": 38,
         "cartodb_id": 38,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -3345,6 +3362,7 @@
       "type": "Feature",
       "properties": {
         "name": "Sierra",
+        "county_code": 46,
         "cartodb_id": 46,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -3490,6 +3508,7 @@
       "type": "Feature",
       "properties": {
         "name": "Siskiyou",
+        "county_code": 47,
         "cartodb_id": 47,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -3753,6 +3772,7 @@
       "type": "Feature",
       "properties": {
         "name": "Solano",
+        "county_code": 48,
         "cartodb_id": 48,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -3949,6 +3969,7 @@
       "type": "Feature",
       "properties": {
         "name": "Sonoma",
+        "county_code": 49,
         "cartodb_id": 49,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -4168,6 +4189,7 @@
       "type": "Feature",
       "properties": {
         "name": "Los Angeles",
+        "county_code": 19,
         "cartodb_id": 19,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -4457,6 +4479,7 @@
       "type": "Feature",
       "properties": {
         "name": "Madera",
+        "county_code": 20,
         "cartodb_id": 20,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -4733,6 +4756,7 @@
       "type": "Feature",
       "properties": {
         "name": "Marin",
+        "county_code": 21,
         "cartodb_id": 21,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -4959,6 +4983,7 @@
       "type": "Feature",
       "properties": {
         "name": "Mariposa",
+        "county_code": 22,
         "cartodb_id": 22,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -5123,6 +5148,7 @@
       "type": "Feature",
       "properties": {
         "name": "Mendocino",
+        "county_code": 23,
         "cartodb_id": 23,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -5357,6 +5383,7 @@
       "type": "Feature",
       "properties": {
         "name": "Merced",
+        "county_code": 24,
         "cartodb_id": 24,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -5495,6 +5522,7 @@
       "type": "Feature",
       "properties": {
         "name": "Modoc",
+        "county_code": 25,
         "cartodb_id": 25,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -5555,6 +5583,7 @@
       "type": "Feature",
       "properties": {
         "name": "Tulare",
+        "county_code": 54,
         "cartodb_id": 54,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -5717,6 +5746,7 @@
       "type": "Feature",
       "properties": {
         "name": "Imperial",
+        "county_code": 13,
         "cartodb_id": 13,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -5848,6 +5878,7 @@
       "type": "Feature",
       "properties": {
         "name": "Santa Cruz",
+        "county_code": 44,
         "cartodb_id": 44,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -5998,6 +6029,7 @@
       "type": "Feature",
       "properties": {
         "name": "Shasta",
+        "county_code": 45,
         "cartodb_id": 45,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -6249,6 +6281,7 @@
       "type": "Feature",
       "properties": {
         "name": "Stanislaus",
+        "county_code": 50,
         "cartodb_id": 50,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -6386,6 +6419,7 @@
       "type": "Feature",
       "properties": {
         "name": "Sutter",
+        "county_code": 51,
         "cartodb_id": 51,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -6569,6 +6603,7 @@
       "type": "Feature",
       "properties": {
         "name": "Tehama",
+        "county_code": 52,
         "cartodb_id": 52,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -6834,6 +6869,7 @@
       "type": "Feature",
       "properties": {
         "name": "Trinity",
+        "county_code": 53,
         "cartodb_id": 53,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -7166,6 +7202,7 @@
       "type": "Feature",
       "properties": {
         "name": "Kern",
+        "county_code": 15,
         "cartodb_id": 15,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -7281,6 +7318,7 @@
       "type": "Feature",
       "properties": {
         "name": "San Mateo",
+        "county_code": 41,
         "cartodb_id": 41,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -7443,6 +7481,7 @@
       "type": "Feature",
       "properties": {
         "name": "Santa Barbara",
+        "county_code": 42,
         "cartodb_id": 42,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -7788,6 +7827,7 @@
       "type": "Feature",
       "properties": {
         "name": "Santa Clara",
+        "county_code": 43,
         "cartodb_id": 43,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -8012,6 +8052,7 @@
       "type": "Feature",
       "properties": {
         "name": "Ventura",
+        "county_code": 56,
         "cartodb_id": 56,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -8124,6 +8165,7 @@
       "type": "Feature",
       "properties": {
         "name": "Yolo",
+        "county_code": 57,
         "cartodb_id": 57,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -8331,6 +8373,7 @@
       "type": "Feature",
       "properties": {
         "name": "Yuba",
+        "county_code": 58,
         "cartodb_id": 58,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -8535,6 +8578,7 @@
       "type": "Feature",
       "properties": {
         "name": "Lassen",
+        "county_code": 18,
         "cartodb_id": 18,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -8686,6 +8730,7 @@
       "type": "Feature",
       "properties": {
         "name": "Kings",
+        "county_code": 16,
         "cartodb_id": 16,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -8755,6 +8800,7 @@
       "type": "Feature",
       "properties": {
         "name": "Mono",
+        "county_code": 26,
         "cartodb_id": 26,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -8977,6 +9023,7 @@
       "type": "Feature",
       "properties": {
         "name": "Monterey",
+        "county_code": 27,
         "cartodb_id": 27,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -9297,6 +9344,7 @@
       "type": "Feature",
       "properties": {
         "name": "Napa",
+        "county_code": 28,
         "cartodb_id": 28,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -9458,6 +9506,7 @@
       "type": "Feature",
       "properties": {
         "name": "Nevada",
+        "county_code": 29,
         "cartodb_id": 29,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -9641,6 +9690,7 @@
       "type": "Feature",
       "properties": {
         "name": "Orange",
+        "county_code": 30,
         "cartodb_id": 30,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -9752,6 +9802,7 @@
       "type": "Feature",
       "properties": {
         "name": "Placer",
+        "county_code": 31,
         "cartodb_id": 31,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -9963,6 +10014,7 @@
       "type": "Feature",
       "properties": {
         "name": "Plumas",
+        "county_code": 32,
         "cartodb_id": 32,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -10234,6 +10286,7 @@
       "type": "Feature",
       "properties": {
         "name": "Riverside",
+        "county_code": 33,
         "cartodb_id": 33,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -10406,6 +10459,7 @@
       "type": "Feature",
       "properties": {
         "name": "Sacramento",
+        "county_code": 34,
         "cartodb_id": 34,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -10615,6 +10669,7 @@
       "type": "Feature",
       "properties": {
         "name": "San Benito",
+        "county_code": 35,
         "cartodb_id": 35,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -10797,6 +10852,7 @@
       "type": "Feature",
       "properties": {
         "name": "San Bernardino",
+        "county_code": 36,
         "cartodb_id": 36,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -11023,6 +11079,7 @@
       "type": "Feature",
       "properties": {
         "name": "San Joaquin",
+        "county_code": 39,
         "cartodb_id": 39,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"
@@ -11212,6 +11269,7 @@
       "type": "Feature",
       "properties": {
         "name": "San Luis Obispo",
+        "county_code": 40,
         "cartodb_id": 40,
         "created_at": "2015-07-04T21:04:58Z",
         "updated_at": "2015-07-04T21:04:58Z"

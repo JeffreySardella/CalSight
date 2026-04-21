@@ -12,6 +12,8 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 const STORAGE_KEY = "calsight-theme";
 
 function getSystemPreference(): boolean {
+  // Guard for test environments (jsdom) that don't ship matchMedia.
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
@@ -35,7 +37,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
-    if (theme !== "system") return;
+    if (theme !== "system" || typeof window.matchMedia !== "function") return;
 
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => applyDarkClass(e.matches);
@@ -59,4 +61,28 @@ export function useTheme() {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error("useTheme must be used within ThemeProvider");
   return ctx;
+}
+
+function resolveIsDark(theme: Theme): boolean {
+  if (theme === "dark") return true;
+  if (theme === "light") return false;
+  return typeof window !== "undefined" && getSystemPreference();
+}
+
+/** Effective dark-mode boolean, resolving "system" against the OS preference
+ *  and responding to both explicit theme changes and OS media-query changes. */
+export function useIsDark(): boolean {
+  const { theme } = useTheme();
+  const [isDark, setIsDark] = useState(() => resolveIsDark(theme));
+
+  useEffect(() => {
+    setIsDark(resolveIsDark(theme));
+    if (theme !== "system" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [theme]);
+
+  return isDark;
 }

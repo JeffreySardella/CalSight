@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CountyBoundaries from "./CountyBoundaries";
+import { useIsDark } from "../../context/ThemeContext";
 
 const CA_CENTER: [number, number] = [37.2, -119.5];
 const CA_ZOOM = 6;
@@ -46,6 +47,18 @@ export default function MapCanvas({
   onSelectCounty,
   onMapReady,
 }: MapCanvasProps) {
+  const isDark = useIsDark();
+  // CartoDB tile variants — swap between light_* and dark_* so counties
+  // retain contrast against the basemap in either theme. The `key` on the
+  // TileLayer forces React to tear down + remount when the theme flips,
+  // because react-leaflet otherwise caches the initial URL.
+  const baseTileUrl = isDark
+    ? "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png";
+  const labelTileUrl = isDark
+    ? "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png";
+
   return (
     <MapContainer
       center={CA_CENTER}
@@ -61,7 +74,8 @@ export default function MapCanvas({
       zoomAnimationThreshold={4}
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
+        key={baseTileUrl}
+        url={baseTileUrl}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
 
@@ -73,7 +87,8 @@ export default function MapCanvas({
       />
 
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
+        key={labelTileUrl}
+        url={labelTileUrl}
         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
       />
     </MapContainer>

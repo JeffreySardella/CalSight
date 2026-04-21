@@ -1,6 +1,12 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
+import { useLayersState } from "../../hooks/useLayersState";
+import { useChoroplethData } from "../../hooks/useChoroplethData";
+import { useFilterParams } from "../../hooks/useFilterParams";
+import { quantileBuckets, bucketFor } from "../../lib/choropleth/binning";
+import { getPalette, HATCH_PATTERN_ID, installHatchPattern } from "../../lib/choropleth/palettes";
+import { useIsDark } from "../../context/ThemeContext";
 
 interface CountyBoundariesProps {
   focusedCounty: string | null;
@@ -8,19 +14,24 @@ interface CountyBoundariesProps {
   onSelectCounty: (name: string) => void;
 }
 
-const DEFAULT_STYLE: L.PathOptions = {
+const OUTLINE_ONLY_STYLE: L.PathOptions = {
   color: "#78716c",
   weight: 1,
   fillColor: "#78716c",
   fillOpacity: 0.03,
 };
 
-const FOCUSED_STYLE: L.PathOptions = {
-  color: "#6750a4",
-  weight: 3,
-  fillColor: "#6750a4",
-  fillOpacity: 0.12,
-};
+const FOCUSED_WEIGHT = 3;
+const FOCUSED_COLOR = "#6750a4";
+
+function getCountyName(f: GeoJSON.Feature): string {
+  return (f.properties?.name ?? "").toString();
+}
+
+function getCountyCode(f: GeoJSON.Feature): number | null {
+  const raw = f.properties?.county_code;
+  return raw == null ? null : Number(raw);
+}
 
 export default function CountyBoundaries({
   focusedCounty,
@@ -28,85 +39,234 @@ export default function CountyBoundaries({
   onSelectCounty,
 }: CountyBoundariesProps) {
   const map = useMap();
+  const { selectedYears, selectedSeverities, selectedCauses, selectedCounties } = useFilterParams();
+  const { choroplethOn, measure, palette, setBucketEdges, otherLayers } = useLayersState();
+  const isDark = useIsDark();
+
+  // County filter: empty set = all counties selected (no filtering)
+  const hasCountyFilter = selectedCounties.size > 0;
+
+  // Note: `selectedCounties` is intentionally NOT passed into the stats
+  // fetch — we always fetch ALL 58 counties so bucket edges stay globally
+  // consistent. County filtering is applied visually in `computeStyle`.
+  const filters = useMemo(
+    () => ({
+      years: [...selectedYears].sort((a, b) => a - b),
+      severities: [...selectedSeverities],
+      causes: [...selectedCauses],
+    }),
+    [selectedYears, selectedSeverities, selectedCauses],
+  );
+  const { byCountyCode } = useChoroplethData(measure, filters);
+
   const [geojson, setGeojson] = useState<GeoJSON.FeatureCollection | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
   const tooltipRef = useRef<L.Tooltip | null>(null);
+  const edgesRef = useRef<number[] | null>(null);
 
-  // Load GeoJSON on mount
+  // Ref so event handlers (bound once) can read current filter state
+  const countyFilterRef = useRef<{ has: Set<string>; active: boolean }>({
+    has: selectedCounties,
+    active: hasCountyFilter,
+  });
+  countyFilterRef.current = { has: selectedCounties, active: hasCountyFilter };
+
+
+
+  useEffect(() => {
+    installHatchPattern();
+  }, []);
+
   useEffect(() => {
     fetch("/ca-counties.geojson")
       .then((res) => res.json())
       .then((data: GeoJSON.FeatureCollection) => {
-        data.features.sort((a, b) => {
-          const nameA = a.properties?.name ?? "";
-          const nameB = b.properties?.name ?? "";
-          return nameA.localeCompare(nameB);
-        });
+        data.features.sort((a, b) => getCountyName(a).localeCompare(getCountyName(b)));
         setGeojson(data);
       });
   }, []);
 
-  const getCountyName = useCallback((feature: GeoJSON.Feature): string => {
-    return (feature.properties?.name ?? "").toString();
-  }, []);
+  const computeStyle = useCallback(
+    (feature: GeoJSON.Feature): L.PathOptions => {
+      const name = getCountyName(feature);
+      const isFocused = name === focusedCounty;
+      const outlineColor = isDark ? "#a3a3a3" : "#78716c";
 
-  // Render GeoJSON layer
-  useEffect(() => {
-    if (!geojson) return;
+      // When counties are filtered via the UI, unselected counties
+      // keep normal outlines but get no choropleth fill — just a
+      // neutral outline so they're still visible and clickable.
+      const isInFilter = !hasCountyFilter || selectedCounties.has(name);
 
-    if (layerRef.current) {
-      map.removeLayer(layerRef.current);
+      if (!isInFilter && !isFocused) {
+        return {
+          ...OUTLINE_ONLY_STYLE,
+          color: isDark ? "#555" : "#78716c",
+          fillColor: isDark ? "#555" : "#78716c",
+        };
+      }
+
+      const showBorder = isFocused || otherLayers.countyBoundaries;
+      const borderColor = isFocused ? FOCUSED_COLOR : (showBorder ? outlineColor : "transparent");
+      const borderWeight = isFocused ? FOCUSED_WEIGHT : (showBorder ? 1 : 0);
+
+      if (!choroplethOn) {
+        if (!otherLayers.countyBoundaries && !isFocused) {
+          return { stroke: false, fill: false };
+        }
+        const base: L.PathOptions = { ...OUTLINE_ONLY_STYLE, color: borderColor, weight: borderWeight, fillColor: outlineColor };
+        return isFocused
+          ? { ...base, fillOpacity: 0.12 }
+          : base;
+      }
+
+      const code = getCountyCode(feature);
+      const point = code != null ? byCountyCode[code] : undefined;
+      const colors = getPalette(palette, isDark);
+
+      if (!point || !point.hasEnoughData || point.value == null) {
+        return {
+          color: borderColor,
+          weight: borderWeight,
+          fillColor: `url(#${HATCH_PATTERN_ID})`,
+          fillOpacity: 1,
+        };
+      }
+
+      const edges = edgesRef.current;
+      if (!edges) {
+        return { color: borderColor, weight: borderWeight, fillColor: colors[0], fillOpacity: 0.6 };
+      }
+      const idx = bucketFor(point.value, edges);
+      return {
+        color: borderColor,
+        weight: borderWeight,
+        fillColor: colors[idx],
+        fillOpacity: 0.75,
+      };
+    },
+    [choroplethOn, otherLayers.countyBoundaries, focusedCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
+  );
+
+  // Ref so mouseout can re-apply the *current* style (not the stale one
+  // captured at layer creation time that Leaflet's resetStyle would use).
+  const computeStyleRef = useRef(computeStyle);
+  computeStyleRef.current = computeStyle;
+
+  const rebucketAndRepaint = useCallback(() => {
+    const layer = layerRef.current;
+    if (!layer || !geojson) return;
+
+    if (choroplethOn) {
+      // Compute bucket edges across ALL counties with data — not filtered
+      // by viewport. This keeps the color scale globally consistent,
+      // especially important when only a handful of counties are selected.
+      const allValues: number[] = [];
+      layer.eachLayer((fl) => {
+        const f = (fl as L.GeoJSON & { feature: GeoJSON.Feature }).feature;
+        const code = getCountyCode(f);
+        const point = code != null ? byCountyCode[code] : undefined;
+        if (!point || !point.hasEnoughData || point.value == null) return;
+        allValues.push(point.value);
+      });
+      const edges = quantileBuckets(allValues, 5);
+      if (edges) edgesRef.current = edges;
+      setBucketEdges(edgesRef.current);
     }
 
-    const layer = L.geoJSON(geojson, {
-      style: (feature) => {
-        if (!feature) return DEFAULT_STYLE;
-        return getCountyName(feature) === focusedCounty ? FOCUSED_STYLE : DEFAULT_STYLE;
-      },
-      onEachFeature: (feature, featureLayer) => {
-        const name = getCountyName(feature);
-        featureLayer.on({
-          click: () => {
-            onFocusCounty(name);
-            onSelectCounty(name);
-          },
-          mouseover: () => {
-            if (name !== focusedCounty) {
-              (featureLayer as L.Path).setStyle({ weight: 2, fillOpacity: 0.08 });
-            }
-          },
-          mouseout: () => {
-            if (name !== focusedCounty) {
-              (featureLayer as L.Path).setStyle(DEFAULT_STYLE);
-            }
-          },
-        });
-      },
+    layer.eachLayer((fl) => {
+      const f = (fl as L.GeoJSON & { feature: GeoJSON.Feature }).feature;
+      const path = fl as L.Path;
+      if (typeof path.setStyle === "function") {
+        if (!otherLayers.countyBoundaries && !choroplethOn) {
+          path.setStyle({ stroke: false, fill: false });
+        } else {
+          path.setStyle(computeStyle(f));
+        }
+      }
     });
+  }, [geojson, choroplethOn, otherLayers.countyBoundaries, byCountyCode, computeStyle, setBucketEdges]);
 
-    layer.addTo(map);
-    layerRef.current = layer;
+  useEffect(() => {
+    if (!geojson) return;
+    if (layerRef.current) map.removeLayer(layerRef.current);
+
+    try {
+      const layer = L.geoJSON(geojson, {
+        style: (feature) => computeStyle(feature ?? { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [] } }),
+        onEachFeature: (feature, featureLayer) => {
+          const name = getCountyName(feature);
+          featureLayer.on({
+            click: () => {
+              onFocusCounty(name);
+              onSelectCounty(name);
+            },
+            mouseover: (e) => {
+              if (name === focusedCounty) return;
+              // Skip hover effect for unselected counties
+              const cf = countyFilterRef.current;
+              if (cf.active && !cf.has.has(name)) return;
+
+              const path = e.target as L.Path;
+              path.setStyle({ weight: 2, color: FOCUSED_COLOR });
+              if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                path.bringToFront();
+              }
+            },
+            mouseout: (e) => {
+              if (name === focusedCounty) return;
+              const cf = countyFilterRef.current;
+              if (cf.active && !cf.has.has(name)) return;
+
+              // Don't use layer.resetStyle() — it calls the stale style
+              // function from layer creation, wiping choropleth colors.
+              const path = e.target as L.Path;
+              path.setStyle(computeStyleRef.current(feature));
+            },
+          });
+        },
+      });
+      layer.addTo(map);
+      layerRef.current = layer;
+    } catch (e) {
+      console.error("[CountyBoundaries] failed to render geojson layer", e);
+    }
 
     return () => {
-      map.removeLayer(layer);
+      if (layerRef.current) map.removeLayer(layerRef.current);
+      layerRef.current = null;
     };
-  }, [geojson, focusedCounty, map, getCountyName, onFocusCounty, onSelectCounty]);
+    // computeStyle identity would thrash event bindings; intentionally omitted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geojson, map]);
 
-  // Tooltip for focused county
+  useEffect(() => {
+    rebucketAndRepaint();
+  }, [rebucketAndRepaint]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onMoveEnd = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(rebucketAndRepaint, 200);
+    };
+    map.on("moveend", onMoveEnd);
+    return () => {
+      if (timer) clearTimeout(timer);
+      map.off("moveend", onMoveEnd);
+    };
+  }, [map, rebucketAndRepaint]);
+
   useEffect(() => {
     if (tooltipRef.current) {
       map.removeLayer(tooltipRef.current);
       tooltipRef.current = null;
     }
-
     if (!focusedCounty || !layerRef.current) return;
-
-    layerRef.current.eachLayer((featureLayer) => {
-      const feature = (featureLayer as L.GeoJSON & { feature: GeoJSON.Feature }).feature;
-      if (feature && getCountyName(feature) === focusedCounty) {
-        const bounds = (featureLayer as L.Polygon).getBounds();
+    layerRef.current.eachLayer((fl) => {
+      const f = (fl as L.GeoJSON & { feature: GeoJSON.Feature }).feature;
+      if (f && getCountyName(f) === focusedCounty) {
+        const bounds = (fl as L.Polygon).getBounds();
         const center = bounds.getCenter();
-
         const tooltip = L.tooltip({
           permanent: true,
           direction: "center",
@@ -115,22 +275,19 @@ export default function CountyBoundaries({
           .setLatLng(center)
           .setContent(focusedCounty)
           .addTo(map);
-
         tooltipRef.current = tooltip;
-
         if (!map.getBounds().contains(center)) {
           map.panTo(center, { animate: true });
         }
       }
     });
-
     return () => {
       if (tooltipRef.current) {
         map.removeLayer(tooltipRef.current);
         tooltipRef.current = null;
       }
     };
-  }, [focusedCounty, map, getCountyName]);
+  }, [focusedCounty, map]);
 
   return null;
 }

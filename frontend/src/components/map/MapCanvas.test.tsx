@@ -12,6 +12,11 @@ vi.mock("./CountyBoundaries", () => ({
 import type { Map as LeafletMap } from "leaflet";
 import MapCanvas from "./MapCanvas";
 import { mockMapInstance } from "../../__mocks__/leaflet";
+import { ThemeProvider } from "../../context/ThemeContext";
+
+function renderWithTheme(ui: React.ReactElement) {
+  return render(<ThemeProvider>{ui}</ThemeProvider>);
+}
 
 describe("MapCanvas", () => {
   let onMapReady: ReturnType<typeof vi.fn<(map: LeafletMap) => void>>;
@@ -26,7 +31,7 @@ describe("MapCanvas", () => {
   });
 
   it("renders without crashing", () => {
-    render(
+    renderWithTheme(
       <MapCanvas
         focusedCounty={null}
         onFocusCounty={onFocusCounty}
@@ -38,7 +43,7 @@ describe("MapCanvas", () => {
   });
 
   it("calls onMapReady with the map instance", () => {
-    render(
+    renderWithTheme(
       <MapCanvas
         focusedCounty={null}
         onFocusCounty={onFocusCounty}
@@ -50,7 +55,7 @@ describe("MapCanvas", () => {
   });
 
   it("passes focusedCounty to CountyBoundaries", () => {
-    render(
+    renderWithTheme(
       <MapCanvas
         focusedCounty="Fresno"
         onFocusCounty={onFocusCounty}
