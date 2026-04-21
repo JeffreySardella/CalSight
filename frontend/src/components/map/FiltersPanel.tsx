@@ -13,6 +13,9 @@ const countyOptions = [
   ...CA_COUNTIES.map((c) => ({ value: c, label: c })),
 ];
 
+/** Stable reference — avoids creating a new Set on every render. */
+const ALL_COUNTIES_SET = new Set(["__all__"]);
+
 interface FiltersPanelProps {
   selectedYears: Set<number>;
   selectedSeverities: Set<string>;
@@ -127,11 +130,14 @@ export default function FiltersPanel({
         </label>
         <SearchableMultiSelect
           options={countyOptions}
-          selected={selectedCounties.size === 0 ? new Set(["__all__"]) : selectedCounties}
+          selected={selectedCounties.size === 0 ? ALL_COUNTIES_SET : selectedCounties}
+          nonDismissableValues={ALL_COUNTIES_SET}
           onToggle={(value) => {
             if (value === "__all__") {
+              // Clicking "All Counties" row in dropdown → reset to all (= empty set)
               onClearCounties();
             } else {
+              // Clicking a specific county — works for both "from all" and "from selection"
               onToggleCounty(value);
             }
           }}

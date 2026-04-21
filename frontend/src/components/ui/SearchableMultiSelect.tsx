@@ -6,6 +6,8 @@ interface SearchableMultiSelectProps {
   onToggle: (value: string) => void;
   placeholder?: string;
   resetKey?: number;
+  /** Values in this set won't show an X/dismiss button on their chip. */
+  nonDismissableValues?: Set<string>;
 }
 
 export default function SearchableMultiSelect({
@@ -14,6 +16,7 @@ export default function SearchableMultiSelect({
   onToggle,
   placeholder = "Search...",
   resetKey = 0,
+  nonDismissableValues,
 }: SearchableMultiSelectProps) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -46,20 +49,25 @@ export default function SearchableMultiSelect({
       {/* Selected chips */}
       {selectedOptions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
-          {selectedOptions.map((opt) => (
-            <span
-              key={opt.value}
-              className="inline-flex items-center gap-1 bg-primary-container text-on-primary-container px-2.5 py-1 rounded-full text-xs font-medium"
-            >
-              {opt.label}
-              <button
-                onClick={() => onToggle(opt.value)}
-                className="hover:text-on-surface transition-colors"
+          {selectedOptions.map((opt) => {
+            const canDismiss = !nonDismissableValues?.has(opt.value);
+            return (
+              <span
+                key={opt.value}
+                className="inline-flex items-center gap-1 bg-primary-container text-on-primary-container px-2.5 py-1 rounded-full text-xs font-medium"
               >
-                <span className="material-symbols-outlined text-[14px]">close</span>
-              </button>
-            </span>
-          ))}
+                {opt.label}
+                {canDismiss && (
+                  <button
+                    onClick={() => onToggle(opt.value)}
+                    className="hover:text-on-surface transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">close</span>
+                  </button>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 

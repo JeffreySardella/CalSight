@@ -1,9 +1,10 @@
 services:
-  # Optional local Postgres. Disabled by default — backend uses the Azure DB
-  # from backend/.env. To run locally, start with: docker-compose --profile local-db up
+  # Optional local Postgres. Disabled by default — backend uses the home Proxmox DB
+  # via backend/.env. To run a fresh empty local DB instead, start with:
+  #   docker-compose --profile local-db up
   db:
     profiles: ["local-db"]
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: calsight
       POSTGRES_USER: calsight
