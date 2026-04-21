@@ -270,6 +270,8 @@ function ChoroplethLegendContainer() {
   const { selectedYears, selectedSeverities, selectedCauses } = useFilterParams();
   const { measure } = useLayersState();
   const queryClient = useQueryClient();
+  // Must match the filter shape used in CountyBoundaries so React Query
+  // dedupes the stats request to a single /api/stats fetch.
   const filters = useMemo(
     () => ({
       years: [...selectedYears].sort((a, b) => a - b),

@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
 // ── Constants ──
@@ -43,8 +44,8 @@ export const CAUSES = [
 
 const CAUSE_VALUES: Set<string> = new Set(CAUSES.map((c) => c.value));
 
-const DEFAULT_YEARS = new Set([2020, 2023]);
-const DEFAULT_SEVERITIES = new Set<string>(["Fatal"]);
+const DEFAULT_YEARS = new Set<number>();
+const DEFAULT_SEVERITIES = new Set<string>();
 
 // ── Slug utilities ──
 
@@ -141,118 +142,150 @@ export function buildFilterQS(searchParams: URLSearchParams): string {
 export function useFilterParams() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const selectedYears = parseYears(searchParams.get("year"));
-  const selectedSeverities = parseSeverities(searchParams.get("severity"));
-  const selectedCounties = parseCounties(searchParams.get("county"));
-  const selectedCauses = parseCauses(searchParams.get("cause"));
+  // ── Memoize parsed Sets by their raw URL string ──────────────────────
+  // Without this, every render produces a brand-new Set object which
+  // cascades through useMemo/useCallback deps in CountyBoundaries,
+  // ChoroplethLegendContainer, etc., causing an infinite re-render loop.
+  const yearParam = searchParams.get("year");
+  const severityParam = searchParams.get("severity");
+  const countyParam = searchParams.get("county");
+  const causeParam = searchParams.get("cause");
   const panel = searchParams.get("panel");
 
-  function updateParams(
-    years: Set<number>,
-    severities: Set<string>,
-    counties: Set<string>,
-    causes: Set<string>,
-  ) {
-    const params = new URLSearchParams();
-    params.set("year", [...years].sort().join(","));
-    params.set("severity", [...severities].map(slugify).sort().join(","));
-    if (counties.size > 0) {
-      params.set("county", [...counties].map(slugify).sort().join(","));
-    }
-    if (causes.size > 0) {
-      params.set("cause", [...causes].sort().join(","));
-    }
-    setSearchParams(params);
-  }
+  // ── Memoized parsed Sets ──
+  // Only recompute when the raw URL string actually changes,
+  // preventing new Set references on every render.
+  const selectedYears = useMemo(() => parseYears(yearParam), [yearParam]);
+  const selectedSeverities = useMemo(() => parseSeverities(severityParam), [severityParam]);
+  const selectedCounties = useMemo(() => parseCounties(countyParam), [countyParam]);
+  const selectedCauses = useMemo(() => parseCauses(causeParam), [causeParam]);
 
-  function toggleYear(year: number) {
-    const next = new Set(selectedYears);
-    if (next.has(year)) next.delete(year);
-    else next.add(year);
-    updateParams(next, selectedSeverities, selectedCounties, selectedCauses);
-  }
+  // ── Action callbacks ──
+  // Each reads the *latest* URL state via the functional updater
+  // inside setSearchParams, avoiding stale-closure bugs.
 
-  function setYearRange(from: number, to: number) {
-    const next = new Set(selectedYears);
-    for (let y = from; y <= to; y++) {
-      if (YEARS.includes(y)) next.add(y);
-    }
-    updateParams(next, selectedSeverities, selectedCounties, selectedCauses);
-  }
+  const toggleYear = useCallback(
+    (year: number) => {
+      setSearchParams((prev) => {
+        const current = parseYears(prev.get("year"));
+        if (current.has(year)) current.delete(year);
+        else current.add(year);
+        return buildNextParams(prev, { years: current });
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  function setYears(years: Set<number>) {
-    updateParams(years, selectedSeverities, selectedCounties, selectedCauses);
-  }
+  const setYearRange = useCallback(
+    (from: number, to: number) => {
+      setSearchParams((prev) => {
+        const current = parseYears(prev.get("year"));
+        for (let y = from; y <= to; y++) {
+          if (YEARS.includes(y)) current.add(y);
+        }
+        return buildNextParams(prev, { years: current });
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  function clearYears() {
-    updateParams(new Set(), selectedSeverities, selectedCounties, selectedCauses);
-  }
+  const setYears = useCallback(
+    (years: Set<number>) => {
+      setSearchParams((prev) => buildNextParams(prev, { years }), { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  function setAllYears() {
-    updateParams(new Set(YEARS), selectedSeverities, selectedCounties, selectedCauses);
-  }
+  const clearYears = useCallback(() => {
+    setSearchParams((prev) => buildNextParams(prev, { years: new Set() }), { replace: true });
+  }, [setSearchParams]);
 
-  function toggleSeverity(severity: string) {
-    const next = new Set(selectedSeverities);
-    if (next.has(severity)) next.delete(severity);
-    else next.add(severity);
-    updateParams(selectedYears, next, selectedCounties, selectedCauses);
-  }
+  const setAllYears = useCallback(() => {
+    setSearchParams((prev) => buildNextParams(prev, { years: new Set(YEARS) }), { replace: true });
+  }, [setSearchParams]);
 
-  function toggleCounty(county: string) {
-    const next = new Set(selectedCounties);
-    if (next.has(county)) next.delete(county);
-    else next.add(county);
-    updateParams(selectedYears, selectedSeverities, next, selectedCauses);
-  }
+  const toggleSeverity = useCallback(
+    (severity: string) => {
+      setSearchParams((prev) => {
+        const current = parseSeverities(prev.get("severity"));
+        if (current.has(severity)) current.delete(severity);
+        else current.add(severity);
+        return buildNextParams(prev, { severities: current });
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  function clearCounties() {
-    updateParams(selectedYears, selectedSeverities, new Set(), selectedCauses);
-  }
+  const toggleCounty = useCallback(
+    (county: string) => {
+      setSearchParams((prev) => {
+        const current = parseCounties(prev.get("county"));
+        if (current.has(county)) current.delete(county);
+        else current.add(county);
+        return buildNextParams(prev, { counties: current });
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  function toggleCause(cause: string) {
-    const next = new Set(selectedCauses);
-    if (next.has(cause)) next.delete(cause);
-    else next.add(cause);
-    updateParams(selectedYears, selectedSeverities, selectedCounties, next);
-  }
+  const clearCounties = useCallback(() => {
+    setSearchParams((prev) => buildNextParams(prev, { counties: new Set() }), { replace: true });
+  }, [setSearchParams]);
 
-  function setCauses(causes: Set<string>) {
-    updateParams(selectedYears, selectedSeverities, selectedCounties, causes);
-  }
+  const toggleCause = useCallback(
+    (cause: string) => {
+      setSearchParams((prev) => {
+        const current = parseCauses(prev.get("cause"));
+        if (current.has(cause)) current.delete(cause);
+        else current.add(cause);
+        return buildNextParams(prev, { causes: current });
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  function setAllCauses() {
+  const setCauses = useCallback(
+    (causes: Set<string>) => {
+      setSearchParams((prev) => buildNextParams(prev, { causes }), { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  const setAllCauses = useCallback(() => {
     const all = new Set(CAUSES.map((c) => c.value));
-    updateParams(selectedYears, selectedSeverities, selectedCounties, all);
-  }
+    setSearchParams((prev) => buildNextParams(prev, { causes: all }), { replace: true });
+  }, [setSearchParams]);
 
-  function clearCauses() {
-    updateParams(selectedYears, selectedSeverities, selectedCounties, new Set());
-  }
+  const clearCauses = useCallback(() => {
+    setSearchParams((prev) => buildNextParams(prev, { causes: new Set() }), { replace: true });
+  }, [setSearchParams]);
 
-  function setSeverities(severities: Set<string>) {
-    updateParams(selectedYears, severities, selectedCounties, selectedCauses);
-  }
+  const setSeverities = useCallback(
+    (severities: Set<string>) => {
+      setSearchParams((prev) => buildNextParams(prev, { severities }), { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  function setAllSeverities() {
+  const setAllSeverities = useCallback(() => {
     const all = new Set<string>(SEVERITIES);
-    updateParams(selectedYears, new Set(all), selectedCounties, selectedCauses);
-  }
+    setSearchParams((prev) => buildNextParams(prev, { severities: all }), { replace: true });
+  }, [setSearchParams]);
 
-  function clearSeverities() {
-    updateParams(selectedYears, new Set(), selectedCounties, selectedCauses);
-  }
+  const clearSeverities = useCallback(() => {
+    setSearchParams((prev) => buildNextParams(prev, { severities: new Set() }), { replace: true });
+  }, [setSearchParams]);
 
-  function clearFilters() {
+  const clearFilters = useCallback(() => {
     setSearchParams({ year: "", severity: "" }, { replace: true });
-  }
+  }, [setSearchParams]);
 
-  function clearPanel() {
+  const clearPanel = useCallback(() => {
     setSearchParams((prev) => {
       prev.delete("panel");
       return prev;
     }, { replace: true });
-  }
+  }, [setSearchParams]);
 
   return {
     selectedYears,
@@ -278,4 +311,49 @@ export function useFilterParams() {
     panel,
     clearPanel,
   };
+}
+
+// ── Helper: build next URLSearchParams from prev + partial overrides ──
+// Used by the functional setSearchParams updaters above so each action
+// reads the *latest* URL state, avoiding stale-closure bugs.
+
+type ParamOverrides = {
+  years?: Set<number>;
+  severities?: Set<string>;
+  counties?: Set<string>;
+  causes?: Set<string>;
+};
+
+function buildNextParams(
+  prev: URLSearchParams,
+  overrides: ParamOverrides,
+): URLSearchParams {
+  const params = new URLSearchParams(prev);
+
+  const years = overrides.years ?? parseYears(prev.get("year"));
+  const severities = overrides.severities ?? parseSeverities(prev.get("severity"));
+  const counties = overrides.counties ?? parseCounties(prev.get("county"));
+  const causes = overrides.causes ?? parseCauses(prev.get("cause"));
+
+  if (years.size > 0) {
+    params.set("year", [...years].sort().join(","));
+  } else {
+    params.delete("year");
+  }
+  if (severities.size > 0) {
+    params.set("severity", [...severities].map(slugify).sort().join(","));
+  } else {
+    params.delete("severity");
+  }
+  if (counties.size > 0) {
+    params.set("county", [...counties].map(slugify).sort().join(","));
+  } else {
+    params.delete("county");
+  }
+  if (causes.size > 0) {
+    params.set("cause", [...causes].sort().join(","));
+  } else {
+    params.delete("cause");
+  }
+  return params;
 }

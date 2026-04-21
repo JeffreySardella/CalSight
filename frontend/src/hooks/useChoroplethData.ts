@@ -12,8 +12,9 @@ export type ChoroplethFilters = {
   years: number[];           // parsed from URL; empty = no year filter
   severities: string[];      // backend values, e.g. "Fatal"
   causes: string[];          // e.g. ["dui"]
-  // `county` is intentionally omitted — the map keeps painting all counties
-  // even when the user has selected specific ones for other views.
+  // `county` is intentionally omitted — the map always fetches stats for
+  // ALL counties so the choropleth color scale stays globally consistent.
+  // County filtering is applied visually in CountyBoundaries.computeStyle.
 };
 
 export type ChoroplethPoint = MeasureResult & {

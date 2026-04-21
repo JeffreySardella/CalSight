@@ -4,7 +4,7 @@ import type { PaletteKey } from "../lib/choropleth/palettes";
 
 export type OtherLayerKey = "heatmap" | "incidents" | "countyBoundaries" | "roadTypes" | "schoolZones" | "hospitals";
 
-export const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
+const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
   heatmap: false,
   incidents: false,
   countyBoundaries: true,
