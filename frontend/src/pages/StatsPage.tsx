@@ -1,94 +1,71 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFilterParams, YEARS, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
 import LayersPanel from "../components/map/LayersPanel";
 import DataExportPanel from "../components/map/DataExportPanel";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+  LabelList,
+} from "recharts";
+import { useStats } from "../hooks/useStats";
 
-const HOURLY_HEIGHTS = [
-  20, 15, 12, 10, 14, 18, 45, 65, 80, 70, 60, 55, 62, 68, 75, 85, 100, 92,
-  88, 75, 60, 50, 40, 30,
-];
+function token(name: string) {
+  return `rgb(${getComputedStyle(document.documentElement).getPropertyValue(name).trim()})`;
+}
 
-const PEAK_HOUR = 16;
+export interface HourlyDataPoint  { hour: number; count: number; }
+export interface YearlyDataPoint  { year: number; count: number; }
+export interface CauseDataPoint   { label: string; count: number; }
+export interface HeroMetrics {
+  totalIncidents?:       number;
+  incidentYoYPct?:       number;
+  ksiRatePer100k?:       number;
+  yoyFatalityChangePct?: number;
+}
 
-const YEARLY_DATA: { year: number; height: number; isPeak: boolean }[] = [
-  { year: 2014, height: 40, isPeak: false },
-  { year: 2015, height: 45, isPeak: false },
-  { year: 2016, height: 55, isPeak: false },
-  { year: 2017, height: 75, isPeak: false },
-  { year: 2018, height: 100, isPeak: true },
-  { year: 2019, height: 85, isPeak: false },
-  { year: 2020, height: 50, isPeak: false },
-  { year: 2021, height: 65, isPeak: false },
-  { year: 2022, height: 70, isPeak: false },
-  { year: 2023, height: 78, isPeak: false },
-];
-
-const CAUSES: {
-  label: string;
-  pct: number;
-  incidents: string;
-  colorClass: string;
-  dashoffset: number;
-}[] = [
-  {
-    label: "Speeding",
-    pct: 42,
-    incidents: "5,292 incidents",
-    colorClass: "text-primary",
-    dashoffset: 72.3,
-  },
-  {
-    label: "DUI",
-    pct: 18,
-    incidents: "2,259 incidents",
-    colorClass: "text-tertiary",
-    dashoffset: 103,
-  },
-  {
-    label: "Distraction",
-    pct: 12,
-    incidents: "1,522 incidents",
-    colorClass: "text-secondary",
-    dashoffset: 110.2,
-  },
-];
-
-function DonutRing({
-  pct,
-  colorClass,
-  dashoffset,
-}: {
-  pct: number;
-  colorClass: string;
-  dashoffset: number;
-}) {
+function HourTooltip({ active, payload }: { active?: boolean; payload?: { payload: HourlyDataPoint }[] }) {
+  if (!active || !payload?.length) return null;
+  const { hour, count } = payload[0].payload;
+  const label = `${String(hour).padStart(2, "0")}:00`;
   return (
-    <div className="relative w-12 h-12 flex items-center justify-center">
-      <svg className="w-12 h-12 -rotate-90">
-        <circle
-          className="text-surface-container"
-          cx="24"
-          cy="24"
-          r="20"
-          fill="transparent"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <circle
-          className={colorClass}
-          cx="24"
-          cy="24"
-          r="20"
-          fill="transparent"
-          stroke="currentColor"
-          strokeDasharray="125.6"
-          strokeDashoffset={dashoffset}
-          strokeWidth="4"
-        />
-      </svg>
-      <span className="absolute text-[10px] font-bold">{pct}%</span>
+    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+      <p className="font-headline font-bold text-on-surface">{label}</p>
+      <p className="text-on-surface-variant mt-0.5">{count.toLocaleString()} incidents</p>
+    </div>
+  );
+}
+
+function YearTooltip({ active, payload }: { active?: boolean; payload?: { payload: YearlyDataPoint }[] }) {
+  if (!active || !payload?.length) return null;
+  const { year, count } = payload[0].payload;
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+      <p className="font-headline font-bold text-on-surface">{year}</p>
+      <p className="text-on-surface-variant mt-0.5">{count.toLocaleString()} incidents</p>
+    </div>
+  );
+}
+
+function YearCursor({ x, y, width, height }: { x?: number; y?: number; width?: number; height?: number }) {
+  if (x == null || y == null || width == null || height == null) return null;
+  return <rect x={x} y={y - 16} width={width} height={height + 16} fill="rgba(87,95,107,0.06)" rx={2} />;
+}
+
+function CauseTooltip({ active, payload }: { active?: boolean; payload?: { payload: CauseDataPoint & { pct: number } }[] }) {
+  if (!active || !payload?.length) return null;
+  const { label, count, pct } = payload[0].payload;
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+      <p className="font-headline font-bold text-on-surface">{label}</p>
+      <p className="text-on-surface-variant mt-0.5">{pct}% · {count.toLocaleString()} incidents</p>
     </div>
   );
 }
@@ -97,11 +74,28 @@ export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const filters = useFilterParams();
+  const { data, loading, error } = useStats();
+  const [, forceUpdate] = useState(false);
+  useEffect(() => {
+    const observer = new MutationObserver(() => forceUpdate((v) => !v));
+    observer.observe(document.documentElement, { attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
-  const years = filters.selectedYears;
+  // Re-read CSS variables on every render — isDark change triggers a re-render,
+  // so these always reflect the current theme.
+  const clrPrimary           = token("--primary");
+  const clrPrimaryContainer  = token("--primary-container");
+  const clrOnSurface         = token("--on-surface");
+  const clrOnSurfaceVariant  = token("--on-surface-variant");
+  const clrError             = token("--error");
+  const clrTertiary          = token("--tertiary");
+  const causeColors          = [clrPrimary, clrError, clrTertiary];
+
+  const years      = filters.selectedYears;
   const severities = filters.selectedSeverities;
-  const counties = filters.selectedCounties;
-  const causes = filters.selectedCauses;
+  const counties   = filters.selectedCounties;
+  const causes     = filters.selectedCauses;
 
   function handleClearAll() {
     filters.clearFilters();
@@ -134,6 +128,28 @@ export default function StatsPage() {
     ...severityChips,
   ];
 
+  const hourlyData  = data?.hourlyData  ?? [];
+  const yearlyData  = data?.yearlyData  ?? [];
+  const causesData  = data?.causesData  ?? [];
+  const heroMetrics = data?.heroMetrics ?? {};
+
+  const { totalIncidents, incidentYoYPct, ksiRatePer100k, yoyFatalityChangePct } = heroMetrics;
+
+  const peakHourIndex = hourlyData.length
+    ? hourlyData.reduce((maxIdx, d, i, arr) => (d.count > arr[maxIdx].count ? i : maxIdx), 0)
+    : 0;
+  const peakYear = yearlyData.length
+    ? yearlyData.reduce((a, b) => (b.count > a.count ? b : a)).year
+    : 0;
+  const causeTotal    = causesData.reduce((sum, d) => sum + d.count, 0);
+  const causesWithPct = causesData.map((d) => ({
+    ...d,
+    pct: causeTotal > 0 ? Math.round((d.count / causeTotal) * 100) : 0,
+  }));
+
+  const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
+  const fatalityUp = yoyFatalityChangePct != null && yoyFatalityChangePct > 0;
+
   return (
     <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
       {/* Filter Summary Bar */}
@@ -149,16 +165,20 @@ export default function StatsPage() {
                 className="inline-flex items-center gap-1 bg-surface-container-highest px-3 py-1 rounded-full text-xs font-medium text-on-surface whitespace-nowrap"
               >
                 {chip.label}
-                <button onClick={chip.onRemove} className="hover:text-error transition-colors">
-                  <span className="material-symbols-outlined text-[16px]">
-                    close
-                  </span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${chip.label} filter`}
+                  onClick={chip.onRemove}
+                  className="hover:text-error transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
                 </button>
               </span>
             ))}
           </div>
         </div>
         <button
+          type="button"
           onClick={() => setShowMobileFilters(true)}
           className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline flex-shrink-0"
         >
@@ -176,60 +196,57 @@ export default function StatsPage() {
           </p>
           <div className="flex items-baseline gap-3">
             <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
-              12,482
+              {totalIncidents != null ? totalIncidents.toLocaleString() : "—"}
             </h2>
-            <span className="text-error text-sm font-bold flex items-center">
-              <span className="material-symbols-outlined text-[18px]">
-                trending_up
+            {incidentYoYPct != null && (
+              <span className={`text-sm font-bold flex items-center ${incidentUp ? "text-error" : "text-primary"}`}>
+                <span className="material-symbols-outlined text-[18px]">
+                  {incidentUp ? "trending_up" : "trending_down"}
+                </span>
+                {incidentUp ? "+" : ""}{incidentYoYPct}%
               </span>
-              +4.2%
-            </span>
+            )}
           </div>
           <p className="text-on-surface-variant text-[10px] mt-2 italic">
             Relative to previous fiscal cycle
           </p>
         </div>
 
-        {/* Avg Response Time */}
+        {/* KSI Rate */}
         <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
           <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
-            Avg. Response Time
+            KSI Rate / 100K Pop.
           </p>
-          <div className="flex items-baseline gap-3">
-            <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
-              6.2m
-            </h2>
-            <span className="text-primary text-sm font-bold flex items-center">
-              <span className="material-symbols-outlined text-[18px]">
-                trending_down
-              </span>
-              -1.1%
-            </span>
-          </div>
+          <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
+            {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
+          </h2>
           <p className="text-on-surface-variant text-[10px] mt-2 italic">
-            Average statewide EMS dispatch
+            Killed &amp; seriously injured per 100K residents
           </p>
         </div>
 
-        {/* Vision Zero Progress */}
+        {/* YoY Fatality Change */}
         <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
           <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
-            Vision Zero Progress
+            YoY Fatality Change
           </p>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-baseline gap-3">
             <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
-              82%
+              {yoyFatalityChangePct != null
+                ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%`
+                : "—"}
             </h2>
-            <span className="text-on-surface-variant text-[10px] font-mono tracking-tighter">
-              TARGET: 100%
-            </span>
+            {yoyFatalityChangePct != null && (
+              <span className={`text-sm font-bold flex items-center ${fatalityUp ? "text-error" : "text-primary"}`}>
+                <span className="material-symbols-outlined text-[18px]">
+                  {fatalityUp ? "trending_up" : "trending_down"}
+                </span>
+              </span>
+            )}
           </div>
-          <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-primary h-full rounded-full"
-              style={{ width: "82%" }}
-            />
-          </div>
+          <p className="text-on-surface-variant text-[10px] mt-2 italic">
+            Change in fatalities vs. prior year
+          </p>
         </div>
       </section>
 
@@ -237,7 +254,7 @@ export default function StatsPage() {
       <section className="grid grid-cols-12 gap-4 md:gap-6">
         {/* Crash Density by Hour */}
         <div className="col-span-12 md:col-span-8 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <div className="flex justify-between items-start mb-10">
+          <div className="flex justify-between items-start mb-6">
             <div>
               <h3 className="text-on-surface font-headline font-bold text-lg leading-tight">
                 Crash Density by Hour
@@ -246,120 +263,170 @@ export default function StatsPage() {
                 Temporal distribution across 24-hour cycle
               </p>
             </div>
-            <span className="material-symbols-outlined text-outline-variant">
+            <span className="material-symbols-outlined text-outline-variant cursor-default select-none">
               query_stats
             </span>
           </div>
-          <div className="h-48 flex items-end justify-between gap-1 px-2">
-            {HOURLY_HEIGHTS.map((h, i) => {
-              const isPeak = i === PEAK_HOUR;
-              return (
-                <div
-                  key={i}
-                  className="relative w-full"
-                  style={{ height: `${h}%` }}
-                >
-                  {isPeak && (
-                    <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary uppercase tracking-widest whitespace-nowrap">
-                      PEAK
-                    </span>
-                  )}
-                  <div
-                    className={`w-full h-full rounded-t-sm transition-colors ${
-                      isPeak
-                        ? "bg-primary"
-                        : "bg-primary-container hover:bg-primary"
-                    }`}
+          {loading ? (
+            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+          ) : error ? (
+            <div className="h-48 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={192}>
+              <BarChart data={hourlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
+                <XAxis
+                  dataKey="hour"
+                  ticks={[0, 6, 12, 18, 23]}
+                  minTickGap={0}
+                  tickFormatter={(h) => h === 23 ? "23:59" : `${String(h).padStart(2, "0")}:00`}
+                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip content={<HourTooltip />} cursor={{ fill: "rgba(87,95,107,0.06)" }} />
+                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                  {hourlyData.map((_, i) => (
+                    <Cell key={i} fill={i === peakHourIndex ? clrPrimary : clrPrimaryContainer} />
+                  ))}
+                  <LabelList
+                    dataKey="count"
+                    position="top"
+                    content={(props) => {
+                      const { x, y, width, index } = props as { x: number; y: number; width: number; index: number };
+                      if (index !== peakHourIndex) return null;
+                      return (
+                        <text
+                          x={Number(x) + Number(width) / 2}
+                          y={Number(y) - 4}
+                          textAnchor="middle"
+                          fill={clrPrimary}
+                          fontSize={8}
+                          fontWeight={700}
+                          fontFamily="Inter, sans-serif"
+                          letterSpacing={1}
+                        >
+                          PEAK
+                        </text>
+                      );
+                    }}
                   />
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between mt-4 px-1 text-[10px] text-on-surface-variant font-mono uppercase font-semibold">
-            <span>00:00</span>
-            <span>06:00</span>
-            <span>12:00</span>
-            <span>18:00</span>
-            <span>23:59</span>
-          </div>
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Primary Cause */}
         <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <h3 className="text-on-surface font-headline font-bold text-lg mb-8 leading-tight">
+          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
             Primary Cause
           </h3>
-          <div className="space-y-6">
-            {CAUSES.map((cause) => (
-              <div key={cause.label} className="flex items-center gap-4">
-                <DonutRing
-                  pct={cause.pct}
-                  colorClass={cause.colorClass}
-                  dashoffset={cause.dashoffset}
-                />
-                <div>
-                  <p className="text-sm font-bold text-on-surface">
-                    {cause.label}
-                  </p>
-                  <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
-                    {cause.incidents}
-                  </p>
-                </div>
+          {loading ? (
+            <div className="h-40 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+          ) : error ? (
+            <div className="h-40 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie
+                    data={causesWithPct}
+                    dataKey="pct"
+                    nameKey="label"
+                    innerRadius={48}
+                    outerRadius={72}
+                    paddingAngle={2}
+                    startAngle={90}
+                    endAngle={-270}
+                    strokeWidth={0}
+                  >
+                    {causesWithPct.map((_, i) => (
+                      <Cell key={i} fill={causeColors[i]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CauseTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-4 mt-2">
+                {causesWithPct.map((cause, i) => (
+                  <div key={cause.label} className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: causeColors[i] }} />
+                    <div>
+                      <p className="text-sm font-bold text-on-surface">{cause.label}</p>
+                      <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
+                        {cause.pct}% · {cause.count.toLocaleString()} incidents
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
 
         {/* Incidents by Year */}
         <div className="col-span-12 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
               <h3 className="text-on-surface font-headline font-bold text-xl leading-tight">
-                Incidents by Year (2014-2023)
+                Incidents by Year ({yearlyData[0]?.year}–{yearlyData[yearlyData.length - 1]?.year})
               </h3>
               <p className="text-on-surface-variant text-sm">
                 Longitudinal dataset showing historical trends
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button className="bg-surface-container-low px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2">
-                <span className="material-symbols-outlined text-[14px]">
-                  download
-                </span>
+              <button type="button" className="bg-surface-container-low px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2">
+                <span className="material-symbols-outlined text-[14px]">download</span>
                 CSV
               </button>
-              <button className="bg-surface-container-low px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2">
-                <span className="material-symbols-outlined text-[14px]">
-                  picture_as_pdf
-                </span>
+              <button type="button" className="bg-surface-container-low px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2">
+                <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
                 PDF
               </button>
             </div>
           </div>
-          <div className="h-48 md:h-64 flex items-end justify-between gap-2 md:gap-4 px-2 md:px-4 pb-2">
-            {YEARLY_DATA.map(({ year, height, isPeak }) => (
-              <div
-                key={year}
-                className="flex flex-col items-center flex-1 gap-2"
-              >
-                <div
-                  className={`w-full rounded-t-md ${
-                    isPeak ? "bg-error" : "bg-primary-container"
-                  }`}
-                  style={{ height: `${height}%` }}
+          {loading ? (
+            <div className="h-64 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+          ) : error ? (
+            <div className="h-64 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={256}>
+              <BarChart data={yearlyData} barCategoryGap="15%" margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="year"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const isPeak = payload.value === peakYear;
+                    return (
+                      <text
+                        x={x} y={y + 10}
+                        textAnchor="middle"
+                        fill={isPeak ? clrOnSurface : clrOnSurfaceVariant}
+                        fontSize={10}
+                        fontWeight={700}
+                        fontStyle={isPeak ? "italic" : "normal"}
+                        fontFamily="Inter, sans-serif"
+                      >
+                        {isPeak ? `${payload.value}*` : payload.value}
+                      </text>
+                    );
+                  }}
                 />
-                <span
-                  className={`text-[10px] font-bold ${
-                    isPeak
-                      ? "text-on-surface italic"
-                      : "text-on-surface-variant"
-                  }`}
-                >
-                  {isPeak ? `${year}*` : year}
-                </span>
-              </div>
-            ))}
-          </div>
+                <Tooltip
+                  content={<YearTooltip />}
+                  cursor={<YearCursor />}
+                />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {yearlyData.map((entry, i) => (
+                    <Cell key={i} fill={entry.year === peakYear ? clrError : clrPrimaryContainer} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
           <p className="mt-6 text-[10px] text-on-surface-variant italic leading-relaxed">
             * Note: 2018 data represents a statistically significant anomaly due
             to regional reporting calibration. Data accuracy remains within 99.4%
@@ -369,11 +436,8 @@ export default function StatsPage() {
       </section>
 
       {/* Mobile share FAB */}
-      <button className="fixed bottom-28 right-4 z-40 md:hidden w-12 h-12 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity">
-        <span
-          className="material-symbols-outlined text-[24px]"
-          style={{ fontVariationSettings: "'FILL' 1" }}
-        >
+      <button type="button" className="fixed bottom-28 right-4 z-40 md:hidden w-12 h-12 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity">
+        <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>
           share
         </span>
       </button>
@@ -382,9 +446,7 @@ export default function StatsPage() {
       <section className="border-t border-outline-variant/15 pt-12 pb-16 opacity-60 hover:opacity-100 transition-opacity">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-[10px] leading-relaxed uppercase tracking-widest font-medium text-on-surface-variant">
           <div className="space-y-4">
-            <h4 className="font-bold text-on-surface text-[11px]">
-              Methodology Statement
-            </h4>
+            <h4 className="font-bold text-on-surface text-[11px]">Methodology Statement</h4>
             <p>
               Calculations based on integrated records from the Statewide
               Integrated Traffic Records System (SWITRS). Data is processed
@@ -395,9 +457,7 @@ export default function StatsPage() {
             </p>
           </div>
           <div className="space-y-4">
-            <h4 className="font-bold text-on-surface text-[11px]">
-              California Public Records Act
-            </h4>
+            <h4 className="font-bold text-on-surface text-[11px]">California Public Records Act</h4>
             <p>
               This information is presented in compliance with CA Gov Code
               &sect; 6250. Access to the raw ledger for independent auditing is
@@ -444,18 +504,8 @@ export default function StatsPage() {
               />
             ),
           },
-          {
-            key: "layers",
-            label: "Layers",
-            icon: "layers",
-            content: <LayersPanel />,
-          },
-          {
-            key: "export",
-            label: "Export",
-            icon: "file_download",
-            content: <DataExportPanel />,
-          },
+          { key: "layers", label: "Layers", icon: "layers", content: <LayersPanel /> },
+          { key: "export", label: "Export", icon: "file_download", content: <DataExportPanel /> },
         ]}
       />
     </main>
