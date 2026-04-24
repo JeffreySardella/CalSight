@@ -4,7 +4,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LayersStateProvider, useLayersState } from "../../hooks/useLayersState";
 import { ThemeProvider } from "../../context/ThemeContext";
 import ChoroplethLegend from "./ChoroplethLegend";
-import { MEASURES } from "../../lib/choropleth/measures";
+import { MEASURES, type MeasureKey } from "../../lib/choropleth/measures";
+import type { DataSummary } from "../../hooks/useChoroplethData";
 
 function Seeder({ edges, choroplethOn }: { edges: number[] | null; choroplethOn: boolean }) {
   const s = useLayersState();
@@ -13,16 +14,25 @@ function Seeder({ edges, choroplethOn }: { edges: number[] | null; choroplethOn:
   return null;
 }
 
+function MeasureSetter({ measure }: { measure: MeasureKey }) {
+  const s = useLayersState();
+  useEffect(() => { s.setMeasure(measure); }, [measure]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
+const BASE_SUMMARY: DataSummary = { totalCrashes: 500_000, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
+
 function Harness({
   edges = null as number[] | null,
   demographicsAvailable = true,
+  dataSummary = BASE_SUMMARY,
   choroplethOn = true,
 }) {
   return (
     <ThemeProvider>
       <LayersStateProvider>
         <Seeder edges={edges} choroplethOn={choroplethOn} />
-        <ChoroplethLegend demographicsAvailable={demographicsAvailable} />
+        <ChoroplethLegend demographicsAvailable={demographicsAvailable} dataSummary={dataSummary} />
       </LayersStateProvider>
     </ThemeProvider>
   );
@@ -31,8 +41,8 @@ function Harness({
 describe("ChoroplethLegend", () => {
   it("renders the measure dropdown with all 5 options", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} />);
-    const select = await screen.findByLabelText(/measure/i);
-    expect(select).toBeInTheDocument();
+    const trigger = await screen.findByLabelText(/measure/i);
+    fireEvent.click(trigger);
     for (const m of Object.values(MEASURES)) {
       expect(screen.getByRole("option", { name: m.label })).toBeInTheDocument();
     }
@@ -53,6 +63,8 @@ describe("ChoroplethLegend", () => {
 
   it("disables per-capita measures when demographics are unavailable", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} demographicsAvailable={false} />);
+    const trigger = screen.getByLabelText(/measure/i);
+    fireEvent.click(trigger);
     const perCapita = await screen.findByRole("option", { name: /crashes per 100k/i });
     expect(perCapita).toBeDisabled();
   });
@@ -70,8 +82,9 @@ describe("ChoroplethLegend", () => {
         </LayersStateProvider>
       </ThemeProvider>,
     );
-    const select = screen.getByLabelText(/measure/i);
-    fireEvent.change(select, { target: { value: "fatality_rate" } });
+    const trigger = screen.getByLabelText(/measure/i);
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("option", { name: /fatality rate/i }));
     expect(screen.getByTestId("current")).toHaveTextContent("fatality_rate");
   });
 
@@ -90,6 +103,18 @@ describe("ChoroplethLegend", () => {
     expect(onRetry).toHaveBeenCalled();
   });
 
+  it("shows a 422 warning instead of the error message when is422 is true", () => {
+    render(
+      <ThemeProvider>
+        <LayersStateProvider>
+          <ChoroplethLegend demographicsAvailable={true} isError={true} is422={true} />
+        </LayersStateProvider>
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(/filter value was rejected/i);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("shows a loading skeleton when isLoading is true", () => {
     render(
       <ThemeProvider>
@@ -99,5 +124,65 @@ describe("ChoroplethLegend", () => {
       </ThemeProvider>,
     );
     expect(screen.getByText(/loading data/i)).toBeInTheDocument();
+  });
+
+  it("shows total crash count in data summary", () => {
+    render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, totalCrashes: 1_200_000 }} />);
+    expect(screen.getByTestId("data-summary")).toHaveTextContent(/1\.2M crashes/);
+  });
+
+  it("shows sparse year warning", () => {
+    render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, sparseYears: [{ year: 2026, count: 487 }] }} />);
+    expect(screen.getByTestId("data-summary")).toHaveTextContent(/2026: 487 crashes \(in progress\)/);
+  });
+
+  it("shows missing-demographics alert when per-capita measure is active and years are missing", async () => {
+    render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024, 2025] }} />);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/no population data for 2024, 2025/i);
+    expect(screen.getByRole("button", { name: /switch to total crashes/i })).toBeInTheDocument();
+  });
+
+  it("shows partial-demographics alert for years with incomplete county coverage", async () => {
+    render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, partialDemoYears: [2005, 2006, 2007, 2008, 2009] }} />);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/partial population data for 2005–2009/i);
+  });
+
+  it("shows both missing and partial alerts together", async () => {
+    render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024], partialDemoYears: [2007] }} />);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/no population data for 2024/i);
+    expect(alert).toHaveTextContent(/partial population data for 2007/i);
+  });
+
+  it("does not show missing-demographics alert for raw measures", () => {
+    render(
+      <ThemeProvider>
+        <LayersStateProvider>
+          <MeasureSetter measure="crashes_raw" />
+          <ChoroplethLegend demographicsAvailable={true} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024] }} />
+        </LayersStateProvider>
+      </ThemeProvider>,
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("switches to crashes_raw when the quick-action button is clicked", async () => {
+    function Probe() {
+      const s = useLayersState();
+      return <div data-testid="current">{s.measure}</div>;
+    }
+    render(
+      <ThemeProvider>
+        <LayersStateProvider>
+          <Probe />
+          <ChoroplethLegend demographicsAvailable={true} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024] }} />
+        </LayersStateProvider>
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("current")).toHaveTextContent("crashes_per_100k");
+    fireEvent.click(screen.getByRole("button", { name: /switch to total crashes/i }));
+    expect(screen.getByTestId("current")).toHaveTextContent("crashes_raw");
   });
 });
