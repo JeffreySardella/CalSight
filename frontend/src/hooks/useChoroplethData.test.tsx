@@ -218,6 +218,40 @@ describe("useChoroplethData", () => {
     expect(result.current.dataSummary.totalCrashes).toBe(400_487);
   });
 
+  it("exposes is422 when backend returns 422", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/stats")) {
+        return new Response(JSON.stringify({ detail: "bad filter" }), { status: 422 });
+      }
+      return new Response(JSON.stringify([]));
+    });
+
+    const { result } = renderHook(
+      () => useChoroplethData("crashes_per_100k", FILTERS),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.is422).toBe(true);
+  });
+
+  it("is422 is false for non-422 errors", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/stats")) {
+        return new Response("Internal Server Error", { status: 500 });
+      }
+      return new Response(JSON.stringify([]));
+    });
+
+    const { result } = renderHook(
+      () => useChoroplethData("crashes_per_100k", FILTERS),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.is422).toBe(false);
+  });
+
   it("marks a county as no-data when population is missing", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
