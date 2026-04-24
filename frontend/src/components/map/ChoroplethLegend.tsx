@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLayersState } from "../../hooks/useLayersState";
-import { MEASURES, type MeasureKey } from "../../lib/choropleth/measures";
+import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 
