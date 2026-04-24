@@ -24,7 +24,7 @@ export const fixtureYearly: YearlyDataPoint[] = [
 export const fixtureCauses: CauseDataPoint[] = [
   { label: "Speeding",    count: 5292 },
   { label: "DUI",         count: 2259 },
-  { label: "Distraction", count: 1522 },
+  { label: "Lane Change", count: 1522 },
 ];
 
 export const fixtureHeroMetrics: HeroMetrics = {

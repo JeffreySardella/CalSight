@@ -12,10 +12,13 @@ export const YEARS: number[] = Array.from(
   (_, i) => START_YEAR + i,
 );
 
+// DB truth: crashes.severity has exactly 3 values.
+// "Severe Injury" / "Minor Injury" were stale FE-only values that caused
+// 422s from the backend. Collapsed to "Injury" per db-schema.md.
+// Re-split into 4 buckets when issue #102 lands (crash_victims.injury_severity).
 export const SEVERITIES = [
   "Fatal",
-  "Severe Injury",
-  "Minor Injury",
+  "Injury",
   "Property Damage Only",
 ] as const;
 
@@ -33,13 +36,23 @@ export const CA_COUNTIES = [
   "Tehama", "Trinity", "Tulare", "Tuolumne", "Ventura", "Yolo", "Yuba",
 ] as const;
 
+// DB truth: canonical_cause has exactly 4 values (dui | speeding | lane_change | other).
+// "distracted" and "weather" were removed — they don't exist in the DB and
+// caused 422s. The backend maps URL slug "lane-change" → DB "lane_change"
+// (filters.py line 91). Restore distracted/weather when issue #103 expands the taxonomy.
 export const CAUSES = [
   { value: "dui", label: "DUI", icon: "local_bar" },
   { value: "speeding", label: "Speeding", icon: "speed" },
-  { value: "distracted", label: "Distracted", icon: "phonelink_ring" },
-  { value: "weather", label: "Weather", icon: "thunderstorm" },
   { value: "lane-change", label: "Lane Change", icon: "swap_horiz" },
   { value: "other", label: "Other", icon: "more_horiz" },
+] as const;
+
+// Boolean involvement flags — backed by is_alcohol_involved / is_distraction_involved.
+// NOTE: These columns are NULL for all SWITRS rows (pre-2016). Enabling either
+// filter implicitly limits results to CCRS data (2016+). See db-schema.md.
+export const INVOLVEMENTS = [
+  { value: "alcohol", label: "Alcohol Involved", icon: "local_bar" },
+  { value: "distracted", label: "Distracted Driving", icon: "phonelink_ring" },
 ] as const;
 
 const CAUSE_VALUES: Set<string> = new Set(CAUSES.map((c) => c.value));
@@ -122,9 +135,13 @@ export function parseCauses(param: string | null): Set<string> {
   return new Set(parsed);
 }
 
+export function parseBoolFlag(param: string | null): boolean {
+  return param === "true";
+}
+
 // ── Shared utilities ──
 
-const FILTER_KEYS = ["year", "severity", "county", "cause"] as const;
+const FILTER_KEYS = ["year", "severity", "county", "cause", "alcohol", "distracted"] as const;
 
 export function buildFilterQS(searchParams: URLSearchParams): string {
   const params = new URLSearchParams();
@@ -150,6 +167,8 @@ export function useFilterParams() {
   const severityParam = searchParams.get("severity");
   const countyParam = searchParams.get("county");
   const causeParam = searchParams.get("cause");
+  const alcoholParam = searchParams.get("alcohol");
+  const distractedParam = searchParams.get("distracted");
   const panel = searchParams.get("panel");
 
   // ── Memoized parsed Sets ──
@@ -159,6 +178,8 @@ export function useFilterParams() {
   const selectedSeverities = useMemo(() => parseSeverities(severityParam), [severityParam]);
   const selectedCounties = useMemo(() => parseCounties(countyParam), [countyParam]);
   const selectedCauses = useMemo(() => parseCauses(causeParam), [causeParam]);
+  const selectedAlcohol = useMemo(() => parseBoolFlag(alcoholParam), [alcoholParam]);
+  const selectedDistracted = useMemo(() => parseBoolFlag(distractedParam), [distractedParam]);
 
   // ── Action callbacks ──
   // Each reads the *latest* URL state via the functional updater
@@ -276,8 +297,32 @@ export function useFilterParams() {
     setSearchParams((prev) => buildNextParams(prev, { severities: new Set() }), { replace: true });
   }, [setSearchParams]);
 
+  const toggleAlcohol = useCallback(() => {
+    setSearchParams((prev) => {
+      const current = parseBoolFlag(prev.get("alcohol"));
+      return buildNextParams(prev, { alcohol: !current });
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const toggleDistracted = useCallback(() => {
+    setSearchParams((prev) => {
+      const current = parseBoolFlag(prev.get("distracted"));
+      return buildNextParams(prev, { distracted: !current });
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Clears all filter dimensions — year, severity, cause, alcohol, distracted.
+  // (County is intentionally preserved; use clearCounties() separately.)
   const clearFilters = useCallback(() => {
-    setSearchParams({ year: "", severity: "" }, { replace: true });
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete("year");
+      params.delete("severity");
+      params.delete("cause");
+      params.delete("alcohol");
+      params.delete("distracted");
+      return params;
+    }, { replace: true });
   }, [setSearchParams]);
 
   const clearPanel = useCallback(() => {
@@ -292,6 +337,8 @@ export function useFilterParams() {
     selectedSeverities,
     selectedCounties,
     selectedCauses,
+    selectedAlcohol,
+    selectedDistracted,
     toggleYear,
     setYearRange,
     setYears,
@@ -307,6 +354,8 @@ export function useFilterParams() {
     setSeverities,
     setAllSeverities,
     clearSeverities,
+    toggleAlcohol,
+    toggleDistracted,
     clearFilters,
     panel,
     clearPanel,
@@ -322,6 +371,8 @@ type ParamOverrides = {
   severities?: Set<string>;
   counties?: Set<string>;
   causes?: Set<string>;
+  alcohol?: boolean;
+  distracted?: boolean;
 };
 
 function buildNextParams(
@@ -355,5 +406,16 @@ function buildNextParams(
   } else {
     params.delete("cause");
   }
+
+  // Boolean flags: only set when true; remove param entirely when false/unset
+  if ("alcohol" in overrides) {
+    if (overrides.alcohol) params.set("alcohol", "true");
+    else params.delete("alcohol");
+  }
+  if ("distracted" in overrides) {
+    if (overrides.distracted) params.set("distracted", "true");
+    else params.delete("distracted");
+  }
+
   return params;
 }

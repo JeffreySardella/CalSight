@@ -31,8 +31,8 @@ function Harness({
 describe("ChoroplethLegend", () => {
   it("renders the measure dropdown with all 5 options", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} />);
-    const select = await screen.findByLabelText(/measure/i);
-    expect(select).toBeInTheDocument();
+    const trigger = await screen.findByLabelText(/measure/i);
+    fireEvent.click(trigger);
     for (const m of Object.values(MEASURES)) {
       expect(screen.getByRole("option", { name: m.label })).toBeInTheDocument();
     }
@@ -53,6 +53,8 @@ describe("ChoroplethLegend", () => {
 
   it("disables per-capita measures when demographics are unavailable", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} demographicsAvailable={false} />);
+    const trigger = screen.getByLabelText(/measure/i);
+    fireEvent.click(trigger);
     const perCapita = await screen.findByRole("option", { name: /crashes per 100k/i });
     expect(perCapita).toBeDisabled();
   });
@@ -70,8 +72,9 @@ describe("ChoroplethLegend", () => {
         </LayersStateProvider>
       </ThemeProvider>,
     );
-    const select = screen.getByLabelText(/measure/i);
-    fireEvent.change(select, { target: { value: "fatality_rate" } });
+    const trigger = screen.getByLabelText(/measure/i);
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("option", { name: /fatality rate/i }));
     expect(screen.getByTestId("current")).toHaveTextContent("fatality_rate");
   });
 
@@ -88,6 +91,18 @@ describe("ChoroplethLegend", () => {
     expect(alert).toHaveTextContent(/couldn't load data/i);
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
     expect(onRetry).toHaveBeenCalled();
+  });
+
+  it("shows a 422 warning instead of the error message when is422 is true", () => {
+    render(
+      <ThemeProvider>
+        <LayersStateProvider>
+          <ChoroplethLegend demographicsAvailable={true} isError={true} is422={true} />
+        </LayersStateProvider>
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(/filter value was rejected/i);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("shows a loading skeleton when isLoading is true", () => {

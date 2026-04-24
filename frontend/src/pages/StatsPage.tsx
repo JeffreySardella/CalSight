@@ -117,15 +117,29 @@ export default function StatsPage() {
     ? [{ label: "All Severities", onRemove: () => filters.clearSeverities() }]
     : [...severities].map((s) => ({ label: s, onRemove: () => filters.toggleSeverity(s) }));
 
+  // Display label lookup for cause values (URL slug → human label)
+  const CAUSE_LABEL: Record<string, string> = {
+    "dui": "DUI",
+    "speeding": "Speeding",
+    "lane-change": "Lane Change",
+    "other": "Other",
+  };
+
   const causeChips: Chip[] = causes.size === CAUSE_OPTIONS.length
     ? [{ label: "All Causes", onRemove: () => filters.clearCauses() }]
-    : [...causes].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCause(c) }));
+    : [...causes].sort().map((c) => ({ label: CAUSE_LABEL[c] ?? c, onRemove: () => filters.toggleCause(c) }));
+
+  const involvementChips: Chip[] = [
+    ...(filters.selectedAlcohol    ? [{ label: "Alcohol",    onRemove: () => filters.toggleAlcohol()    }] : []),
+    ...(filters.selectedDistracted ? [{ label: "Distracted", onRemove: () => filters.toggleDistracted() }] : []),
+  ];
 
   const chips: Chip[] = [
     ...[...counties].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCounty(c) })),
     ...yearChips,
     ...causeChips,
     ...severityChips,
+    ...involvementChips,
   ];
 
   const hourlyData  = data?.hourlyData  ?? [];
@@ -485,6 +499,8 @@ export default function StatsPage() {
                 selectedSeverities={filters.selectedSeverities}
                 selectedCounties={filters.selectedCounties}
                 selectedCauses={filters.selectedCauses}
+                selectedAlcohol={filters.selectedAlcohol}
+                selectedDistracted={filters.selectedDistracted}
                 onToggleYear={filters.toggleYear}
                 onSetYearRange={filters.setYearRange}
                 onClearYears={filters.clearYears}
@@ -500,6 +516,8 @@ export default function StatsPage() {
                 onSetCauses={filters.setCauses}
                 onSetAllCauses={filters.setAllCauses}
                 onClearCauses={filters.clearCauses}
+                onToggleAlcohol={filters.toggleAlcohol}
+                onToggleDistracted={filters.toggleDistracted}
                 resetKey={resetKey}
               />
             ),
