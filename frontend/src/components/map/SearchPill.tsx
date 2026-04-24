@@ -3,9 +3,10 @@ import type { Map as LeafletMap } from "leaflet";
 
 interface SearchPillProps {
   map: LeafletMap | null;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
-export default function SearchPill({ map }: SearchPillProps) {
+export default function SearchPill({ map, onExpandedChange }: SearchPillProps) {
   const [isMoving, setIsMoving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState("");
@@ -26,7 +27,10 @@ export default function SearchPill({ map }: SearchPillProps) {
     };
   }, [map]);
 
-  // Auto-focus the input when expanded
+  useEffect(() => {
+    onExpandedChange?.(isExpanded);
+  }, [isExpanded, onExpandedChange]);
+
   useEffect(() => {
     if (isExpanded && inputRef.current) {
       inputRef.current.focus();

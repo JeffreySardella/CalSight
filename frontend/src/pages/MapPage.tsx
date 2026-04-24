@@ -38,6 +38,8 @@ function MapPageInner() {
     selectedSeverities,
     selectedCounties,
     selectedCauses,
+    selectedAlcohol,
+    selectedDistracted,
     toggleYear,
     setYearRange,
     setYears,
@@ -53,6 +55,8 @@ function MapPageInner() {
     setSeverities,
     setAllSeverities,
     clearSeverities,
+    toggleAlcohol,
+    toggleDistracted,
     clearFilters,
     panel: panelParam,
     clearPanel,
@@ -64,6 +68,7 @@ function MapPageInner() {
   const [resetKey, setResetKey] = useState(0);
   const [focusedCounty, setFocusedCounty] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [insightCounty, setInsightCounty] = useState("Fresno");
   const mapRef = useRef<LeafletMap | null>(null);
 
@@ -129,6 +134,8 @@ function MapPageInner() {
     selectedSeverities,
     selectedCounties,
     selectedCauses,
+    selectedAlcohol,
+    selectedDistracted,
     onToggleYear: toggleYear,
     onSetYearRange: setYearRange,
     onSetYears: setYears,
@@ -144,6 +151,8 @@ function MapPageInner() {
     onSetCauses: setCauses,
     onSetAllCauses: setAllCauses,
     onClearCauses: clearCauses,
+    onToggleAlcohol: toggleAlcohol,
+    onToggleDistracted: toggleDistracted,
     resetKey,
   };
 
@@ -216,9 +225,9 @@ function MapPageInner() {
         {showInsight && (
           <AiInsightCard onClose={() => setShowInsight(false)} countyName={insightCounty} />
         )}
-        <SearchPill map={mapRef.current} />
+        <SearchPill map={mapRef.current} onExpandedChange={setSearchOpen} />
         <Breadcrumb />
-        <ChoroplethLegendContainer />
+        <ChoroplethLegendContainer searchOpen={searchOpen} />
       </section>
 
       {/* Mobile filter bottom sheet */}
@@ -266,12 +275,14 @@ export default function MapPage() {
   );
 }
 
-function ChoroplethLegendContainer() {
+function ChoroplethLegendContainer({ searchOpen }: { searchOpen?: boolean }) {
   const { selectedYears, selectedSeverities, selectedCauses } = useFilterParams();
   const { measure } = useLayersState();
   const queryClient = useQueryClient();
   // Must match the filter shape used in CountyBoundaries so React Query
   // dedupes the stats request to a single /api/stats fetch.
+  // NOTE: alcohol/distracted are NOT included — /api/stats can't filter
+  // by those flags (materialized views don't carry them).
   const filters = useMemo(
     () => ({
       years: [...selectedYears].sort((a, b) => a - b),
@@ -280,12 +291,15 @@ function ChoroplethLegendContainer() {
     }),
     [selectedYears, selectedSeverities, selectedCauses],
   );
-  const { demographicsAvailable, isError, isLoading } = useChoroplethData(measure, filters);
+  const { demographicsAvailable, dataSummary, isError, isLoading, is422 } = useChoroplethData(measure, filters);
   return (
     <ChoroplethLegend
       demographicsAvailable={demographicsAvailable}
+      dataSummary={dataSummary}
       isLoading={isLoading}
       isError={isError}
+      is422={is422}
+      searchOpen={searchOpen}
       onRetry={() => queryClient.invalidateQueries({ queryKey: ["choropleth"] })}
     />
   );

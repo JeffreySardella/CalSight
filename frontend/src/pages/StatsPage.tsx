@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useFilterParams, YEARS, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
-import LayersPanel from "../components/map/LayersPanel";
-import DataExportPanel from "../components/map/DataExportPanel";
 import {
   BarChart,
   Bar,
@@ -15,20 +13,10 @@ import {
   Pie,
   LabelList,
 } from "recharts";
-import { useStats } from "../hooks/useStats";
+import { useStats, type HourlyDataPoint, type YearlyDataPoint, type CauseDataPoint } from "../hooks/useStats";
 
 function token(name: string) {
   return `rgb(${getComputedStyle(document.documentElement).getPropertyValue(name).trim()})`;
-}
-
-export interface HourlyDataPoint  { hour: number; count: number; }
-export interface YearlyDataPoint  { year: number; count: number; }
-export interface CauseDataPoint   { label: string; count: number; }
-export interface HeroMetrics {
-  totalIncidents?:       number;
-  incidentYoYPct?:       number;
-  ksiRatePer100k?:       number;
-  yoyFatalityChangePct?: number;
 }
 
 function HourTooltip({ active, payload }: { active?: boolean; payload?: { payload: HourlyDataPoint }[] }) {
@@ -71,10 +59,23 @@ function CauseTooltip({ active, payload }: { active?: boolean; payload?: { paylo
 }
 
 export default function StatsPage() {
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const filters = useFilterParams();
-  const { data, loading, error } = useStats();
+  const statsFilters = useMemo(() => ({
+    years: [...filters.selectedYears],
+    severities: [...filters.selectedSeverities],
+    causes: [...filters.selectedCauses],
+    counties: [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")),
+  }), [filters.selectedYears, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
+  const { data, loading, error } = useStats(statsFilters);
   const [, forceUpdate] = useState(false);
   useEffect(() => {
     const observer = new MutationObserver(() => forceUpdate((v) => !v));
@@ -117,21 +118,38 @@ export default function StatsPage() {
     ? [{ label: "All Severities", onRemove: () => filters.clearSeverities() }]
     : [...severities].map((s) => ({ label: s, onRemove: () => filters.toggleSeverity(s) }));
 
+  // Display label lookup for cause values (URL slug → human label)
+  const CAUSE_LABEL: Record<string, string> = {
+    "dui": "DUI",
+    "speeding": "Speeding",
+    "lane-change": "Lane Change",
+    "other": "Other",
+  };
+
   const causeChips: Chip[] = causes.size === CAUSE_OPTIONS.length
     ? [{ label: "All Causes", onRemove: () => filters.clearCauses() }]
-    : [...causes].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCause(c) }));
+    : [...causes].sort().map((c) => ({ label: CAUSE_LABEL[c] ?? c, onRemove: () => filters.toggleCause(c) }));
+
+  const involvementChips: Chip[] = [
+    ...(filters.selectedAlcohol    ? [{ label: "Alcohol",    onRemove: () => filters.toggleAlcohol()    }] : []),
+    ...(filters.selectedDistracted ? [{ label: "Distracted", onRemove: () => filters.toggleDistracted() }] : []),
+  ];
 
   const chips: Chip[] = [
     ...[...counties].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCounty(c) })),
     ...yearChips,
     ...causeChips,
     ...severityChips,
+    ...involvementChips,
   ];
 
-  const hourlyData  = data?.hourlyData  ?? [];
-  const yearlyData  = data?.yearlyData  ?? [];
-  const causesData  = data?.causesData  ?? [];
-  const heroMetrics = data?.heroMetrics ?? {};
+  const hourlyData     = data?.hourlyData     ?? [];
+  const yearlyData     = data?.yearlyData     ?? [];
+  const causesData     = data?.causesData     ?? [];
+  const severityData   = data?.severityData   ?? [];
+  const genderData     = data?.genderData     ?? [];
+  const ageBracketData = data?.ageBracketData ?? [];
+  const heroMetrics    = data?.heroMetrics    ?? {};
 
   const { totalIncidents, incidentYoYPct, ksiRatePer100k, yoyFatalityChangePct } = heroMetrics;
 
@@ -145,6 +163,12 @@ export default function StatsPage() {
   const causesWithPct = causesData.map((d) => ({
     ...d,
     pct: causeTotal > 0 ? Math.round((d.count / causeTotal) * 100) : 0,
+  }));
+
+  const sevTotal    = severityData.reduce((sum, d) => sum + d.count, 0);
+  const sevWithPct  = severityData.map((d) => ({
+    ...d,
+    pct: sevTotal > 0 ? Math.round((d.count / sevTotal) * 100) : 0,
   }));
 
   const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
@@ -263,16 +287,13 @@ export default function StatsPage() {
                 Temporal distribution across 24-hour cycle
               </p>
             </div>
-            <span className="material-symbols-outlined text-outline-variant cursor-default select-none">
-              query_stats
-            </span>
           </div>
           {loading ? (
             <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
           ) : error ? (
             <div className="h-48 flex items-center justify-center text-error text-sm">Failed to load data.</div>
           ) : (
-            <ResponsiveContainer width="100%" height={192}>
+            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={hourlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
                 <XAxis
                   dataKey="hour"
@@ -327,7 +348,7 @@ export default function StatsPage() {
             <div className="h-40 flex items-center justify-center text-error text-sm">Failed to load data.</div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={160}>
+              <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
                 <PieChart>
                   <Pie
                     data={causesWithPct}
@@ -391,15 +412,21 @@ export default function StatsPage() {
           ) : error ? (
             <div className="h-64 flex items-center justify-center text-error text-sm">Failed to load data.</div>
           ) : (
-            <ResponsiveContainer width="100%" height={256}>
+            <ResponsiveContainer width="100%" height={isMobile ? 200 : 256}>
               <BarChart data={yearlyData} barCategoryGap="15%" margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
                 <XAxis
                   dataKey="year"
                   tickLine={false}
                   axisLine={false}
+                  interval={0}
                   tick={(props) => {
                     const { x, y, payload } = props;
-                    const isPeak = payload.value === peakYear;
+                    const yr = payload.value as number;
+                    const isPeak = yr === peakYear;
+                    const nearPeak = Math.abs(yr - peakYear) <= 2 && !isPeak;
+                    const isEndpoint = yr === yearlyData[0]?.year || yr === yearlyData[yearlyData.length - 1]?.year;
+                    const showLabel = isPeak || (!nearPeak && (yr % 5 === 0 || isEndpoint));
+                    if (!showLabel) return <text />;
                     return (
                       <text
                         x={x} y={y + 10}
@@ -410,7 +437,7 @@ export default function StatsPage() {
                         fontStyle={isPeak ? "italic" : "normal"}
                         fontFamily="Inter, sans-serif"
                       >
-                        {isPeak ? `${payload.value}*` : payload.value}
+                        {isPeak ? `${yr}*` : yr}
                       </text>
                     );
                   }}
@@ -432,6 +459,135 @@ export default function StatsPage() {
             to regional reporting calibration. Data accuracy remains within 99.4%
             confidence interval.
           </p>
+        </div>
+      </section>
+
+      {/* Demographics Grid */}
+      <section className="grid grid-cols-12 gap-4 md:gap-6">
+        {/* Severity Breakdown */}
+        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
+          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
+            Severity Breakdown
+          </h3>
+          {loading ? (
+            <div className="h-40 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+          ) : error ? (
+            <div className="h-40 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
+                <PieChart>
+                  <Pie
+                    data={sevWithPct}
+                    dataKey="pct"
+                    nameKey="label"
+                    innerRadius={48}
+                    outerRadius={72}
+                    paddingAngle={2}
+                    startAngle={90}
+                    endAngle={-270}
+                    strokeWidth={0}
+                  >
+                    {sevWithPct.map((_, i) => (
+                      <Cell key={i} fill={[clrError, clrTertiary, clrPrimaryContainer][i] ?? clrPrimary} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CauseTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-4 mt-2">
+                {sevWithPct.map((sev, i) => (
+                  <div key={sev.label} className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: [clrError, clrTertiary, clrPrimaryContainer][i] ?? clrPrimary }} />
+                    <div>
+                      <p className="text-sm font-bold text-on-surface">{sev.label}</p>
+                      <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
+                        {sev.pct}% · {sev.count.toLocaleString()} incidents
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Victims by Gender */}
+        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
+          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
+            Victims by Gender
+          </h3>
+          {loading ? (
+            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+          ) : !genderData.length ? (
+            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">No data available.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
+              <BarChart data={genderData} barCategoryGap="25%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload as { label: string; count: number };
+                    return (
+                      <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+                        <p className="font-headline font-bold text-on-surface">{d.label}</p>
+                        <p className="text-on-surface-variant mt-0.5">{d.count.toLocaleString()} victims</p>
+                      </div>
+                    );
+                  }}
+                  cursor={{ fill: "rgba(87,95,107,0.06)" }}
+                />
+                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                  {genderData.map((_, i) => (
+                    <Cell key={i} fill={[clrPrimary, clrTertiary, clrPrimaryContainer][i] ?? clrPrimaryContainer} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Victims by Age */}
+        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
+          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
+            Victims by Age
+          </h3>
+          {loading ? (
+            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+          ) : !ageBracketData.length ? (
+            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">No data available.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
+              <BarChart data={ageBracketData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload as { label: string; count: number };
+                    return (
+                      <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+                        <p className="font-headline font-bold text-on-surface">{d.label}</p>
+                        <p className="text-on-surface-variant mt-0.5">{d.count.toLocaleString()} victims</p>
+                      </div>
+                    );
+                  }}
+                  cursor={{ fill: "rgba(87,95,107,0.06)" }}
+                />
+                <Bar dataKey="count" radius={[2, 2, 0, 0]} fill={clrPrimaryContainer} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </section>
 
@@ -485,6 +641,8 @@ export default function StatsPage() {
                 selectedSeverities={filters.selectedSeverities}
                 selectedCounties={filters.selectedCounties}
                 selectedCauses={filters.selectedCauses}
+                selectedAlcohol={filters.selectedAlcohol}
+                selectedDistracted={filters.selectedDistracted}
                 onToggleYear={filters.toggleYear}
                 onSetYearRange={filters.setYearRange}
                 onClearYears={filters.clearYears}
@@ -500,12 +658,12 @@ export default function StatsPage() {
                 onSetCauses={filters.setCauses}
                 onSetAllCauses={filters.setAllCauses}
                 onClearCauses={filters.clearCauses}
+                onToggleAlcohol={filters.toggleAlcohol}
+                onToggleDistracted={filters.toggleDistracted}
                 resetKey={resetKey}
               />
             ),
           },
-          { key: "layers", label: "Layers", icon: "layers", content: <LayersPanel /> },
-          { key: "export", label: "Export", icon: "file_download", content: <DataExportPanel /> },
         ]}
       />
     </main>

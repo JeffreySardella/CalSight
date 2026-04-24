@@ -49,6 +49,8 @@ export default function CountyBoundaries({
   // Note: `selectedCounties` is intentionally NOT passed into the stats
   // fetch — we always fetch ALL 58 counties so bucket edges stay globally
   // consistent. County filtering is applied visually in `computeStyle`.
+  // NOTE: alcohol/distracted are also omitted — /api/stats rejects those
+  // params (MVs don't carry them). See stats.py lines 134-143.
   const filters = useMemo(
     () => ({
       years: [...selectedYears].sort((a, b) => a - b),

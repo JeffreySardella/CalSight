@@ -1,3 +1,9 @@
+function compact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}K`;
+  return n.toLocaleString();
+}
+
 export type MeasureKey =
   | "crashes_per_100k"
   | "fatalities_per_100k"
@@ -36,7 +42,7 @@ export const MEASURES: Record<MeasureKey, Measure> = {
     key: "crashes_raw",
     label: "Total crashes",
     kind: "raw",
-    formatLabel: (n) => n.toLocaleString(),
+    formatLabel: compact,
   },
   fatality_rate: {
     key: "fatality_rate",

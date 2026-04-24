@@ -93,21 +93,25 @@ export default function LayersPanel() {
           Measure
         </label>
         <div className="space-y-2">
-          {Object.values(MEASURES).map((m) => (
-            <label key={m.key} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="measure"
-                value={m.key}
-                checked={measure === m.key}
-                onChange={() => setMeasure(m.key)}
-                className="accent-primary"
-              />
-              <span className={`text-sm ${measure === m.key ? "text-on-surface font-medium" : "text-on-surface-variant"}`}>
-                {m.label}
-              </span>
-            </label>
-          ))}
+          {Object.values(MEASURES).map((m) => {
+            const active = measure === m.key;
+            return (
+              <button
+                key={m.key}
+                onClick={() => setMeasure(m.key)}
+                className="flex items-center gap-3 w-full text-left cursor-pointer"
+              >
+                <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
+                  active ? "bg-primary" : "bg-surface-container-high"
+                }`}>
+                  {active && <span className="w-1.5 h-1.5 rounded-full bg-on-primary" />}
+                </span>
+                <span className={`text-sm ${active ? "text-on-surface font-medium" : "text-on-surface-variant"}`}>
+                  {m.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
