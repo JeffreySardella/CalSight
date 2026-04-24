@@ -3,9 +3,11 @@ import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
+import type { DataSummary } from "../../hooks/useChoroplethData";
 
 type Props = {
   demographicsAvailable: boolean;
+  dataSummary?: DataSummary;
   isLoading?: boolean;
   isError?: boolean;
   is422?: boolean;
@@ -13,7 +15,24 @@ type Props = {
   onRetry?: () => void;
 };
 
-export default function ChoroplethLegend({ demographicsAvailable, isLoading, isError, is422, searchOpen, onRetry }: Props) {
+function formatYearList(years: number[]): string {
+  if (years.length <= 2) return years.join(", ");
+  const sorted = [...years].sort((a, b) => a - b);
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (last - first + 1 === sorted.length) return `${first}–${last}`;
+  return sorted.join(", ");
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString();
+}
+
+const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
+
+export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, isLoading, isError, is422, searchOpen, onRetry }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
   const isDark = useIsDark();
   const [isOpen, setIsOpen] = useState(false);
@@ -123,6 +142,39 @@ export default function ChoroplethLegend({ demographicsAvailable, isLoading, isE
       ) : (
         <div className="text-[10px] text-on-surface-variant mt-1 italic">
           Pan or zoom out to compute scale
+        </div>
+      )}
+
+      {!isLoading && dataSummary.totalCrashes > 0 && (
+        <div data-testid="data-summary" className="text-[11px] sm:text-[10px] text-on-surface-variant mt-2 leading-snug">
+          <span className="font-mono font-semibold">{formatCount(dataSummary.totalCrashes)}</span> crashes
+
+          {dataSummary.sparseYears.length > 0 && (
+            <div className="mt-1">
+              {dataSummary.sparseYears.map((s) => (
+                <div key={s.year}>
+                  {s.year}: {s.count.toLocaleString()} crashes (in progress)
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeMeasure.kind === "perCapita" && (dataSummary.missingDemoYears.length > 0 || dataSummary.partialDemoYears.length > 0) && (
+            <div role="alert" className="bg-surface-container-high/60 rounded-md px-2 py-1.5 mt-1.5">
+              {dataSummary.missingDemoYears.length > 0 && (
+                <div>No population data for {formatYearList(dataSummary.missingDemoYears)}</div>
+              )}
+              {dataSummary.partialDemoYears.length > 0 && (
+                <div>Partial population data for {formatYearList(dataSummary.partialDemoYears)}</div>
+              )}
+              <button
+                className="block mt-1 underline font-semibold"
+                onClick={() => setMeasure("crashes_raw")}
+              >
+                Switch to Total Crashes
+              </button>
+            </div>
+          )}
         </div>
       )}
 

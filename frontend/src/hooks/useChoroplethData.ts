@@ -7,7 +7,7 @@ import {
   type MeasureKey,
   type MeasureResult,
 } from "../lib/choropleth/measures";
-import { YEARS, SEVERITIES, CAUSES } from "./useFilterParams";
+import { CA_COUNTIES, YEARS, SEVERITIES, CAUSES } from "./useFilterParams";
 
 export type ChoroplethFilters = {
   years: number[];           // parsed from URL; empty = no year filter
@@ -27,6 +27,17 @@ export type ChoroplethPoint = MeasureResult & {
   rawCount: number;
 };
 
+export type DataSummary = {
+  totalCrashes: number;
+  missingDemoYears: number[];
+  partialDemoYears: number[];
+  sparseYears: { year: number; count: number }[];
+};
+
+type YearStats = { year: number; crash_count: number; total_killed: number; total_injured: number };
+
+const CURRENT_YEAR = new Date().getFullYear();
+
 export type ChoroplethData = {
   byCountyCode: Record<number, ChoroplethPoint>;
   isLoading: boolean;
@@ -37,6 +48,7 @@ export type ChoroplethData = {
   is422: boolean;
   error: Error | null;
   demographicsAvailable: boolean;
+  dataSummary: DataSummary;
 };
 
 function normalizeFilters(filters: ChoroplethFilters): ChoroplethFilters {
@@ -62,6 +74,15 @@ function buildStatsUrl(filters: ChoroplethFilters): string {
   return `/api/stats?${p}`;
 }
 
+function buildYearStatsUrl(filters: ChoroplethFilters): string {
+  const p = new URLSearchParams();
+  p.set("group_by", "year");
+  if (filters.years.length) p.set("year", filters.years.join(","));
+  if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
+  if (filters.causes.length) p.set("cause", filters.causes.join(","));
+  return `/api/stats?${p}`;
+}
+
 function buildDemoUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   if (filters.years.length) p.set("year", filters.years.join(","));
@@ -75,9 +96,6 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     queries: [
       {
         queryKey: ["choropleth", "stats", filters],
-        // keepPreviousData: on a 422 (bad filter value) we surface the error
-        // flag but keep the last-good choropleth visible rather than blanking
-        // the map. React Query v5 spelling: placeholderData keeps old data.
         placeholderData: (prev: CountyStats[] | undefined) => prev,
         queryFn: async (): Promise<CountyStats[]> => {
           const res = await fetch(buildStatsUrl(filters));
@@ -98,12 +116,22 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
           return res.json();
         },
       },
+      {
+        queryKey: ["choropleth", "yearStats", filters],
+        placeholderData: (prev: YearStats[] | undefined) => prev,
+        queryFn: async (): Promise<YearStats[]> => {
+          const res = await fetch(buildYearStatsUrl(filters));
+          if (!res.ok) throw new Error(`yearStats ${res.status}`);
+          return res.json();
+        },
+      },
     ],
   });
 
-  const [statsQ, demoQ] = queries;
+  const [statsQ, demoQ, yearStatsQ] = queries;
   const stats = statsQ.data;
   const demos = demoQ.data;
+  const yearStats = yearStatsQ.data;
 
   const byCountyCode = useMemo<Record<number, ChoroplethPoint>>(() => {
     if (!stats) return {};
@@ -121,16 +149,45 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     return out;
   }, [stats, demos, measure]);
 
-  const rawError = (statsQ.error ?? demoQ.error) as (Error & { status?: number }) | null;
+  const dataSummary = useMemo<DataSummary>(() => {
+    const totalCrashes = yearStats?.reduce((s, r) => s + r.crash_count, 0) ?? 0;
+
+    const sparseYears: { year: number; count: number }[] = [];
+    for (const r of yearStats ?? []) {
+      if (r.year === CURRENT_YEAR) {
+        sparseYears.push({ year: r.year, count: r.crash_count });
+      }
+    }
+
+    if (filters.years.length === 0 || !demos) {
+      return { totalCrashes, missingDemoYears: [], partialDemoYears: [], sparseYears };
+    }
+
+    const countiesByYear = new Map<number, number>();
+    for (const d of demos) {
+      if (d.population != null) {
+        countiesByYear.set(d.year, (countiesByYear.get(d.year) ?? 0) + 1);
+      }
+    }
+    const missingDemoYears: number[] = [];
+    const partialDemoYears: number[] = [];
+    for (const y of [...filters.years].sort((a, b) => a - b)) {
+      const count = countiesByYear.get(y) ?? 0;
+      if (count === 0) missingDemoYears.push(y);
+      else if (count < CA_COUNTIES.length) partialDemoYears.push(y);
+    }
+    return { totalCrashes, missingDemoYears, partialDemoYears, sparseYears };
+  }, [filters.years, demos, yearStats]);
+
+  const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error) as (Error & { status?: number }) | null;
 
   return {
     byCountyCode,
-    isLoading: statsQ.isLoading || demoQ.isLoading,
+    isLoading: statsQ.isLoading || demoQ.isLoading || yearStatsQ.isLoading,
     isError: statsQ.isError || demoQ.isError,
-    // is422: the active filter set was rejected by the backend (FilterError).
-    // The map stays populated with the previous result via placeholderData.
     is422: rawError?.status === 422,
     error: rawError,
     demographicsAvailable: !demoQ.isError && (demos?.length ?? 0) > 0,
+    dataSummary,
   };
 }

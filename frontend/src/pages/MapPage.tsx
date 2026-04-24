@@ -291,10 +291,11 @@ function ChoroplethLegendContainer({ searchOpen }: { searchOpen?: boolean }) {
     }),
     [selectedYears, selectedSeverities, selectedCauses],
   );
-  const { demographicsAvailable, isError, isLoading, is422 } = useChoroplethData(measure, filters);
+  const { demographicsAvailable, dataSummary, isError, isLoading, is422 } = useChoroplethData(measure, filters);
   return (
     <ChoroplethLegend
       demographicsAvailable={demographicsAvailable}
+      dataSummary={dataSummary}
       isLoading={isLoading}
       isError={isError}
       is422={is422}
