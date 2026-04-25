@@ -71,8 +71,30 @@ describe("useChoroplethData", () => {
     expect(result.current.byCountyCode[19]).toEqual({
       value: 20,
       rawCount: 10,
+      totalKilled: 2,
+      totalInjured: 3,
       hasEnoughData: true,
     });
+  });
+
+  it("provides a nameToCode mapping from county_name to county_code", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/stats")) {
+        return new Response(JSON.stringify([
+          { county_code: 19, county_name: "Fresno", crash_count: 10, total_killed: 2, total_injured: 3 },
+          { county_code: 1, county_name: "Alameda", crash_count: 5, total_killed: 1, total_injured: 2 },
+        ]));
+      }
+      return new Response(JSON.stringify([]));
+    });
+
+    const { result } = renderHook(
+      () => useChoroplethData("crashes_raw", FILTERS),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.nameToCode).toEqual({ Fresno: 19, Alameda: 1 });
   });
 
   it("does NOT refetch when only measure changes", async () => {
@@ -271,6 +293,8 @@ describe("useChoroplethData", () => {
     expect(result.current.byCountyCode[19]).toEqual({
       value: null,
       rawCount: 10,
+      totalKilled: 2,
+      totalInjured: 3,
       hasEnoughData: false,
     });
   });
