@@ -15,6 +15,7 @@ const CA_BOUNDS: LatLngBoundsExpression = [
 
 interface MapCanvasProps {
   focusedCounty: string | null;
+  compareCounty?: string | null;
   onFocusCounty: (name: string | null) => void;
   onSelectCounty: (name: string) => void;
   onMapReady: (map: LeafletMap) => void;
@@ -22,6 +23,7 @@ interface MapCanvasProps {
 
 function MapInternals({
   focusedCounty,
+  compareCounty,
   onFocusCounty,
   onSelectCounty,
   onMapReady,
@@ -35,6 +37,7 @@ function MapInternals({
   return (
     <CountyBoundaries
       focusedCounty={focusedCounty}
+      compareCounty={compareCounty}
       onFocusCounty={onFocusCounty}
       onSelectCounty={onSelectCounty}
     />
@@ -43,6 +46,7 @@ function MapInternals({
 
 export default function MapCanvas({
   focusedCounty,
+  compareCounty,
   onFocusCounty,
   onSelectCounty,
   onMapReady,
@@ -81,6 +85,7 @@ export default function MapCanvas({
 
       <MapInternals
         focusedCounty={focusedCounty}
+        compareCounty={compareCounty}
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
         onMapReady={onMapReady}

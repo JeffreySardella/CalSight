@@ -5,7 +5,8 @@ import { useFilterParams, CA_COUNTIES } from "../hooks/useFilterParams";
 import { useMapKeyboard } from "../hooks/useMapKeyboard";
 import { LayersStateProvider, useLayersState } from "../hooks/useLayersState";
 import ChoroplethLegend from "../components/map/ChoroplethLegend";
-import { useChoroplethData } from "../hooks/useChoroplethData";
+import { useChoroplethData, type ChoroplethData } from "../hooks/useChoroplethData";
+import { MEASURES } from "../lib/choropleth/measures";
 import KeyboardHelpModal from "../components/map/KeyboardHelpModal";
 import IconRail from "../components/map/IconRail";
 import SidePanel from "../components/map/SidePanel";
@@ -67,6 +68,8 @@ function MapPageInner() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [focusedCounty, setFocusedCounty] = useState<string | null>(null);
+  const [compareCounty, setCompareCounty] = useState<string | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [insightCounty, setInsightCounty] = useState("Fresno");
@@ -74,14 +77,59 @@ function MapPageInner() {
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
 
+  const { measure } = useLayersState();
+  const choroplethFilters = useMemo(
+    () => ({
+      years: [...selectedYears].sort((a, b) => a - b),
+      severities: [...selectedSeverities],
+      causes: [...selectedCauses],
+    }),
+    [selectedYears, selectedSeverities, selectedCauses],
+  );
+  const choroplethData = useChoroplethData(measure, choroplethFilters);
+
+  const inspectedCode = focusedCounty ? choroplethData.nameToCode[focusedCounty] : undefined;
+  const inspectedData = inspectedCode != null ? choroplethData.byCountyCode[inspectedCode] : undefined;
+  const compareCode = compareCounty ? choroplethData.nameToCode[compareCounty] : undefined;
+  const comparePointData = compareCode != null ? choroplethData.byCountyCode[compareCode] : undefined;
+  const measureLabel = MEASURES[measure].label;
+
   const handleMapReady = useCallback((map: LeafletMap) => {
     mapRef.current = map;
   }, []);
 
   const handleSelectCounty = useCallback((name: string) => {
-    setInsightCounty(name);
-    setShowInsight(true);
+    if (compareMode && name !== focusedCounty) {
+      setCompareCounty(name);
+    } else {
+      setFocusedCounty(name);
+      setInsightCounty(name);
+      setShowInsight(true);
+      setCompareCounty(null);
+      setCompareMode(false);
+    }
+  }, [compareMode, focusedCounty]);
+
+  const handleDeselect = useCallback(() => {
+    setFocusedCounty(null);
+    setCompareCounty(null);
+    setCompareMode(false);
+    setShowInsight(false);
   }, []);
+
+  const handleStartCompare = useCallback(() => {
+    setCompareMode(true);
+  }, []);
+
+  const handleFocusCounty = useCallback((name: string | null) => {
+    if (compareMode && name !== null) return;
+    setFocusedCounty(name);
+    if (name === null) {
+      setCompareCounty(null);
+      setCompareMode(false);
+      setShowInsight(false);
+    }
+  }, [compareMode]);
 
   function handleClearAll() {
     clearFilters();
@@ -92,19 +140,19 @@ function MapPageInner() {
     if (showHelp) {
       setShowHelp(false);
     } else if (showInsight) {
-      setShowInsight(false);
+      handleDeselect();
     } else if (activePanel) {
       setActivePanel(null);
     } else if (showMobileFilters) {
       setShowMobileFilters(false);
     }
-  }, [showHelp, showInsight, activePanel, showMobileFilters]);
+  }, [showHelp, showInsight, activePanel, showMobileFilters, handleDeselect]);
 
   useMapKeyboard({
     map: mapRef.current,
     counties: countyNames,
     focusedCounty,
-    onFocusCounty: setFocusedCounty,
+    onFocusCounty: handleFocusCounty,
     onSelectCounty: handleSelectCounty,
     onCloseOverlay: handleCloseOverlay,
     onToggleHelp: () => setShowHelp((prev) => !prev),
@@ -208,7 +256,8 @@ function MapPageInner() {
       <section className="flex-1 relative transition-all duration-300">
         <MapCanvas
           focusedCounty={focusedCounty}
-          onFocusCounty={setFocusedCounty}
+          compareCounty={compareCounty}
+          onFocusCounty={handleFocusCounty}
           onSelectCounty={handleSelectCounty}
           onMapReady={handleMapReady}
         />
@@ -222,12 +271,25 @@ function MapPageInner() {
           Filters
         </button>
 
-        {showInsight && (
-          <AiInsightCard onClose={() => setShowInsight(false)} countyName={insightCounty} />
+        {showInsight && focusedCounty && (
+          <AiInsightCard
+            onClose={handleDeselect}
+            countyName={insightCounty}
+            data={inspectedData}
+            measureLabel={measureLabel}
+            compareMode={compareMode}
+            onCompare={handleStartCompare}
+            compareCountyName={compareCounty ?? undefined}
+            compareData={comparePointData}
+          />
         )}
         <SearchPill map={mapRef.current} onExpandedChange={setSearchOpen} />
-        <Breadcrumb />
-        <ChoroplethLegendContainer searchOpen={searchOpen} />
+        <Breadcrumb
+          inspectedCounty={focusedCounty}
+          compareCounty={compareCounty}
+          onDeselect={handleDeselect}
+        />
+        <ChoroplethLegendContainer searchOpen={searchOpen} choroplethData={choroplethData} />
       </section>
 
       {/* Mobile filter bottom sheet */}
@@ -275,30 +337,21 @@ export default function MapPage() {
   );
 }
 
-function ChoroplethLegendContainer({ searchOpen }: { searchOpen?: boolean }) {
-  const { selectedYears, selectedSeverities, selectedCauses } = useFilterParams();
-  const { measure } = useLayersState();
+function ChoroplethLegendContainer({
+  searchOpen,
+  choroplethData,
+}: {
+  searchOpen?: boolean;
+  choroplethData: ChoroplethData;
+}) {
   const queryClient = useQueryClient();
-  // Must match the filter shape used in CountyBoundaries so React Query
-  // dedupes the stats request to a single /api/stats fetch.
-  // NOTE: alcohol/distracted are NOT included — /api/stats can't filter
-  // by those flags (materialized views don't carry them).
-  const filters = useMemo(
-    () => ({
-      years: [...selectedYears].sort((a, b) => a - b),
-      severities: [...selectedSeverities],
-      causes: [...selectedCauses],
-    }),
-    [selectedYears, selectedSeverities, selectedCauses],
-  );
-  const { demographicsAvailable, dataSummary, isError, isLoading, is422 } = useChoroplethData(measure, filters);
   return (
     <ChoroplethLegend
-      demographicsAvailable={demographicsAvailable}
-      dataSummary={dataSummary}
-      isLoading={isLoading}
-      isError={isError}
-      is422={is422}
+      demographicsAvailable={choroplethData.demographicsAvailable}
+      dataSummary={choroplethData.dataSummary}
+      isLoading={choroplethData.isLoading}
+      isError={choroplethData.isError}
+      is422={choroplethData.is422}
       searchOpen={searchOpen}
       onRetry={() => queryClient.invalidateQueries({ queryKey: ["choropleth"] })}
     />

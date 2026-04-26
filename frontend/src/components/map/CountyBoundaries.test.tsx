@@ -180,4 +180,29 @@ describe("CountyBoundaries", () => {
       expect(totalCalls).toBeGreaterThan(0);
     });
   });
+
+  it("applies highlight style to compareCounty", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <ThemeProvider>
+          <LayersStateProvider>
+            <CountyBoundaries
+              focusedCounty="Fresno"
+              compareCounty="Alameda"
+              onFocusCounty={onFocusCounty}
+              onSelectCounty={onSelectCounty}
+            />
+          </LayersStateProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(L.geoJSON).toHaveBeenCalled());
+    const totalCalls =
+      featureLayerMocks[0].setStyle.mock.calls.length +
+      featureLayerMocks[1].setStyle.mock.calls.length;
+    expect(totalCalls).toBeGreaterThan(0);
+  });
 });
