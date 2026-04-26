@@ -61,6 +61,19 @@ def _safe_int(value):
         return None
 
 
+def _safe_count(value):
+    """Like _safe_int but clamps to >= 0 for fields that are counts (killed, injured).
+
+    Source data occasionally contains negative values (e.g. number_killed = -1)
+    which are impossible and survive as-is through _safe_int. Clamp them here
+    rather than propagating nonsensical negatives into aggregates.
+    """
+    n = _safe_int(value)
+    if n is None:
+        return None
+    return max(0, n)
+
+
 def _safe_float(value):
     """Convert a CCRS string value to float. Returns None for nulls/empty/non-numeric."""
     if value is None or value == "":
@@ -150,9 +163,9 @@ def transform_ccrs(record: dict) -> dict:
         "collision_type": record.get("Collision Type Description"),
         "primary_factor": record.get("Primary Collision Factor Violation"),
         "motor_vehicle_involved_with": record.get("MotorVehicleInvolvedWithDesc"),
-        # NumberKilled is stored as TEXT in CCRS — must cast via _safe_int
-        "number_killed": _safe_int(record.get("NumberKilled")),
-        "number_injured": _safe_int(record.get("NumberInjured")),
+        # NumberKilled is stored as TEXT in CCRS — must cast and clamp via _safe_count
+        "number_killed": _safe_count(record.get("NumberKilled")),
+        "number_injured": _safe_count(record.get("NumberInjured")),
         "weather": record.get("Weather 1"),
         "road_condition": record.get("Road Condition 1"),
         "lighting": record.get("LightingDescription"),

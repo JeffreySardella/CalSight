@@ -4,10 +4,12 @@ import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 import type { DataSummary } from "../../hooks/useChoroplethData";
+import type { CoordCoverage } from "../../hooks/useCoordCoverage";
 
 type Props = {
   demographicsAvailable: boolean;
   dataSummary?: DataSummary;
+  coordCoverage?: CoordCoverage | null;
   isLoading?: boolean;
   isError?: boolean;
   is422?: boolean;
@@ -20,7 +22,7 @@ function formatYearList(years: number[]): string {
   const sorted = [...years].sort((a, b) => a - b);
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
-  if (last - first + 1 === sorted.length) return `${first}–${last}`;
+  if (last - first + 1 === sorted.length) return `${first}-${last}`;
   return sorted.join(", ");
 }
 
@@ -32,7 +34,7 @@ function formatCount(n: number): string {
 
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
 
-export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, isLoading, isError, is422, searchOpen, onRetry }: Props) {
+export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
   const isDark = useIsDark();
   const [isOpen, setIsOpen] = useState(false);
@@ -148,6 +150,14 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
       {!isLoading && dataSummary.totalCrashes > 0 && (
         <div data-testid="data-summary" className="text-[11px] sm:text-[10px] text-on-surface-variant mt-2 leading-snug">
           <span className="font-mono font-semibold">{formatCount(dataSummary.totalCrashes)}</span> crashes
+
+          {coordCoverage && (
+            <div className="mt-0.5 text-[10px]">
+              <span className="font-mono">{formatCount(coordCoverage.mapped)}</span> of{" "}
+              <span className="font-mono">{formatCount(coordCoverage.total)}</span> mapped (
+              <span className="font-mono">{Math.round(coordCoverage.pct)}%</span>)
+            </div>
+          )}
 
           {dataSummary.sparseYears.length > 0 && (
             <div className="mt-1">

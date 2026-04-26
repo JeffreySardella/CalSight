@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFilterParams, CA_COUNTIES } from "../hooks/useFilterParams";
+import type { CoordCoverage } from "../hooks/useCoordCoverage";
 import { useMapKeyboard } from "../hooks/useMapKeyboard";
 import { LayersStateProvider, useLayersState } from "../hooks/useLayersState";
 import ChoroplethLegend from "../components/map/ChoroplethLegend";
@@ -24,6 +25,7 @@ import AiInsightCard from "../components/map/AiInsightCard";
 import SearchPill from "../components/map/SearchPill";
 import Breadcrumb from "../components/map/Breadcrumb";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
+import { useCoordCoverage } from "../hooks/useCoordCoverage";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -78,6 +80,7 @@ function MapPageInner() {
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
 
   const { measure } = useLayersState();
+  const coordCoverage = useCoordCoverage([...selectedYears]);
   const choroplethFilters = useMemo(
     () => ({
       years: [...selectedYears].sort((a, b) => a - b),
@@ -289,7 +292,7 @@ function MapPageInner() {
           compareCounty={compareCounty}
           onDeselect={handleDeselect}
         />
-        <ChoroplethLegendContainer searchOpen={searchOpen} choroplethData={choroplethData} />
+        <ChoroplethLegendContainer searchOpen={searchOpen} choroplethData={choroplethData} coordCoverage={coordCoverage} />
       </section>
 
       {/* Mobile filter bottom sheet */}
@@ -340,15 +343,18 @@ export default function MapPage() {
 function ChoroplethLegendContainer({
   searchOpen,
   choroplethData,
+  coordCoverage,
 }: {
   searchOpen?: boolean;
   choroplethData: ChoroplethData;
+  coordCoverage?: CoordCoverage | null;
 }) {
   const queryClient = useQueryClient();
   return (
     <ChoroplethLegend
       demographicsAvailable={choroplethData.demographicsAvailable}
       dataSummary={choroplethData.dataSummary}
+      coordCoverage={coordCoverage}
       isLoading={choroplethData.isLoading}
       isError={choroplethData.isError}
       is422={choroplethData.is422}

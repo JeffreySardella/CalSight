@@ -54,6 +54,18 @@ def _safe_int(value):
         return None
 
 
+def _safe_count(value):
+    """Like _safe_int but clamps to >= 0 for fields that are counts (killed, injured).
+
+    Source data occasionally contains negative values which are impossible for
+    crash counts and produce nonsensical aggregates (e.g. total_killed: -1).
+    """
+    n = _safe_int(value)
+    if n is None:
+        return None
+    return max(0, n)
+
+
 def _safe_float(value):
     """Convert a SWITRS value to float. Returns None for nulls/empty/non-numeric."""
     if value is None or value == "":
@@ -150,8 +162,8 @@ def transform_switrs(row: dict) -> dict:
         "collision_type": row.get("type_of_collision"),
         "primary_factor": row.get("pcf_violation_category"),
         "motor_vehicle_involved_with": row.get("motor_vehicle_involved_with"),
-        "number_killed": _safe_int(row.get("killed_victims")),
-        "number_injured": _safe_int(row.get("injured_victims")),
+        "number_killed": _safe_count(row.get("killed_victims")),
+        "number_injured": _safe_count(row.get("injured_victims")),
         "weather": row.get("weather_1"),
         "road_condition": row.get("road_surface"),
         "lighting": row.get("lighting"),
