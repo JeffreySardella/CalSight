@@ -10,6 +10,7 @@ import { useIsDark } from "../../context/ThemeContext";
 
 interface CountyBoundariesProps {
   focusedCounty: string | null;
+  compareCounty?: string | null;
   onFocusCounty: (name: string | null) => void;
   onSelectCounty: (name: string) => void;
 }
@@ -35,6 +36,7 @@ function getCountyCode(f: GeoJSON.Feature): number | null {
 
 export default function CountyBoundaries({
   focusedCounty,
+  compareCounty = null,
   onFocusCounty,
   onSelectCounty,
 }: CountyBoundariesProps) {
@@ -64,9 +66,15 @@ export default function CountyBoundaries({
   const [geojson, setGeojson] = useState<GeoJSON.FeatureCollection | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
   const tooltipRef = useRef<L.Tooltip | null>(null);
+  const compareTooltipRef = useRef<L.Tooltip | null>(null);
   const edgesRef = useRef<number[] | null>(null);
 
-  // Ref so event handlers (bound once) can read current filter state
+  // Refs so event handlers (bound once) can read current callback/filter state
+  const onFocusCountyRef = useRef(onFocusCounty);
+  onFocusCountyRef.current = onFocusCounty;
+  const onSelectCountyRef = useRef(onSelectCounty);
+  onSelectCountyRef.current = onSelectCounty;
+
   const countyFilterRef = useRef<{ has: Set<string>; active: boolean }>({
     has: selectedCounties,
     active: hasCountyFilter,
@@ -91,7 +99,7 @@ export default function CountyBoundaries({
   const computeStyle = useCallback(
     (feature: GeoJSON.Feature): L.PathOptions => {
       const name = getCountyName(feature);
-      const isFocused = name === focusedCounty;
+      const isFocused = name === focusedCounty || name === compareCounty;
       const outlineColor = isDark ? "#a3a3a3" : "#78716c";
 
       // When counties are filtered via the UI, unselected counties
@@ -146,7 +154,7 @@ export default function CountyBoundaries({
         fillOpacity: 0.75,
       };
     },
-    [choroplethOn, otherLayers.countyBoundaries, focusedCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
+    [choroplethOn, otherLayers.countyBoundaries, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
   );
 
   // Ref so mouseout can re-apply the *current* style (not the stale one
@@ -199,8 +207,8 @@ export default function CountyBoundaries({
           const name = getCountyName(feature);
           featureLayer.on({
             click: () => {
-              onFocusCounty(name);
-              onSelectCounty(name);
+              onFocusCountyRef.current(name);
+              onSelectCountyRef.current(name);
             },
             mouseover: (e) => {
               if (name === focusedCounty) return;
@@ -259,37 +267,65 @@ export default function CountyBoundaries({
   }, [map, rebucketAndRepaint]);
 
   useEffect(() => {
+    const handleMapClick = (e: L.LeafletMouseEvent) => {
+      const target = e.originalEvent?.target as HTMLElement | undefined;
+      if (target?.closest?.(".leaflet-interactive")) return;
+      onFocusCounty(null);
+    };
+    map.on("click", handleMapClick);
+    return () => {
+      map.off("click", handleMapClick);
+    };
+  }, [map, onFocusCounty]);
+
+  useEffect(() => {
     if (tooltipRef.current) {
       map.removeLayer(tooltipRef.current);
       tooltipRef.current = null;
     }
-    if (!focusedCounty || !layerRef.current) return;
-    layerRef.current.eachLayer((fl) => {
-      const f = (fl as L.GeoJSON & { feature: GeoJSON.Feature }).feature;
-      if (f && getCountyName(f) === focusedCounty) {
-        const bounds = (fl as L.Polygon).getBounds();
-        const center = bounds.getCenter();
-        const tooltip = L.tooltip({
-          permanent: true,
-          direction: "center",
-          className: "county-focus-tooltip",
-        })
-          .setLatLng(center)
-          .setContent(focusedCounty)
-          .addTo(map);
-        tooltipRef.current = tooltip;
-        if (!map.getBounds().contains(center)) {
-          map.panTo(center, { animate: true });
+    if (compareTooltipRef.current) {
+      map.removeLayer(compareTooltipRef.current);
+      compareTooltipRef.current = null;
+    }
+
+    if (!layerRef.current) return;
+
+    const showTooltipFor = (name: string, ref: React.MutableRefObject<L.Tooltip | null>) => {
+      layerRef.current!.eachLayer((fl) => {
+        const f = (fl as L.GeoJSON & { feature: GeoJSON.Feature }).feature;
+        if (f && getCountyName(f) === name) {
+          const bounds = (fl as L.Polygon).getBounds();
+          const center = bounds.getCenter();
+          const tooltip = L.tooltip({
+            permanent: true,
+            direction: "center",
+            className: "county-focus-tooltip",
+          })
+            .setLatLng(center)
+            .setContent(name)
+            .addTo(map);
+          ref.current = tooltip;
+          if (!map.getBounds().contains(center)) {
+            map.panTo(center, { animate: true });
+          }
         }
-      }
-    });
+      });
+    };
+
+    if (focusedCounty) showTooltipFor(focusedCounty, tooltipRef);
+    if (compareCounty) showTooltipFor(compareCounty, compareTooltipRef);
+
     return () => {
       if (tooltipRef.current) {
         map.removeLayer(tooltipRef.current);
         tooltipRef.current = null;
       }
+      if (compareTooltipRef.current) {
+        map.removeLayer(compareTooltipRef.current);
+        compareTooltipRef.current = null;
+      }
     };
-  }, [focusedCounty, map]);
+  }, [focusedCounty, compareCounty, map]);
 
   return null;
 }

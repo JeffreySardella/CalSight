@@ -25,6 +25,8 @@ export type ChoroplethFilters = {
 
 export type ChoroplethPoint = MeasureResult & {
   rawCount: number;
+  totalKilled: number;
+  totalInjured: number;
 };
 
 export type DataSummary = {
@@ -40,6 +42,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 export type ChoroplethData = {
   byCountyCode: Record<number, ChoroplethPoint>;
+  nameToCode: Record<string, number>;
   isLoading: boolean;
   isError: boolean;
   /** True when the backend returned 422 (bad filter value). The map retains
@@ -133,8 +136,8 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
   const demos = demoQ.data;
   const yearStats = yearStatsQ.data;
 
-  const byCountyCode = useMemo<Record<number, ChoroplethPoint>>(() => {
-    if (!stats) return {};
+  const { byCountyCode, nameToCode } = useMemo(() => {
+    if (!stats) return { byCountyCode: {} as Record<number, ChoroplethPoint>, nameToCode: {} as Record<string, number> };
     const demoByCounty = new Map<number, CountyYearDemo[]>();
     for (const d of demos ?? []) {
       const arr = demoByCounty.get(d.county_code) ?? [];
@@ -142,11 +145,13 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       demoByCounty.set(d.county_code, arr);
     }
     const out: Record<number, ChoroplethPoint> = {};
+    const ntc: Record<string, number> = {};
     for (const s of stats) {
       const result = computeMeasureValue(measure, s, demoByCounty.get(s.county_code) ?? []);
-      out[s.county_code] = { ...result, rawCount: s.crash_count };
+      out[s.county_code] = { ...result, rawCount: s.crash_count, totalKilled: s.total_killed, totalInjured: s.total_injured };
+      ntc[s.county_name] = s.county_code;
     }
-    return out;
+    return { byCountyCode: out, nameToCode: ntc };
   }, [stats, demos, measure]);
 
   const dataSummary = useMemo<DataSummary>(() => {
@@ -183,6 +188,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
 
   return {
     byCountyCode,
+    nameToCode,
     isLoading: statsQ.isLoading || demoQ.isLoading || yearStatsQ.isLoading,
     isError: statsQ.isError || demoQ.isError,
     is422: rawError?.status === 422,
