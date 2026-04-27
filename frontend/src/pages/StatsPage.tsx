@@ -14,6 +14,16 @@ import {
   LabelList,
 } from "recharts";
 import { useStats, type HourlyDataPoint, type YearlyDataPoint, type CauseDataPoint } from "../hooks/useStats";
+import { useDataQualityDisclaimer } from "../hooks/useDataQualityDisclaimer";
+
+function DataQualityNote({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-1.5 bg-surface-container-high rounded-md px-2.5 py-1.5 mb-3 text-[10px] text-on-surface-variant leading-snug">
+      <span className="material-symbols-outlined text-[13px] mt-px flex-shrink-0">info</span>
+      <span>{text}</span>
+    </div>
+  );
+}
 
 function token(name: string) {
   return `rgb(${getComputedStyle(document.documentElement).getPropertyValue(name).trim()})`;
@@ -76,6 +86,10 @@ export default function StatsPage() {
     counties: [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")),
   }), [filters.selectedYears, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
   const { data, loading, error } = useStats(statsFilters);
+  const dqDisclaimers = useDataQualityDisclaimer(
+    [...filters.selectedYears],
+    [...filters.selectedCounties],
+  );
   const [, forceUpdate] = useState(false);
   useEffect(() => {
     const observer = new MutationObserver(() => forceUpdate((v) => !v));
@@ -390,7 +404,7 @@ export default function StatsPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
               <h3 className="text-on-surface font-headline font-bold text-xl leading-tight">
-                Incidents by Year ({yearlyData[0]?.year}–{yearlyData[yearlyData.length - 1]?.year})
+                Incidents by Year ({yearlyData[0]?.year}-{yearlyData[yearlyData.length - 1]?.year})
               </h3>
               <p className="text-on-surface-variant text-sm">
                 Longitudinal dataset showing historical trends
@@ -517,10 +531,22 @@ export default function StatsPage() {
           <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
             Victims by Gender
           </h3>
+          {dqDisclaimers.preDataOnly && (
+            <DataQualityNote text="Driver demographic data is only available from 2016 onward (CCRS)." />
+          )}
+          {!dqDisclaimers.preDataOnly && dqDisclaimers.hasPreCcrsYears && (
+            <DataQualityNote text="Pre-2016 years have no gender data — chart covers 2016+ only." />
+          )}
+          {!dqDisclaimers.preDataOnly && dqDisclaimers.showGenderWarning && dqDisclaimers.genderPct !== null && (
+            <DataQualityNote text={`Gender recorded for ${Math.round(dqDisclaimers.genderPct)}% of parties. Chart may not be fully representative.`} />
+          )}
           {loading ? (
             <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
           ) : !genderData.length ? (
-            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">No data available.</div>
+            <div className="h-48 flex flex-col items-center justify-center gap-2 text-on-surface-variant text-sm text-center px-4">
+              <span className="material-symbols-outlined text-[28px] opacity-40">person_off</span>
+              <span>{dqDisclaimers.preDataOnly ? "Gender data requires 2016 or later (CCRS)." : "No gender data for the current filters."}</span>
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={genderData} barCategoryGap="25%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
@@ -558,10 +584,22 @@ export default function StatsPage() {
           <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
             Victims by Age
           </h3>
+          {dqDisclaimers.preDataOnly && (
+            <DataQualityNote text="Driver demographic data is only available from 2016 onward (CCRS)." />
+          )}
+          {!dqDisclaimers.preDataOnly && dqDisclaimers.hasPreCcrsYears && (
+            <DataQualityNote text="Pre-2016 years have no age data — chart covers 2016+ only." />
+          )}
+          {!dqDisclaimers.preDataOnly && dqDisclaimers.showAgeWarning && dqDisclaimers.agePct !== null && (
+            <DataQualityNote text={`Age recorded for ${Math.round(dqDisclaimers.agePct)}% of parties. Chart may not be fully representative.`} />
+          )}
           {loading ? (
             <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
           ) : !ageBracketData.length ? (
-            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">No data available.</div>
+            <div className="h-48 flex flex-col items-center justify-center gap-2 text-on-surface-variant text-sm text-center px-4">
+              <span className="material-symbols-outlined text-[28px] opacity-40">person_off</span>
+              <span>{dqDisclaimers.preDataOnly ? "Age data requires 2016 or later (CCRS)." : "No age data for the current filters."}</span>
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={ageBracketData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
