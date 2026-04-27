@@ -146,7 +146,7 @@ describe("ChoroplethLegend", () => {
   it("shows partial-demographics alert for years with incomplete county coverage", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, partialDemoYears: [2005, 2006, 2007, 2008, 2009] }} />);
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/partial population data for 2005–2009/i);
+    expect(alert).toHaveTextContent(/partial population data for 2005-2009/i);
   });
 
   it("shows both missing and partial alerts together", async () => {
