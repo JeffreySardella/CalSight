@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLayersState, type OtherLayerKey } from "../../hooks/useLayersState";
+import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
 import { PALETTES, getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
@@ -26,13 +26,6 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
   );
 }
 
-const MAP_FEATURE_LAYERS: { key: OtherLayerKey; label: string }[] = [
-  { key: "countyBoundaries", label: "County Boundaries" },
-  { key: "roadTypes", label: "Road Types" },
-  { key: "schoolZones", label: "School Zones" },
-  { key: "hospitals", label: "Hospitals" },
-];
-
 const PALETTE_LABELS: Record<PaletteKey, string> = {
   default: "Default",
   warm: "Warm",
@@ -45,7 +38,6 @@ export default function LayersPanel() {
     choroplethOn, setChoroplethOn,
     measure, setMeasure,
     palette: activePalette, setPalette,
-    otherLayers, toggleOtherLayer,
     reset,
   } = useLayersState();
   const isDark = useIsDark();
@@ -71,18 +63,6 @@ export default function LayersPanel() {
               Choropleth
             </span>
             <Toggle enabled={choroplethOn} onToggle={() => setChoroplethOn(!choroplethOn)} />
-          </div>
-          <div className="flex justify-between items-center">
-            <span className={`text-sm font-medium ${otherLayers.heatmap ? "text-on-surface" : "text-on-surface-variant"}`}>
-              Heatmap
-            </span>
-            <Toggle enabled={otherLayers.heatmap} onToggle={() => toggleOtherLayer("heatmap")} />
-          </div>
-          <div className="flex justify-between items-center">
-            <span className={`text-sm font-medium ${otherLayers.incidents ? "text-on-surface" : "text-on-surface-variant"}`}>
-              Incident Points
-            </span>
-            <Toggle enabled={otherLayers.incidents} onToggle={() => toggleOtherLayer("incidents")} />
           </div>
         </div>
       </div>
@@ -115,22 +95,6 @@ export default function LayersPanel() {
         </div>
       </div>
 
-      {/* Map Features */}
-      <div className="space-y-4">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          Map Features
-        </label>
-        <div className="space-y-3">
-          {MAP_FEATURE_LAYERS.map(({ key, label }) => (
-            <div key={key} className="flex justify-between items-center">
-              <span className={`text-sm font-medium ${otherLayers[key] ? "text-on-surface" : "text-on-surface-variant"}`}>
-                {label}
-              </span>
-              <Toggle enabled={otherLayers[key]} onToggle={() => toggleOtherLayer(key)} />
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Color Palette */}
       <div className="space-y-4">

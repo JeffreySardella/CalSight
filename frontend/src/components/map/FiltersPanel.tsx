@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { YEARS, CA_COUNTIES, CAUSES, SEVERITIES, INVOLVEMENTS } from "../../hooks/useFilterParams";
+import { YEARS, CA_COUNTIES, CAUSES, SEVERITIES } from "../../hooks/useFilterParams";
 import SearchableMultiSelect from "../ui/SearchableMultiSelect";
 
 const DISPLAY_YEAR_COUNT = 6;
@@ -48,8 +48,6 @@ export default function FiltersPanel({
   selectedSeverities,
   selectedCounties,
   selectedCauses,
-  selectedAlcohol,
-  selectedDistracted,
   onToggleYear,
   onSetYearRange,
   onSetYears,
@@ -65,8 +63,6 @@ export default function FiltersPanel({
   onSetCauses,
   onSetAllCauses,
   onClearCauses,
-  onToggleAlcohol,
-  onToggleDistracted,
   resetKey = 0,
 }: FiltersPanelProps) {
   // "range" = from–to input, "custom" = single year input, null = default pill view
@@ -344,41 +340,6 @@ export default function FiltersPanel({
         </div>
       </div>
 
-      {/* Involvement */}
-      <div className="space-y-3">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          Involvement
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={onToggleAlcohol}
-            className={`flex items-center gap-1.5 ${selectedAlcohol ? PILL_ACTIVE : PILL_INACTIVE}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">
-              {INVOLVEMENTS[0].icon}
-            </span>
-            {INVOLVEMENTS[0].label}
-          </button>
-          <button
-            onClick={onToggleDistracted}
-            className={`flex items-center gap-1.5 ${selectedDistracted ? PILL_ACTIVE : PILL_INACTIVE}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">
-              {INVOLVEMENTS[1].icon}
-            </span>
-            {INVOLVEMENTS[1].label}
-          </button>
-        </div>
-        {/* CCRS coverage note */}
-        {(selectedAlcohol || selectedDistracted) && (
-          <p className="text-[10px] text-on-surface-variant italic leading-relaxed">
-            These flags are recorded for drill-down queries and apply to CCRS
-            records only (2016+). The choropleth map shows aggregate counts from
-            all data — involvement filtering will apply when crash-level
-            endpoints are integrated.
-          </p>
-        )}
-      </div>
     </div>
   );
 }

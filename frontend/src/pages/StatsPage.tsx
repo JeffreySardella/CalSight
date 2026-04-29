@@ -410,16 +410,6 @@ export default function StatsPage() {
                 Longitudinal dataset showing historical trends
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button type="button" className="bg-surface-container-low px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2">
-                <span className="material-symbols-outlined text-[14px]">download</span>
-                CSV
-              </button>
-              <button type="button" className="bg-surface-container-low px-4 py-1.5 rounded-sm text-[10px] font-bold uppercase tracking-widest text-on-surface hover:bg-surface-container transition-colors flex items-center gap-2">
-                <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
-                PDF
-              </button>
-            </div>
           </div>
           {loading ? (
             <div className="h-64 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
@@ -628,13 +618,6 @@ export default function StatsPage() {
           )}
         </div>
       </section>
-
-      {/* Mobile share FAB */}
-      <button type="button" className="fixed bottom-28 right-4 z-40 md:hidden w-12 h-12 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity">
-        <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-          share
-        </span>
-      </button>
 
       {/* Methodology Footer */}
       <section className="border-t border-outline-variant/15 pt-12 pb-16 opacity-60 hover:opacity-100 transition-opacity">

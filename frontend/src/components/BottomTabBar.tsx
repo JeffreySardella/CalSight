@@ -4,7 +4,6 @@ import { buildFilterQS } from "../hooks/useFilterParams";
 const tabs = [
   { to: "/", icon: "map", label: "Map" },
   { to: "/stats", icon: "insights", label: "Stats" },
-  { to: "/ask-ai", icon: "psychology", label: "Ask AI" },
   { to: "/about", icon: "info", label: "About" },
 ] as const;
 
