@@ -22,7 +22,6 @@ import DataExportPanel, {
 } from "../components/map/DataExportPanel";
 import MapCanvas from "../components/map/MapCanvas";
 import AiInsightCard from "../components/map/AiInsightCard";
-import SearchPill from "../components/map/SearchPill";
 import Breadcrumb from "../components/map/Breadcrumb";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
@@ -73,7 +72,7 @@ function MapPageInner() {
   const [compareCounty, setCompareCounty] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchOpen] = useState(false);
   const [insightCounty, setInsightCounty] = useState("Fresno");
   const mapRef = useRef<LeafletMap | null>(null);
 
@@ -286,7 +285,6 @@ function MapPageInner() {
             compareData={comparePointData}
           />
         )}
-        <SearchPill map={mapRef.current} onExpandedChange={setSearchOpen} />
         <Breadcrumb
           inspectedCounty={focusedCounty}
           compareCounty={compareCounty}
@@ -314,12 +312,6 @@ function MapPageInner() {
             label: "Layers",
             icon: "layers",
             content: <LayersPanel />,
-          },
-          {
-            key: "export",
-            label: "Export",
-            icon: "file_download",
-            content: <DataExportPanel />,
           },
         ]}
       />
