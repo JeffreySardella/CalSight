@@ -6,8 +6,6 @@ import Layout from "./components/Layout";
 import MapPage from "./pages/MapPage";
 import StatsPage from "./pages/StatsPage";
 import AboutPage from "./pages/AboutPage";
-import AskAiPage from "./pages/AskAiPage";
-
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -17,7 +15,6 @@ export default function App() {
             <Route element={<Layout />}>
               <Route index element={<MapPage />} />
               <Route path="stats" element={<StatsPage />} />
-              <Route path="ask-ai" element={<AskAiPage />} />
               <Route path="about" element={<AboutPage />} />
             </Route>
           </Routes>

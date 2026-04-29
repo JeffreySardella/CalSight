@@ -246,8 +246,8 @@ export default function AboutPage() {
               Discover
             </h4>
             <p className="text-sm text-on-surface-variant leading-relaxed">
-              Use our AI-driven insights to find unexpected correlations between
-              infrastructure design and safety outcomes.
+              Cross-reference crash patterns with demographics, weather, and
+              infrastructure data to find unexpected correlations.
             </p>
           </div>
         </div>
@@ -265,11 +265,8 @@ export default function AboutPage() {
             </div>
             <div>
               <h4 className="font-bold text-on-surface">Jeffrey Sardella</h4>
-              <p className="text-xs text-primary font-medium mb-2">
+              <p className="text-xs text-primary font-medium">
                 Project Lead & Full-Stack Developer
-              </p>
-              <p className="text-xs text-on-surface-variant leading-normal">
-                Jeffrey founded CalSight and leads project direction, design system, and architecture for making California crash data accessible.
               </p>
             </div>
           </div>
@@ -280,11 +277,8 @@ export default function AboutPage() {
             </div>
             <div>
               <h4 className="font-bold text-on-surface">Maksim Shkrabak</h4>
-              <p className="text-xs text-primary font-medium mb-2">
-                Put what title you want here
-              </p>
-              <p className="text-xs text-on-surface-variant leading-normal">
-                short description of what you do, your background, and your role in the project. You can also include any relevant experience or skills that contribute to the project&#39;s success.
+              <p className="text-xs text-primary font-medium">
+                Developer
               </p>
             </div>
           </div>
@@ -295,11 +289,8 @@ export default function AboutPage() {
             </div>
             <div>
               <h4 className="font-bold text-on-surface">John Longarini</h4>
-              <p className="text-xs text-primary font-medium mb-2">
-                Put what title you want here
-              </p>
-              <p className="text-xs text-on-surface-variant leading-normal">
-                short description of what you do, your background, and your role in the project. You can also include any relevant experience or skills that contribute to the project&#39;s success.
+              <p className="text-xs text-primary font-medium">
+                Developer
               </p>
             </div>
           </div>
@@ -310,11 +301,8 @@ export default function AboutPage() {
             </div>
             <div>
               <h4 className="font-bold text-on-surface">Gavin Kabel</h4>
-              <p className="text-xs text-primary font-medium mb-2">
-                Put what title you want here
-              </p>
-              <p className="text-xs text-on-surface-variant leading-normal">
-                short description of what you do, your background, and your role in the project. You can also include any relevant experience or skills that contribute to the project&#39;s success.
+              <p className="text-xs text-primary font-medium">
+                Developer
               </p>
             </div>
           </div>
@@ -335,14 +323,6 @@ export default function AboutPage() {
             CalSight is a public civic data tool. All crash data displayed is
             sourced from publicly available California government datasets
             (CCRS, SWITRS) and contains no personally identifiable information.
-          </p>
-          <p>
-            <span className="font-semibold text-on-surface">AI Features:</span>{" "}
-            Questions submitted through the Ask AI feature are processed by
-            Google&rsquo;s Gemini API to generate responses. Your questions are
-            sent to Google&rsquo;s servers for processing but are not stored,
-            logged, or used for training by CalSight. Google&rsquo;s own data
-            handling practices apply to API interactions.
           </p>
           <p>
             <span className="font-semibold text-on-surface">Analytics:</span>{" "}

@@ -7,7 +7,6 @@ import SettingsPopover from "./SettingsPopover";
 const navLinks = [
   { to: "/", label: "Map" },
   { to: "/stats", label: "Stats" },
-  { to: "/ask-ai", label: "Ask AI" },
   { to: "/about", label: "About" },
 ];
 
@@ -26,6 +25,9 @@ export default function NavBar() {
           <img src={logo} alt="CalSight" className="h-7 w-auto" />
           <span className="text-xl font-bold tracking-tighter text-on-surface font-headline">
             CalSight
+          </span>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-primary bg-primary-container px-2 py-0.5 rounded-full">
+            Beta
           </span>
         </NavLink>
         <nav className="hidden md:flex gap-6 items-center">
