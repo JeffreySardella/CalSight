@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { YEARS, SEVERITIES, CAUSES } from "./useFilterParams";
+import { API_BASE } from "../config";
 
 export type StatsFilters = {
   years: number[];
@@ -85,7 +86,7 @@ function buildUrl(groupBy: string, filters: StatsFilters): string {
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
   if (filters.counties.length) p.set("county", filters.counties.join(","));
-  return `/api/stats?${p}`;
+  return `${API_BASE}/api/stats?${p}`;
 }
 
 function buildVictimUrl(groupBy: string, filters: StatsFilters): string {
@@ -94,7 +95,7 @@ function buildVictimUrl(groupBy: string, filters: StatsFilters): string {
   if (filters.years.length) p.set("year", filters.years.join(","));
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.counties.length) p.set("county", filters.counties.join(","));
-  return `/api/stats?${p}`;
+  return `${API_BASE}/api/stats?${p}`;
 }
 
 function buildDemoUrl(filters: StatsFilters): string {
@@ -102,7 +103,7 @@ function buildDemoUrl(filters: StatsFilters): string {
   if (filters.years.length) p.set("year", filters.years.join(","));
   if (filters.counties.length) p.set("county", filters.counties.join(","));
   const qs = p.toString();
-  return `/api/demographics${qs ? `?${qs}` : ""}`;
+  return `${API_BASE}/api/demographics${qs ? `?${qs}` : ""}`;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {

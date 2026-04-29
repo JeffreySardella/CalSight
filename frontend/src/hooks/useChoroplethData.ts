@@ -8,6 +8,7 @@ import {
   type MeasureResult,
 } from "../lib/choropleth/measures";
 import { CA_COUNTIES, YEARS, SEVERITIES, CAUSES } from "./useFilterParams";
+import { API_BASE } from "../config";
 
 export type ChoroplethFilters = {
   years: number[];           // parsed from URL; empty = no year filter
@@ -74,7 +75,7 @@ function buildStatsUrl(filters: ChoroplethFilters): string {
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
   // alcohol / distracted are NOT forwarded — /api/stats rejects them (MVs
   // don't carry those columns). See stats.py lines 134-143.
-  return `/api/stats?${p}`;
+  return `${API_BASE}/api/stats?${p}`;
 }
 
 function buildYearStatsUrl(filters: ChoroplethFilters): string {
@@ -83,14 +84,14 @@ function buildYearStatsUrl(filters: ChoroplethFilters): string {
   if (filters.years.length) p.set("year", filters.years.join(","));
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
-  return `/api/stats?${p}`;
+  return `${API_BASE}/api/stats?${p}`;
 }
 
 function buildDemoUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   if (filters.years.length) p.set("year", filters.years.join(","));
   const qs = p.toString();
-  return `/api/demographics${qs ? `?${qs}` : ""}`;
+  return `${API_BASE}/api/demographics${qs ? `?${qs}` : ""}`;
 }
 
 export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFilters): ChoroplethData {

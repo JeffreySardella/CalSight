@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { YEARS } from "./useFilterParams";
+import { API_BASE } from "../config";
 
 type DataQualityRow = {
   county_code: number | null;
@@ -18,7 +19,7 @@ export function useCoordCoverage(selectedYears: number[]): CoordCoverage | null 
   const { data } = useQuery<DataQualityRow[]>({
     queryKey: ["data-quality-statewide"],
     queryFn: async () => {
-      const res = await fetch("/api/data-quality");
+      const res = await fetch(`${API_BASE}/api/data-quality`);
       if (!res.ok) throw new Error("data-quality fetch failed");
       return res.json();
     },
