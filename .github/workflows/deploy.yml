@@ -10,6 +10,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create backend .env from secrets
+        run: |
+          cat > backend/.env << 'DELIM'
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+          CENSUS_API_KEY=${{ secrets.CENSUS_API_KEY }}
+          NOAA_API_TOKEN=${{ secrets.NOAA_API_TOKEN }}
+          BLS_API_KEY=${{ secrets.BLS_API_KEY }}
+          DEBUG=false
+          DELIM
+
       - name: Build and restart backend
         run: docker compose -f docker-compose.prod.yml up --build -d
 
