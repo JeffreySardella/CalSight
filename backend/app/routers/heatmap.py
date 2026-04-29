@@ -37,6 +37,12 @@ _STEP = {
     Resolution.high: 0.001,
 }
 
+_DECIMALS = {
+    Resolution.low: 1,
+    Resolution.medium: 2,
+    Resolution.high: 3,
+}
+
 
 @router.get("/crashes/heatmap", response_model=HeatmapResponse)
 def crash_heatmap(
@@ -104,8 +110,12 @@ def crash_heatmap(
     )
 
     total = sum(r.weight for r in rows)
+    decimals = _DECIMALS[resolution]
 
     return HeatmapResponse(
-        points=[HeatmapPoint(lat=r.lat, lng=r.lng, weight=r.weight) for r in rows],
+        points=[
+            HeatmapPoint(lat=round(float(r.lat), decimals), lng=round(float(r.lng), decimals), weight=r.weight)
+            for r in rows
+        ],
         total_crashes=total,
     )
