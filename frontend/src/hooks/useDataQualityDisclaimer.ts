@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { YEARS } from "./useFilterParams";
+import { API_BASE } from "../config";
 
 type QualityRow = {
   county_code: number | null;
@@ -38,8 +39,8 @@ export function useDataQualityDisclaimer(
       : ["data-quality", "statewide"],
     queryFn: async () => {
       const url = singleCounty
-        ? `/api/data-quality?county=${encodeURIComponent(singleCounty)}`
-        : "/api/data-quality";
+        ? `${API_BASE}/api/data-quality?county=${encodeURIComponent(singleCounty)}`
+        : `${API_BASE}/api/data-quality`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("data-quality fetch failed");
       return res.json();
