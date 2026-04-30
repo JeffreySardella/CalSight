@@ -322,7 +322,7 @@ export default function CountyBoundaries({
             .setContent(name)
             .addTo(map);
           ref.current = tooltip;
-          combined = combined ? combined.extend(bounds) : L.latLngBounds(bounds);
+          combined = combined ? combined.extend(bounds) : bounds;
         }
       });
     };
