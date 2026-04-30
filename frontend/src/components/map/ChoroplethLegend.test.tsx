@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useEffect } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LayersStateProvider, useLayersState } from "../../hooks/useLayersState";
@@ -39,6 +39,7 @@ function Harness({
 }
 
 describe("ChoroplethLegend", () => {
+  beforeEach(() => { localStorage.clear(); });
   it("renders the measure dropdown with all 5 options", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} />);
     const trigger = await screen.findByLabelText(/measure/i);
