@@ -24,8 +24,11 @@ from app.schemas.heatmap import HeatmapPoint, HeatmapResponse
 router = APIRouter(tags=["heatmap"])
 logger = logging.getLogger(__name__)
 
+RAW_POINT_LIMIT = 300_000
+
 
 class Resolution(str, Enum):
+    raw = "raw"
     low = "low"
     medium = "medium"
     high = "high"
@@ -56,15 +59,13 @@ def crash_heatmap(
     resolution: Resolution | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    """Grid-aggregated crash locations for heatmap rendering.
+    """Crash locations for heatmap rendering.
 
-    Buckets crash lat/lng into grid cells and returns {lat, lng, weight}
-    per cell.  Same filter params as /api/crashes.
-
-    Resolution controls grid cell size:
-      - low  (0.1 deg, ~7 mi)  — default for statewide
-      - medium (0.01 deg, ~0.7 mi) — default when county is set
-      - high (0.001 deg, ~350 ft) — county-only, rejected without county
+    Resolution controls output:
+      - raw — individual crash lat/lng (county required, limit 10K)
+      - low  (0.1 deg, ~7 mi)  — grid-aggregated
+      - medium (0.01 deg, ~0.7 mi) — grid-aggregated
+      - high (0.001 deg, ~350 ft) — grid-aggregated
     """
     response.headers["Cache-Control"] = "public, max-age=300"
 
@@ -76,16 +77,13 @@ def crash_heatmap(
     distracted_v = parse_bool_flag(distracted, "distracted")
 
     if resolution is None:
-        resolution = Resolution.medium if county_codes else Resolution.low
+        resolution = Resolution.raw if county_codes else Resolution.medium
 
-    if resolution == Resolution.high and not county_codes:
+    if resolution == Resolution.raw and not county_codes:
         raise FilterError(
             "resolution",
-            "High resolution requires a county filter. "
-            "Use ?resolution=low or ?resolution=medium for statewide queries.",
+            "Raw resolution requires a county filter.",
         )
-
-    step = _STEP[resolution]
 
     preds = build_crash_predicates(
         years=years,
@@ -97,7 +95,23 @@ def crash_heatmap(
     )
     preds.append(Crash.latitude.isnot(None))
     preds.append(Crash.longitude.isnot(None))
+    preds.append(Crash.latitude.between(32.5, 42.05))
+    preds.append(Crash.longitude.between(-124.5, -114.0))
 
+    if resolution == Resolution.raw:
+        total_q = db.query(func.count()).filter(*preds).scalar() or 0
+        rows = (
+            db.query(Crash.latitude, Crash.longitude)
+            .filter(*preds)
+            .limit(RAW_POINT_LIMIT)
+            .all()
+        )
+        return HeatmapResponse(
+            points=[HeatmapPoint(lat=r.latitude, lng=r.longitude, weight=1) for r in rows],
+            total_crashes=total_q,
+        )
+
+    step = _STEP[resolution]
     lat_bucket = (func.round(Crash.latitude / step) * step).label("lat")
     lng_bucket = (func.round(Crash.longitude / step) * step).label("lng")
     weight = func.count().label("weight")

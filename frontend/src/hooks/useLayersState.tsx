@@ -3,7 +3,7 @@ import { DEFAULT_MEASURE, type MeasureKey } from "../lib/choropleth/measures";
 import type { PaletteKey } from "../lib/choropleth/palettes";
 
 export type OtherLayerKey = "heatmap" | "incidents" | "countyBoundaries" | "roadTypes" | "schoolZones" | "hospitals";
-export type HeatmapResolution = "low" | "medium" | "high";
+export type HeatmapResolution = "raw" | "low" | "medium" | "high";
 
 const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
   heatmap: false,
@@ -41,7 +41,7 @@ export function LayersStateProvider({ children }: { children: ReactNode }) {
   const [palette, setPalette] = useState<PaletteKey>("default");
   const [bucketEdges, setBucketEdges] = useState<number[] | null>(null);
   const [otherLayers, setOtherLayers] = useState<Record<OtherLayerKey, boolean>>(() => ({ ...OTHER_LAYER_DEFAULTS }));
-  const [heatmapResolution, setHeatmapResolution] = useState<HeatmapResolution>("low");
+  const [heatmapResolution, setHeatmapResolution] = useState<HeatmapResolution>("high");
 
   const reset = useCallback(() => {
     setChoroplethOn(true);
@@ -49,7 +49,7 @@ export function LayersStateProvider({ children }: { children: ReactNode }) {
     setPalette("default");
     setBucketEdges(null);
     setOtherLayers({ ...OTHER_LAYER_DEFAULTS });
-    setHeatmapResolution("low");
+    setHeatmapResolution("high");
   }, []);
 
   const toggleOtherLayer = useCallback((key: OtherLayerKey) => {

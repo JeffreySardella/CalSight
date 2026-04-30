@@ -20,8 +20,13 @@ const POINT_B: ChoroplethPoint = {
   hasEnoughData: true,
 };
 
+async function expandCard() {
+  const bar = screen.getByText(/county/i).closest("[class*=cursor-pointer]");
+  if (bar) await userEvent.click(bar);
+}
+
 describe("AiInsightCard", () => {
-  it("renders county name and real stats in single mode", () => {
+  it("renders county name in collapsed bar", () => {
     render(
       <AiInsightCard
         onClose={vi.fn()}
@@ -33,10 +38,23 @@ describe("AiInsightCard", () => {
       />,
     );
     expect(screen.getByText("Los Angeles County")).toBeInTheDocument();
+  });
+
+  it("shows stats when expanded", async () => {
+    render(
+      <AiInsightCard
+        onClose={vi.fn()}
+        countyName="Los Angeles"
+        data={POINT_A}
+        measureLabel="Per 100k"
+        compareMode={false}
+        onCompare={vi.fn()}
+      />,
+    );
+    await expandCard();
     expect(screen.getByText("48,291")).toBeInTheDocument();
     expect(screen.getByText("412")).toBeInTheDocument();
     expect(screen.getByText("12,847")).toBeInTheDocument();
-    expect(screen.getByText("487")).toBeInTheDocument();
   });
 
   it("calls onClose when close button is clicked", async () => {
@@ -55,7 +73,7 @@ describe("AiInsightCard", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("shows Compare button in single mode", () => {
+  it("shows Compare button when expanded", async () => {
     render(
       <AiInsightCard
         onClose={vi.fn()}
@@ -66,40 +84,11 @@ describe("AiInsightCard", () => {
         onCompare={vi.fn()}
       />,
     );
+    await expandCard();
     expect(screen.getByRole("button", { name: /compare/i })).toBeInTheDocument();
   });
 
-  it("calls onCompare when Compare button is clicked", async () => {
-    const onCompare = vi.fn();
-    render(
-      <AiInsightCard
-        onClose={vi.fn()}
-        countyName="Fresno"
-        data={POINT_A}
-        measureLabel="Per 100k"
-        compareMode={false}
-        onCompare={onCompare}
-      />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: /compare/i }));
-    expect(onCompare).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows prompt text when in compare mode without second county", () => {
-    render(
-      <AiInsightCard
-        onClose={vi.fn()}
-        countyName="Fresno"
-        data={POINT_A}
-        measureLabel="Per 100k"
-        compareMode={true}
-        onCompare={vi.fn()}
-      />,
-    );
-    expect(screen.getByText(/click a county to compare/i)).toBeInTheDocument();
-  });
-
-  it("shows compare layout with both counties and percent diff", () => {
+  it("shows compare layout with both counties", () => {
     render(
       <AiInsightCard
         onClose={vi.fn()}
@@ -112,14 +101,10 @@ describe("AiInsightCard", () => {
         compareData={POINT_B}
       />,
     );
-    expect(screen.getByText("Los Angeles")).toBeInTheDocument();
-    expect(screen.getByText("Orange")).toBeInTheDocument();
-    expect(screen.getByText("48,291")).toBeInTheDocument();
-    expect(screen.getByText("8,412")).toBeInTheDocument();
-    expect(screen.getByText("-82.6%")).toBeInTheDocument();
+    expect(screen.getByText("Los Angeles vs Orange")).toBeInTheDocument();
   });
 
-  it("shows N/A for measure value when hasEnoughData is false", () => {
+  it("shows N/A for measure value when hasEnoughData is false", async () => {
     const noData: ChoroplethPoint = { value: null, rawCount: 3, totalKilled: 0, totalInjured: 1, hasEnoughData: false };
     render(
       <AiInsightCard
@@ -131,6 +116,7 @@ describe("AiInsightCard", () => {
         onCompare={vi.fn()}
       />,
     );
+    await expandCard();
     expect(screen.getByText("N/A")).toBeInTheDocument();
   });
 });

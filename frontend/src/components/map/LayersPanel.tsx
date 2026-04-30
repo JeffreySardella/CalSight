@@ -38,6 +38,8 @@ export default function LayersPanel() {
     choroplethOn, setChoroplethOn,
     measure, setMeasure,
     palette: activePalette, setPalette,
+    otherLayers, toggleOtherLayer,
+    heatmapResolution, setHeatmapResolution,
     reset,
   } = useLayersState();
   const isDark = useIsDark();
@@ -64,6 +66,50 @@ export default function LayersPanel() {
             </span>
             <Toggle enabled={choroplethOn} onToggle={() => setChoroplethOn(!choroplethOn)} />
           </div>
+        </div>
+      </div>
+
+      {/* Heatmap */}
+      <div className="space-y-4">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          Heatmap
+        </label>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.heatmap ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Crash Heatmap
+            </span>
+            <Toggle enabled={otherLayers.heatmap} onToggle={() => toggleOtherLayer("heatmap")} />
+          </div>
+          {otherLayers.heatmap && (
+            <div className="space-y-2 pl-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                Resolution
+              </span>
+              <div className="flex gap-1.5">
+                {([
+                  { key: "low" as const, label: "Low" },
+                  { key: "medium" as const, label: "Medium" },
+                  { key: "high" as const, label: "High" },
+                ]).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setHeatmapResolution(key)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                      heatmapResolution === key
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-on-surface-variant leading-tight">
+                Higher resolution shows finer detail but loads slower
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
