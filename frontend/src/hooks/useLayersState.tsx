@@ -2,10 +2,12 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { DEFAULT_MEASURE, type MeasureKey } from "../lib/choropleth/measures";
 import type { PaletteKey } from "../lib/choropleth/palettes";
 
-export type OtherLayerKey = "heatmap" | "incidents" | "countyBoundaries" | "roadTypes" | "schoolZones" | "hospitals";
+export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "incidents" | "countyBoundaries" | "roadTypes" | "schoolZones" | "hospitals";
+export type HeatmapResolution = "raw" | "low" | "medium" | "high";
 
 const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
-  heatmap: false,
+  heatmapStatewide: false,
+  heatmapCounty: false,
   incidents: false,
   countyBoundaries: true,
   roadTypes: false,
@@ -27,6 +29,8 @@ type LayersState = {
   setPalette: (p: PaletteKey) => void;
   setBucketEdges: (e: number[] | null) => void;
   toggleOtherLayer: (key: OtherLayerKey) => void;
+  heatmapResolution: HeatmapResolution;
+  setHeatmapResolution: (r: HeatmapResolution) => void;
   reset: () => void;
 };
 
@@ -38,6 +42,7 @@ export function LayersStateProvider({ children }: { children: ReactNode }) {
   const [palette, setPalette] = useState<PaletteKey>("default");
   const [bucketEdges, setBucketEdges] = useState<number[] | null>(null);
   const [otherLayers, setOtherLayers] = useState<Record<OtherLayerKey, boolean>>(() => ({ ...OTHER_LAYER_DEFAULTS }));
+  const [heatmapResolution, setHeatmapResolution] = useState<HeatmapResolution>("low");
 
   const reset = useCallback(() => {
     setChoroplethOn(true);
@@ -45,6 +50,7 @@ export function LayersStateProvider({ children }: { children: ReactNode }) {
     setPalette("default");
     setBucketEdges(null);
     setOtherLayers({ ...OTHER_LAYER_DEFAULTS });
+    setHeatmapResolution("low");
   }, []);
 
   const toggleOtherLayer = useCallback((key: OtherLayerKey) => {
@@ -54,9 +60,11 @@ export function LayersStateProvider({ children }: { children: ReactNode }) {
   const value = useMemo<LayersState>(
     () => ({
       choroplethOn, measure, palette, bucketEdges, otherLayers,
-      setChoroplethOn, setMeasure, setPalette, setBucketEdges, toggleOtherLayer, reset,
+      setChoroplethOn, setMeasure, setPalette, setBucketEdges, toggleOtherLayer,
+      heatmapResolution, setHeatmapResolution,
+      reset,
     }),
-    [choroplethOn, measure, palette, bucketEdges, otherLayers, toggleOtherLayer, reset],
+    [choroplethOn, measure, palette, bucketEdges, otherLayers, toggleOtherLayer, heatmapResolution, reset],
   );
 
   return <LayersStateContext.Provider value={value}>{children}</LayersStateContext.Provider>;

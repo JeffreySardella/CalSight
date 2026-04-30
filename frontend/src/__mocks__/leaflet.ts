@@ -15,6 +15,11 @@ export function createMockMap() {
     panTo: vi.fn(),
     getBounds,
     removeLayer: vi.fn(),
+    getPane: vi.fn(() => ({ style: {} })),
+    createPane: vi.fn(() => ({ style: {} })),
+    getZoom: vi.fn(() => 6),
+    setMaxZoom: vi.fn(),
+    setZoom: vi.fn(),
     addTo: vi.fn(),
     eachLayer: vi.fn(),
     on: vi.fn((event: string, cb: () => void) => {
