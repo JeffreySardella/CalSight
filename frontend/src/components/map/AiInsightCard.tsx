@@ -90,7 +90,7 @@ export default function AiInsightCard({
   const isComparing = compareMode && compareCountyName && compareData;
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-30 md:bottom-2 md:left-16 md:right-2">
+    <div className="absolute bottom-0 left-0 right-0 z-30 md:bottom-2 md:left-16 md:right-auto md:max-w-sm">
       <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden">
         {/* Collapsed bar — always visible */}
         <div

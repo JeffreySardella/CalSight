@@ -79,9 +79,12 @@ function MapPageInner() {
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
 
-  const { measure, otherLayers, heatmapResolution, palette, toggleOtherLayer } = useLayersState();
+  const { measure, otherLayers, heatmapResolution, palette } = useLayersState();
 
-  const heatmapCountySlugs = (() => {
+  const hasCountyScope = !!focusedCounty || selectedCounties.size > 0;
+  const useCountyDetail = hasCountyScope && otherLayers.heatmapCounty;
+
+  const heatmapCountySlugs = useCountyDetail ? (() => {
     if (focusedCounty || compareCounty) {
       const slugs: string[] = [];
       if (focusedCounty) slugs.push(focusedCounty.toLowerCase().replace(/\s+/g, "-"));
@@ -92,16 +95,13 @@ function MapPageInner() {
       return [...selectedCounties].map((c) => c.toLowerCase().replace(/\s+/g, "-")).join(",");
     }
     return null;
-  })();
+  })() : null;
 
-  const hasCountyScope = !!focusedCounty || selectedCounties.size > 0;
-  const effectiveResolution = hasCountyScope
+  const effectiveResolution = useCountyDetail
     ? "raw" as const
     : (heatmapResolution === "high" || heatmapResolution === "raw" ? "low" : heatmapResolution);
 
-  const heatmapEnabled = hasCountyScope
-    ? otherLayers.heatmapCounty
-    : otherLayers.heatmapStatewide;
+  const heatmapEnabled = useCountyDetail || otherLayers.heatmapStatewide;
 
   const heatmap = useCrashHeatmap({
     enabled: heatmapEnabled,
@@ -133,26 +133,31 @@ function MapPageInner() {
     mapRef.current = map;
   }, []);
 
+  const selectingRef = useRef(false);
+
   const handleSelectCounty = useCallback((name: string) => {
+    if (selectingRef.current) return;
+    selectingRef.current = true;
+
     if (compareMode && name !== focusedCounty) {
       setCompareCounty(name);
+      selectingRef.current = false;
     } else {
-      if (!otherLayers.heatmapCounty) toggleOtherLayer("heatmapCounty");
       setFocusedCounty(name);
       setInsightCounty(name);
       setShowInsight(true);
       setCompareCounty(null);
       setCompareMode(false);
+      setTimeout(() => { selectingRef.current = false; }, 300);
     }
-  }, [compareMode, focusedCounty, otherLayers.heatmapCounty, toggleOtherLayer]);
+  }, [compareMode, focusedCounty]);
 
   const handleDeselect = useCallback(() => {
     setFocusedCounty(null);
     setCompareCounty(null);
     setCompareMode(false);
     setShowInsight(false);
-    if (otherLayers.heatmapCounty) toggleOtherLayer("heatmapCounty");
-  }, [otherLayers.heatmapCounty, toggleOtherLayer]);
+  }, []);
 
   const handleStartCompare = useCallback(() => {
     setCompareMode(true);
@@ -165,9 +170,8 @@ function MapPageInner() {
       setCompareCounty(null);
       setCompareMode(false);
       setShowInsight(false);
-      if (otherLayers.heatmapCounty) toggleOtherLayer("heatmapCounty");
     }
-  }, [compareMode, otherLayers.heatmapCounty, toggleOtherLayer]);
+  }, [compareMode]);
 
   function handleClearAll() {
     clearFilters();
@@ -302,6 +306,7 @@ function MapPageInner() {
           heatmapActive={heatmapEnabled}
           heatmapResolution={effectiveResolution}
           heatmapPalette={palette}
+          countyDrilldown={useCountyDetail}
         />
 
         {/* Mobile-only floating Filters chip */}

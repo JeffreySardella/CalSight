@@ -38,7 +38,7 @@ export default function LayersPanel() {
     choroplethOn, setChoroplethOn,
     measure, setMeasure,
     palette: activePalette, setPalette,
-    otherLayers, toggleOtherLayer,
+    otherLayers, toggleOtherLayer, setOtherLayer,
     heatmapResolution, setHeatmapResolution,
     reset,
   } = useLayersState();
@@ -54,32 +54,45 @@ export default function LayersPanel() {
 
   return (
     <div className="space-y-8 pb-32 px-0">
-      {/* Data Visualization */}
+      {/* County Colors */}
       <div className="space-y-4">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          Data Visualization
+          County Colors
         </label>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${choroplethOn ? "text-on-surface" : "text-on-surface-variant"}`}>
-              Choropleth
+              Shade by Measure
             </span>
-            <Toggle enabled={choroplethOn} onToggle={() => setChoroplethOn(!choroplethOn)} />
+            <Toggle enabled={choroplethOn} onToggle={() => {
+              const next = !choroplethOn;
+              setChoroplethOn(next);
+              if (next) setOtherLayer("heatmapStatewide", false);
+            }} />
           </div>
+          {choroplethOn && (
+            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+              Colors each county by the selected measure below
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Statewide Heatmap */}
+      {/* Crash Heatmap */}
       <div className="space-y-4">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          Statewide Heatmap
+          Crash Heatmap
         </label>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${otherLayers.heatmapStatewide ? "text-on-surface" : "text-on-surface-variant"}`}>
-              Full State
+              Statewide
             </span>
-            <Toggle enabled={otherLayers.heatmapStatewide} onToggle={() => toggleOtherLayer("heatmapStatewide")} />
+            <Toggle enabled={otherLayers.heatmapStatewide} onToggle={() => {
+              const next = !otherLayers.heatmapStatewide;
+              setOtherLayer("heatmapStatewide", next);
+              if (next) setChoroplethOn(false);
+            }} />
           </div>
           {otherLayers.heatmapStatewide && (
             <div className="space-y-2 pl-1">
@@ -109,15 +122,6 @@ export default function LayersPanel() {
               </p>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* County Heatmap */}
-      <div className="space-y-4">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          County Heatmap
-        </label>
-        <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${otherLayers.heatmapCounty ? "text-on-surface" : "text-on-surface-variant"}`}>
               County Detail
@@ -126,7 +130,7 @@ export default function LayersPanel() {
           </div>
           {otherLayers.heatmapCounty && (
             <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
-              Shows individual crash locations when a county is selected
+              Shows individual crash locations when you click a county
             </p>
           )}
         </div>

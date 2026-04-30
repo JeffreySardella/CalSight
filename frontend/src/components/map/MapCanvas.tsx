@@ -28,6 +28,7 @@ interface MapCanvasProps {
   heatmapActive: boolean;
   heatmapResolution: HeatmapResolution;
   heatmapPalette: PaletteKey;
+  countyDrilldown?: boolean;
 }
 
 const HEATMAP_MAX_ZOOM: Record<string, number> = {
@@ -47,6 +48,7 @@ function MapInternals({
   heatmapActive,
   heatmapResolution,
   heatmapPalette,
+  countyDrilldown,
 }: MapCanvasProps) {
   const map = useMap();
 
@@ -86,7 +88,10 @@ function MapInternals({
             resolution={heatmapResolution}
             palette={heatmapPalette}
           />
-          <CaliforniaMask focusedCounty={focusedCounty} compareCounty={compareCounty ?? null} />
+          <CaliforniaMask
+            focusedCounty={countyDrilldown ? focusedCounty : null}
+            compareCounty={countyDrilldown ? (compareCounty ?? null) : null}
+          />
         </>
       )}
     </>
@@ -103,6 +108,7 @@ export default function MapCanvas({
   heatmapActive,
   heatmapResolution,
   heatmapPalette,
+  countyDrilldown,
 }: MapCanvasProps) {
   const isDark = useIsDark();
   // CartoDB tile variants — swap between light_* and dark_* so counties
@@ -146,6 +152,7 @@ export default function MapCanvas({
         heatmapActive={heatmapActive}
         heatmapResolution={heatmapResolution}
         heatmapPalette={heatmapPalette}
+        countyDrilldown={countyDrilldown}
       />
 
       <TileLayer

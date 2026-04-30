@@ -135,7 +135,7 @@ export default function CountyBoundaries({
           : base;
       }
 
-      if (otherLayers.heatmapStatewide || otherLayers.heatmapCounty) {
+      if (otherLayers.heatmapCounty && focusedCounty) {
         return {
           color: borderColor,
           weight: borderWeight,
@@ -305,6 +305,8 @@ export default function CountyBoundaries({
 
     if (!layerRef.current) return;
 
+    let combined: L.LatLngBounds | null = null;
+
     const showTooltipFor = (name: string, ref: React.MutableRefObject<L.Tooltip | null>) => {
       layerRef.current!.eachLayer((fl) => {
         const f = (fl as L.GeoJSON & { feature: GeoJSON.Feature }).feature;
@@ -320,15 +322,17 @@ export default function CountyBoundaries({
             .setContent(name)
             .addTo(map);
           ref.current = tooltip;
-          if (!map.getBounds().contains(center)) {
-            map.panTo(center, { animate: true });
-          }
+          combined = combined ? combined.extend(bounds) : L.latLngBounds(bounds);
         }
       });
     };
 
     if (focusedCounty) showTooltipFor(focusedCounty, tooltipRef);
     if (compareCounty) showTooltipFor(compareCounty, compareTooltipRef);
+
+    if (combined) {
+      map.fitBounds(combined, { animate: true, padding: [40, 40], maxZoom: 11 });
+    }
 
     return () => {
       if (tooltipRef.current) {
