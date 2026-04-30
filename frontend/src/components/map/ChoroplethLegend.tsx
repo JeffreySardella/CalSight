@@ -15,6 +15,9 @@ type Props = {
   is422?: boolean;
   searchOpen?: boolean;
   onRetry?: () => void;
+  heatmapCrashes?: number | null;
+  heatmapLoading?: boolean;
+  countyActive?: boolean;
 };
 
 function formatYearList(years: number[]): string {
@@ -34,7 +37,7 @@ function formatCount(n: number): string {
 
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
 
-export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry }: Props) {
+export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, onRetry, heatmapCrashes, heatmapLoading }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
   const isDark = useIsDark();
   const [isOpen, setIsOpen] = useState(false);
@@ -50,6 +53,8 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+
   if (!choroplethOn) return null;
 
   const colors = getPalette(palette, isDark);
@@ -59,15 +64,27 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
   return (
     <div
       data-testid="choropleth-legend"
-      className={`absolute right-4 z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl p-3 w-[220px] ghost-border transition-all duration-300 ${searchOpen ? "bottom-24 md:bottom-4" : "bottom-4"}`}
+      className={`absolute left-2 md:left-auto md:right-4 z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl p-2 md:p-3 w-[200px] md:w-[250px] ghost-border transition-all duration-300 top-2 md:top-2 md:bottom-auto`}
     >
+      {/* Mobile: tap to expand */}
+      <div
+        className="md:hidden flex items-center justify-between mb-1 cursor-pointer"
+        onClick={() => setMobileExpanded((v) => !v)}
+      >
+        <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">{activeMeasure.label}</span>
+        <span className="material-symbols-outlined text-[14px] text-on-surface-variant transition-transform" style={{ transform: mobileExpanded ? "rotate(180deg)" : undefined }}>
+          expand_less
+        </span>
+      </div>
+
+      {/* Desktop: always show label */}
       <label
-        className="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2"
+        className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2"
         id="choropleth-measure-label"
       >
         Measure
       </label>
-      <div ref={containerRef} className="relative mb-3">
+      <div ref={containerRef} className={`relative mb-3 ${mobileExpanded ? "" : "hidden md:block"}`}>
         <button
           type="button"
           aria-labelledby="choropleth-measure-label"
@@ -76,7 +93,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           onClick={() => setIsOpen((v) => !v)}
           className="w-full flex items-center justify-between text-sm font-semibold text-on-surface bg-surface-container-high rounded-lg py-2 px-3 cursor-pointer hover:bg-surface-variant transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20"
         >
-          <span className="truncate">{activeMeasure.label}</span>
+          <span>{activeMeasure.label}</span>
           <span className={`material-symbols-outlined text-[16px] text-on-surface-variant transition-transform ${isOpen ? "rotate-180" : ""}`}>
             expand_more
           </span>
@@ -86,7 +103,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           <div
             role="listbox"
             aria-labelledby="choropleth-measure-label"
-            className="absolute z-50 left-0 right-0 bottom-full mb-1 bg-surface-container-lowest rounded-lg shadow-lg border border-outline-variant/15 overflow-hidden"
+            className="absolute z-50 left-0 right-0 top-full mt-1 bg-surface-container-lowest rounded-lg shadow-lg border border-outline-variant/15 overflow-hidden"
           >
             {allMeasures.map((m) => {
               const isSelected = m.key === measure;
@@ -131,22 +148,32 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         ))}
       </div>
 
-      {isLoading ? (
-        <div className="text-[10px] text-on-surface-variant mt-1 italic">
-          Loading data…
-        </div>
-      ) : bucketEdges ? (
-        <div className="flex justify-between text-[10px] text-on-surface-variant mt-1 font-mono">
-          {bucketEdges.map((e, i) => (
-            <span key={i}>{activeMeasure.formatLabel(e)}</span>
-          ))}
-        </div>
-      ) : (
-        <div className="text-[10px] text-on-surface-variant mt-1 italic">
-          Pan or zoom out to compute scale
+      {(heatmapLoading || (heatmapCrashes != null && heatmapCrashes > 0)) && (
+        <div className="text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
+          {heatmapLoading ? "Loading heatmap..." : `${heatmapCrashes!.toLocaleString()} crashes mapped`}
         </div>
       )}
 
+      {/* Bucket labels — hide on mobile when collapsed */}
+      <div className={mobileExpanded ? "" : "hidden md:block"}>
+        {isLoading ? (
+          <div className="text-[10px] text-on-surface-variant mt-1 italic">
+            Loading data…
+          </div>
+        ) : bucketEdges ? (
+          <div className="flex justify-between text-[10px] text-on-surface-variant mt-1 font-mono">
+            {bucketEdges.map((e, i) => (
+              <span key={i}>{activeMeasure.formatLabel(e)}</span>
+            ))}
+          </div>
+        ) : (
+          <div className="text-[10px] text-on-surface-variant mt-1 italic">
+            Pan or zoom out to compute scale
+          </div>
+        )}
+      </div>
+
+      <div className={mobileExpanded ? "" : "hidden md:block"}>
       {!isLoading && dataSummary.totalCrashes > 0 && (
         <div data-testid="data-summary" className="text-[11px] sm:text-[10px] text-on-surface-variant mt-2 leading-snug">
           <span className="font-mono font-semibold">{formatCount(dataSummary.totalCrashes)}</span> crashes
@@ -205,6 +232,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # Database schema
 
-Reference for the CalSight Postgres schema as it exists in production (Azure `calsight-db`) as of 2026-04-18. This document is descriptive — it reflects what the DB actually contains, not what `backend/app/models.py` on `main` currently describes (the ORM lags the DB; see CLAUDE.md).
+Reference for the CalSight Postgres schema as it exists in production (self-hosted on Proxmox LXC 100) as of 2026-04-28. This document is descriptive — it reflects what the DB actually contains, not what `backend/app/models.py` on `main` currently describes (the ORM lags the DB; see CLAUDE.md).
 
 Run `python backend/scripts/probe_db.py` (when added) to regenerate the row-count summary.
 
@@ -129,11 +129,11 @@ erDiagram
     }
 ```
 
-## Row counts (2026-04-18)
+## Row counts (2026-04-28)
 
 | Table / View | Rows | Notes |
 |---|---:|---|
-| `crashes` | 11,125,881 | SWITRS 6.78M + CCRS 4.35M |
+| `crashes` | 11,129,647 | SWITRS 6.78M + CCRS 4.35M |
 | `crash_parties` | 8,804,729 | CCRS only (party_id unique within `data_source`) |
 | `crash_victims` | 5,297,539 | CCRS only |
 | `weather` | 17,315 | NOAA, monthly per county |

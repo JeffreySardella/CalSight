@@ -81,6 +81,12 @@ export default function CountyBoundaries({
   });
   countyFilterRef.current = { has: selectedCounties, active: hasCountyFilter };
 
+  const focusRef = useRef<{ focused: string | null; compare: string | null }>({
+    focused: focusedCounty,
+    compare: compareCounty ?? null,
+  });
+  focusRef.current = { focused: focusedCounty, compare: compareCounty ?? null };
+
 
 
   useEffect(() => {
@@ -129,6 +135,14 @@ export default function CountyBoundaries({
           : base;
       }
 
+      if (otherLayers.heatmapCounty && focusedCounty) {
+        return {
+          color: borderColor,
+          weight: borderWeight,
+          fillOpacity: 0,
+        };
+      }
+
       const code = getCountyCode(feature);
       const point = code != null ? byCountyCode[code] : undefined;
       const colors = getPalette(palette, isDark);
@@ -154,7 +168,7 @@ export default function CountyBoundaries({
         fillOpacity: 0.75,
       };
     },
-    [choroplethOn, otherLayers.countyBoundaries, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
+    [choroplethOn, otherLayers.countyBoundaries, otherLayers.heatmapStatewide, otherLayers.heatmapCounty, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
   );
 
   // Ref so mouseout can re-apply the *current* style (not the stale one
@@ -212,9 +226,10 @@ export default function CountyBoundaries({
             },
             mouseover: (e) => {
               if (name === focusedCounty) return;
-              // Skip hover effect for unselected counties
               const cf = countyFilterRef.current;
               if (cf.active && !cf.has.has(name)) return;
+              const fc = focusRef.current;
+              if (fc.focused && name !== fc.focused && name !== fc.compare) return;
 
               const path = e.target as L.Path;
               path.setStyle({ weight: 2, color: FOCUSED_COLOR });
@@ -290,6 +305,8 @@ export default function CountyBoundaries({
 
     if (!layerRef.current) return;
 
+    let combined: L.LatLngBounds | null = null;
+
     const showTooltipFor = (name: string, ref: React.MutableRefObject<L.Tooltip | null>) => {
       layerRef.current!.eachLayer((fl) => {
         const f = (fl as L.GeoJSON & { feature: GeoJSON.Feature }).feature;
@@ -305,15 +322,17 @@ export default function CountyBoundaries({
             .setContent(name)
             .addTo(map);
           ref.current = tooltip;
-          if (!map.getBounds().contains(center)) {
-            map.panTo(center, { animate: true });
-          }
+          combined = combined ? combined.extend(bounds) : bounds;
         }
       });
     };
 
     if (focusedCounty) showTooltipFor(focusedCounty, tooltipRef);
     if (compareCounty) showTooltipFor(compareCounty, compareTooltipRef);
+
+    if (combined) {
+      map.fitBounds(combined, { animate: true, padding: [40, 40], maxZoom: 11 });
+    }
 
     return () => {
       if (tooltipRef.current) {
