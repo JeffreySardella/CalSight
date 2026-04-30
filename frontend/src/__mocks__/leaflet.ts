@@ -15,6 +15,12 @@ export function createMockMap() {
     panTo: vi.fn(),
     getBounds,
     removeLayer: vi.fn(),
+    getPane: vi.fn(() => ({ style: {} })),
+    createPane: vi.fn(() => ({ style: {} })),
+    getZoom: vi.fn(() => 6),
+    setMaxZoom: vi.fn(),
+    setZoom: vi.fn(),
+    fitBounds: vi.fn(),
     addTo: vi.fn(),
     eachLayer: vi.fn(),
     on: vi.fn((event: string, cb: () => void) => {
@@ -73,9 +79,19 @@ const tooltipMock = {
   addTo: vi.fn().mockReturnThis(),
 };
 
+function createBoundsMock() {
+  const bounds: Record<string, unknown> = {
+    getCenter: vi.fn(() => ({ lat: 37, lng: -119 })),
+    extend: vi.fn(() => bounds),
+    intersects: vi.fn(() => true),
+  };
+  return bounds;
+}
+
 const L = {
   geoJSON: vi.fn(() => geoJSONLayerMock),
   tooltip: vi.fn(() => tooltipMock),
+  latLngBounds: vi.fn(() => createBoundsMock()),
   DomUtil: { create: vi.fn(), remove: vi.fn() },
   DomEvent: { disableClickPropagation: vi.fn(), disableScrollPropagation: vi.fn() },
 };

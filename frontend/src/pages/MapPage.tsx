@@ -23,6 +23,7 @@ import DataExportPanel, {
 import MapCanvas from "../components/map/MapCanvas";
 import AiInsightCard from "../components/map/AiInsightCard";
 import Breadcrumb from "../components/map/Breadcrumb";
+import { useCrashHeatmap } from "../hooks/useCrashHeatmap";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 
@@ -78,7 +79,39 @@ function MapPageInner() {
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
 
-  const { measure } = useLayersState();
+  const { measure, otherLayers, heatmapResolution, palette } = useLayersState();
+
+  const hasCountyScope = !!focusedCounty || selectedCounties.size > 0;
+  const useCountyDetail = hasCountyScope && otherLayers.heatmapCounty;
+
+  const heatmapCountySlugs = useCountyDetail ? (() => {
+    if (focusedCounty || compareCounty) {
+      const slugs: string[] = [];
+      if (focusedCounty) slugs.push(focusedCounty.toLowerCase().replace(/\s+/g, "-"));
+      if (compareCounty) slugs.push(compareCounty.toLowerCase().replace(/\s+/g, "-"));
+      return slugs.join(",");
+    }
+    if (selectedCounties.size > 0) {
+      return [...selectedCounties].map((c) => c.toLowerCase().replace(/\s+/g, "-")).join(",");
+    }
+    return null;
+  })() : null;
+
+  const effectiveResolution = useCountyDetail
+    ? "raw" as const
+    : (heatmapResolution === "high" || heatmapResolution === "raw" ? "low" : heatmapResolution);
+
+  const heatmapEnabled = useCountyDetail || otherLayers.heatmapStatewide;
+
+  const heatmap = useCrashHeatmap({
+    enabled: heatmapEnabled,
+    county: heatmapCountySlugs,
+    years: [...selectedYears],
+    severities: [...selectedSeverities],
+    causes: [...selectedCauses],
+    resolution: effectiveResolution,
+  });
+
   const coordCoverage = useCoordCoverage([...selectedYears]);
   const choroplethFilters = useMemo(
     () => ({
@@ -100,15 +133,22 @@ function MapPageInner() {
     mapRef.current = map;
   }, []);
 
+  const selectingRef = useRef(false);
+
   const handleSelectCounty = useCallback((name: string) => {
+    if (selectingRef.current) return;
+    selectingRef.current = true;
+
     if (compareMode && name !== focusedCounty) {
       setCompareCounty(name);
+      selectingRef.current = false;
     } else {
       setFocusedCounty(name);
       setInsightCounty(name);
       setShowInsight(true);
       setCompareCounty(null);
       setCompareMode(false);
+      setTimeout(() => { selectingRef.current = false; }, 300);
     }
   }, [compareMode, focusedCounty]);
 
@@ -262,6 +302,11 @@ function MapPageInner() {
           onFocusCounty={handleFocusCounty}
           onSelectCounty={handleSelectCounty}
           onMapReady={handleMapReady}
+          heatmapPoints={heatmap.points}
+          heatmapActive={heatmapEnabled}
+          heatmapResolution={effectiveResolution}
+          heatmapPalette={palette}
+          countyDrilldown={useCountyDetail}
         />
 
         {/* Mobile-only floating Filters chip */}
@@ -290,7 +335,14 @@ function MapPageInner() {
           compareCounty={compareCounty}
           onDeselect={handleDeselect}
         />
-        <ChoroplethLegendContainer searchOpen={searchOpen} choroplethData={choroplethData} coordCoverage={coordCoverage} />
+        <ChoroplethLegendContainer
+          searchOpen={searchOpen}
+          choroplethData={choroplethData}
+          coordCoverage={coordCoverage}
+          heatmapCrashes={heatmapEnabled ? heatmap.totalCrashes : null}
+          heatmapLoading={heatmapEnabled && heatmap.isLoading}
+          countyActive={!!focusedCounty}
+        />
       </section>
 
       {/* Mobile filter bottom sheet */}
@@ -336,10 +388,16 @@ function ChoroplethLegendContainer({
   searchOpen,
   choroplethData,
   coordCoverage,
+  heatmapCrashes,
+  heatmapLoading,
+  countyActive,
 }: {
   searchOpen?: boolean;
   choroplethData: ChoroplethData;
   coordCoverage?: CoordCoverage | null;
+  heatmapCrashes?: number | null;
+  heatmapLoading?: boolean;
+  countyActive?: boolean;
 }) {
   const queryClient = useQueryClient();
   return (
@@ -352,6 +410,9 @@ function ChoroplethLegendContainer({
       is422={choroplethData.is422}
       searchOpen={searchOpen}
       onRetry={() => queryClient.invalidateQueries({ queryKey: ["choropleth"] })}
+      heatmapCrashes={heatmapCrashes}
+      heatmapLoading={heatmapLoading}
+      countyActive={countyActive}
     />
   );
 }

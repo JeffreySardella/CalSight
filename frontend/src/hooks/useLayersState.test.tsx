@@ -44,4 +44,22 @@ describe("useLayersState", () => {
   it("throws when used outside provider", () => {
     expect(() => renderHook(() => useLayersState())).toThrow(/LayersStateProvider/);
   });
+
+  it("provides default heatmapResolution of 'low'", () => {
+    const { result } = renderHook(() => useLayersState(), { wrapper: wrap });
+    expect(result.current.heatmapResolution).toBe("low");
+  });
+
+  it("setHeatmapResolution updates resolution", () => {
+    const { result } = renderHook(() => useLayersState(), { wrapper: wrap });
+    act(() => result.current.setHeatmapResolution("low"));
+    expect(result.current.heatmapResolution).toBe("low");
+  });
+
+  it("reset restores heatmapResolution to low", () => {
+    const { result } = renderHook(() => useLayersState(), { wrapper: wrap });
+    act(() => result.current.setHeatmapResolution("medium"));
+    act(() => result.current.reset());
+    expect(result.current.heatmapResolution).toBe("low");
+  });
 });

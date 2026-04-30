@@ -3,10 +3,15 @@ import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CountyBoundaries from "./CountyBoundaries";
+import CrashHeatmap from "./CrashHeatmap";
+import CaliforniaMask from "./CaliforniaMask";
+import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
+import type { HeatmapResolution } from "../../hooks/useLayersState";
+import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 
 const CA_CENTER: [number, number] = [37.2, -119.5];
-const CA_ZOOM = 6;
+const CA_ZOOM = window.innerWidth < 768 ? 5 : 6;
 
 const CA_BOUNDS: LatLngBoundsExpression = [
   [28.0, -127.0],
@@ -19,7 +24,19 @@ interface MapCanvasProps {
   onFocusCounty: (name: string | null) => void;
   onSelectCounty: (name: string) => void;
   onMapReady: (map: LeafletMap) => void;
+  heatmapPoints: HeatmapPoint[];
+  heatmapActive: boolean;
+  heatmapResolution: HeatmapResolution;
+  heatmapPalette: PaletteKey;
+  countyDrilldown?: boolean;
 }
+
+const HEATMAP_MAX_ZOOM: Record<string, number> = {
+  raw: 14,
+  low: 8,
+  medium: 9,
+  high: 10,
+};
 
 function MapInternals({
   focusedCounty,
@@ -27,6 +44,11 @@ function MapInternals({
   onFocusCounty,
   onSelectCounty,
   onMapReady,
+  heatmapPoints,
+  heatmapActive,
+  heatmapResolution,
+  heatmapPalette,
+  countyDrilldown,
 }: MapCanvasProps) {
   const map = useMap();
 
@@ -34,13 +56,45 @@ function MapInternals({
     onMapReady(map);
   }, [map, onMapReady]);
 
+  useEffect(() => {
+    if (!map) return;
+    const pane = map.getPane("labelPane");
+    if (!pane) {
+      map.createPane("labelPane");
+      map.getPane("labelPane")!.style.zIndex = "650";
+    }
+  }, [map]);
+
+  useEffect(() => {
+    const maxZ = heatmapActive ? (HEATMAP_MAX_ZOOM[heatmapResolution] ?? 12) : 14;
+    map.setMaxZoom(maxZ);
+    if (map.getZoom() > maxZ) {
+      map.setZoom(maxZ);
+    }
+  }, [map, heatmapActive, heatmapResolution]);
+
   return (
-    <CountyBoundaries
-      focusedCounty={focusedCounty}
-      compareCounty={compareCounty}
-      onFocusCounty={onFocusCounty}
-      onSelectCounty={onSelectCounty}
-    />
+    <>
+      <CountyBoundaries
+        focusedCounty={focusedCounty}
+        compareCounty={compareCounty}
+        onFocusCounty={onFocusCounty}
+        onSelectCounty={onSelectCounty}
+      />
+      {heatmapActive && (
+        <>
+          <CrashHeatmap
+            points={heatmapPoints}
+            resolution={heatmapResolution}
+            palette={heatmapPalette}
+          />
+          <CaliforniaMask
+            focusedCounty={countyDrilldown ? focusedCounty : null}
+            compareCounty={countyDrilldown ? (compareCounty ?? null) : null}
+          />
+        </>
+      )}
+    </>
   );
 }
 
@@ -50,6 +104,11 @@ export default function MapCanvas({
   onFocusCounty,
   onSelectCounty,
   onMapReady,
+  heatmapPoints,
+  heatmapActive,
+  heatmapResolution,
+  heatmapPalette,
+  countyDrilldown,
 }: MapCanvasProps) {
   const isDark = useIsDark();
   // CartoDB tile variants — swap between light_* and dark_* so counties
@@ -89,12 +148,18 @@ export default function MapCanvas({
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
         onMapReady={onMapReady}
+        heatmapPoints={heatmapPoints}
+        heatmapActive={heatmapActive}
+        heatmapResolution={heatmapResolution}
+        heatmapPalette={heatmapPalette}
+        countyDrilldown={countyDrilldown}
       />
 
       <TileLayer
         key={labelTileUrl}
         url={labelTileUrl}
         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+        pane="labelPane"
       />
     </MapContainer>
   );

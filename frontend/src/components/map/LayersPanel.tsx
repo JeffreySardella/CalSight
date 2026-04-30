@@ -38,6 +38,8 @@ export default function LayersPanel() {
     choroplethOn, setChoroplethOn,
     measure, setMeasure,
     palette: activePalette, setPalette,
+    otherLayers, toggleOtherLayer, setOtherLayer,
+    heatmapResolution, setHeatmapResolution,
     reset,
   } = useLayersState();
   const isDark = useIsDark();
@@ -52,18 +54,85 @@ export default function LayersPanel() {
 
   return (
     <div className="space-y-8 pb-32 px-0">
-      {/* Data Visualization */}
+      {/* County Colors */}
       <div className="space-y-4">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          Data Visualization
+          County Colors
         </label>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${choroplethOn ? "text-on-surface" : "text-on-surface-variant"}`}>
-              Choropleth
+              Shade by Measure
             </span>
-            <Toggle enabled={choroplethOn} onToggle={() => setChoroplethOn(!choroplethOn)} />
+            <Toggle enabled={choroplethOn} onToggle={() => {
+              const next = !choroplethOn;
+              setChoroplethOn(next);
+              if (next) setOtherLayer("heatmapStatewide", false);
+            }} />
           </div>
+          {choroplethOn && (
+            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+              Colors each county by the selected measure below
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Crash Heatmap */}
+      <div className="space-y-4">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          Crash Heatmap
+        </label>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.heatmapStatewide ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Statewide
+            </span>
+            <Toggle enabled={otherLayers.heatmapStatewide} onToggle={() => {
+              const next = !otherLayers.heatmapStatewide;
+              setOtherLayer("heatmapStatewide", next);
+              if (next) setChoroplethOn(false);
+            }} />
+          </div>
+          {otherLayers.heatmapStatewide && (
+            <div className="space-y-2 pl-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                Resolution
+              </span>
+              <div className="flex gap-1.5">
+                {([
+                  { key: "low" as const, label: "Low" },
+                  { key: "medium" as const, label: "Medium" },
+                ]).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setHeatmapResolution(key)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                      heatmapResolution === key
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-on-surface-variant leading-tight">
+                Higher resolution shows finer detail but loads slower
+              </p>
+            </div>
+          )}
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.heatmapCounty ? "text-on-surface" : "text-on-surface-variant"}`}>
+              County Detail
+            </span>
+            <Toggle enabled={otherLayers.heatmapCounty} onToggle={() => toggleOtherLayer("heatmapCounty")} />
+          </div>
+          {otherLayers.heatmapCounty && (
+            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+              Shows individual crash locations when you click a county
+            </p>
+          )}
         </div>
       </div>
 

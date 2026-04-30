@@ -99,13 +99,24 @@ export default function StatsPage() {
 
   // Re-read CSS variables on every render — isDark change triggers a re-render,
   // so these always reflect the current theme.
+  const isDark = document.documentElement.classList.contains("dark");
   const clrPrimary           = token("--primary");
   const clrPrimaryContainer  = token("--primary-container");
   const clrOnSurface         = token("--on-surface");
   const clrOnSurfaceVariant  = token("--on-surface-variant");
   const clrError             = token("--error");
   const clrTertiary          = token("--tertiary");
-  const causeColors          = [clrPrimary, clrError, clrTertiary];
+
+  const causeColorMap: Record<string, string> = isDark
+    ? { "Other": "#8b8b9a", "Speeding": "#c27862", "Lane Change": "#6b8fa3", "DUI": "#a368a0", "Uncategorized": "#5c7b5c" }
+    : { "Other": "#78716c", "Speeding": "#b45309", "Lane Change": "#4a7a8c", "DUI": "#7e3794", "Uncategorized": "#4a7a52" };
+
+  const severityColorMap: Record<string, string> = isDark
+    ? { "Fatal": "#c25560", "Injury": "#b0a050", "Property Damage Only": "#6b8fa3" }
+    : { "Fatal": "#991b1b", "Injury": "#6d7e1e", "Property Damage Only": "#4a7a8c" };
+
+  const causeColor = (label: string) => causeColorMap[label] ?? clrOnSurfaceVariant;
+  const severityColor = (label: string) => severityColorMap[label] ?? clrOnSurfaceVariant;
 
   const years      = filters.selectedYears;
   const severities = filters.selectedSeverities;
@@ -375,17 +386,17 @@ export default function StatsPage() {
                     endAngle={-270}
                     strokeWidth={0}
                   >
-                    {causesWithPct.map((_, i) => (
-                      <Cell key={i} fill={causeColors[i]} />
+                    {causesWithPct.map((c) => (
+                      <Cell key={c.label} fill={causeColor(c.label)} />
                     ))}
                   </Pie>
                   <Tooltip content={<CauseTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-4 mt-2">
-                {causesWithPct.map((cause, i) => (
+                {causesWithPct.map((cause) => (
                   <div key={cause.label} className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: causeColors[i] }} />
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: causeColor(cause.label) }} />
                     <div>
                       <p className="text-sm font-bold text-on-surface">{cause.label}</p>
                       <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
@@ -492,17 +503,17 @@ export default function StatsPage() {
                     endAngle={-270}
                     strokeWidth={0}
                   >
-                    {sevWithPct.map((_, i) => (
-                      <Cell key={i} fill={[clrError, clrTertiary, clrPrimaryContainer][i] ?? clrPrimary} />
+                    {sevWithPct.map((s) => (
+                      <Cell key={s.label} fill={severityColor(s.label)} />
                     ))}
                   </Pie>
                   <Tooltip content={<CauseTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-4 mt-2">
-                {sevWithPct.map((sev, i) => (
+                {sevWithPct.map((sev) => (
                   <div key={sev.label} className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: [clrError, clrTertiary, clrPrimaryContainer][i] ?? clrPrimary }} />
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: severityColor(sev.label) }} />
                     <div>
                       <p className="text-sm font-bold text-on-surface">{sev.label}</p>
                       <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
