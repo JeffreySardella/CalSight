@@ -135,7 +135,7 @@ export default function CountyBoundaries({
           : base;
       }
 
-      if (otherLayers.heatmap) {
+      if (otherLayers.heatmapStatewide || otherLayers.heatmapCounty) {
         return {
           color: borderColor,
           weight: borderWeight,
@@ -168,7 +168,7 @@ export default function CountyBoundaries({
         fillOpacity: 0.75,
       };
     },
-    [choroplethOn, otherLayers.countyBoundaries, otherLayers.heatmap, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
+    [choroplethOn, otherLayers.countyBoundaries, otherLayers.heatmapStatewide, otherLayers.heatmapCounty, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
   );
 
   // Ref so mouseout can re-apply the *current* style (not the stale one

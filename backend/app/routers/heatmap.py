@@ -77,12 +77,12 @@ def crash_heatmap(
     distracted_v = parse_bool_flag(distracted, "distracted")
 
     if resolution is None:
-        resolution = Resolution.raw if county_codes else Resolution.medium
+        resolution = Resolution.raw if county_codes else Resolution.low
 
-    if resolution == Resolution.raw and not county_codes:
+    if resolution in (Resolution.raw, Resolution.high) and not county_codes:
         raise FilterError(
             "resolution",
-            "Raw resolution requires a county filter.",
+            f"{resolution.value.capitalize()} resolution requires a county filter.",
         )
 
     preds = build_crash_predicates(

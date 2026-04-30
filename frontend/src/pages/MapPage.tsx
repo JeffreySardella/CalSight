@@ -95,10 +95,16 @@ function MapPageInner() {
   })();
 
   const hasCountyScope = !!focusedCounty || selectedCounties.size > 0;
-  const effectiveResolution = hasCountyScope ? "raw" as const : heatmapResolution;
+  const effectiveResolution = hasCountyScope
+    ? "raw" as const
+    : (heatmapResolution === "high" || heatmapResolution === "raw" ? "low" : heatmapResolution);
+
+  const heatmapEnabled = hasCountyScope
+    ? otherLayers.heatmapCounty
+    : otherLayers.heatmapStatewide;
 
   const heatmap = useCrashHeatmap({
-    enabled: otherLayers.heatmap,
+    enabled: heatmapEnabled,
     county: heatmapCountySlugs,
     years: [...selectedYears],
     severities: [...selectedSeverities],
@@ -131,22 +137,22 @@ function MapPageInner() {
     if (compareMode && name !== focusedCounty) {
       setCompareCounty(name);
     } else {
-      if (!otherLayers.heatmap) toggleOtherLayer("heatmap");
+      if (!otherLayers.heatmapCounty) toggleOtherLayer("heatmapCounty");
       setFocusedCounty(name);
       setInsightCounty(name);
       setShowInsight(true);
       setCompareCounty(null);
       setCompareMode(false);
     }
-  }, [compareMode, focusedCounty, otherLayers.heatmap, toggleOtherLayer]);
+  }, [compareMode, focusedCounty, otherLayers.heatmapCounty, toggleOtherLayer]);
 
   const handleDeselect = useCallback(() => {
     setFocusedCounty(null);
     setCompareCounty(null);
     setCompareMode(false);
     setShowInsight(false);
-    if (otherLayers.heatmap) toggleOtherLayer("heatmap");
-  }, [otherLayers.heatmap, toggleOtherLayer]);
+    if (otherLayers.heatmapCounty) toggleOtherLayer("heatmapCounty");
+  }, [otherLayers.heatmapCounty, toggleOtherLayer]);
 
   const handleStartCompare = useCallback(() => {
     setCompareMode(true);
@@ -159,9 +165,9 @@ function MapPageInner() {
       setCompareCounty(null);
       setCompareMode(false);
       setShowInsight(false);
-      if (otherLayers.heatmap) toggleOtherLayer("heatmap");
+      if (otherLayers.heatmapCounty) toggleOtherLayer("heatmapCounty");
     }
-  }, [compareMode, otherLayers.heatmap, toggleOtherLayer]);
+  }, [compareMode, otherLayers.heatmapCounty, toggleOtherLayer]);
 
   function handleClearAll() {
     clearFilters();
@@ -293,7 +299,7 @@ function MapPageInner() {
           onSelectCounty={handleSelectCounty}
           onMapReady={handleMapReady}
           heatmapPoints={heatmap.points}
-          heatmapActive={otherLayers.heatmap}
+          heatmapActive={heatmapEnabled}
           heatmapResolution={effectiveResolution}
           heatmapPalette={palette}
         />
@@ -328,8 +334,8 @@ function MapPageInner() {
           searchOpen={searchOpen}
           choroplethData={choroplethData}
           coordCoverage={coordCoverage}
-          heatmapCrashes={otherLayers.heatmap ? heatmap.totalCrashes : null}
-          heatmapLoading={otherLayers.heatmap && heatmap.isLoading}
+          heatmapCrashes={heatmapEnabled ? heatmap.totalCrashes : null}
+          heatmapLoading={heatmapEnabled && heatmap.isLoading}
           countyActive={!!focusedCounty}
         />
       </section>

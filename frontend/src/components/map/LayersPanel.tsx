@@ -69,19 +69,19 @@ export default function LayersPanel() {
         </div>
       </div>
 
-      {/* Heatmap */}
+      {/* Statewide Heatmap */}
       <div className="space-y-4">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          Heatmap
+          Statewide Heatmap
         </label>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className={`text-sm font-medium ${otherLayers.heatmap ? "text-on-surface" : "text-on-surface-variant"}`}>
-              Crash Heatmap
+            <span className={`text-sm font-medium ${otherLayers.heatmapStatewide ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Full State
             </span>
-            <Toggle enabled={otherLayers.heatmap} onToggle={() => toggleOtherLayer("heatmap")} />
+            <Toggle enabled={otherLayers.heatmapStatewide} onToggle={() => toggleOtherLayer("heatmapStatewide")} />
           </div>
-          {otherLayers.heatmap && (
+          {otherLayers.heatmapStatewide && (
             <div className="space-y-2 pl-1">
               <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                 Resolution
@@ -90,7 +90,6 @@ export default function LayersPanel() {
                 {([
                   { key: "low" as const, label: "Low" },
                   { key: "medium" as const, label: "Medium" },
-                  { key: "high" as const, label: "High" },
                 ]).map(({ key, label }) => (
                   <button
                     key={key}
@@ -109,6 +108,26 @@ export default function LayersPanel() {
                 Higher resolution shows finer detail but loads slower
               </p>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* County Heatmap */}
+      <div className="space-y-4">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          County Heatmap
+        </label>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.heatmapCounty ? "text-on-surface" : "text-on-surface-variant"}`}>
+              County Detail
+            </span>
+            <Toggle enabled={otherLayers.heatmapCounty} onToggle={() => toggleOtherLayer("heatmapCounty")} />
+          </div>
+          {otherLayers.heatmapCounty && (
+            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+              Shows individual crash locations when a county is selected
+            </p>
           )}
         </div>
       </div>
