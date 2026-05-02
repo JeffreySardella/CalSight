@@ -41,7 +41,7 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy import func, text
+from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
