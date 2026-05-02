@@ -9,6 +9,13 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Force HTTPS for git (no SSH keys needed)
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://".insteadOf "git://"
 
       - name: Create backend .env from secrets
         run: |
@@ -33,8 +40,9 @@ jobs:
               echo "Backend is up"
               exit 0
             fi
+            echo "Attempt $i/5 failed, waiting..."
             sleep 5
           done
-          echo "Backend failed to start"
-          docker compose -f docker-compose.prod.yml logs backend
+          echo "Backend failed to start — showing logs:"
+          docker compose -f docker-compose.prod.yml logs --tail=50 backend
           exit 1
