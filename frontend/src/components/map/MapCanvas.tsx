@@ -11,7 +11,8 @@ import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 
 const CA_CENTER: [number, number] = [37.2, -119.5];
-const CA_ZOOM = window.innerWidth < 768 ? 5 : 6;
+const isMobile = window.innerWidth < 768;
+const CA_ZOOM = isMobile ? 5 : 6;
 
 const CA_BOUNDS: LatLngBoundsExpression = [
   [28.0, -127.0],
@@ -32,7 +33,7 @@ interface MapCanvasProps {
 }
 
 const HEATMAP_MAX_ZOOM: Record<string, number> = {
-  raw: 14,
+  raw: 18,
   low: 8,
   medium: 9,
   high: 10,
@@ -78,6 +79,7 @@ function MapInternals({
       <CountyBoundaries
         focusedCounty={focusedCounty}
         compareCounty={compareCounty}
+        heatmapActive={heatmapActive}
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
       />
@@ -132,13 +134,18 @@ export default function MapCanvas({
       maxBounds={CA_BOUNDS}
       maxBoundsViscosity={1.0}
       minZoom={5}
-      maxZoom={14}
+      maxZoom={18}
+      // Keep zoom animation on — leaflet.heat's _animateZoom handler needs it
+      // to CSS-transform the canvas during pinch. Without this the canvas
+      // stays at the old position while the map pane moves underneath it.
+      // The tile ghosting is fixed separately via CSS (will-change: auto).
       zoomAnimation={true}
       zoomAnimationThreshold={4}
     >
       <TileLayer
         key={baseTileUrl}
         url={baseTileUrl}
+        keepBuffer={2}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
 
@@ -158,6 +165,7 @@ export default function MapCanvas({
       <TileLayer
         key={labelTileUrl}
         url={labelTileUrl}
+        keepBuffer={2}
         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         pane="labelPane"
       />

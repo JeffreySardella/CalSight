@@ -101,13 +101,13 @@ def crash_heatmap(
     if resolution == Resolution.raw:
         total_q = db.query(func.count()).filter(*preds).scalar() or 0
         rows = (
-            db.query(Crash.latitude, Crash.longitude)
+            db.query(Crash.latitude, Crash.longitude, Crash.severity)
             .filter(*preds)
             .limit(RAW_POINT_LIMIT)
             .all()
         )
         return HeatmapResponse(
-            points=[HeatmapPoint(lat=r.latitude, lng=r.longitude, weight=1) for r in rows],
+            points=[HeatmapPoint(lat=r.latitude, lng=r.longitude, weight=1, severity=r.severity) for r in rows],
             total_crashes=total_q,
         )
 

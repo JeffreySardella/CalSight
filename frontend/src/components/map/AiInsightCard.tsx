@@ -10,6 +10,8 @@ interface AiInsightCardProps {
   onCompare: () => void;
   compareCountyName?: string;
   compareData?: ChoroplethPoint;
+  /** LLM-generated narrative blurb. null/undefined = section hidden. */
+  narrative?: string | null;
 }
 
 function fmt(n: number): string {
@@ -85,12 +87,13 @@ export default function AiInsightCard({
   onCompare,
   compareCountyName,
   compareData,
+  narrative,
 }: AiInsightCardProps) {
   const [expanded, setExpanded] = useState(false);
   const isComparing = compareMode && compareCountyName && compareData;
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-30 md:bottom-2 md:left-16 md:right-auto md:max-w-sm">
+    <div className="fixed bottom-card-mobile left-0 right-0 z-40 md:absolute md:bottom-2 md:left-16 md:right-auto md:max-w-sm md:z-30">
       <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden">
         {/* Collapsed bar — always visible */}
         <div
@@ -145,6 +148,18 @@ export default function AiInsightCard({
             ) : (
               <>
                 {data && <MetricGrid data={data} measureLabel={measureLabel} />}
+
+                {/* AI narrative blurb — single-county mode only, hidden when null */}
+                {!compareMode && narrative && (
+                  <div className="flex gap-2 items-start bg-surface-container-lowest rounded-lg px-3 py-2.5 animate-[fadeIn_0.4s_ease]">
+                    <span className="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">
+                      auto_awesome
+                    </span>
+                    <p className="text-xs text-on-surface-variant font-body leading-relaxed">
+                      {narrative}
+                    </p>
+                  </div>
+                )}
 
                 {compareMode && !compareCountyName && (
                   <p className="text-xs text-on-surface-variant text-center py-1">

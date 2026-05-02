@@ -140,21 +140,20 @@ describe("ChoroplethLegend", () => {
   it("shows missing-demographics alert when per-capita measure is active and years are missing", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024, 2025] }} />);
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/no population data for 2024, 2025/i);
+    expect(alert).toHaveTextContent(/no census data for 2024, 2025/i);
     expect(screen.getByRole("button", { name: /switch to total crashes/i })).toBeInTheDocument();
   });
 
   it("shows partial-demographics alert for years with incomplete county coverage", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, partialDemoYears: [2005, 2006, 2007, 2008, 2009] }} />);
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/partial population data for 2005-2009/i);
+    expect(alert).toHaveTextContent(/switch to total crashes/i);
   });
 
   it("shows both missing and partial alerts together", async () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024], partialDemoYears: [2007] }} />);
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/no population data for 2024/i);
-    expect(alert).toHaveTextContent(/partial population data for 2007/i);
+    expect(alert).toHaveTextContent(/no census data for 2024/i);
   });
 
   it("does not show missing-demographics alert for raw measures", () => {

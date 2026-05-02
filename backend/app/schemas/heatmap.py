@@ -7,6 +7,7 @@ class HeatmapPoint(BaseModel):
     lat: float
     lng: float
     weight: int
+    severity: str | None = None
 
 
 class HeatmapResponse(BaseModel):
