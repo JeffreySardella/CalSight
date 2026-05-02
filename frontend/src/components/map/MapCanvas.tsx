@@ -141,13 +141,11 @@ export default function MapCanvas({
       // The tile ghosting is fixed separately via CSS (will-change: auto).
       zoomAnimation={true}
       zoomAnimationThreshold={4}
-      // Pre-load 2 extra rows/cols of tiles beyond the viewport to reduce
-      // blank-tile flicker when panning.
-      keepBuffer={2}
     >
       <TileLayer
         key={baseTileUrl}
         url={baseTileUrl}
+        keepBuffer={2}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
 
@@ -167,6 +165,7 @@ export default function MapCanvas({
       <TileLayer
         key={labelTileUrl}
         url={labelTileUrl}
+        keepBuffer={2}
         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         pane="labelPane"
       />
