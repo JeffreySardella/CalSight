@@ -11,6 +11,7 @@ import { useIsDark } from "../../context/ThemeContext";
 interface CountyBoundariesProps {
   focusedCounty: string | null;
   compareCounty?: string | null;
+  heatmapActive?: boolean;
   onFocusCounty: (name: string | null) => void;
   onSelectCounty: (name: string) => void;
 }
@@ -37,6 +38,7 @@ function getCountyCode(f: GeoJSON.Feature): number | null {
 export default function CountyBoundaries({
   focusedCounty,
   compareCounty = null,
+  heatmapActive = false,
   onFocusCounty,
   onSelectCounty,
 }: CountyBoundariesProps) {
@@ -135,7 +137,7 @@ export default function CountyBoundaries({
           : base;
       }
 
-      if (otherLayers.heatmapCounty && focusedCounty) {
+      if (heatmapActive && focusedCounty) {
         return {
           color: borderColor,
           weight: borderWeight,
@@ -168,7 +170,7 @@ export default function CountyBoundaries({
         fillOpacity: 0.75,
       };
     },
-    [choroplethOn, otherLayers.countyBoundaries, otherLayers.heatmapStatewide, otherLayers.heatmapCounty, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
+    [choroplethOn, otherLayers.countyBoundaries, otherLayers.heatmapStatewide, heatmapActive, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
   );
 
   // Ref so mouseout can re-apply the *current* style (not the stale one

@@ -9,7 +9,7 @@ import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 
 const BASE_RADIUS: Record<HeatmapResolution, number> = {
-  raw: 5,
+  raw: 8,
   low: 18,
   medium: 12,
   high: 8,
@@ -20,8 +20,13 @@ function radiusForZoom(base: number, zoom: number): number {
   return Math.max(2, Math.round(base * scale));
 }
 
-function buildGradient(palette: PaletteKey, isDark: boolean): Record<number, string> {
+function buildGradient(palette: PaletteKey, isDark: boolean, raw = false): Record<number, string> {
   const colors = getPalette(palette, isDark);
+  if (raw) {
+    const strong = colors[colors.length - 1];
+    const mid = colors[Math.floor(colors.length * 0.6)];
+    return { 0: "transparent", 0.3: mid, 1.0: strong };
+  }
   const stops: Record<number, string> = { 0: "transparent" };
   colors.forEach((c, i) => {
     stops[(i + 1) / colors.length] = c;
@@ -51,7 +56,6 @@ export function useHeatLayer(
     for (const p of points) {
       if (p.weight > maxWeight) maxWeight = p.weight;
     }
-    const gradient = buildGradient(palette, isDark);
 
     latlngsRef.current = points.map((p) => [
       p.lat,
@@ -61,6 +65,7 @@ export function useHeatLayer(
 
     const base = BASE_RADIUS[resolution];
     const isRaw = resolution === "raw";
+    const gradient = buildGradient(palette, isDark, isRaw);
     const r = isRaw ? base : radiusForZoom(base, map.getZoom());
     const blur = isRaw ? Math.round(base * 0.6) : Math.max(1, Math.round(r * 0.3));
 
@@ -68,24 +73,48 @@ export function useHeatLayer(
       radius: r,
       blur,
       max: 1,
-      minOpacity: 0.1,
+      minOpacity: 0.25,
       gradient,
     });
 
     layer.addTo(map);
     layerRef.current = layer;
 
-    const onZoom = () => {
-      if (!layerRef.current || isRaw) return;
-      const z = map.getZoom();
-      const newR = radiusForZoom(base, z);
-      layerRef.current.setOptions({ radius: newR, blur: Math.max(1, Math.round(newR * 0.3)) });
-      layerRef.current.redraw();
+    type HeatInternals = {
+      _canvas: HTMLCanvasElement;
+      _animateZoom: (e: L.ZoomAnimEvent) => void;
+      _reset: () => void;
     };
-    map.on("zoomend", onZoom);
+    const internals = layer as unknown as HeatInternals;
+
+    // Unbind leaflet.heat's broken _animateZoom — it miscalculates the
+    // canvas CSS transform during mobile pinch-to-zoom.
+    map.off("zoomanim", internals._animateZoom, layer);
+
+    const onZoomStart = () => {
+      if (!layerRef.current) return;
+      const c = (layerRef.current as unknown as HeatInternals)._canvas;
+      if (c) c.style.display = "none";
+    };
+
+    const onZoomEnd = () => {
+      if (!layerRef.current) return;
+      const cast = layerRef.current as unknown as HeatInternals;
+      if (cast._canvas) cast._canvas.style.display = "";
+      if (!isRaw) {
+        const z = map.getZoom();
+        const newR = radiusForZoom(base, z);
+        layerRef.current.setOptions({ radius: newR, blur: Math.max(1, Math.round(newR * 0.3)) });
+      }
+      cast._reset();
+    };
+
+    map.on("zoomstart", onZoomStart);
+    map.on("zoomend", onZoomEnd);
 
     return () => {
-      map.off("zoomend", onZoom);
+      map.off("zoomstart", onZoomStart);
+      map.off("zoomend", onZoomEnd);
       if (layerRef.current) {
         map.removeLayer(layerRef.current);
         layerRef.current = null;
@@ -94,6 +123,93 @@ export function useHeatLayer(
   }, [map, points, resolution, palette, isDark]);
 
   return layerRef;
+}
+
+const FATAL_GRADIENTS: Record<PaletteKey, Record<number, string>> = {
+  default: {
+    0: "transparent",
+    0.3: "rgba(255, 80, 60, 0.4)",
+    0.6: "rgba(220, 40, 30, 0.7)",
+    1.0: "rgba(180, 20, 15, 1)",
+  },
+  warm: {
+    0: "transparent",
+    0.3: "rgba(124, 58, 237, 0.4)",
+    0.6: "rgba(109, 40, 217, 0.7)",
+    1.0: "rgba(91, 33, 182, 1)",
+  },
+  cool: {
+    0: "transparent",
+    0.3: "rgba(255, 80, 60, 0.4)",
+    0.6: "rgba(220, 40, 30, 0.7)",
+    1.0: "rgba(180, 20, 15, 1)",
+  },
+  colorblind: {
+    0: "transparent",
+    0.3: "rgba(230, 97, 0, 0.4)",
+    0.6: "rgba(210, 80, 0, 0.7)",
+    1.0: "rgba(180, 60, 0, 1)",
+  },
+};
+
+function useFatalLayer(points: HeatmapPoint[], resolution: HeatmapResolution, palette: PaletteKey) {
+  const map = useMap();
+  const layerRef = useRef<L.HeatLayer | null>(null);
+
+  useEffect(() => {
+    if (layerRef.current) {
+      map.removeLayer(layerRef.current);
+      layerRef.current = null;
+    }
+
+    if (resolution !== "raw") return;
+
+    const fatal = points.filter((p) => p.severity === "Fatal");
+    if (fatal.length === 0) return;
+
+    const latlngs: [number, number, number][] = fatal.map((p) => [p.lat, p.lng, 1]);
+
+    const layer = L.heatLayer(latlngs, {
+      radius: 8,
+      blur: 4,
+      max: 1,
+      minOpacity: 0.4,
+      gradient: FATAL_GRADIENTS[palette],
+    });
+
+    layer.addTo(map);
+    layerRef.current = layer;
+
+    type HeatInternals = {
+      _canvas: HTMLCanvasElement;
+      _animateZoom: (e: L.ZoomAnimEvent) => void;
+      _reset: () => void;
+    };
+    const internals = layer as unknown as HeatInternals;
+    map.off("zoomanim", internals._animateZoom, layer);
+
+    const onZoomStart = () => {
+      const c = (layerRef.current as unknown as HeatInternals)?._canvas;
+      if (c) c.style.display = "none";
+    };
+    const onZoomEnd = () => {
+      const cast = layerRef.current as unknown as HeatInternals;
+      if (cast?._canvas) cast._canvas.style.display = "";
+      cast?._reset();
+    };
+
+    map.on("zoomstart", onZoomStart);
+    map.on("zoomend", onZoomEnd);
+
+    return () => {
+      map.off("zoomstart", onZoomStart);
+      map.off("zoomend", onZoomEnd);
+      if (layerRef.current) {
+        map.removeLayer(layerRef.current);
+        layerRef.current = null;
+      }
+    };
+  }, [map, points, resolution, palette]);
 }
 
 interface CrashHeatmapProps {
@@ -105,5 +221,6 @@ interface CrashHeatmapProps {
 export default function CrashHeatmap({ points, resolution, palette }: CrashHeatmapProps) {
   const isDark = useIsDark();
   useHeatLayer(points, resolution, palette, isDark);
+  useFatalLayer(points, resolution, palette);
   return null;
 }

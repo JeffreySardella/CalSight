@@ -157,6 +157,40 @@
   }
 }
 
+/*
+ * County card bottom offset on mobile.
+ * Sits above the 56px bottom tab bar + iOS safe area inset.
+ * On md+ screens the card uses bottom-2 via Tailwind (see AiInsightCard.tsx).
+ */
+.bottom-card-mobile {
+  bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .bottom-card-mobile {
+    bottom: auto; /* overridden by md:bottom-2 from Tailwind */
+  }
+}
+
+/*
+ * Leaflet mobile tile anti-ghosting.
+ *
+ * During a pinch-zoom animation Leaflet promotes each tile to its own
+ * compositor layer via will-change:transform. On mobile GPUs this causes
+ * neighbouring tiles to "ghost" — seams and smearing between tiles while
+ * the animation runs. Removing will-change from TILES ONLY forces them to
+ * composite as a single layer, eliminating the seams.
+ *
+ * DO NOT apply this to .leaflet-zoom-animated — that class is also on the
+ * heatmap canvas overlay pane, and stripping its GPU layer breaks the
+ * _animateZoom CSS transform that keeps the canvas anchored to the map.
+ */
+@media (max-width: 767px) {
+  .leaflet-tile {
+    will-change: auto !important;
+  }
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   display: inline-block;
@@ -191,6 +225,16 @@
 @keyframes scaleIn {
   from { opacity: 0.8; transform: scale(0.99); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Respect OS-level reduced motion preference */
