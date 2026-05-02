@@ -47,7 +47,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.llm import generate_narrative
-from app.models import County, CountyInsight, Demographic
+from app.models import County, CountyInsight
 from etl._utils import track_etl_run
 
 logger = logging.getLogger(__name__)
