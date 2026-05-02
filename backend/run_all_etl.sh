@@ -96,16 +96,21 @@ python -m etl.compute_data_quality
 echo "=== Data quality stats done ==="
 
 echo ""
-echo "=== 17/18  Refresh materialized views (StatsPage aggregates) ==="
+echo "=== 17/19  Refresh materialized views (StatsPage aggregates) ==="
 python -m etl.refresh_materialized_views
 echo "=== Materialized views done ==="
 
 echo ""
-echo "=== 18/18  VACUUM ANALYZE (refresh planner statistics) ==="
+echo "=== 18/19  Generate AI insight cards ==="
+python -m etl.generate_insights
+echo "=== AI insights done ==="
+
+echo ""
+echo "=== 19/19  VACUUM ANALYZE (refresh planner statistics) ==="
 python -m etl.vacuum_analyze
 echo "=== VACUUM ANALYZE done ==="
 
 echo ""
 echo "============================================"
-echo "  All 18 ETL jobs complete!"
+echo "  All 19 ETL jobs complete!"
 echo "============================================"

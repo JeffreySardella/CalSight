@@ -26,6 +26,7 @@ import Breadcrumb from "../components/map/Breadcrumb";
 import { useCrashHeatmap } from "../hooks/useCrashHeatmap";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
+import { useCountyInsight } from "../hooks/useCountyInsight";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -68,12 +69,12 @@ function MapPageInner() {
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showInsight, setShowInsight] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [mobileSearchExpanded, setMobileSearchExpanded] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [focusedCounty, setFocusedCounty] = useState<string | null>(null);
   const [compareCounty, setCompareCounty] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [searchOpen] = useState(false);
   const [insightCounty, setInsightCounty] = useState("Fresno");
   const mapRef = useRef<LeafletMap | null>(null);
 
@@ -81,20 +82,13 @@ function MapPageInner() {
 
   const { measure, otherLayers, heatmapResolution, palette } = useLayersState();
 
-  const hasCountyScope = !!focusedCounty || selectedCounties.size > 0;
-  const useCountyDetail = hasCountyScope && otherLayers.heatmapCounty;
+  const useCountyDetail = !!focusedCounty && otherLayers.heatmapCounty && (!compareMode || !!compareCounty);
 
   const heatmapCountySlugs = useCountyDetail ? (() => {
-    if (focusedCounty || compareCounty) {
-      const slugs: string[] = [];
-      if (focusedCounty) slugs.push(focusedCounty.toLowerCase().replace(/\s+/g, "-"));
-      if (compareCounty) slugs.push(compareCounty.toLowerCase().replace(/\s+/g, "-"));
-      return slugs.join(",");
-    }
-    if (selectedCounties.size > 0) {
-      return [...selectedCounties].map((c) => c.toLowerCase().replace(/\s+/g, "-")).join(",");
-    }
-    return null;
+    const slugs: string[] = [];
+    if (focusedCounty) slugs.push(focusedCounty.toLowerCase().replace(/\s+/g, "-"));
+    if (compareCounty) slugs.push(compareCounty.toLowerCase().replace(/\s+/g, "-"));
+    return slugs.join(",") || null;
   })() : null;
 
   const effectiveResolution = useCountyDetail
@@ -129,6 +123,19 @@ function MapPageInner() {
   const comparePointData = compareCode != null ? choroplethData.byCountyCode[compareCode] : undefined;
   const measureLabel = MEASURES[measure].label;
 
+  // When exactly one year is selected, pass it to the insight API so the
+  // narrative matches the active filter context. Otherwise use the API
+  // default (latest available year).
+  const insightYear = selectedYears.size === 1 ? [...selectedYears][0] : undefined;
+  // Gate on focusedCounty so we never fire before a county is actually clicked.
+  // insightCounty can lag behind by one render (it's preserved after deselect
+  // so the closing animation has a name to show), so use focusedCounty as the
+  // real enable gate.
+  const { data: insightData } = useCountyInsight(
+    focusedCounty ? insightCounty : null,
+    insightYear,
+  );
+
   const handleMapReady = useCallback((map: LeafletMap) => {
     mapRef.current = map;
   }, []);
@@ -161,6 +168,7 @@ function MapPageInner() {
 
   const handleStartCompare = useCallback(() => {
     setCompareMode(true);
+    mapRef.current?.flyTo([37.2, -119.5], 6, { duration: 0.8 });
   }, []);
 
   const handleFocusCounty = useCallback((name: string | null) => {
@@ -309,14 +317,34 @@ function MapPageInner() {
           countyDrilldown={useCountyDetail}
         />
 
-        {/* Mobile-only floating Filters chip */}
-        <button
-          onClick={() => setShowMobileFilters(true)}
-          className="absolute top-4 right-4 z-20 md:hidden flex items-center gap-1.5 bg-surface-container-lowest/90 backdrop-blur-md px-4 py-2 rounded-full shadow-lg ghost-border text-on-surface text-sm font-semibold"
-        >
-          <span className="material-symbols-outlined text-[18px]">tune</span>
-          Filters
-        </button>
+        {/* Mobile: search + filter icon buttons (right), hide when search expanded */}
+        {!mobileSearchExpanded && (
+          <div className="absolute top-3 right-3 z-20 md:hidden flex items-center gap-2">
+            <button
+              onClick={() => setMobileSearchExpanded(true)}
+              className="flex items-center justify-center w-10 h-10 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
+              aria-label="Search"
+            >
+              <span className="material-symbols-outlined text-[20px]">search</span>
+            </button>
+            <button
+              onClick={() => setShowMobileFilters(true)}
+              className="flex items-center justify-center w-10 h-10 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
+              aria-label="Open filters"
+            >
+              <span className="material-symbols-outlined text-[20px]">tune</span>
+            </button>
+          </div>
+        )}
+        {mobileSearchExpanded && (
+          <MobileSearchPill
+            expanded={true}
+            onExpand={() => setMobileSearchExpanded(true)}
+            onCollapse={() => setMobileSearchExpanded(false)}
+            onSelect={(name) => { handleSelectCounty(name); setMobileSearchExpanded(false); }}
+            map={mapRef.current}
+          />
+        )}
 
         {showInsight && focusedCounty && (
           <AiInsightCard
@@ -328,6 +356,7 @@ function MapPageInner() {
             onCompare={handleStartCompare}
             compareCountyName={compareCounty ?? undefined}
             compareData={comparePointData}
+            narrative={insightData?.narrative}
           />
         )}
         <Breadcrumb
@@ -336,12 +365,14 @@ function MapPageInner() {
           onDeselect={handleDeselect}
         />
         <ChoroplethLegendContainer
-          searchOpen={searchOpen}
           choroplethData={choroplethData}
           coordCoverage={coordCoverage}
           heatmapCrashes={heatmapEnabled ? heatmap.totalCrashes : null}
+          heatmapDisplayed={heatmapEnabled ? heatmap.points.length : null}
           heatmapLoading={heatmapEnabled && heatmap.isLoading}
           countyActive={!!focusedCounty}
+          countyTotalCrashes={inspectedData?.rawCount ?? null}
+          searchOpen={mobileSearchExpanded}
         />
       </section>
 
@@ -385,19 +416,23 @@ export default function MapPage() {
 }
 
 function ChoroplethLegendContainer({
-  searchOpen,
   choroplethData,
   coordCoverage,
   heatmapCrashes,
+  heatmapDisplayed,
   heatmapLoading,
   countyActive,
+  countyTotalCrashes,
+  searchOpen,
 }: {
-  searchOpen?: boolean;
   choroplethData: ChoroplethData;
   coordCoverage?: CoordCoverage | null;
   heatmapCrashes?: number | null;
+  heatmapDisplayed?: number | null;
   heatmapLoading?: boolean;
   countyActive?: boolean;
+  countyTotalCrashes?: number | null;
+  searchOpen?: boolean;
 }) {
   const queryClient = useQueryClient();
   return (
@@ -411,8 +446,139 @@ function ChoroplethLegendContainer({
       searchOpen={searchOpen}
       onRetry={() => queryClient.invalidateQueries({ queryKey: ["choropleth"] })}
       heatmapCrashes={heatmapCrashes}
+      heatmapDisplayed={heatmapDisplayed}
       heatmapLoading={heatmapLoading}
       countyActive={countyActive}
+      countyTotalCrashes={countyTotalCrashes}
     />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mobile search pill — inline at top center, expands to show results below
+// ---------------------------------------------------------------------------
+
+const MOBILE_COUNTY_NAMES = (CA_COUNTIES as unknown as string[]).slice().sort();
+
+function MobileSearchPill({
+  expanded,
+  onExpand,
+  onCollapse,
+  onSelect,
+  map,
+}: {
+  expanded: boolean;
+  onExpand: () => void;
+  onCollapse: () => void;
+  onSelect: (name: string) => void;
+  map: LeafletMap | null;
+}) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const results = query.trim()
+    ? MOBILE_COUNTY_NAMES.filter((n) =>
+        n.toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 4)
+    : [];
+
+  useEffect(() => {
+    if (expanded && inputRef.current) inputRef.current.focus();
+  }, [expanded]);
+
+  // Collapse when map moves
+  useEffect(() => {
+    if (!map) return;
+    const collapse = () => { onCollapse(); setQuery(""); };
+    map.on("movestart", collapse);
+    return () => { map.off("movestart", collapse); };
+  }, [map, onCollapse]);
+
+  // Close on outside tap
+  useEffect(() => {
+    if (!expanded) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onCollapse();
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [expanded, onCollapse]);
+
+  const handleSelect = (name: string) => {
+    onSelect(name);
+    setQuery("");
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className={expanded
+        ? "absolute top-3 left-3 right-3 z-20 md:hidden"
+        : "md:hidden"
+      }
+    >
+      <div
+        className={`
+          flex items-center gap-2
+          bg-surface-container-lowest/90 backdrop-blur-md
+          ghost-border shadow-lg
+          ${expanded ? "h-10 rounded-2xl px-3" : "h-10 rounded-full px-3 cursor-pointer"}
+        `}
+        onClick={() => !expanded && onExpand()}
+      >
+        <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">
+          search
+        </span>
+        {expanded ? (
+          <>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") { onCollapse(); setQuery(""); }
+                if (e.key === "Enter" && results.length > 0) handleSelect(results[0]);
+              }}
+              placeholder="Search counties…"
+              className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none border-none min-w-0"
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); onCollapse(); setQuery(""); }}
+              className="p-0.5 rounded-full"
+            >
+              <span className="material-symbols-outlined text-[16px] text-on-surface-variant">close</span>
+            </button>
+          </>
+        ) : (
+          <span className="text-[11px] text-on-surface-variant font-medium">Counties</span>
+        )}
+      </div>
+
+      {expanded && results.length > 0 && (
+        <div className="mt-1.5 bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-2xl shadow-lg overflow-hidden">
+          {results.map((name) => (
+            <button
+              key={name}
+              onClick={() => handleSelect(name)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-on-surface text-left hover:bg-surface-container transition-colors"
+            >
+              <span className="material-symbols-outlined text-[14px] text-on-surface-variant">location_on</span>
+              <span>{name} County</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {expanded && query.trim() && results.length === 0 && (
+        <div className="mt-1.5 bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-2xl shadow-lg px-3 py-2.5">
+          <p className="text-xs text-on-surface-variant">No match for "{query}"</p>
+        </div>
+      )}
+    </div>
   );
 }

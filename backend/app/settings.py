@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     # -- App --
     debug: bool = True
 
+    # -- LLM (AI insight card generation) --
+    # Supports: groq | openrouter | together | cerebras | ollama
+    # Leave llm_model / llm_base_url empty to use provider defaults.
+    # For ollama over Tailscale, set llm_base_url to the Tailscale IP.
+    llm_provider: str = "together"
+    llm_api_key: str = ""
+    llm_model: str = ""
+    llm_base_url: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Parse the comma-separated CORS_ORIGINS string into a list."""

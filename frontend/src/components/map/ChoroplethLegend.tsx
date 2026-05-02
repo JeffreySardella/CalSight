@@ -1,8 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
-import { getPalette } from "../../lib/choropleth/palettes";
+import { getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
+
+const FATAL_DOT_COLORS: Record<PaletteKey, string> = {
+  default: "#dc2626",
+  warm: "#7c3aed",
+  cool: "#dc2626",
+  colorblind: "#e66100",
+};
 import type { DataSummary } from "../../hooks/useChoroplethData";
 import type { CoordCoverage } from "../../hooks/useCoordCoverage";
 
@@ -16,8 +23,10 @@ type Props = {
   searchOpen?: boolean;
   onRetry?: () => void;
   heatmapCrashes?: number | null;
+  heatmapDisplayed?: number | null;
   heatmapLoading?: boolean;
   countyActive?: boolean;
+  countyTotalCrashes?: number | null;
 };
 
 function formatYearList(years: number[]): string {
@@ -37,7 +46,7 @@ function formatCount(n: number): string {
 
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
 
-export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, onRetry, heatmapCrashes, heatmapLoading }: Props) {
+export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, countyActive, countyTotalCrashes }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
   const isDark = useIsDark();
   const [isOpen, setIsOpen] = useState(false);
@@ -64,27 +73,32 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
   return (
     <div
       data-testid="choropleth-legend"
-      className={`absolute left-2 md:left-auto md:right-4 z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl p-2 md:p-3 w-[200px] md:w-[250px] ghost-border transition-all duration-300 top-2 md:top-2 md:bottom-auto`}
+      className={`absolute z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl p-2 md:p-3 w-[200px] md:w-[250px] ghost-border transition-all duration-300 top-3 left-2 md:top-2 md:left-auto md:right-4 ${searchOpen ? "hidden md:block" : ""}`}
     >
-      {/* Mobile: tap to expand */}
-      <div
-        className="md:hidden flex items-center justify-between mb-1 cursor-pointer"
-        onClick={() => setMobileExpanded((v) => !v)}
-      >
-        <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">{activeMeasure.label}</span>
-        <span className="material-symbols-outlined text-[14px] text-on-surface-variant transition-transform" style={{ transform: mobileExpanded ? "rotate(180deg)" : undefined }}>
-          expand_less
+      {countyActive ? (
+        <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant mb-1 block">
+          Crash Detail
         </span>
-      </div>
-
-      {/* Desktop: always show label */}
-      <label
-        className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2"
-        id="choropleth-measure-label"
-      >
-        Measure
-      </label>
-      <div ref={containerRef} className={`relative mb-3 ${mobileExpanded ? "" : "hidden md:block"}`}>
+      ) : (
+        <>
+          <div
+            className="md:hidden flex items-center justify-between mb-1 cursor-pointer"
+            onClick={() => setMobileExpanded((v) => !v)}
+          >
+            <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">{activeMeasure.label}</span>
+            <span className="material-symbols-outlined text-[14px] text-on-surface-variant transition-transform" style={{ transform: mobileExpanded ? "rotate(180deg)" : undefined }}>
+              expand_less
+            </span>
+          </div>
+          <label
+            className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2"
+            id="choropleth-measure-label"
+          >
+            Measure
+          </label>
+        </>
+      )}
+      <div ref={containerRef} className={`relative mb-3 ${countyActive ? "hidden" : mobileExpanded ? "" : "hidden md:block"}`}>
         <button
           type="button"
           aria-labelledby="choropleth-measure-label"
@@ -142,39 +156,81 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         )}
       </div>
 
-      <div className={`flex h-3 rounded-sm overflow-hidden ${isLoading ? "animate-pulse opacity-40" : ""}`}>
-        {colors.map((c, i) => (
-          <div key={i} className="flex-1" style={{ backgroundColor: c }} />
-        ))}
-      </div>
-
-      {(heatmapLoading || (heatmapCrashes != null && heatmapCrashes > 0)) && (
-        <div className="text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
-          {heatmapLoading ? "Loading heatmap..." : `${heatmapCrashes!.toLocaleString()} crashes mapped`}
+      {!countyActive ? (
+        <div className={`flex h-3 rounded-sm overflow-hidden ${isLoading ? "animate-pulse opacity-40" : ""}`}>
+          {colors.map((c, i) => (
+            <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 mt-1">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors[colors.length - 1] }} />
+            <span className="text-[10px] text-on-surface-variant font-semibold">Crash</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: FATAL_DOT_COLORS[palette] }} />
+            <span className="text-[10px] text-on-surface-variant font-semibold">Fatal</span>
+          </div>
         </div>
       )}
 
-      {/* Bucket labels — hide on mobile when collapsed */}
-      <div className={mobileExpanded ? "" : "hidden md:block"}>
-        {isLoading ? (
-          <div className="text-[10px] text-on-surface-variant mt-1 italic">
-            Loading data…
-          </div>
-        ) : bucketEdges ? (
-          <div className="flex justify-between text-[10px] text-on-surface-variant mt-1 font-mono">
-            {bucketEdges.map((e, i) => (
-              <span key={i}>{activeMeasure.formatLabel(e)}</span>
-            ))}
-          </div>
-        ) : (
-          <div className="text-[10px] text-on-surface-variant mt-1 italic">
-            Pan or zoom out to compute scale
-          </div>
-        )}
-      </div>
+      {/* Statewide summary — hide when county focused */}
+      {!mobileExpanded && !isLoading && dataSummary.totalCrashes > 0 && !countyActive && (
+        <div className="md:hidden text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
+          {formatCount(dataSummary.totalCrashes)} crashes
+        </div>
+      )}
+
+      {(heatmapLoading || (heatmapCrashes != null && heatmapCrashes > 0)) && (
+        <div className="text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
+          {heatmapLoading
+            ? "Loading heatmap..."
+            : countyActive && countyTotalCrashes && heatmapDisplayed != null
+              ? `${formatCount(heatmapDisplayed)} mapped (${Math.round((heatmapDisplayed / countyTotalCrashes) * 100)}%)`
+              : heatmapDisplayed != null && heatmapDisplayed < heatmapCrashes!
+                ? `${formatCount(heatmapDisplayed)} of ${formatCount(heatmapCrashes!)} mapped`
+                : `${formatCount(heatmapCrashes!)} mapped`}
+        </div>
+      )}
+
+      {/* Bucket labels — hide when county heatmap active */}
+      {!countyActive && (
+        <div className={mobileExpanded ? "" : "hidden md:block"}>
+          {isLoading ? (
+            <div className="text-[10px] text-on-surface-variant mt-1 italic">
+              Loading data…
+            </div>
+          ) : bucketEdges ? (
+            <div className="flex justify-between text-[10px] text-on-surface-variant mt-1 font-mono">
+              {bucketEdges.map((e, i) => (
+                <span key={i}>{activeMeasure.formatLabel(e)}</span>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[10px] text-on-surface-variant mt-1 italic">
+              Pan or zoom out to compute scale
+            </div>
+          )}
+        </div>
+      )}
+
+      {!countyActive && activeMeasure.kind === "perCapita" && (dataSummary.missingDemoYears.length > 0 || dataSummary.partialDemoYears.length > 0) && (
+        <div role="alert" className="bg-red-500/15 rounded-md px-2 py-1.5 mt-1.5 text-[10px] text-red-600 dark:text-red-400 font-semibold">
+          {dataSummary.missingDemoYears.length > 0 && (
+            <div>No census data for {formatYearList(dataSummary.missingDemoYears)}</div>
+          )}
+          <button
+            className="block mt-1 underline"
+            onClick={() => setMeasure("crashes_raw")}
+          >
+            Switch to Total Crashes
+          </button>
+        </div>
+      )}
 
       <div className={mobileExpanded ? "" : "hidden md:block"}>
-      {!isLoading && dataSummary.totalCrashes > 0 && (
+      {!countyActive && !isLoading && dataSummary.totalCrashes > 0 && (
         <div data-testid="data-summary" className="text-[11px] sm:text-[10px] text-on-surface-variant mt-2 leading-snug">
           <span className="font-mono font-semibold">{formatCount(dataSummary.totalCrashes)}</span> crashes
 
@@ -196,22 +252,6 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             </div>
           )}
 
-          {activeMeasure.kind === "perCapita" && (dataSummary.missingDemoYears.length > 0 || dataSummary.partialDemoYears.length > 0) && (
-            <div role="alert" className="bg-surface-container-high/60 rounded-md px-2 py-1.5 mt-1.5">
-              {dataSummary.missingDemoYears.length > 0 && (
-                <div>No population data for {formatYearList(dataSummary.missingDemoYears)}</div>
-              )}
-              {dataSummary.partialDemoYears.length > 0 && (
-                <div>Partial population data for {formatYearList(dataSummary.partialDemoYears)}</div>
-              )}
-              <button
-                className="block mt-1 underline font-semibold"
-                onClick={() => setMeasure("crashes_raw")}
-              >
-                Switch to Total Crashes
-              </button>
-            </div>
-          )}
         </div>
       )}
 

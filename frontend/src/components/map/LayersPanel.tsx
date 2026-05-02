@@ -52,6 +52,11 @@ export default function LayersPanel() {
     return () => window.removeEventListener("layers:reset-defaults", handleReset);
   }, [reset]);
 
+  // At least one of choroplethOn / heatmapStatewide must always be active.
+  // If one is the sole active layer, its toggle is locked (can't be turned off).
+  const choroplethLocked = choroplethOn && !otherLayers.heatmapStatewide;
+  const heatmapStatewideL = !choroplethOn && otherLayers.heatmapStatewide;
+
   return (
     <div className="space-y-8 pb-32 px-0">
       {/* County Colors */}
@@ -64,12 +69,29 @@ export default function LayersPanel() {
             <span className={`text-sm font-medium ${choroplethOn ? "text-on-surface" : "text-on-surface-variant"}`}>
               Shade by Measure
             </span>
-            <Toggle enabled={choroplethOn} onToggle={() => {
-              const next = !choroplethOn;
-              setChoroplethOn(next);
-              if (next) setOtherLayer("heatmapStatewide", false);
-            }} />
+            <div className="relative">
+              <Toggle
+                enabled={choroplethOn}
+                onToggle={() => {
+                  if (choroplethLocked) return;
+                  const next = !choroplethOn;
+                  setChoroplethOn(next);
+                  if (next) setOtherLayer("heatmapStatewide", false);
+                }}
+              />
+              {choroplethLocked && (
+                <span
+                  title="At least one base layer must be active"
+                  className="absolute inset-0 cursor-not-allowed rounded-full"
+                />
+              )}
+            </div>
           </div>
+          {choroplethLocked && (
+            <p className="text-[10px] text-on-surface-variant/60 leading-tight pl-1 italic">
+              Enable Statewide Heatmap first to turn this off
+            </p>
+          )}
           {choroplethOn && (
             <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
               Colors each county by the selected measure below
@@ -88,12 +110,29 @@ export default function LayersPanel() {
             <span className={`text-sm font-medium ${otherLayers.heatmapStatewide ? "text-on-surface" : "text-on-surface-variant"}`}>
               Statewide
             </span>
-            <Toggle enabled={otherLayers.heatmapStatewide} onToggle={() => {
-              const next = !otherLayers.heatmapStatewide;
-              setOtherLayer("heatmapStatewide", next);
-              if (next) setChoroplethOn(false);
-            }} />
+            <div className="relative">
+              <Toggle
+                enabled={otherLayers.heatmapStatewide}
+                onToggle={() => {
+                  if (heatmapStatewideL) return;
+                  const next = !otherLayers.heatmapStatewide;
+                  setOtherLayer("heatmapStatewide", next);
+                  if (next) setChoroplethOn(false);
+                }}
+              />
+              {heatmapStatewideL && (
+                <span
+                  title="At least one base layer must be active"
+                  className="absolute inset-0 cursor-not-allowed rounded-full"
+                />
+              )}
+            </div>
           </div>
+          {heatmapStatewideL && (
+            <p className="text-[10px] text-on-surface-variant/60 leading-tight pl-1 italic">
+              Enable County Colors first to turn this off
+            </p>
+          )}
           {otherLayers.heatmapStatewide && (
             <div className="space-y-2 pl-1">
               <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
