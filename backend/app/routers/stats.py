@@ -8,16 +8,18 @@ from app.county_slug_map import get_slug_map
 from app.database import get_db
 from app.filters import (
     FilterError,
+    build_crash_predicates,
     parse_cause,
     parse_county_codes,
     parse_severity,
     parse_year,
 )
-from app.models import County
+from app.models import County, Crash
 from app.schemas.stats import (
     AgeBracketRow,
     CauseRow,
     CountyRow,
+    DayOfWeekRow,
     GenderRow,
     GrandTotal,
     HourRow,
@@ -109,6 +111,34 @@ mv_rates = Table(
 )
 
 
+mv_month = Table(
+    "mv_crashes_by_month", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("crash_month", SmallInteger),
+    Column("severity", String),
+    Column("canonical_cause", String),
+    Column("crash_count", Integer),
+    Column("total_killed", Integer),
+    Column("total_injured", Integer),
+)
+
+mv_rates = Table(
+    "mv_crash_rates", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("severity", String),
+    Column("total_crashes", Integer),
+    Column("total_killed", Integer),
+    Column("total_injured", Integer),
+    Column("per_100k_population", Float),
+    Column("per_10k_licensed_drivers", Float),
+    Column("per_100_road_miles", Float),
+    Column("per_100k_aadt", Float),
+    Column("per_10k_vehicles", Float),
+)
+
+
 def _pick_view(group_by: str | None, has_cause_filter: bool):
     if group_by == "hour":
         return mv_hour
@@ -142,7 +172,7 @@ def stats(
     distracted: str | None = Query(None),
     group_by: str | None = Query(
         None,
-        pattern="^(county|year|cause|hour|month|severity|gender|age_bracket|rate)$",
+        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|rate)$",
     ),
     db: Session = Depends(get_db),
 ):
@@ -314,6 +344,35 @@ def stats(
             ).model_dump()
             for r in rows
         ]
+
+    # --- group_by=day_of_week (queries crashes table directly, indexed column) ---
+    if group_by == "day_of_week":
+        stmt = (
+            select(
+                Crash.day_of_week_num.label("day_of_week"),
+                func.count().label("crash_count"),
+            )
+            .where(Crash.day_of_week_num.isnot(None))
+            .group_by(Crash.day_of_week_num)
+            .order_by(Crash.day_of_week_num)
+        )
+        preds = build_crash_predicates(
+            years=years,
+            county_codes=county_codes,
+            severities=severities,
+            causes=causes,
+        )
+        for pred in preds:
+            stmt = stmt.where(pred)
+        rows = db.execute(stmt).all()
+        return [
+            DayOfWeekRow(
+                day_of_week=r.day_of_week,
+                crash_count=r.crash_count,
+            ).model_dump()
+            for r in rows
+        ]
+
 
     # --- group_by=severity ---
     if group_by == "severity":

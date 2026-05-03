@@ -6,6 +6,7 @@ import {
   BarChart,
   Bar,
   XAxis,
+  YAxis,
   Tooltip,
   ResponsiveContainer,
   Cell,
@@ -13,7 +14,7 @@ import {
   Pie,
   LabelList,
 } from "recharts";
-import { useStats, type HourlyDataPoint, type YearlyDataPoint, type CauseDataPoint } from "../hooks/useStats";
+import { useStats, type HourlyDataPoint, type YearlyDataPoint, type CauseDataPoint, type MonthlyDataPoint, type DayOfWeekDataPoint } from "../hooks/useStats";
 import { useDataQualityDisclaimer } from "../hooks/useDataQualityDisclaimer";
 
 function DataQualityNote({ text }: { text: string }) {
@@ -68,6 +69,29 @@ function CauseTooltip({ active, payload }: { active?: boolean; payload?: { paylo
   );
 }
 
+function MonthTooltip({ active, payload }: { active?: boolean; payload?: { payload: MonthlyDataPoint }[] }) {
+  if (!active || !payload?.length) return null;
+  const { label, count, killed, injured } = payload[0].payload;
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+      <p className="font-headline font-bold text-on-surface">{label}</p>
+      <p className="text-on-surface-variant mt-0.5">{count.toLocaleString()} incidents</p>
+      <p className="text-on-surface-variant">{killed.toLocaleString()} killed · {injured.toLocaleString()} injured</p>
+    </div>
+  );
+}
+
+function DowTooltip({ active, payload }: { active?: boolean; payload?: { payload: DayOfWeekDataPoint }[] }) {
+  if (!active || !payload?.length) return null;
+  const { label, count } = payload[0].payload;
+  return (
+    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+      <p className="font-headline font-bold text-on-surface">{label}</p>
+      <p className="text-on-surface-variant mt-0.5">{count.toLocaleString()} incidents</p>
+    </div>
+  );
+}
+
 export default function StatsPage() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
   useEffect(() => {
@@ -108,8 +132,18 @@ export default function StatsPage() {
   const clrTertiary          = token("--tertiary");
 
   const causeColorMap: Record<string, string> = isDark
-    ? { "Other": "#8b8b9a", "Speeding": "#c27862", "Lane Change": "#6b8fa3", "DUI": "#a368a0", "Uncategorized": "#5c7b5c" }
-    : { "Other": "#78716c", "Speeding": "#b45309", "Lane Change": "#4a7a8c", "DUI": "#7e3794", "Uncategorized": "#4a7a52" };
+    ? {
+        "DUI": "#a368a0", "Speeding": "#c27862", "Lane Change": "#6b8fa3",
+        "Right of Way": "#7ba088", "Improper Turn": "#b89a6b", "Tailgating": "#8e7cc3",
+        "Signal Violation": "#c28a8a", "Pedestrian": "#6baab5", "Unsafe Backing": "#a0a06b",
+        "Other": "#8b8b9a", "Uncategorized": "#5c7b5c",
+      }
+    : {
+        "DUI": "#7e3794", "Speeding": "#b45309", "Lane Change": "#4a7a8c",
+        "Right of Way": "#3d7a5c", "Improper Turn": "#8a6d3b", "Tailgating": "#5b4fa0",
+        "Signal Violation": "#994444", "Pedestrian": "#2d7d8a", "Unsafe Backing": "#6b6b2e",
+        "Other": "#78716c", "Uncategorized": "#4a7a52",
+      };
 
   const severityColorMap: Record<string, string> = isDark
     ? { "Fatal": "#c25560", "Injury": "#b0a050", "Property Damage Only": "#6b8fa3" }
@@ -129,18 +163,24 @@ export default function StatsPage() {
   }
 
   // Build typed chips so each one knows how to remove itself.
-  // Collapse "all selected" into a single summary chip.
+  // "All X" chips open the filter panel instead of removing — they have no onRemove.
   const sortedYears = [...years].sort((a, b) => a - b);
-  type Chip = { label: string; onRemove: () => void };
+  type Chip = { label: string; onRemove?: () => void; onOpen?: () => void };
 
-  const yearChips: Chip[] = years.size === YEARS.length
-    ? [{ label: "All Years", onRemove: () => filters.clearYears() }]
+  const openFilters = () => setShowMobileFilters(true);
+
+  const countyChips: Chip[] = counties.size === 0
+    ? [{ label: "All Counties", onOpen: openFilters }]
+    : [...counties].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCounty(c) }));
+
+  const yearChips: Chip[] = years.size === 0 || years.size === YEARS.length
+    ? [{ label: years.size === 0 ? "All Years" : "All Years", onOpen: openFilters }]
     : sortedYears.length >= 3 && sortedYears.every((y, i) => i === 0 || y === sortedYears[i - 1] + 1)
       ? [{ label: `${sortedYears[0]}–${sortedYears[sortedYears.length - 1]}`, onRemove: () => filters.clearYears() }]
       : sortedYears.map((y) => ({ label: String(y), onRemove: () => filters.toggleYear(y) }));
 
-  const severityChips: Chip[] = severities.size === SEVERITIES.length
-    ? [{ label: "All Severities", onRemove: () => filters.clearSeverities() }]
+  const severityChips: Chip[] = severities.size === 0 || severities.size === SEVERITIES.length
+    ? [{ label: "All Severities", onOpen: openFilters }]
     : [...severities].map((s) => ({ label: s, onRemove: () => filters.toggleSeverity(s) }));
 
   // Display label lookup for cause values (URL slug → human label)
@@ -148,11 +188,17 @@ export default function StatsPage() {
     "dui": "DUI",
     "speeding": "Speeding",
     "lane-change": "Lane Change",
+    "right-of-way": "Right of Way",
+    "turning": "Improper Turn",
+    "following-too-close": "Tailgating",
+    "signal-violation": "Signal Violation",
+    "pedestrian-violation": "Pedestrian",
+    "unsafe-backing": "Unsafe Backing",
     "other": "Other",
   };
 
-  const causeChips: Chip[] = causes.size === CAUSE_OPTIONS.length
-    ? [{ label: "All Causes", onRemove: () => filters.clearCauses() }]
+  const causeChips: Chip[] = causes.size === 0 || causes.size === CAUSE_OPTIONS.length
+    ? [{ label: "All Causes", onOpen: openFilters }]
     : [...causes].sort().map((c) => ({ label: CAUSE_LABEL[c] ?? c, onRemove: () => filters.toggleCause(c) }));
 
   const involvementChips: Chip[] = [
@@ -161,7 +207,7 @@ export default function StatsPage() {
   ];
 
   const chips: Chip[] = [
-    ...[...counties].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCounty(c) })),
+    ...countyChips,
     ...yearChips,
     ...causeChips,
     ...severityChips,
@@ -174,6 +220,9 @@ export default function StatsPage() {
   const severityData   = data?.severityData   ?? [];
   const genderData     = data?.genderData     ?? [];
   const ageBracketData = data?.ageBracketData ?? [];
+  const monthlyData    = data?.monthlyData    ?? [];
+  const dayOfWeekData  = data?.dayOfWeekData  ?? [];
+  const rateData       = data?.rateData       ?? [];
   const heroMetrics    = data?.heroMetrics    ?? {};
 
   const { totalIncidents, incidentYoYPct, ksiRatePer100k, yoyFatalityChangePct } = heroMetrics;
@@ -189,6 +238,22 @@ export default function StatsPage() {
     ...d,
     pct: causeTotal > 0 ? Math.round((d.count / causeTotal) * 100) : 0,
   }));
+
+  const peakMonthIndex = monthlyData.length
+    ? monthlyData.reduce((maxIdx, d, i, arr) => (d.count > arr[maxIdx].count ? i : maxIdx), 0)
+    : 0;
+  const peakDowIndex = dayOfWeekData.length
+    ? dayOfWeekData.reduce((maxIdx, d, i, arr) => (d.count > arr[maxIdx].count ? i : maxIdx), 0)
+    : 0;
+
+  const sortedRateData = useMemo(() => {
+    if (!rateData.length) return [];
+    return [...rateData].sort((a, b) => {
+      if (a.county_name !== b.county_name) return a.county_name.localeCompare(b.county_name);
+      if (a.year !== b.year) return b.year - a.year;
+      return a.severity.localeCompare(b.severity);
+    });
+  }, [rateData]);
 
   const sevTotal    = severityData.reduce((sum, d) => sum + d.count, 0);
   const sevWithPct  = severityData.map((d) => ({
@@ -209,20 +274,32 @@ export default function StatsPage() {
           </span>
           <div className="flex items-center gap-2 flex-shrink-0">
             {chips.map((chip) => (
-              <span
-                key={chip.label}
-                className="inline-flex items-center gap-1 bg-surface-container-highest px-3 py-1 rounded-full text-xs font-medium text-on-surface whitespace-nowrap"
-              >
-                {chip.label}
-                <button
-                  type="button"
-                  aria-label={`Remove ${chip.label} filter`}
-                  onClick={chip.onRemove}
-                  className="hover:text-error transition-colors"
+              chip.onRemove ? (
+                <span
+                  key={chip.label}
+                  className="inline-flex items-center gap-1 bg-surface-container-highest px-3 py-1 rounded-full text-xs font-medium text-on-surface whitespace-nowrap"
                 >
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  {chip.label}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${chip.label} filter`}
+                    onClick={chip.onRemove}
+                    className="hover:text-error transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">close</span>
+                  </button>
+                </span>
+              ) : (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={chip.onOpen}
+                  className="inline-flex items-center gap-1 bg-surface-container-high px-3 py-1 rounded-full text-xs font-medium text-on-surface-variant whitespace-nowrap hover:text-on-surface transition-colors"
+                >
+                  {chip.label}
+                  <span className="material-symbols-outlined text-[14px]">tune</span>
                 </button>
-              </span>
+              )
             ))}
           </div>
         </div>
@@ -371,7 +448,7 @@ export default function StatsPage() {
             <div className="h-40 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
           ) : error ? (
             <div className="h-40 flex items-center justify-center text-error text-sm">Failed to load data.</div>
-          ) : (
+          ) : causesWithPct.length <= 5 ? (
             <>
               <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
                 <PieChart>
@@ -407,6 +484,26 @@ export default function StatsPage() {
                 ))}
               </div>
             </>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(200, causesWithPct.length * 32)}>
+              <BarChart data={[...causesWithPct].sort((a, b) => b.count - a.count)} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                <XAxis type="number" hide />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  width={100}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                />
+                <Tooltip content={<CauseTooltip />} cursor={{ fill: "rgba(87,95,107,0.06)" }} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={18}>
+                  {[...causesWithPct].sort((a, b) => b.count - a.count).map((c) => (
+                    <Cell key={c.label} fill={causeColor(c.label)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
 
@@ -415,10 +512,10 @@ export default function StatsPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
               <h3 className="text-on-surface font-headline font-bold text-xl leading-tight">
-                Incidents by Year ({yearlyData[0]?.year}-{yearlyData[yearlyData.length - 1]?.year})
+                Incidents by Year{yearlyData.length >= 2 ? ` (${yearlyData[0]?.year}–${yearlyData[yearlyData.length - 1]?.year})` : ""}
               </h3>
               <p className="text-on-surface-variant text-sm">
-                Longitudinal dataset showing historical trends
+                {yearlyData.length < 3 ? "Year-over-year summary" : "Longitudinal dataset showing historical trends"}
               </p>
             </div>
           </div>
@@ -426,6 +523,18 @@ export default function StatsPage() {
             <div className="h-64 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
           ) : error ? (
             <div className="h-64 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+          ) : yearlyData.length < 3 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {yearlyData.map((yr) => (
+                <div key={yr.year} className="bg-surface-container-low rounded-lg p-5">
+                  <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-3">{yr.year}</p>
+                  <p className="text-3xl font-headline font-bold text-on-surface tracking-tight">{yr.count.toLocaleString()}</p>
+                  <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold mt-2">
+                    {yr.killed.toLocaleString()} killed · {yr.injured.toLocaleString()} injured
+                  </p>
+                </div>
+              ))}
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 200 : 256}>
               <BarChart data={yearlyData} barCategoryGap="15%" margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
@@ -469,11 +578,103 @@ export default function StatsPage() {
               </BarChart>
             </ResponsiveContainer>
           )}
-          <p className="mt-6 text-[10px] text-on-surface-variant italic leading-relaxed">
-            * Note: 2018 data represents a statistically significant anomaly due
-            to regional reporting calibration. Data accuracy remains within 99.4%
-            confidence interval.
-          </p>
+          {yearlyData.length >= 3 && (
+            <p className="mt-6 text-[10px] text-on-surface-variant italic leading-relaxed">
+              * Note: 2018 data represents a statistically significant anomaly due
+              to regional reporting calibration. Data accuracy remains within 99.4%
+              confidence interval.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Temporal Patterns Grid */}
+      <section className="grid grid-cols-12 gap-4 md:gap-6">
+        {/* Monthly Seasonality */}
+        <div className="col-span-12 md:col-span-8 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h3 className="text-on-surface font-headline font-bold text-lg leading-tight">
+                Crashes by Month
+              </h3>
+              <p className="text-on-surface-variant text-xs font-medium">
+                Seasonal distribution across calendar year
+              </p>
+            </div>
+          </div>
+          {loading ? (
+            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+          ) : error ? (
+            <div className="h-48 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
+              <BarChart data={monthlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                />
+                <Tooltip content={<MonthTooltip />} cursor={{ fill: "rgba(87,95,107,0.06)" }} />
+                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                  {monthlyData.map((_, i) => (
+                    <Cell key={i} fill={i === peakMonthIndex ? clrPrimary : clrPrimaryContainer} />
+                  ))}
+                  <LabelList
+                    dataKey="count"
+                    position="top"
+                    content={(props) => {
+                      const { x, y, width, index } = props as { x: number; y: number; width: number; index: number };
+                      if (index !== peakMonthIndex) return null;
+                      return (
+                        <text
+                          x={Number(x) + Number(width) / 2}
+                          y={Number(y) - 4}
+                          textAnchor="middle"
+                          fill={clrPrimary}
+                          fontSize={8}
+                          fontWeight={700}
+                          fontFamily="Inter, sans-serif"
+                          letterSpacing={1}
+                        >
+                          PEAK
+                        </text>
+                      );
+                    }}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Day of Week */}
+        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
+          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
+            Day of Week
+          </h3>
+          {loading ? (
+            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+          ) : error ? (
+            <div className="h-48 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
+              <BarChart data={dayOfWeekData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                />
+                <Tooltip content={<DowTooltip />} cursor={{ fill: "rgba(87,95,107,0.06)" }} />
+                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                  {dayOfWeekData.map((_, i) => (
+                    <Cell key={i} fill={i === peakDowIndex ? clrPrimary : clrPrimaryContainer} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </section>
 
@@ -561,10 +762,12 @@ export default function StatsPage() {
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     const d = payload[0].payload as { label: string; count: number };
+                    const total = genderData.reduce((s, g) => s + g.count, 0);
+                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
                     return (
                       <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
                         <p className="font-headline font-bold text-on-surface">{d.label}</p>
-                        <p className="text-on-surface-variant mt-0.5">{d.count.toLocaleString()} victims</p>
+                        <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} victims</p>
                       </div>
                     );
                   }}
@@ -614,10 +817,12 @@ export default function StatsPage() {
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     const d = payload[0].payload as { label: string; count: number };
+                    const total = ageBracketData.reduce((s, a) => s + a.count, 0);
+                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
                     return (
                       <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
                         <p className="font-headline font-bold text-on-surface">{d.label}</p>
-                        <p className="text-on-surface-variant mt-0.5">{d.count.toLocaleString()} victims</p>
+                        <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} victims</p>
                       </div>
                     );
                   }}
@@ -629,6 +834,73 @@ export default function StatsPage() {
           )}
         </div>
       </section>
+
+      {/* Per-Capita Rates Table */}
+      {rateData.length > 0 && (
+        <section className="bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
+          <div className="mb-6">
+            <h3 className="text-on-surface font-headline font-bold text-xl leading-tight">
+              Per-Capita Crash Rates
+            </h3>
+            <p className="text-on-surface-variant text-sm mt-1">
+              Normalized rates for cross-county comparison
+            </p>
+          </div>
+          <div className="space-y-1">
+            {Object.entries(
+              sortedRateData.reduce<Record<string, typeof sortedRateData>>((acc, r) => {
+                (acc[r.county_name] ??= []).push(r);
+                return acc;
+              }, {}),
+            ).map(([county, rows]) => (
+              <details key={county} className="group">
+                <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none hover:bg-surface-container-low/40 rounded transition-colors">
+                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant transition-transform group-open:rotate-90">
+                    chevron_right
+                  </span>
+                  <span className="font-headline font-bold text-sm text-on-surface">{county}</span>
+                  <span className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
+                    {rows.length} {rows.length === 1 ? "row" : "rows"}
+                  </span>
+                </summary>
+                <div className="overflow-x-auto ml-6 mb-2">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-on-surface-variant uppercase tracking-widest font-semibold">
+                        <th className="px-3 py-1.5">Year</th>
+                        <th className="px-3 py-1.5">Severity</th>
+                        <th className="px-3 py-1.5">Crashes</th>
+                        <th className="px-3 py-1.5">Per 100K Pop</th>
+                        <th className="px-3 py-1.5">Per 10K Drivers</th>
+                        <th className="px-3 py-1.5">Per 100 Mi</th>
+                        <th className="px-3 py-1.5">Per 100K AADT</th>
+                        <th className="px-3 py-1.5">Per 10K Vehicles</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r, i) => (
+                        <tr
+                          key={`${r.year}-${r.severity}`}
+                          className={i % 2 === 0 ? "bg-surface-container-lowest" : "bg-surface-container-low/40"}
+                        >
+                          <td className="px-3 py-1.5 text-on-surface-variant">{r.year}</td>
+                          <td className="px-3 py-1.5 text-on-surface-variant">{r.severity}</td>
+                          <td className="px-3 py-1.5 text-on-surface font-bold">{r.total_crashes.toLocaleString()}</td>
+                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_100k_population?.toFixed(1) ?? "—"}</td>
+                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_10k_licensed_drivers?.toFixed(1) ?? "—"}</td>
+                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_100_road_miles?.toFixed(1) ?? "—"}</td>
+                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_100k_aadt?.toFixed(1) ?? "—"}</td>
+                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_10k_vehicles?.toFixed(1) ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Methodology Footer */}
       <section className="border-t border-outline-variant/15 pt-12 pb-16 opacity-60 hover:opacity-100 transition-opacity">

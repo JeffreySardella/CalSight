@@ -68,6 +68,12 @@ class MonthRow(BaseModel):
     total_injured: int
 
 
+class DayOfWeekRow(BaseModel):
+    day_of_week: int
+    crash_count: int
+
+
+
 class RateRow(BaseModel):
     county_code: int
     county_name: str | None = None
