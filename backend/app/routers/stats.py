@@ -83,7 +83,6 @@ mv_victims = Table(
     Column("fatal_victim_count", Integer),
 )
 
-
 mv_month = Table(
     "mv_crashes_by_month", _metadata,
     Column("county_code", SmallInteger),
@@ -345,6 +344,7 @@ def stats(
             ).model_dump()
             for r in rows
         ]
+
 
     # --- group_by=severity ---
     if group_by == "severity":

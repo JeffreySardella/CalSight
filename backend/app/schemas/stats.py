@@ -61,7 +61,6 @@ class AgeBracketRow(BaseModel):
     fatal_victim_count: int
 
 
-
 class MonthRow(BaseModel):
     month: int
     crash_count: int
@@ -72,6 +71,7 @@ class MonthRow(BaseModel):
 class DayOfWeekRow(BaseModel):
     day_of_week: int
     crash_count: int
+
 
 
 class RateRow(BaseModel):
