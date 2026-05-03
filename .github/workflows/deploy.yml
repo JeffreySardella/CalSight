@@ -46,3 +46,17 @@ jobs:
           echo "Backend failed to start — showing logs:"
           docker compose -f docker-compose.prod.yml logs --tail=50 backend
           exit 1
+
+      - name: Notify Discord
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then
+            MESSAGE="CalSight deployed successfully!"
+          else
+            MESSAGE="CalSight deployment FAILED (status: $STATUS)"
+          fi
+          curl -s -o /dev/null -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d "{\"content\": \"$MESSAGE\"}" \
+            "${{ secrets.DISCORD_WEBHOOK_URL }}"
