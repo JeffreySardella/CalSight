@@ -8,16 +8,18 @@ from app.county_slug_map import get_slug_map
 from app.database import get_db
 from app.filters import (
     FilterError,
+    build_crash_predicates,
     parse_cause,
     parse_county_codes,
     parse_severity,
     parse_year,
 )
-from app.models import County
+from app.models import County, Crash
 from app.schemas.stats import (
     AgeBracketRow,
     CauseRow,
     CountyRow,
+    DayOfWeekRow,
     GenderRow,
     GrandTotal,
     HourRow,
@@ -80,6 +82,34 @@ mv_victims = Table(
     Column("victim_count", Integer),
     Column("fatal_victim_count", Integer),
 )
+
+mv_month = Table(
+    "mv_crashes_by_month", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("crash_month", SmallInteger),
+    Column("severity", String),
+    Column("canonical_cause", String),
+    Column("crash_count", Integer),
+    Column("total_killed", Integer),
+    Column("total_injured", Integer),
+)
+
+mv_rates = Table(
+    "mv_crash_rates", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("severity", String),
+    Column("total_crashes", Integer),
+    Column("total_killed", Integer),
+    Column("total_injured", Integer),
+    Column("per_100k_population", Float),
+    Column("per_10k_licensed_drivers", Float),
+    Column("per_100_road_miles", Float),
+    Column("per_100k_aadt", Float),
+    Column("per_10k_vehicles", Float),
+)
+
 
 mv_month = Table(
     "mv_crashes_by_month", _metadata,
