@@ -11,7 +11,7 @@ export type StatsFilters = {
 };
 
 export interface HourlyDataPoint { hour: number; count: number }
-export interface YearlyDataPoint { year: number; count: number }
+export interface YearlyDataPoint { year: number; count: number; killed: number; injured: number }
 export interface CauseDataPoint { label: string; count: number }
 export interface SeverityDataPoint { label: string; count: number }
 export interface GenderDataPoint { label: string; count: number }
@@ -22,6 +22,15 @@ export interface HeroMetrics {
   ksiRatePer100k?: number;
   yoyFatalityChangePct?: number;
 }
+export interface MonthlyDataPoint { month: number; label: string; count: number; killed: number; injured: number }
+export interface DayOfWeekDataPoint { day: number; label: string; count: number }
+export interface RateDataPoint {
+  county_code: number; county_name: string; year: number; severity: string;
+  total_crashes: number; total_killed: number; total_injured: number;
+  per_100k_population: number | null; per_10k_licensed_drivers: number | null;
+  per_100_road_miles: number | null; per_100k_aadt: number | null;
+  per_10k_vehicles: number | null;
+}
 
 export interface StatsData {
   hourlyData: HourlyDataPoint[];
@@ -30,6 +39,9 @@ export interface StatsData {
   severityData: SeverityDataPoint[];
   genderData: GenderDataPoint[];
   ageBracketData: AgeBracketDataPoint[];
+  monthlyData: MonthlyDataPoint[];
+  dayOfWeekData: DayOfWeekDataPoint[];
+  rateData: RateDataPoint[];
   heroMetrics: HeroMetrics;
 }
 
@@ -46,11 +58,25 @@ type SeverityRow = { severity: string; crash_count: number; total_killed: number
 type GenderRow = { gender: string; victim_count: number; fatal_victim_count: number };
 type AgeBracketRow = { age_bracket: string; victim_count: number; fatal_victim_count: number };
 type DemoRow = { county_code: number; year: number; population: number | null };
+type MonthRow = { month: number; crash_count: number; total_killed: number; total_injured: number };
+type DayOfWeekRow = { day_of_week: number; crash_count: number };
+type RateRow = {
+  county_code: number; county_name: string | null; year: number; severity: string;
+  total_crashes: number; total_killed: number; total_injured: number;
+  per_100k_population: number | null; per_10k_licensed_drivers: number | null;
+  per_100_road_miles: number | null; per_100k_aadt: number | null; per_10k_vehicles: number | null;
+};
 
 const CAUSE_LABEL: Record<string, string> = {
   dui: "DUI",
   speeding: "Speeding",
   lane_change: "Lane Change",
+  right_of_way: "Right of Way",
+  turning: "Improper Turn",
+  following_too_close: "Tailgating",
+  signal_violation: "Signal Violation",
+  pedestrian_violation: "Pedestrian",
+  unsafe_backing: "Unsafe Backing",
   other: "Other",
   uncategorized: "Uncategorized",
 };
@@ -65,6 +91,9 @@ const AGE_LABEL: Record<string, string> = {
 };
 
 const AGE_ORDER = ["under_18", "18_24", "25_44", "45_64", "over_65", "unknown"];
+
+const MONTH_LABEL = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DOW_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function severityToSlug(s: string): string {
   return s.toLowerCase().replace(/ /g, "-");
@@ -174,10 +203,22 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
         queryKey: ["stats", "age_bracket", { years: filters.years, severities: filters.severities, counties: filters.counties }],
         queryFn: () => fetchJson<AgeBracketRow[]>(buildVictimUrl("age_bracket", filters)),
       },
+      {
+        queryKey: ["stats", "month", filters],
+        queryFn: () => fetchJson<MonthRow[]>(buildUrl("month", filters)),
+      },
+      {
+        queryKey: ["stats", "day_of_week", filters],
+        queryFn: () => fetchJson<DayOfWeekRow[]>(buildUrl("day_of_week", filters)),
+      },
+      {
+        queryKey: ["stats", "rate", { years: filters.years, counties: filters.counties, severities: filters.severities }],
+        queryFn: () => fetchJson<RateRow[]>(buildUrl("rate", filters)),
+      },
     ],
   });
 
-  const [yearQ, hourQ, causeQ, demoQ, severityQ, genderQ, ageQ] = queries;
+  const [yearQ, hourQ, causeQ, demoQ, severityQ, genderQ, ageQ, monthQ, dowQ, rateQ] = queries;
   const loading = yearQ.isLoading || hourQ.isLoading || causeQ.isLoading;
   const rawError = yearQ.error ?? hourQ.error ?? causeQ.error;
 
@@ -187,6 +228,8 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     const yearlyData: YearlyDataPoint[] = yearQ.data.map((r) => ({
       year: r.year,
       count: r.crash_count,
+      killed: r.total_killed,
+      injured: r.total_injured,
     }));
 
     const hourlyData: HourlyDataPoint[] = hourQ.data.map((r) => ({
@@ -219,13 +262,42 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
         count: r.victim_count,
       }));
 
+    const monthlyData: MonthlyDataPoint[] = (monthQ.data ?? []).map((r) => ({
+      month: r.month,
+      label: MONTH_LABEL[r.month - 1] ?? String(r.month),
+      count: r.crash_count,
+      killed: r.total_killed,
+      injured: r.total_injured,
+    }));
+
+    const dayOfWeekData: DayOfWeekDataPoint[] = (dowQ.data ?? []).map((r) => ({
+      day: r.day_of_week,
+      label: DOW_LABEL[r.day_of_week] ?? String(r.day_of_week),
+      count: r.crash_count,
+    }));
+
+    const rateData: RateDataPoint[] = (rateQ.data ?? []).map((r) => ({
+      county_code: r.county_code,
+      county_name: r.county_name ?? "Unknown",
+      year: r.year,
+      severity: r.severity,
+      total_crashes: r.total_crashes,
+      total_killed: r.total_killed,
+      total_injured: r.total_injured,
+      per_100k_population: r.per_100k_population,
+      per_10k_licensed_drivers: r.per_10k_licensed_drivers,
+      per_100_road_miles: r.per_100_road_miles,
+      per_100k_aadt: r.per_100k_aadt,
+      per_10k_vehicles: r.per_10k_vehicles,
+    }));
+
     const population = demoQ.data
       ? demoQ.data.reduce((s, r) => s + (r.population ?? 0), 0)
       : null;
     const heroMetrics = computeHeroMetrics(yearQ.data, population);
 
-    return { hourlyData, yearlyData, causesData, severityData, genderData, ageBracketData, heroMetrics };
-  }, [yearQ.data, hourQ.data, causeQ.data, demoQ.data, severityQ.data, genderQ.data, ageQ.data]);
+    return { hourlyData, yearlyData, causesData, severityData, genderData, ageBracketData, monthlyData, dayOfWeekData, rateData, heroMetrics };
+  }, [yearQ.data, hourQ.data, causeQ.data, demoQ.data, severityQ.data, genderQ.data, ageQ.data, monthQ.data, dowQ.data, rateQ.data]);
 
   return {
     data,
