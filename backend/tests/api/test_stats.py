@@ -189,7 +189,6 @@ def test_stats_group_by_rate_with_county_filter(client):
 def test_stats_group_by_rate_la_2023_has_rates(client):
     """LA 2023 has all denominator data seeded — rates should be non-null."""
     response = client.get("/api/stats?group_by=rate&county=los-angeles&year=2023")
-    body = response.json()
     assert response.status_code == 200
 
 
