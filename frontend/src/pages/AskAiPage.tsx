@@ -1,251 +1,223 @@
+import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAskAi } from "../hooks/useAskAi";
+import { useFilterParams } from "../hooks/useFilterParams";
+import ChatMessage from "../components/ask/ChatMessage";
+import SuggestionChips from "../components/ask/SuggestionChips";
+import ThinkingIndicator from "../components/ask/ThinkingIndicator";
+
 const guidedTopics = [
-  {
-    icon: "speed",
-    title: "Velocity Impact",
-    question:
-      "\u201CWhat is the average speed in fatal pedestrian collisions?\u201D",
-  },
-  {
-    icon: "schedule",
-    title: "Temporal Trends",
-    question:
-      "\u201CWhich day of the week has the lowest accident rate?\u201D",
-  },
-  {
-    icon: "visibility",
-    title: "Visibility Analysis",
-    question:
-      "\u201CHow did fog affect Bay Area crashes last winter?\u201D",
-  },
-  {
-    icon: "pedal_bike",
-    title: "Active Transport",
-    question:
-      "\u201CList bicycle collision hotspots in Santa Clara County.\u201D",
-  },
+  { icon: "schedule", title: "Temporal Trends", question: "Which day of the week has the most crashes statewide?" },
+  { icon: "local_bar", title: "DUI Analysis", question: "How does Kern County's DUI rate compare to the state average?" },
+  { icon: "trending_up", title: "Year-over-Year", question: "How have fatal crashes trended in Los Angeles since 2016?" },
+  { icon: "pedal_bike", title: "Vulnerable Road Users", question: "Which county has the highest pedestrian fatality rate?" },
 ] as const;
 
 const communityInquiries = [
-  "Comparison of drunk driving incidents: 2022 vs 2023",
-  "Heatmap of school zone violations in Orange County",
-  "Effectiveness of new roundabout intersections in Fresno",
-  "Most dangerous highway exits in San Francisco",
-  "Top causes of multi-vehicle pileups in Central Valley",
+  "Compare DUI crash rates between LA, Orange, and San Diego counties",
+  "What time of day do most fatal crashes happen statewide?",
+  "How did COVID affect crash rates statewide?",
+  "Which counties have the worst hit-and-run rates?",
+  "What's the relationship between poverty rate and crash fatalities?",
 ] as const;
-
-import { useState } from "react";
 
 export default function AskAiPage() {
   const [inputValue, setInputValue] = useState("");
-  return (
-    <div className="max-w-[840px] mx-auto px-6 pt-32 pb-24 min-h-screen">
-      
-      {/* Header */}
-      <section className="mb-12 text-center md:text-left">
-        <h1 className="font-headline text-4xl md:text-5xl font-extrabold tracking-tighter text-on-surface mb-2">
-          Ask AI
-        </h1>
-        <div className="mb-4 inline-block">
-          <span className="inline-block bg-tertiary-container text-on-tertiary-container text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full">
-            Coming Soon
-          </span>
-        </div>
-        <p className="text-on-surface-variant text-lg max-w-2xl font-light">
-          Synthesize complex California traffic safety data into clear,
-          actionable insights through natural language processing.
-        </p>
-      </section>
+  const { messages, isLoading, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
+  const { selectedCounties, selectedYears, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted } = useFilterParams();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
-      {/* Search Input */}
-      <section className="mb-12">
+  const hasMessages = messages.length > 0;
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((cooldownEnd - Date.now()) / 1000));
+      setCooldownRemaining(remaining);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [cooldownEnd]);
+
+  const handleSend = () => {
+    if (!inputValue.trim() || isLoading || cooldownRemaining > 0) return;
+    sendMessage(inputValue);
+    setInputValue("");
+  };
+
+  const handleSuggestionClick = (question: string) => {
+    setInputValue(question);
+    inputRef.current?.focus();
+  };
+
+  const filterSummary = (() => {
+    const parts: string[] = [];
+    if (selectedCounties.size > 0) parts.push([...selectedCounties].join(", "));
+    if (selectedYears.size > 0) {
+      const years = [...selectedYears].sort();
+      parts.push(years.length > 3 ? `${years[0]}-${years[years.length - 1]}` : years.join(", "));
+    }
+    if (selectedSeverities.size > 0) parts.push([...selectedSeverities].join(", "));
+    if (selectedCauses.size > 0) parts.push([...selectedCauses].join(", "));
+    if (selectedAlcohol) parts.push("Alcohol involved");
+    if (selectedDistracted) parts.push("Distraction involved");
+    return parts.length > 0 ? parts.join(" | ") : "All California data";
+  })();
+
+  return (
+    <div className="max-w-[840px] mx-auto px-4 md:px-6 pt-8 pb-4 min-h-[calc(100vh-8rem)] flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="font-headline text-2xl font-extrabold tracking-tighter text-on-surface">
+            Ask AI
+          </h1>
+          <p className="text-xs text-on-surface-variant">
+            Answering with: {filterSummary}
+          </p>
+        </div>
+        {hasMessages && (
+          <button
+            type="button"
+            onClick={clearConversation}
+            className="text-xs text-on-surface-variant hover:text-on-surface flex items-center gap-1 transition-colors"
+          >
+            <span className="material-symbols-outlined text-sm">delete</span>
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto mb-4" role="log" aria-label="AI conversation">
+        {!hasMessages ? (
+          <>
+            <section className="mb-8">
+              <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-4">
+                Explore Topics
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {guidedTopics.map((topic) => (
+                  <button
+                    key={topic.title}
+                    type="button"
+                    onClick={() => handleSuggestionClick(topic.question)}
+                    className="p-4 rounded-xl bg-surface-container-lowest hover:bg-surface-container transition-colors text-left group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">
+                        {topic.icon}
+                      </span>
+                      <div>
+                        <h4 className="font-bold text-sm text-on-surface mb-0.5">{topic.title}</h4>
+                        <p className="text-xs text-on-surface-variant">{topic.question}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-4">
+                Popular Questions
+              </h3>
+              <ul className="space-y-1">
+                {communityInquiries.map((q) => (
+                  <li key={q}>
+                    <button
+                      type="button"
+                      onClick={() => handleSuggestionClick(q)}
+                      className="w-full text-left flex items-center gap-3 p-3 rounded-md hover:bg-surface-container-high transition-all group"
+                    >
+                      <span className="material-symbols-outlined text-sm text-primary/40 group-hover:text-primary">
+                        lightbulb
+                      </span>
+                      <span className="text-sm text-on-surface">{q}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
+        ) : (
+          <>
+            {messages.map((msg, i) => (
+              <div key={msg.timestamp + "-" + i}>
+                <ChatMessage message={msg} />
+                {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && i === messages.length - 1 && (
+                  <SuggestionChips suggestions={msg.suggestions} onSelect={handleSuggestionClick} />
+                )}
+              </div>
+            ))}
+            {isLoading && <ThinkingIndicator />}
+            {error && (
+              <div className="flex justify-start mb-4">
+                <div className="bg-error-container text-on-error-container rounded-xl px-4 py-3 text-sm max-w-[85%] flex items-center gap-3">
+                  <span>{error}</span>
+                  <button
+                    type="button"
+                    onClick={retry}
+                    className="bg-error text-on-error px-3 py-1 rounded-md text-xs font-medium hover:opacity-90 transition-opacity whitespace-nowrap"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </div>
+
+      <div className="sticky bottom-0 pb-2">
         <div className="relative flex items-center bg-surface-container-high rounded-xl p-2 group transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/20">
-          <span className="material-symbols-outlined ml-4 text-on-surface-variant">
+          <span className="material-symbols-outlined ml-3 text-on-surface-variant">
             auto_awesome
           </span>
           <input
+            ref={inputRef}
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            className="w-full bg-transparent border-none focus:ring-0 px-4 py-3 text-on-surface placeholder:text-outline font-body text-lg"
-            placeholder="Ask a question about California crash data..."
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            className="w-full bg-transparent border-none focus:ring-0 px-3 py-2.5 text-on-surface placeholder:text-outline font-body text-sm"
+            placeholder="Ask about California crash data..."
+            aria-label="Ask a question about California crash data"
+            disabled={isLoading}
+            maxLength={500}
           />
+          {inputValue.length > 400 && (
+            <span className="text-[10px] text-on-surface-variant mr-2">{inputValue.length}/500</span>
+          )}
           <button
             type="button"
-            onClick={() => {
-              if (inputValue.trim()) {
-                console.log("Analyzing:", inputValue);
-                alert(`Analyzing: ${inputValue}`);
-              }
-            }}
-            className="bg-primary text-on-primary px-6 py-3 rounded-lg flex items-center gap-2 hover:opacity-95 transition-all active:scale-[0.98]"
+            onClick={handleSend}
+            disabled={!inputValue.trim() || isLoading || cooldownRemaining > 0}
+            className="bg-primary text-on-primary px-4 py-2.5 rounded-lg flex items-center gap-1.5 hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
           >
-            <span className="font-medium">Analyze</span>
-            <span className="material-symbols-outlined text-sm">send</span>
+            {cooldownRemaining > 0 ? (
+              <span>{cooldownRemaining}s</span>
+            ) : (
+              <>
+                <span className="font-medium">Send</span>
+                <span className="material-symbols-outlined text-sm">send</span>
+              </>
+            )}
           </button>
         </div>
-      </section>
-
-      {/* AI Response Area */}
-      <section className="mb-16">
-        <div className="bg-surface-container-lowest rounded-xl p-8 ghost-border ambient-shadow">
-          {/* Badge row */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="bg-tertiary-container text-on-tertiary-container px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
-              AI Insight
-            </span>
-            <div className="h-[1px] flex-grow bg-outline-variant/10" />
-          </div>
-
-          {/* Content */}
-          <div className="mb-8">
-            <h2 className="font-headline text-2xl font-bold text-on-surface mb-6">
-              Regional Crash Analysis: 2023 Trends
-            </h2>
-            <p className="text-on-surface-variant leading-relaxed mb-8">
-              Based on the SWITRS dataset, urban areas in California saw a 4.2%
-              shift in high-velocity collisions. Here is the breakdown of the
-              most impacted regions:
-            </p>
-
-            {/* Metric Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* #1 Los Angeles */}
-              <div className="bg-surface-container p-5 rounded-lg">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1 block">
-                  #1 Los Angeles
-                </span>
-                <div className="font-headline text-3xl font-extrabold text-on-surface">
-                  1,402
-                </div>
-                <span className="text-xs text-error font-medium flex items-center mt-1">
-                  <span className="material-symbols-outlined text-sm">
-                    trending_up
-                  </span>{" "}
-                  +2.1%
-                </span>
-              </div>
-
-              {/* #2 San Diego */}
-              <div className="bg-surface-container-low p-5 rounded-lg">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1 block">
-                  #2 San Diego
-                </span>
-                <div className="font-headline text-3xl font-extrabold text-on-surface">
-                  894
-                </div>
-                <span className="text-xs text-on-surface-variant font-medium flex items-center mt-1">
-                  <span className="material-symbols-outlined text-sm">
-                    horizontal_rule
-                  </span>{" "}
-                  0.0%
-                </span>
-              </div>
-
-              {/* #3 Sacramento */}
-              <div className="bg-surface-container-low p-5 rounded-lg">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1 block">
-                  #3 Sacramento
-                </span>
-                <div className="font-headline text-3xl font-extrabold text-on-surface">
-                  621
-                </div>
-                <span className="text-xs text-secondary font-medium flex items-center mt-1">
-                  <span className="material-symbols-outlined text-sm">
-                    trending_down
-                  </span>{" "}
-                  -1.4%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              className="bg-primary-container text-on-primary-container px-5 py-2.5 rounded-md text-sm font-semibold flex items-center gap-2 hover:bg-primary-container/80 transition-all"
-            >
-              <span className="material-symbols-outlined text-sm">map</span>
-              View on Map
-            </button>
-            <button
-              type="button"
-              className="bg-surface-container-high text-on-surface px-5 py-2.5 rounded-md text-sm font-semibold hover:bg-surface-container-highest transition-all"
-            >
-              Ask Another Question
-            </button>
-          </div>
+        <div className="flex items-center justify-between mt-2 px-2">
+          <p className="text-[10px] text-on-surface-variant/50">
+            Your questions are processed by third-party AI providers.{" "}
+            <Link to="/privacy" className="underline hover:text-on-surface-variant">Privacy Policy</Link>
+          </p>
+          <p className="text-[10px] text-on-surface-variant/50 italic">
+            AI can hallucinate — verify critical data.
+          </p>
         </div>
-      </section>
-
-      {/* Guided Topics */}
-      <section className="mb-16">
-        <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-6">
-          Explore Guided Topics
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {guidedTopics.map((topic) => (
-            <div
-              key={topic.title}
-              onClick={() => setInputValue(topic.question.replace(/\u201C|\u201D/g, ""))}
-              className="p-6 rounded-xl bg-surface-container-lowest hover:bg-surface-container transition-colors cursor-pointer group"
-            >
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-surface-container-high rounded-lg text-on-surface-variant group-hover:bg-primary group-hover:text-on-primary transition-all">
-                  <span className="material-symbols-outlined">
-                    {topic.icon}
-                  </span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-on-surface mb-1">
-                    {topic.title}
-                  </h4>
-                  <p className="text-sm text-on-surface-variant">
-                    {topic.question}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Frequently Asked / Community Inquiries */}
-      <section className="mb-16">
-        <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-6">
-          Recent Community Inquiries
-        </h3>
-        <ul className="space-y-1">
-          {communityInquiries.map((question) => (
-            <li
-              key={question}
-              onClick={() => setInputValue(question)}
-              className="group flex items-center justify-between p-4 rounded-md hover:bg-surface-container-high transition-all cursor-pointer"
-            >
-              <div className="flex items-center gap-4">
-                <span className="material-symbols-outlined text-primary/40 group-hover:text-primary transition-colors">
-                  lightbulb
-                </span>
-                <span className="text-on-surface text-sm font-medium">
-                  {question}
-                </span>
-              </div>
-              <span className="material-symbols-outlined text-outline-variant opacity-0 group-hover:opacity-100 transition-opacity">
-                chevron_right
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Disclaimer */}
-      <footer className="text-center pt-8 border-t border-outline-variant/10">
-        <p className="text-[11px] text-on-surface-variant/60 italic font-body tracking-tight">
-          Disclaimer: CalSight AI outputs are generated through large language
-          models using public state datasets. AI can hallucinate; please verify
-          critical data with official CHP and Caltrans publications.
-        </p>
-      </footer>
+      </div>
     </div>
   );
 }

@@ -33,6 +33,12 @@ jobs:
       - name: Build and restart backend
         run: docker compose -f docker-compose.prod.yml up --build -d
 
+      - name: Run database migrations
+        run: docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+
+      - name: Refresh materialized views
+        run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.refresh_materialized_views
+
       - name: Verify backend is healthy
         run: |
           for i in 1 2 3 4 5; do

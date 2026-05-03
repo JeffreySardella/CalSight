@@ -18,6 +18,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from slowapi import Limiter, _rate_limit_exceeded_handler  # noqa: E402
+from slowapi.errors import RateLimitExceeded  # noqa: E402
+from slowapi.util import get_remote_address  # noqa: E402
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.exception_handler(FilterError)
 async def filter_error_handler(request: Request, exc: FilterError):
@@ -36,11 +44,24 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
+from app.llm import AllProvidersExhausted  # noqa: E402
+
+
+@app.exception_handler(AllProvidersExhausted)
+async def all_providers_exhausted_handler(request: Request, exc: AllProvidersExhausted):
+    return JSONResponse(
+        status_code=503,
+        content={"error": "ai_busy", "message": "All AI providers are temporarily busy. Please try again in a few minutes.", "retry_after": 60},
+        headers={"Retry-After": "60"},
+    )
+
+
 from app.routers.context import router as context_router  # noqa: E402
 from app.routers.crash_people import router as crash_people_router  # noqa: E402
 from app.routers.crashes import router as crashes_router  # noqa: E402
 from app.routers.demographics import router as demographics_router  # noqa: E402
 from app.routers.heatmap import router as heatmap_router  # noqa: E402
+from app.routers.ask import router as ask_router  # noqa: E402
 from app.routers.insights import router as insights_router  # noqa: E402
 from app.routers.meta import router as meta_router  # noqa: E402
 from app.routers.reference import router as reference_router  # noqa: E402
@@ -55,6 +76,7 @@ app.include_router(heatmap_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
 app.include_router(meta_router, prefix="/api")
 app.include_router(insights_router, prefix="/api")
+app.include_router(ask_router, prefix="/api")
 
 
 @app.get("/api/health")

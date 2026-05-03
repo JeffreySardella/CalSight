@@ -7,6 +7,7 @@ import SettingsPopover from "./SettingsPopover";
 const navLinks = [
   { to: "/", label: "Map" },
   { to: "/stats", label: "Stats" },
+  { to: "/ask", label: "Ask AI" },
   { to: "/about", label: "About" },
 ];
 

@@ -115,6 +115,9 @@ class Crash(Base):
     # EXTRACT(year FROM crash_datetime) on 11M rows.
     crash_year = Column(SmallInteger)
 
+    crash_month = Column(SmallInteger)
+    day_of_week_num = Column(SmallInteger)
+
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (
