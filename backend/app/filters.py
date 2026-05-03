@@ -88,7 +88,13 @@ _SEVERITY_SLUG_TO_DB = {
 _CAUSE_SLUG_TO_DB = {
     "dui": "dui",
     "speeding": "speeding",
-    "lane-change": "lane_change",  # cosmetic hyphen -> underscore
+    "lane-change": "lane_change",
+    "right-of-way": "right_of_way",
+    "turning": "turning",
+    "following-too-close": "following_too_close",
+    "signal-violation": "signal_violation",
+    "pedestrian-violation": "pedestrian_violation",
+    "unsafe-backing": "unsafe_backing",
     "other": "other",
 }
 

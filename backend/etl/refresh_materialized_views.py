@@ -5,6 +5,8 @@ Views and the migrations that defined them:
   - mv_crashes_by_cause                    (f3d4e5f6a7b8)
   - mv_crashes_by_year                     (f3d4e5f6a7b8)
   - mv_crash_victims_by_demographics       (b5e9d3f1c8a4) — gender / age
+  - mv_crashes_by_month                    (g4h5i6j7k8l9) — seasonality
+  - mv_crash_rates                         (g4h5i6j7k8l9) — per-capita rates
 
 They were created WITH NO DATA — the first run of this module populates
 them. Subsequent runs do a CONCURRENTLY refresh (doesn't block reads)
@@ -34,10 +36,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _VIEWS = [
-    "mv_crashes_by_year",                  # smallest first, quick sanity check
+    "mv_crashes_by_year",
     "mv_crashes_by_cause",
-    "mv_crashes_by_hour",                  # largest of the crash MVs
-    "mv_crash_victims_by_demographics",    # JOIN-based, ~140K rows
+    "mv_crashes_by_hour",
+    "mv_crashes_by_month",
+    "mv_crash_victims_by_demographics",
+    "mv_crash_rates",
 ]
 
 

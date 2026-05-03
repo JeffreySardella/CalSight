@@ -1,7 +1,7 @@
 """Aggregate crash stats, dispatched to the right materialized view."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import Column, Integer, MetaData, SmallInteger, String, Table, func, select
+from sqlalchemy import Column, Float, Integer, MetaData, SmallInteger, String, Table, func, select
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
@@ -21,6 +21,8 @@ from app.schemas.stats import (
     GenderRow,
     GrandTotal,
     HourRow,
+    MonthRow,
+    RateRow,
     SeverityRow,
     YearRow,
 )
@@ -79,10 +81,39 @@ mv_victims = Table(
     Column("fatal_victim_count", Integer),
 )
 
+mv_month = Table(
+    "mv_crashes_by_month", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("crash_month", SmallInteger),
+    Column("severity", String),
+    Column("canonical_cause", String),
+    Column("crash_count", Integer),
+    Column("total_killed", Integer),
+    Column("total_injured", Integer),
+)
+
+mv_rates = Table(
+    "mv_crash_rates", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("severity", String),
+    Column("total_crashes", Integer),
+    Column("total_killed", Integer),
+    Column("total_injured", Integer),
+    Column("per_100k_population", Float),
+    Column("per_10k_licensed_drivers", Float),
+    Column("per_100_road_miles", Float),
+    Column("per_100k_aadt", Float),
+    Column("per_10k_vehicles", Float),
+)
+
 
 def _pick_view(group_by: str | None, has_cause_filter: bool):
     if group_by == "hour":
         return mv_hour
+    if group_by == "month":
+        return mv_month
     if group_by == "cause" or has_cause_filter:
         return mv_cause
     return mv_year
@@ -111,7 +142,7 @@ def stats(
     distracted: str | None = Query(None),
     group_by: str | None = Query(
         None,
-        pattern="^(county|year|cause|hour|severity|gender|age_bracket)$",
+        pattern="^(county|year|cause|hour|month|severity|gender|age_bracket|rate)$",
     ),
     db: Session = Depends(get_db),
 ):
@@ -260,6 +291,30 @@ def stats(
         rows = db.execute(stmt).all()
         return [HourRow(hour=r.hour, crash_count=r.crash_count).model_dump() for r in rows]
 
+    # --- group_by=month ---
+    if group_by == "month":
+        stmt = (
+            select(
+                view.c.crash_month.label("month"),
+                func.sum(view.c.crash_count).label("crash_count"),
+                func.sum(view.c.total_killed).label("total_killed"),
+                func.sum(view.c.total_injured).label("total_injured"),
+            )
+            .group_by(view.c.crash_month)
+            .order_by(view.c.crash_month)
+        )
+        stmt = _apply_filters(stmt, view, years, county_codes, severities, causes)
+        rows = db.execute(stmt).all()
+        return [
+            MonthRow(
+                month=r.month,
+                crash_count=r.crash_count,
+                total_killed=r.total_killed,
+                total_injured=r.total_injured,
+            ).model_dump()
+            for r in rows
+        ]
+
     # --- group_by=severity ---
     if group_by == "severity":
         stmt = (
@@ -280,6 +335,52 @@ def stats(
                 crash_count=r.crash_count,
                 total_killed=r.total_killed,
                 total_injured=r.total_injured,
+            ).model_dump()
+            for r in rows
+        ]
+
+    # --- group_by=rate (mv_crash_rates — per-capita normalization) ---
+    if group_by == "rate":
+        v = mv_rates
+        stmt = (
+            select(
+                v.c.county_code,
+                County.name.label("county_name"),
+                v.c.crash_year.label("year"),
+                v.c.severity,
+                v.c.total_crashes,
+                v.c.total_killed,
+                v.c.total_injured,
+                v.c.per_100k_population,
+                v.c.per_10k_licensed_drivers,
+                v.c.per_100_road_miles,
+                v.c.per_100k_aadt,
+                v.c.per_10k_vehicles,
+            )
+            .select_from(v.join(County, County.code == v.c.county_code))
+            .order_by(v.c.crash_year.desc(), v.c.county_code)
+        )
+        if years:
+            stmt = stmt.where(v.c.crash_year.in_(years))
+        if county_codes:
+            stmt = stmt.where(v.c.county_code.in_(county_codes))
+        if severities:
+            stmt = stmt.where(v.c.severity.in_(severities))
+        rows = db.execute(stmt).all()
+        return [
+            RateRow(
+                county_code=r.county_code,
+                county_name=r.county_name,
+                year=r.year,
+                severity=r.severity,
+                total_crashes=r.total_crashes,
+                total_killed=r.total_killed,
+                total_injured=r.total_injured,
+                per_100k_population=r.per_100k_population,
+                per_10k_licensed_drivers=r.per_10k_licensed_drivers,
+                per_100_road_miles=r.per_100_road_miles,
+                per_100k_aadt=r.per_100k_aadt,
+                per_10k_vehicles=r.per_10k_vehicles,
             ).model_dump()
             for r in rows
         ]
