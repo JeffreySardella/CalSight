@@ -111,34 +111,6 @@ mv_rates = Table(
 )
 
 
-mv_month = Table(
-    "mv_crashes_by_month", _metadata,
-    Column("county_code", SmallInteger),
-    Column("crash_year", SmallInteger),
-    Column("crash_month", SmallInteger),
-    Column("severity", String),
-    Column("canonical_cause", String),
-    Column("crash_count", Integer),
-    Column("total_killed", Integer),
-    Column("total_injured", Integer),
-)
-
-mv_rates = Table(
-    "mv_crash_rates", _metadata,
-    Column("county_code", SmallInteger),
-    Column("crash_year", SmallInteger),
-    Column("severity", String),
-    Column("total_crashes", Integer),
-    Column("total_killed", Integer),
-    Column("total_injured", Integer),
-    Column("per_100k_population", Float),
-    Column("per_10k_licensed_drivers", Float),
-    Column("per_100_road_miles", Float),
-    Column("per_100k_aadt", Float),
-    Column("per_10k_vehicles", Float),
-)
-
-
 def _pick_view(group_by: str | None, has_cause_filter: bool):
     if group_by == "hour":
         return mv_hour
