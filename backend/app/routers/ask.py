@@ -21,6 +21,7 @@ from app.ai_prompt import (
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
 from app.database import get_db
+from app.models import ChatFeedback
 from app.llm import (
     AllProvidersExhausted,
     SUPPORTS_TOOL_USE,
@@ -35,6 +36,7 @@ router = APIRouter(tags=["ask"])
 limiter = Limiter(key_func=get_remote_address)
 
 _MAX_TOOL_ROUNDS = 3
+_MAX_TOOL_CALLS_PER_ROUND = 3
 _MAX_HISTORY = 10
 
 
@@ -63,12 +65,45 @@ class AskResponse(BaseModel):
     answer: str
     provider: str
     suggestions: list[str] = []
+    chart: dict[str, Any] | None = None
+    grounded: bool = False
     filters_used: dict[str, Any] = {}
     tools_called: list[str] = []
 
 
+class FeedbackRequest(BaseModel):
+    question: str
+    answer: str
+    provider: str = ""
+    tools_called: list[str] = []
+    vote: str
+    filters_used: dict[str, Any] = {}
+
+    @field_validator("vote")
+    @classmethod
+    def valid_vote(cls, v: str) -> str:
+        if v not in ("up", "down"):
+            raise ValueError("Vote must be 'up' or 'down'")
+        return v
+
+
+@router.post("/feedback")
+def feedback(body: FeedbackRequest, db: Session = Depends(get_db)):
+    row = ChatFeedback(
+        question=body.question,
+        answer=body.answer[:2000],
+        provider=body.provider,
+        tools_called=json.dumps(body.tools_called),
+        vote=body.vote,
+        filters_used=json.dumps(body.filters_used, default=str),
+    )
+    db.add(row)
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/ask", response_model=AskResponse)
-@limiter.limit("10/minute")
+@limiter.limit("10/minute;200/day")
 def ask(request: Request, body: AskRequest, db: Session = Depends(get_db)):
     filters_summary = build_filters_summary(body.filters)
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(active_filters=filters_summary)
@@ -88,12 +123,15 @@ def ask(request: Request, body: AskRequest, db: Session = Depends(get_db)):
         answer, provider = _run_simple_mode(db, body.filters, messages)
 
     suggestions = _parse_suggestions(answer)
-    clean_answer = _strip_suggestions(answer)
+    chart = _parse_chart(answer)
+    clean_answer = _strip_suggestions(_strip_chart(answer))
 
     return AskResponse(
         answer=clean_answer,
         provider=provider,
         suggestions=suggestions,
+        chart=chart,
+        grounded=len(tools_called) > 0,
         filters_used=body.filters,
         tools_called=tools_called,
     )
@@ -104,18 +142,32 @@ def _run_with_tools(
     messages: list[dict],
     tools_called: list[str],
 ) -> tuple[str, str]:
-    """Run the tool-calling loop (max 3 rounds)."""
+    """Run the tool-calling loop (max 3 rounds).
+
+    Round 0: tool_choice="required" — forces at least one tool call
+    Round 1+: tool_choice="auto" — model can call more tools OR respond with text
+    """
     provider = "unknown"
     for round_num in range(_MAX_TOOL_ROUNDS):
+        tc = "required" if round_num == 0 else "auto"
         response, provider = generate_with_fallback(
             messages=messages,
             tools=TOOL_DEFINITIONS,
-            tool_choice="required" if round_num == 0 else "none",
-            max_tokens=500,
+            tool_choice=tc,
+            max_tokens=1200,
         )
         choice = response.choices[0]
+        has_tools = bool(choice.message.tool_calls)
+        logger.info("Round %d: provider=%s tool_choice=%s has_tool_calls=%s", round_num, provider, tc, has_tools)
+
+        if not choice.message.tool_calls and round_num == 0:
+            logger.warning("Round 0: no tool call despite required. Nudging model.")
+            messages.append({"role": "assistant", "content": choice.message.content or ""})
+            messages.append({"role": "user", "content": "Please use one of your available tools to query the CalSight database and answer with real data."})
+            continue
 
         if choice.message.tool_calls:
+            capped_calls = choice.message.tool_calls[:_MAX_TOOL_CALLS_PER_ROUND]
             assistant_msg: dict[str, Any] = {
                 "role": "assistant",
                 "content": choice.message.content or "",
@@ -125,11 +177,11 @@ def _run_with_tools(
                         "type": "function",
                         "function": {"name": tc.function.name, "arguments": tc.function.arguments},
                     }
-                    for tc in choice.message.tool_calls
+                    for tc in capped_calls
                 ],
             }
             messages.append(assistant_msg)
-            for tool_call in choice.message.tool_calls:
+            for tool_call in capped_calls:
                 fn_name = tool_call.function.name
                 tools_called.append(fn_name)
                 try:
@@ -194,3 +246,30 @@ def _parse_suggestions(text: str) -> list[str]:
 
 def _strip_suggestions(text: str) -> str:
     return re.sub(r'\n*-{0,3}\n*\*{0,2}Suggested:?\*{0,2}\s*\[.+?\]', '', text, flags=re.DOTALL).strip()
+
+
+def _parse_chart(text: str) -> dict[str, Any] | None:
+    match = re.search(r'\*{0,2}Chart:?\*{0,2}\s*(\{.*"data"\s*:\s*\[.*\].*\})', text, re.DOTALL)
+    if not match:
+        return None
+    raw = match.group(1)
+    # Find the balanced JSON by trying progressively larger substrings
+    for end in range(len(raw), 0, -1):
+        candidate = raw[:end]
+        if candidate.count("{") != candidate.count("}"):
+            continue
+        try:
+            chart = json.loads(candidate)
+            if isinstance(chart, dict) and "data" in chart and "type" in chart:
+                return chart
+        except (json.JSONDecodeError, ValueError):
+            continue
+    return None
+
+
+def _strip_chart(text: str) -> str:
+    # Strip complete chart blocks
+    text = re.sub(r'\n*-{0,3}\n*\*{0,2}Chart:?\*{0,2}\s*\{.*"data"\s*:\s*\[.*\].*\}', '', text, flags=re.DOTALL).strip()
+    # Strip truncated/partial chart blocks (LLM hit token limit mid-JSON)
+    text = re.sub(r'\n*-{0,3}\n*\*{0,2}Chart:?\*{0,2}\s*\{.*$', '', text, flags=re.DOTALL).strip()
+    return text

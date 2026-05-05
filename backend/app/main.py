@@ -18,13 +18,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from slowapi import Limiter, _rate_limit_exceeded_handler  # noqa: E402
+from slowapi import Limiter  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
 from slowapi.util import get_remote_address  # noqa: E402
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    retry_after = int(getattr(exc, "retry_after", 60) or 60)
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "rate_limited",
+            "message": f"Too many requests. Try again in {retry_after} seconds.",
+            "retry_after": retry_after,
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
 
 
 @app.exception_handler(FilterError)

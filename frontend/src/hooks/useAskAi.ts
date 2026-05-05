@@ -5,6 +5,16 @@ const STORAGE_KEY = "calsight-ask-ai-messages";
 const MAX_MESSAGES = 50;
 const COOLDOWN_MS = 15_000;
 const API_URL = "/api/ask";
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 3000;
+
+export interface ChartData {
+  type: "bar" | "line" | "pie";
+  title?: string;
+  xKey?: string;
+  yKey?: string;
+  data: { label: string; value: number }[];
+}
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -12,13 +22,18 @@ export interface ChatMessage {
   timestamp: number;
   provider?: string;
   suggestions?: string[];
+  chart?: ChartData;
   toolsCalled?: string[];
+  grounded?: boolean;
+  question?: string;
 }
 
 interface AskResponse {
   answer: string;
   provider: string;
   suggestions: string[];
+  chart: ChartData | null;
+  grounded: boolean;
   filters_used: Record<string, unknown>;
   tools_called: string[];
 }
@@ -76,53 +91,81 @@ export function useAskAi() {
       filters[key] = searchParams.get(key);
     }
 
-    try {
-      const resp = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: question.trim(), filters, history }),
-      });
+    const body = JSON.stringify({ question: question.trim(), filters, history });
 
-      if (resp.status === 503) {
-        const data = await resp.json();
-        setError(data.message || "AI is temporarily busy. Please try again.");
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          setError(`Retrying... (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+        }
+
+        const resp = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+
+        if (resp.status === 503) {
+          if (attempt < MAX_RETRIES - 1) continue;
+          const data = await resp.json().catch(() => ({}));
+          const retryAfter = data.retry_after || 60;
+          setCooldownEnd(Date.now() + retryAfter * 1000);
+          setError(data.message || "All AI providers are busy. Try again shortly.");
+          setIsLoading(false);
+          return;
+        }
+
+        if (resp.status === 429) {
+          const data = await resp.json().catch(() => ({}));
+          const retryAfter = data.retry_after || 60;
+          if (attempt < MAX_RETRIES - 1) {
+            await new Promise((r) => setTimeout(r, retryAfter * 1000));
+            continue;
+          }
+          setCooldownEnd(Date.now() + retryAfter * 1000);
+          setError(`Rate limit reached. Try again in ${retryAfter} seconds.`);
+          setIsLoading(false);
+          return;
+        }
+
+        if (!resp.ok) {
+          if (attempt < MAX_RETRIES - 1) continue;
+          setError("Something went wrong. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+
+        const data: AskResponse = await resp.json();
+        if (!data.answer || data.answer.trim() === "") {
+          if (attempt < MAX_RETRIES - 1) continue;
+          setError("AI couldn't generate a response. Try rephrasing your question.");
+          setIsLoading(false);
+          return;
+        }
+
+        setError(null);
+        const aiMsg: ChatMessage = {
+          role: "assistant",
+          content: data.answer,
+          timestamp: Date.now(),
+          provider: data.provider,
+          suggestions: data.suggestions,
+          chart: data.chart ?? undefined,
+          toolsCalled: data.tools_called,
+          grounded: data.grounded,
+          question: question.trim(),
+        };
+
+        setMessages((prev) => [...prev, aiMsg]);
         setIsLoading(false);
         return;
+      } catch {
+        if (attempt < MAX_RETRIES - 1) continue;
+        setError("Couldn't reach the server. Check your connection.");
       }
-
-      if (resp.status === 429) {
-        setError("Rate limit reached. Please wait a moment.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (!resp.ok) {
-        setError("Something went wrong. Please try again.");
-        setIsLoading(false);
-        return;
-      }
-
-      const data: AskResponse = await resp.json();
-      if (!data.answer || data.answer.trim() === "") {
-        setError("AI couldn't generate a response. Try rephrasing your question.");
-        setIsLoading(false);
-        return;
-      }
-      const aiMsg: ChatMessage = {
-        role: "assistant",
-        content: data.answer,
-        timestamp: Date.now(),
-        provider: data.provider,
-        suggestions: data.suggestions,
-        toolsCalled: data.tools_called,
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
-    } catch {
-      setError("Couldn't reach the server. Check your connection.");
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   }, [isLoading, searchParams]);
 
   const retry = useCallback(() => {

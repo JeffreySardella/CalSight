@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     # For ollama over Tailscale, set llm_base_url to the Tailscale IP.
     llm_provider: str = "together"
     llm_api_key: str = ""
+    llm_api_key_2: str = ""
     llm_model: str = ""
     llm_base_url: str = ""
     llm_fallback_1_provider: str = ""

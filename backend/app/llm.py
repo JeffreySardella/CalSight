@@ -1,10 +1,13 @@
-"""Provider-agnostic LLM wrapper with multi-provider fallback.
+"""Provider-agnostic LLM wrapper with multi-provider fallback and cooldown tracking.
 
 Supports: groq, openrouter, together, cerebras, ollama, gemini.
-On rate limit (429), rotates to the next configured provider.
+On rate limit (429), marks the provider as cooled down and skips it for future requests.
+OpenRouter free models are automatically expanded into the fallback chain so each
+model gets its own rate-limit cooldown.
 """
 
 import logging
+import time
 from typing import Any
 
 from openai import BadRequestError, OpenAI, RateLimitError
@@ -17,42 +20,105 @@ _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "model": "llama-3.3-70b-versatile",
+        "display_name": "Llama 3.3 70B (Groq)",
     },
     "openrouter": {
         "base_url": "https://openrouter.ai/api/v1",
         "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "display_name": "Llama 3.3 70B",
     },
     "together": {
         "base_url": "https://api.together.xyz/v1",
         "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        "display_name": "Llama 3.3 70B (Together)",
     },
     "cerebras": {
         "base_url": "https://api.cerebras.ai/v1",
         "model": "llama3.1-8b",
+        "display_name": "Llama 3.1 8B (Cerebras)",
     },
     "ollama": {
-        "base_url": "http://localhost:11434/v1",
-        "model": "llama3.3",
+        "base_url": "http://host.docker.internal:11434/v1",
+        "model": "mistral-small3.2",
+        "display_name": "Mistral Small (Local)",
     },
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
         "model": "gemini-2.5-flash",
+        "display_name": "Gemini 2.5 Flash",
     },
 }
 
-SUPPORTS_TOOL_USE = {"groq", "gemini", "openrouter"}
+OPENROUTER_FREE_MODELS: list[tuple[str, str]] = [
+    ("Nemotron 120B", "nvidia/nemotron-3-super-120b-a12b:free"),
+    ("Gemma 4 31B", "google/gemma-4-31b-it:free"),
+    ("Qwen3 80B", "qwen/qwen3-next-80b-a3b-instruct:free"),
+    ("GPT-OSS 120B", "openai/gpt-oss-120b:free"),
+    ("Gemma 4 26B", "google/gemma-4-26b-a4b-it:free"),
+]
+
+SUPPORTS_TOOL_USE = {"groq", "gemini", "openrouter", "ollama"}
+
+# In-memory cooldown tracker: provider_name -> timestamp when cooldown expires
+_provider_cooldowns: dict[str, float] = {}
+_COOLDOWN_SECONDS = 300  # 5 minutes default
+_DAILY_COOLDOWN_SECONDS = 1800  # 30 min for daily token limits
 
 
 class AllProvidersExhausted(Exception):
     pass
 
 
+def _mark_cooled_down(provider_name: str, seconds: int = _COOLDOWN_SECONDS):
+    """Mark a provider as rate-limited for N seconds."""
+    _provider_cooldowns[provider_name] = time.time() + seconds
+    logger.info("Provider %s cooled down for %ds", provider_name, seconds)
+
+
+def _is_available(provider_name: str) -> bool:
+    """Check if a provider is past its cooldown period."""
+    cooldown_until = _provider_cooldowns.get(provider_name, 0)
+    if time.time() >= cooldown_until:
+        if provider_name in _provider_cooldowns:
+            del _provider_cooldowns[provider_name]
+        return True
+    remaining = int(cooldown_until - time.time())
+    logger.debug("Provider %s still cooling down (%ds left)", provider_name, remaining)
+    return False
+
+
+def get_provider_status() -> dict[str, str]:
+    """Return status of all providers (for the frontend)."""
+    chain = _get_provider_chain()
+    status = {}
+    for p in chain:
+        name = p["name"]
+        if _is_available(name):
+            status[name] = "available"
+        else:
+            remaining = int(_provider_cooldowns.get(name, 0) - time.time())
+            status[name] = f"cooldown ({remaining}s)"
+    return status
+
+
+def get_available_provider_count() -> int:
+    """Return how many providers are currently available (not in cooldown)."""
+    chain = _get_provider_chain()
+    return sum(1 for p in chain if _is_available(p["name"]))
+
+
 def _get_provider_chain() -> list[dict[str, str]]:
-    chain = []
+    """Build the ordered provider chain with OpenRouter free models expanded.
+
+    Each entry has: name (unique display label), type (base provider for
+    headers/tool-use), base_url, model, api_key.
+    """
+    chain: list[dict[str, str]] = []
     primary = settings.llm_provider.lower()
     defaults = _PROVIDER_DEFAULTS.get(primary, {})
     chain.append({
-        "name": primary,
+        "name": defaults.get("display_name", primary),
+        "type": primary,
         "base_url": settings.llm_base_url or defaults.get("base_url", ""),
         "model": settings.llm_model or defaults.get("model", ""),
         "api_key": settings.llm_api_key,
@@ -63,52 +129,76 @@ def _get_provider_chain() -> list[dict[str, str]]:
         (settings.llm_fallback_2_provider, settings.llm_fallback_2_key),
         (settings.llm_fallback_3_provider, settings.llm_fallback_3_key),
     ]
+    openrouter_key = ""
     for provider_name, api_key in fallbacks:
         if not provider_name or not api_key:
             continue
-        name = provider_name.lower()
-        defaults = _PROVIDER_DEFAULTS.get(name, {})
-        chain.append({
-            "name": name,
-            "base_url": defaults.get("base_url", ""),
-            "model": defaults.get("model", ""),
-            "api_key": api_key,
-        })
+        ptype = provider_name.lower()
+        defaults = _PROVIDER_DEFAULTS.get(ptype, {})
+
+        if ptype == "openrouter":
+            openrouter_key = api_key
+            chain.append({
+                "name": defaults.get("display_name", "Llama 3.3 70B"),
+                "type": "openrouter",
+                "base_url": defaults.get("base_url", ""),
+                "model": defaults.get("model", ""),
+                "api_key": api_key,
+            })
+            for display_name, model_id in OPENROUTER_FREE_MODELS:
+                chain.append({
+                    "name": display_name,
+                    "type": "openrouter",
+                    "base_url": "https://openrouter.ai/api/v1",
+                    "model": model_id,
+                    "api_key": api_key,
+                })
+        else:
+            chain.append({
+                "name": defaults.get("display_name", ptype),
+                "type": ptype,
+                "base_url": defaults.get("base_url", ""),
+                "model": defaults.get("model", ""),
+                "api_key": api_key,
+            })
 
     return chain
 
 
 def _call_provider(
-    provider_name: str,
-    base_url: str,
-    api_key: str,
-    model: str,
+    provider: dict[str, str],
     messages: list[dict[str, str]],
     tools: list[dict] | None = None,
     tool_choice: str | None = None,
     max_tokens: int = 500,
     temperature: float = 0.7,
-) -> tuple[Any, str]:
+) -> Any:
+    ptype = provider.get("type", provider["name"])
     extra_headers = {}
-    if provider_name == "openrouter":
+    if ptype == "openrouter":
         extra_headers = {
             "HTTP-Referer": "https://calsight.org",
             "X-Title": "CalSight",
         }
-    client = OpenAI(base_url=base_url, api_key=api_key, max_retries=0, timeout=30, default_headers=extra_headers)
+    client = OpenAI(
+        base_url=provider["base_url"],
+        api_key=provider["api_key"],
+        max_retries=0,
+        timeout=30,
+        default_headers=extra_headers,
+    )
     kwargs: dict[str, Any] = {
-        "model": model,
+        "model": provider["model"],
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
-    if tools and provider_name in SUPPORTS_TOOL_USE:
+    if tools and ptype in SUPPORTS_TOOL_USE:
         kwargs["tools"] = tools
         if tool_choice:
             kwargs["tool_choice"] = tool_choice
 
-    response = client.chat.completions.create(**kwargs)
-    return response, provider_name
+    return client.chat.completions.create(**kwargs)
 
 
 def generate_with_fallback(
@@ -120,18 +210,25 @@ def generate_with_fallback(
 ) -> tuple[Any, str]:
     chain = _get_provider_chain()
     last_error = None
+    tried = 0
 
     for provider in chain:
-        if tools and tool_choice == "required" and provider["name"] not in SUPPORTS_TOOL_USE:
-            logger.info("Skipping %s (no tool support)", provider["name"])
+        name = provider["name"]
+        ptype = provider.get("type", name)
+
+        if not _is_available(name):
+            logger.info("Skipping %s (cooling down)", name)
             continue
+
+        if tools and tool_choice == "required" and ptype not in SUPPORTS_TOOL_USE:
+            logger.info("Skipping %s (no tool support)", name)
+            continue
+
+        tried += 1
         try:
-            logger.info("Trying LLM provider: %s", provider["name"])
-            response, name = _call_provider(
-                provider_name=provider["name"],
-                base_url=provider["base_url"],
-                api_key=provider["api_key"],
-                model=provider["model"],
+            logger.info("Trying LLM provider: %s [%s]", name, provider["model"])
+            response = _call_provider(
+                provider=provider,
                 messages=messages,
                 tools=tools,
                 tool_choice=tool_choice,
@@ -139,30 +236,59 @@ def generate_with_fallback(
                 temperature=temperature,
             )
             return response, name
-        except (RateLimitError, BadRequestError) as e:
-            logger.warning("Provider %s failed: %s", provider["name"], e)
+
+        except RateLimitError as e:
+            error_msg = str(e)
+            if "tokens per day" in error_msg.lower() or "tpd" in error_msg.lower():
+                _mark_cooled_down(name, _DAILY_COOLDOWN_SECONDS)
+            else:
+                _mark_cooled_down(name, _COOLDOWN_SECONDS)
+            logger.warning("Provider %s rate limited: %s", name, e)
+            last_error = e
+            continue
+
+        except BadRequestError as e:
+            _mark_cooled_down(name, 60)
+            logger.warning("Provider %s bad request: %s", name, e)
             last_error = e
             continue
 
     raise AllProvidersExhausted(
-        f"All {len(chain)} providers exhausted. Last error: {last_error}"
+        f"All providers exhausted ({tried} tried, {len(chain)} configured). Last error: {last_error}"
     )
 
 
+_narrative_call_count = 0
+
+
 def generate_narrative(prompt: str) -> str:
-    """Backwards-compatible wrapper for ETL scripts (single provider only)."""
+    """ETL narrative generator with automatic key rotation.
+
+    When LLM_API_KEY_2 is set, alternates between the two keys so each
+    key handles half the calls and stays under per-key rate limits.
+    """
+    global _narrative_call_count
+
     provider = settings.llm_provider.lower()
     defaults = _PROVIDER_DEFAULTS.get(provider, {})
 
     base_url = settings.llm_base_url or defaults.get("base_url")
     model = settings.llm_model or defaults.get("model")
-    api_key = settings.llm_api_key or ("ollama" if provider == "ollama" else "")
+
+    keys = [k for k in [settings.llm_api_key, settings.llm_api_key_2] if k]
+    if not keys:
+        keys = ["ollama"] if provider == "ollama" else []
+    if not keys:
+        raise ValueError(f"No API key configured for provider {provider!r}.")
+    api_key = keys[_narrative_call_count % len(keys)]
+    _narrative_call_count += 1
 
     if not base_url:
         raise ValueError(f"Unknown LLM provider {provider!r} and no LLM_BASE_URL set.")
     if not model:
         raise ValueError(f"No model configured for provider {provider!r}.")
 
+    logger.info("generate_narrative using key #%d of %d", (_narrative_call_count - 1) % len(keys) + 1, len(keys))
     client = OpenAI(base_url=base_url, api_key=api_key, max_retries=0, timeout=30)
     resp = client.chat.completions.create(
         model=model,

@@ -10,8 +10,19 @@ export default function PrivacyPage() {
           <h2 className="font-headline text-lg font-bold text-on-surface mb-2">Ask AI Feature</h2>
           <p>
             When you use the Ask AI feature, your question is sent to a third-party AI provider
-            to generate a response. CalSight does not store your questions or conversations on our servers
-            — chat history exists only in your browser's session storage and is cleared when you close the tab.
+            to generate a response. Chat history exists only in your browser&apos;s session storage
+            and is cleared when you close the tab.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-headline text-lg font-bold text-on-surface mb-2">Feedback &amp; Quality Improvement</h2>
+          <p>
+            When you rate a response (thumbs up or down), we store the question, the AI&apos;s answer,
+            which provider generated it, and your rating on our server. This data is used solely to
+            improve response quality. No personal information (IP address, name, or account data) is
+            attached to feedback — it is completely anonymous. The suggested &ldquo;Popular Questions&rdquo;
+            shown on the Ask AI page are curated examples, not sourced from user queries.
           </p>
         </section>
 
@@ -29,7 +40,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-1">
             <li>Your IP address or location</li>
             <li>Any personally identifiable information</li>
-            <li>Your filter selections (these query our database locally — only the resulting statistics are sent)</li>
+            <li>Your filter selections are included in the AI prompt along with query results so the model can tailor its answer, but they contain no personal data (just county, year, severity, cause)</li>
           </ul>
         </section>
 

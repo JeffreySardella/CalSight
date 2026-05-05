@@ -397,7 +397,7 @@ def run() -> int:
         db.close()
 
 
-_ALL_YEARS_DELAY = 7
+_ALL_YEARS_DELAY = 12
 
 
 def run_all_years() -> int:

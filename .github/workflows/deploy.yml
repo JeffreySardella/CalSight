@@ -18,17 +18,34 @@ jobs:
           git config --global url."https://".insteadOf "git://"
 
       - name: Create backend .env from secrets
+        env:
+          DB_URL: ${{ secrets.DATABASE_URL }}
+          CORS: ${{ secrets.CORS_ORIGINS }}
+          CENSUS: ${{ secrets.CENSUS_API_KEY }}
+          NOAA: ${{ secrets.NOAA_API_TOKEN }}
+          BLS: ${{ secrets.BLS_API_KEY }}
+          GROQ_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_KEY_2: ${{ secrets.GROQ_API_KEY_2 }}
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          CEREBRAS_KEY: ${{ secrets.CEREBRAS_API_KEY }}
         run: |
-          cat > backend/.env << 'DELIM'
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
-          CENSUS_API_KEY=${{ secrets.CENSUS_API_KEY }}
-          NOAA_API_TOKEN=${{ secrets.NOAA_API_TOKEN }}
-          BLS_API_KEY=${{ secrets.BLS_API_KEY }}
-          LLM_PROVIDER=groq
-          LLM_API_KEY=${{ secrets.GROQ }}
-          DEBUG=false
-          DELIM
+          : > backend/.env
+          printf 'DATABASE_URL=%s\n' "$DB_URL" >> backend/.env
+          printf 'CORS_ORIGINS=%s\n' "$CORS" >> backend/.env
+          printf 'CENSUS_API_KEY=%s\n' "$CENSUS" >> backend/.env
+          printf 'NOAA_API_TOKEN=%s\n' "$NOAA" >> backend/.env
+          printf 'BLS_API_KEY=%s\n' "$BLS" >> backend/.env
+          printf 'LLM_PROVIDER=groq\n' >> backend/.env
+          printf 'LLM_API_KEY=%s\n' "$GROQ_KEY" >> backend/.env
+          printf 'LLM_API_KEY_2=%s\n' "$GROQ_KEY_2" >> backend/.env
+          printf 'LLM_FALLBACK_1_PROVIDER=gemini\n' >> backend/.env
+          printf 'LLM_FALLBACK_1_KEY=%s\n' "$GEMINI_KEY" >> backend/.env
+          printf 'LLM_FALLBACK_2_PROVIDER=openrouter\n' >> backend/.env
+          printf 'LLM_FALLBACK_2_KEY=%s\n' "$OPENROUTER_KEY" >> backend/.env
+          printf 'LLM_FALLBACK_3_PROVIDER=cerebras\n' >> backend/.env
+          printf 'LLM_FALLBACK_3_KEY=%s\n' "$CEREBRAS_KEY" >> backend/.env
+          printf 'DEBUG=false\n' >> backend/.env
 
       - name: Build and restart backend
         run: docker compose -f docker-compose.prod.yml up --build -d

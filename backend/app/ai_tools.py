@@ -39,7 +39,7 @@ from app.models import (
 
 logger = logging.getLogger(__name__)
 
-_MAX_ROWS = 20
+_MAX_ROWS = 30
 
 
 # ---------------------------------------------------------------------------
@@ -154,14 +154,20 @@ def query_crashes(
     # --- valid group_by columns ---
     _GROUP_BY_MAP: dict[str, Any] = {
         "county_name": Crash.county_name,
+        "county": Crash.county_name,
         "crash_year": Crash.crash_year,
+        "year": Crash.crash_year,
         "severity": Crash.severity,
         "canonical_cause": Crash.canonical_cause,
+        "cause": Crash.canonical_cause,
         "collision_type": Crash.collision_type,
         "weather": Crash.weather,
         "lighting": Crash.lighting,
         "day_of_week": Crash.day_of_week_num,
         "crash_hour": Crash.crash_hour,
+        "hour": Crash.crash_hour,
+        "month": Crash.crash_month,
+        "crash_month": Crash.crash_month,
         "primary_road": Crash.primary_road,
         "road_condition": Crash.road_condition,
         "is_highway": Crash.is_highway,
@@ -181,6 +187,14 @@ def query_crashes(
             .order_by(func.count(Crash.id).desc())
             .limit(limit)
         )
+        rows = db.execute(stmt).fetchall()
+        results = [_row_to_dict(r) for r in rows]
+        total = sum(r["crash_count"] for r in results)
+        if total > 0:
+            for r in results:
+                r["pct_of_total"] = round(r["crash_count"] / total * 100, 1)
+                r["fatality_rate_pct"] = round(r["total_killed"] / r["crash_count"] * 100, 2) if r["crash_count"] > 0 else 0
+        return results
     else:
         stmt = (
             select(
@@ -190,9 +204,13 @@ def query_crashes(
             )
             .where(*preds)
         )
-
-    rows = db.execute(stmt).fetchall()
-    return [_row_to_dict(r) for r in rows]
+        rows = db.execute(stmt).fetchall()
+        results = [_row_to_dict(r) for r in rows]
+        for r in results:
+            if r["crash_count"] > 0:
+                r["fatality_rate_pct"] = round(r["total_killed"] / r["crash_count"] * 100, 2)
+                r["injury_rate_pct"] = round(r["total_injured"] / r["crash_count"] * 100, 2)
+        return results
 
 
 # ---------------------------------------------------------------------------
@@ -764,6 +782,65 @@ def get_vehicle_stats(
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 13. get_crash_rate
+# ---------------------------------------------------------------------------
+
+def get_crash_rate(
+    db: Session,
+    county: str,
+    years: list[int] | None = None,
+) -> dict | None:
+    """Get crash rates per capita, per licensed driver, and per vehicle for a county."""
+    code = _county_code(db, county)
+    if not code:
+        return None
+
+    crash_q = db.query(
+        func.count(Crash.id).label("total_crashes"),
+        func.sum(Crash.number_killed).label("total_killed"),
+        func.sum(Crash.number_injured).label("total_injured"),
+    ).filter(Crash.county_code == code)
+    if years:
+        crash_q = crash_q.filter(Crash.crash_year.in_(years))
+    crash_row = crash_q.one()
+
+    pop = db.query(County.population).filter(County.code == code).scalar()
+
+    ld = db.query(LicensedDriver.driver_count).filter(
+        LicensedDriver.county_code == code
+    ).order_by(LicensedDriver.year.desc()).first()
+    drivers = ld[0] if ld else None
+
+    vr = db.query(VehicleRegistration.total_vehicles).filter(
+        VehicleRegistration.county_code == code
+    ).order_by(VehicleRegistration.year.desc()).first()
+    vehicles = vr[0] if vr else None
+
+    result = {
+        "county": county,
+        "total_crashes": crash_row.total_crashes,
+        "total_killed": int(crash_row.total_killed or 0),
+        "total_injured": int(crash_row.total_injured or 0),
+        "population": pop,
+        "licensed_drivers": drivers,
+        "registered_vehicles": vehicles,
+    }
+
+    if pop and pop > 0:
+        result["crashes_per_100k_pop"] = round(crash_row.total_crashes / pop * 100_000, 1)
+        result["fatalities_per_100k_pop"] = round(int(crash_row.total_killed or 0) / pop * 100_000, 1)
+    if drivers and drivers > 0:
+        result["crashes_per_10k_drivers"] = round(crash_row.total_crashes / drivers * 10_000, 1)
+    if vehicles and vehicles > 0:
+        result["crashes_per_10k_vehicles"] = round(crash_row.total_crashes / vehicles * 10_000, 1)
+    if crash_row.total_crashes > 0:
+        result["fatality_rate_pct"] = round(int(crash_row.total_killed or 0) / crash_row.total_crashes * 100, 2)
+        result["injury_rate_pct"] = round(int(crash_row.total_injured or 0) / crash_row.total_crashes * 100, 2)
+
+    return result
+
+
 # Tool registry
 # ---------------------------------------------------------------------------
 
@@ -780,4 +857,5 @@ TOOL_REGISTRY: dict[str, Any] = {
     "get_victim_info": get_victim_info,
     "get_unemployment": get_unemployment,
     "get_vehicle_stats": get_vehicle_stats,
+    "get_crash_rate": get_crash_rate,
 }
