@@ -1,7 +1,6 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { ChatMessage as ChatMessageType } from "../../hooks/useAskAi";
-import { API_BASE } from "../../config";
 import InlineChart from "./InlineChart";
 
 interface Props {
@@ -17,7 +16,7 @@ function saveFeedback(message: ChatMessageType, vote: "up" | "down") {
     data[String(message.timestamp)] = vote;
     sessionStorage.setItem(FEEDBACK_KEY, JSON.stringify(data));
   } catch { /* ignore */ }
-  fetch(`${API_BASE}/api/feedback`, {
+  fetch("/api/feedback", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
