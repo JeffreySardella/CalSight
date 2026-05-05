@@ -4,7 +4,7 @@ const footerLinks = [
   { label: "Data Sources", to: "/about#data-sources" },
   { label: "Methodology", to: "/about#mission" },
   { label: "Project Info", to: "/about" },
-  { label: "Privacy Policy", to: "/about#privacy" },
+  { label: "Privacy Policy", to: "/privacy" },
 ];
 
 export default function Footer() {

@@ -254,6 +254,13 @@ export function useFilterParams() {
     [setSearchParams],
   );
 
+  const setCounty = useCallback(
+    (county: string) => {
+      setSearchParams((prev) => buildNextParams(prev, { counties: new Set([county]) }), { replace: true });
+    },
+    [setSearchParams],
+  );
+
   const clearCounties = useCallback(() => {
     setSearchParams((prev) => buildNextParams(prev, { counties: new Set() }), { replace: true });
   }, [setSearchParams]);
@@ -351,6 +358,7 @@ export function useFilterParams() {
     setAllYears,
     toggleSeverity,
     toggleCounty,
+    setCounty,
     clearCounties,
     toggleCause,
     setCauses,

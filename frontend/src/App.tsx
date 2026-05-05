@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -6,6 +7,9 @@ import Layout from "./components/Layout";
 import MapPage from "./pages/MapPage";
 import StatsPage from "./pages/StatsPage";
 import AboutPage from "./pages/AboutPage";
+import AskAiPage from "./pages/AskAiPage";
+// PrivacyPage will be created in a later task
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -16,6 +20,8 @@ export default function App() {
               <Route index element={<MapPage />} />
               <Route path="stats" element={<StatsPage />} />
               <Route path="about" element={<AboutPage />} />
+              <Route path="ask" element={<AskAiPage />} />
+              <Route path="privacy" element={<Suspense fallback={null}><PrivacyPage /></Suspense>} />
             </Route>
           </Routes>
           <div
