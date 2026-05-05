@@ -24,9 +24,7 @@ from app.database import get_db
 from app.models import ChatFeedback
 from app.llm import (
     AllProvidersExhausted,
-    SUPPORTS_TOOL_USE,
     generate_with_fallback,
-    _get_provider_chain,
 )
 
 logger = logging.getLogger(__name__)

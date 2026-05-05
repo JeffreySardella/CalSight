@@ -125,7 +125,6 @@ def run():
             elif isinstance(result, list):
                 has_data = len(result) > 0
 
-            status = "PASS" if has_data else "EMPTY"
             icon = "+" if has_data else "-"
             preview = result_json[:120] + "..." if len(result_json) > 120 else result_json
             print(f"[{i:2d}] [{icon}] {tc['question']}")

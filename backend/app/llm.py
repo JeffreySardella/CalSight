@@ -129,7 +129,6 @@ def _get_provider_chain() -> list[dict[str, str]]:
         (settings.llm_fallback_2_provider, settings.llm_fallback_2_key),
         (settings.llm_fallback_3_provider, settings.llm_fallback_3_key),
     ]
-    openrouter_key = ""
     for provider_name, api_key in fallbacks:
         if not provider_name or not api_key:
             continue
@@ -137,7 +136,6 @@ def _get_provider_chain() -> list[dict[str, str]]:
         defaults = _PROVIDER_DEFAULTS.get(ptype, {})
 
         if ptype == "openrouter":
-            openrouter_key = api_key
             chain.append({
                 "name": defaults.get("display_name", "Llama 3.3 70B"),
                 "type": "openrouter",
