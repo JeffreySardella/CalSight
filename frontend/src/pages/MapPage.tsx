@@ -51,6 +51,7 @@ function MapPageInner() {
     setAllYears,
     toggleSeverity,
     toggleCounty,
+    setCounty,
     clearCounties,
     toggleCause,
     setCauses,
@@ -148,6 +149,7 @@ function MapPageInner() {
 
     if (compareMode && name !== focusedCounty) {
       setCompareCounty(name);
+      toggleCounty(name);
       selectingRef.current = false;
     } else {
       setFocusedCounty(name);
@@ -155,16 +157,18 @@ function MapPageInner() {
       setShowInsight(true);
       setCompareCounty(null);
       setCompareMode(false);
+      setCounty(name);
       setTimeout(() => { selectingRef.current = false; }, 300);
     }
-  }, [compareMode, focusedCounty]);
+  }, [compareMode, focusedCounty, setCounty, toggleCounty]);
 
   const handleDeselect = useCallback(() => {
     setFocusedCounty(null);
     setCompareCounty(null);
     setCompareMode(false);
     setShowInsight(false);
-  }, []);
+    clearCounties();
+  }, [clearCounties]);
 
   const handleStartCompare = useCallback(() => {
     setCompareMode(true);

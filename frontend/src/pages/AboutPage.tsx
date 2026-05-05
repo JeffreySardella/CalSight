@@ -316,32 +316,13 @@ export default function AboutPage() {
       {/* Privacy Policy Section */}
       <section id="privacy" className="py-16 md:py-24 mb-12">
         <span className="font-label text-xs uppercase tracking-[0.3em] text-on-surface-variant block mb-10">
-          PRIVACY POLICY
+          PRIVACY
         </span>
-        <div className="space-y-6 text-on-surface-variant leading-relaxed text-sm">
-          <p>
-            CalSight is a public civic data tool. All crash data displayed is
-            sourced from publicly available California government datasets
-            (CCRS, SWITRS) and contains no personally identifiable information.
-          </p>
-          <p>
-            <span className="font-semibold text-on-surface">Analytics:</span>{" "}
-            CalSight does not use cookies, tracking pixels, or third-party
-            analytics. No personal data is collected, stored, or shared.
-          </p>
-            <p>
-              <span className="font-semibold text-on-surface">Contact:</span>{" "}
-              For questions about data handling, reach out via the project&rsquo;s{" "}
-              <a 
-                href="https://github.com/JeffreySardella/CalSight" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="underline decoration-on-surface-variant/30 hover:text-on-surface transition-colors"
-              >
-                GitHub repository
-              </a>.
-            </p>
-        </div>
+        <p className="text-on-surface-variant leading-relaxed text-sm">
+          CalSight does not use cookies, tracking pixels, or third-party analytics. No personal data is collected or stored.
+          For full details including our Ask AI data handling practices, see our{" "}
+          <a href="/privacy" className="underline decoration-on-surface-variant/30 hover:text-on-surface transition-colors font-semibold">Privacy Policy</a>.
+        </p>
       </section>
     </main>
   );

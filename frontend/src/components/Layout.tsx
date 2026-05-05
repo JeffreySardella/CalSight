@@ -7,6 +7,7 @@ import BottomTabBar from "./BottomTabBar";
 export default function Layout() {
   const location = useLocation();
   const isMapPage = location.pathname === "/";
+  const isAskPage = location.pathname === "/ask";
 
   // Scroll to hash anchor when navigating (e.g., /about#data-sources)
   useEffect(() => {
@@ -27,6 +28,13 @@ export default function Layout() {
         <main className="pt-12 pb-14 md:pt-16 md:pb-0 flex h-dvh overflow-hidden">
           <Outlet />
         </main>
+      ) : isAskPage ? (
+        <div key={location.pathname} className="page-enter pt-12 md:pt-16 min-h-screen flex flex-col pb-20 md:pb-0">
+          <main className="flex-1">
+            <Outlet />
+          </main>
+          <div className="hidden md:block"><Footer /></div>
+        </div>
       ) : (
         <div key={location.pathname} className="page-enter pt-12 md:pt-16 min-h-screen flex flex-col pb-20 md:pb-0">
           <main className="flex-1">

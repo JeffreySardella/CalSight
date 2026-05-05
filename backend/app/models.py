@@ -118,6 +118,9 @@ class Crash(Base):
     crash_month = Column(SmallInteger)
     day_of_week_num = Column(SmallInteger)
 
+    crash_month = Column(SmallInteger)
+    day_of_week_num = Column(SmallInteger)
+
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (
@@ -788,3 +791,18 @@ class EtlRun(Base):
     __table_args__ = (
         Index("ix_etl_runs_source_started_at", "source", "started_at"),
     )
+
+
+class ChatFeedback(Base):
+    """User feedback on Ask AI responses — stored when thumbs up/down is clicked."""
+
+    __tablename__ = "chat_feedback"
+
+    id = Column(Integer, primary_key=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    provider = Column(String(30))
+    tools_called = Column(Text)
+    vote = Column(String(4), nullable=False)
+    filters_used = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
