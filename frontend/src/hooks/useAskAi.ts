@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
+import { API_BASE } from "../config";
 
 const STORAGE_KEY = "calsight-ask-ai-messages";
 const MAX_MESSAGES = 50;
 const COOLDOWN_MS = 15_000;
-const API_URL = "/api/ask";
+const API_URL = `${API_BASE}/api/ask`;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 3000;
 
