@@ -160,6 +160,11 @@ def _get_provider_chain() -> list[dict[str, str]]:
                 "api_key": api_key,
             })
 
+    if len(chain) == 1:
+        fallback_entry = chain[0].copy()
+        fallback_entry["name"] = f'{fallback_entry["name"]} (fallback)'
+        chain.append(fallback_entry)
+
     return chain
 
 
