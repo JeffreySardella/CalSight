@@ -106,6 +106,21 @@ def test_parse_cause_translates_hyphen():
     assert parse_cause("lane-change") == {"lane_change"}
 
 
+def test_parse_cause_new_categories():
+    assert parse_cause("right-of-way") == {"right_of_way"}
+    assert parse_cause("turning") == {"turning"}
+    assert parse_cause("following-too-close") == {"following_too_close"}
+    assert parse_cause("signal-violation") == {"signal_violation"}
+    assert parse_cause("pedestrian-violation") == {"pedestrian_violation"}
+    assert parse_cause("unsafe-backing") == {"unsafe_backing"}
+
+
+def test_parse_cause_all_ten_values():
+    raw = "dui,speeding,lane-change,right-of-way,turning,following-too-close,signal-violation,pedestrian-violation,unsafe-backing,other"
+    result = parse_cause(raw)
+    assert len(result) == 10
+
+
 def test_parse_cause_rejects_distracted():
     with pytest.raises(FilterError) as exc_info:
         parse_cause("distracted")

@@ -59,3 +59,31 @@ class AgeBracketRow(BaseModel):
     age_bracket: str
     victim_count: int
     fatal_victim_count: int
+
+
+class MonthRow(BaseModel):
+    month: int
+    crash_count: int
+    total_killed: int
+    total_injured: int
+
+
+class DayOfWeekRow(BaseModel):
+    day_of_week: int
+    crash_count: int
+
+
+
+class RateRow(BaseModel):
+    county_code: int
+    county_name: str | None = None
+    year: int
+    severity: str
+    total_crashes: int
+    total_killed: int
+    total_injured: int
+    per_100k_population: float | None = None
+    per_10k_licensed_drivers: float | None = None
+    per_100_road_miles: float | None = None
+    per_100k_aadt: float | None = None
+    per_10k_vehicles: float | None = None

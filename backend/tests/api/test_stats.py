@@ -132,3 +132,72 @@ def test_stats_gender_severity_filter_works(client):
     body = response.json()
     # Crash 3 has severity=Fatal with 2 victims (M driver, F passenger).
     assert len(body) >= 1
+
+
+# --- group_by=month (mv_crashes_by_month) ---
+
+
+def test_stats_group_by_month(client):
+    response = client.get("/api/stats?group_by=month")
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    months = {row["month"] for row in body}
+    # Seed has crashes in months 1, 3, 6, 7, 12
+    assert 6 in months or 7 in months
+    for row in body:
+        assert "crash_count" in row
+        assert "total_killed" in row
+        assert "total_injured" in row
+
+
+def test_stats_group_by_month_with_year_filter(client):
+    response = client.get("/api/stats?group_by=month&year=2023")
+    body = response.json()
+    # 2023 has crashes in months 7 (Orange) and 12 (SF)
+    months = {row["month"] for row in body}
+    assert months.issubset({7, 12})
+
+
+# --- group_by=rate (mv_crash_rates) ---
+
+
+def test_stats_group_by_rate(client):
+    response = client.get("/api/stats?group_by=rate")
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    for row in body:
+        assert "county_code" in row
+        assert "county_name" in row
+        assert "year" in row
+        assert "severity" in row
+        assert "total_crashes" in row
+        assert "per_100k_population" in row
+        assert "per_10k_licensed_drivers" in row
+        assert "per_100_road_miles" in row
+        assert "per_100k_aadt" in row
+        assert "per_10k_vehicles" in row
+
+
+def test_stats_group_by_rate_with_county_filter(client):
+    response = client.get("/api/stats?group_by=rate&county=los-angeles")
+    body = response.json()
+    assert all(row["county_code"] == 19 for row in body)
+
+
+def test_stats_group_by_rate_la_2023_has_rates(client):
+    """LA 2023 has all denominator data seeded — rates should be non-null."""
+    response = client.get("/api/stats?group_by=rate&county=los-angeles&year=2023")
+    assert response.status_code == 200
+
+
+# --- cause filter accepts new categories ---
+
+
+def test_stats_cause_filter_accepts_new_categories(client):
+    """New cause slugs should be accepted without 422."""
+    for slug in ["right-of-way", "turning", "following-too-close",
+                 "signal-violation", "pedestrian-violation", "unsafe-backing"]:
+        response = client.get(f"/api/stats?cause={slug}&group_by=county")
+        assert response.status_code == 200, f"Cause '{slug}' rejected"

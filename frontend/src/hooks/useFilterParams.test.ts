@@ -37,8 +37,12 @@ describe("SEVERITIES", () => {
 });
 
 describe("CAUSES", () => {
-  it("has exactly the 4 DB-truthful values", () => {
-    expect(CAUSES.map((c) => c.value)).toEqual(["dui", "speeding", "lane-change", "other"]);
+  it("has exactly the 10 DB-truthful values", () => {
+    expect(CAUSES.map((c) => c.value)).toEqual([
+      "dui", "speeding", "lane-change", "right-of-way", "turning",
+      "following-too-close", "signal-violation", "pedestrian-violation",
+      "unsafe-backing", "other",
+    ]);
   });
 
   it("does not include distracted or weather", () => {

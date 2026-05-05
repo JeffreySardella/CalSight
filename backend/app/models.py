@@ -100,10 +100,11 @@ class Crash(Base):
 
     # Simplified cause category derived from primary_factor. The raw field has
     # 12,517 distinct values (mix of English and CA Vehicle Code numbers);
-    # this collapses to a small fixed vocabulary for fast API filtering.
-    # Values: 'speeding', 'dui', 'lane_change', 'other', or NULL when
-    # primary_factor itself was NULL. Populated by etl.backfill_derived.
-    canonical_cause = Column(String(20))
+    # this collapses to a fixed vocabulary for fast API filtering.
+    # Values: 'dui', 'speeding', 'signal_violation', 'right_of_way',
+    # 'turning', 'following_too_close', 'pedestrian_violation',
+    # 'unsafe_backing', 'lane_change', 'other', or NULL.
+    canonical_cause = Column(String(25))
 
     # Denormalized from counties.name so dashboard tooltip/export queries
     # don't need to JOIN to counties. County names are effectively immutable
@@ -114,6 +115,8 @@ class Crash(Base):
     # Year is in ~80% of dashboard filters; indexed integer compare beats
     # EXTRACT(year FROM crash_datetime) on 11M rows.
     crash_year = Column(SmallInteger)
+    crash_month = Column(SmallInteger)
+    day_of_week_num = Column(SmallInteger)
 
     crash_month = Column(SmallInteger)
     day_of_week_num = Column(SmallInteger)

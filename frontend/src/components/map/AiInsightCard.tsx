@@ -49,11 +49,11 @@ function MetricGrid({ data, measureLabel }: { data: ChoroplethPoint; measureLabe
 
 function MetricCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-surface-container-low/50 p-2 rounded-lg">
-      <p className="text-[8px] text-on-surface-variant font-bold uppercase tracking-widest mb-0.5">
+    <div className="bg-surface-container-low/50 p-2.5 rounded-lg">
+      <p className="text-[9px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">
         {label}
       </p>
-      <p className="text-sm font-bold text-on-surface">{value}</p>
+      <p className="text-base font-bold text-on-surface">{value}</p>
     </div>
   );
 }
@@ -89,7 +89,9 @@ export default function AiInsightCard({
   compareData,
   narrative,
 }: AiInsightCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(
+    () => window.matchMedia("(min-width: 768px)").matches,
+  );
   const isComparing = compareMode && compareCountyName && compareData;
 
   return (
@@ -97,28 +99,28 @@ export default function AiInsightCard({
       <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden">
         {/* Collapsed bar — always visible */}
         <div
-          className="flex items-center justify-between px-4 py-2.5 cursor-pointer select-none"
+          className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
           onClick={() => setExpanded((v) => !v)}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <h3 className="font-headline text-sm font-bold text-on-surface tracking-tight truncate">
+          <div className="min-w-0">
+            <h3 className="font-headline text-base font-bold text-on-surface tracking-tight truncate">
               {isComparing ? `${countyName} vs ${compareCountyName}` : `${countyName} County`}
             </h3>
             {data && !expanded && (
-              <span className="text-xs text-on-surface-variant hidden sm:inline">
+              <p className="text-[11px] text-on-surface-variant mt-0.5">
                 {fmt(data.rawCount)} crashes · {fmt(data.totalKilled)} killed
-              </span>
+              </p>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform" style={{ transform: expanded ? "rotate(180deg)" : undefined }}>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="material-symbols-outlined text-[20px] text-on-surface-variant transition-transform p-1" style={{ transform: expanded ? "rotate(180deg)" : undefined }}>
               expand_less
             </span>
             <button
               onClick={(e) => { e.stopPropagation(); onClose(); }}
-              className="p-1 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
+              className="p-2 -mr-1 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
             >
-              <span className="material-symbols-outlined text-[16px]">close</span>
+              <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
           </div>
         </div>

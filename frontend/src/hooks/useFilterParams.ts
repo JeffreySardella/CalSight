@@ -36,14 +36,19 @@ export const CA_COUNTIES = [
   "Tehama", "Trinity", "Tulare", "Tuolumne", "Ventura", "Yolo", "Yuba",
 ] as const;
 
-// DB truth: canonical_cause has exactly 4 values (dui | speeding | lane_change | other).
-// "distracted" and "weather" were removed — they don't exist in the DB and
-// caused 422s. The backend maps URL slug "lane-change" → DB "lane_change"
-// (filters.py line 91). Restore distracted/weather when issue #103 expands the taxonomy.
+// DB truth: canonical_cause has 10 values after issue #139 expanded the taxonomy.
+// "distracted" and "weather" are cross-cutting filter facets, not cause buckets.
+// The backend maps URL slugs (hyphens) → DB values (underscores) in filters.py.
 export const CAUSES = [
   { value: "dui", label: "DUI", icon: "local_bar" },
   { value: "speeding", label: "Speeding", icon: "speed" },
   { value: "lane-change", label: "Lane Change", icon: "swap_horiz" },
+  { value: "right-of-way", label: "Right of Way", icon: "priority_high" },
+  { value: "turning", label: "Improper Turn", icon: "turn_right" },
+  { value: "following-too-close", label: "Tailgating", icon: "car_crash" },
+  { value: "signal-violation", label: "Signal Violation", icon: "traffic" },
+  { value: "pedestrian-violation", label: "Pedestrian", icon: "directions_walk" },
+  { value: "unsafe-backing", label: "Unsafe Backing", icon: "keyboard_return" },
   { value: "other", label: "Other", icon: "more_horiz" },
 ] as const;
 
