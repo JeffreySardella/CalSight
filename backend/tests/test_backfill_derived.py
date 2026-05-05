@@ -114,10 +114,10 @@ class TestCategorizePrimaryFactor:
         assert categorize("21650") == "lane_change"
 
     def test_other_turning(self):
-        assert categorize("improper turning") == "other"
+        assert categorize("improper turning") == "turning"
 
     def test_other_right_of_way(self):
-        assert categorize("automobile right of way") == "other"
+        assert categorize("automobile right of way") == "right_of_way"
 
     def test_other_unknown(self):
         assert categorize("unknown") == "other"
@@ -125,3 +125,68 @@ class TestCategorizePrimaryFactor:
     def test_dui_wins_over_speed(self):
         """If a value mentions both DUI and speeding, DUI is the dominant signal."""
         assert categorize("dui and speeding") == "dui"
+
+    def test_signal_violation_english(self):
+        assert categorize("traffic signals and signs") == "signal_violation"
+
+    def test_signal_violation_vc_21453(self):
+        assert categorize("21453A") == "signal_violation"
+        assert categorize("21453(a)") == "signal_violation"
+
+    def test_signal_violation_stop_sign(self):
+        assert categorize("22450A") == "signal_violation"
+        assert categorize("22450(a)") == "signal_violation"
+
+    def test_right_of_way_english(self):
+        assert categorize("automobile right of way") == "right_of_way"
+
+    def test_right_of_way_vc_21801(self):
+        assert categorize("21801A") == "right_of_way"
+        assert categorize("21801(a)") == "right_of_way"
+
+    def test_right_of_way_vc_21804(self):
+        assert categorize("21804A") == "right_of_way"
+
+    def test_turning_english(self):
+        assert categorize("improper turning") == "turning"
+
+    def test_turning_vc_22107(self):
+        assert categorize("22107") == "turning"
+        assert categorize("VC 22107") == "turning"
+        assert categorize("VC 22107 UNSAFE TURNING MOVEMENT") == "turning"
+
+    def test_following_too_close_english(self):
+        assert categorize("following too closely") == "following_too_close"
+
+    def test_following_too_close_vc_21703(self):
+        assert categorize("21703") == "following_too_close"
+
+    def test_pedestrian_violation_english(self):
+        assert categorize("pedestrian violation") == "pedestrian_violation"
+
+    def test_pedestrian_violation_vc_21950(self):
+        assert categorize("21950A") == "pedestrian_violation"
+
+    def test_pedestrian_violation_vc_21954(self):
+        assert categorize("21954A") == "pedestrian_violation"
+
+    def test_pedestrian_right_of_way_goes_to_row(self):
+        """'pedestrian right of way' matches right_of_way first (driver violation)."""
+        assert categorize("pedestrian right of way") == "right_of_way"
+
+    def test_unsafe_backing_english(self):
+        assert categorize("unsafe starting or backing") == "unsafe_backing"
+
+    def test_unsafe_backing_vc_22106(self):
+        assert categorize("22106") == "unsafe_backing"
+        assert categorize("VC 22106") == "unsafe_backing"
+
+    def test_turning_excludes_22106(self):
+        """22106 is backing (VC 22106), not turning — must not match turning regex."""
+        assert categorize("22106") == "unsafe_backing"
+
+    def test_other_unknown_new(self):
+        assert categorize("unknown") == "other"
+
+    def test_other_hazardous(self):
+        assert categorize("other hazardous violation") == "other"

@@ -376,6 +376,44 @@ def backfill_crash_year(db):
     logger.info("Crash year backfill done: %d rows", total)
 
 
+def backfill_crash_month(db):
+    """Extract month (1-12) from crash_datetime into its own column."""
+    total = 0
+    for year in _all_crash_year_range(db):
+        r = db.execute(text("""
+            UPDATE crashes
+            SET crash_month = EXTRACT(MONTH FROM crash_datetime)::smallint
+            WHERE crash_month IS NULL
+              AND crash_datetime >= :start
+              AND crash_datetime < :end
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        if r.rowcount > 0:
+            logger.info("Crash month %d: %d rows", year, r.rowcount)
+            total += r.rowcount
+
+    logger.info("Crash month backfill done: %d rows", total)
+
+
+def backfill_day_of_week(db):
+    """Extract ISO day of week (0=Mon, 6=Sun) from crash_datetime."""
+    total = 0
+    for year in _all_crash_year_range(db):
+        r = db.execute(text("""
+            UPDATE crashes
+            SET day_of_week_num = (EXTRACT(ISODOW FROM crash_datetime)::smallint - 1)
+            WHERE day_of_week_num IS NULL
+              AND crash_datetime >= :start
+              AND crash_datetime < :end
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        if r.rowcount > 0:
+            logger.info("Day of week %d: %d rows", year, r.rowcount)
+            total += r.rowcount
+
+    logger.info("Day of week backfill done: %d rows", total)
+
+
 def backfill_county_name(db):
     """Denormalize counties.name into the crashes table.
 
@@ -397,17 +435,26 @@ def backfill_county_name(db):
 
 
 # Regex rules that collapse the ~12K distinct primary_factor values into
-# 4 canonical buckets. First match wins — order matters (dui before speeding
-# since the DUI signal is stronger).
+# 10 canonical buckets. First match wins — order matters (dui before speeding
+# since the DUI signal is stronger; right_of_way before pedestrian so
+# "pedestrian right of way" goes to ROW).
 #
 # Pattern notes:
 #   - dui: CA Vehicle Code section 23152 in any format + English "dui"
 #     as a whole word (so "fluid" doesn't match).
 #   - speeding: VC 22350 (Basic Speed Law) + any value containing "speed".
+#   - signal_violation: VC 21453/21460/21461 (traffic signals), VC 22450
+#     (stop signs), plus English "traffic signal", "red light", "stop sign".
+#   - right_of_way: VC 21800-21806 + English "right of way" preceded by "auto".
+#   - turning: VC 22107 + VC 22100-22105 + English "improper turn".
+#     Excludes 22106 (that's backing, not turning).
+#   - following_too_close: VC 21703 + English "follow...clos".
+#   - pedestrian_violation: VC 21950-21956 + English "pedestrian".
+#     Checked AFTER right_of_way so "pedestrian right of way" → ROW.
+#   - unsafe_backing: VC 22106 + English "unsafe start/back".
 #   - lane_change: VC 21658 (lane usage), VC 21650 (wrong side), plus
 #     English lane-change / improper-passing / wrong-side phrases.
-#   - other: everything else, including "unknown", turning, right-of-way,
-#     signals, backing, pedestrian violations.
+#   - other: everything else, including "unknown".
 #
 # "distracted" and "weather" are NOT populated here — they come from
 # is_distraction_involved and the weather column respectively. The API
@@ -415,6 +462,25 @@ def backfill_county_name(db):
 _DUI_RE = re.compile(r"(?:^|[^a-z])dui(?:[^a-z]|$)|23152", re.IGNORECASE)
 _SPEED_RE = re.compile(r"speed|22350", re.IGNORECASE)
 _LANE_RE = re.compile(r"lane.?change|improper.?passing|21658|21650|wrong.?side", re.IGNORECASE)
+_SIGNAL_RE = re.compile(
+    r"traffic.?signal|red.?light|stop.?sign"
+    r"|2145[0-9]|21460|21461|22450",
+    re.IGNORECASE,
+)
+_ROW_RE = re.compile(
+    r"right.?of.?way|2180[0-6]",
+    re.IGNORECASE,
+)
+_TURNING_RE = re.compile(
+    r"improper.?turn|22107|2210[0-5]",
+    re.IGNORECASE,
+)
+_FOLLOWING_RE = re.compile(r"follow.*clos|21703", re.IGNORECASE)
+_PEDESTRIAN_RE = re.compile(
+    r"pedestrian|2195[0-6]",
+    re.IGNORECASE,
+)
+_BACKING_RE = re.compile(r"unsafe.?(start|back)|22106", re.IGNORECASE)
 
 
 def _categorize_primary_factor(pf: str) -> str:
@@ -427,6 +493,18 @@ def _categorize_primary_factor(pf: str) -> str:
         return "dui"
     if _SPEED_RE.search(pf):
         return "speeding"
+    if _SIGNAL_RE.search(pf):
+        return "signal_violation"
+    if _ROW_RE.search(pf):
+        return "right_of_way"
+    if _TURNING_RE.search(pf):
+        return "turning"
+    if _FOLLOWING_RE.search(pf):
+        return "following_too_close"
+    if _PEDESTRIAN_RE.search(pf):
+        return "pedestrian_violation"
+    if _BACKING_RE.search(pf):
+        return "unsafe_backing"
     if _LANE_RE.search(pf):
         return "lane_change"
     return "other"
@@ -482,7 +560,7 @@ def backfill_canonical_cause(db):
             SET canonical_cause = m.canonical_cause
             FROM _cause_map_tmp m
             WHERE c.primary_factor = m.primary_factor
-              AND c.canonical_cause IS NULL
+              AND (c.canonical_cause IS NULL OR c.canonical_cause <> m.canonical_cause)
               AND c.crash_datetime >= :start
               AND c.crash_datetime < :end
         """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
@@ -544,6 +622,8 @@ def run():
         backfill_population_density(db)
         backfill_crash_hour(db)
         backfill_crash_year(db)
+        backfill_crash_month(db)
+        backfill_day_of_week(db)
         backfill_county_name(db)
         backfill_severity(db)
         backfill_alcohol_flags(db)

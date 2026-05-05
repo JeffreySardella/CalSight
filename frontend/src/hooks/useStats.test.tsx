@@ -73,7 +73,7 @@ describe("useStats", () => {
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(spy).toHaveBeenCalledTimes(7);
+    expect(spy).toHaveBeenCalledTimes(10);
     const urls = spy.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.includes("group_by=year") && u.includes("year=2022%2C2023"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=hour") && u.includes("year=2022%2C2023"))).toBe(true);
@@ -82,6 +82,9 @@ describe("useStats", () => {
     expect(urls.some((u) => u.includes("group_by=severity"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=gender"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=age_bracket"))).toBe(true);
+    expect(urls.some((u) => u.includes("group_by=month"))).toBe(true);
+    expect(urls.some((u) => u.includes("group_by=day_of_week"))).toBe(true);
+    expect(urls.some((u) => u.includes("group_by=rate"))).toBe(true);
   });
 
   it("maps API responses to chart data shapes", async () => {
@@ -96,7 +99,7 @@ describe("useStats", () => {
     expect(data.hourlyData[0]).toEqual({ hour: 0, count: 1000 });
 
     expect(data.yearlyData).toHaveLength(2);
-    expect(data.yearlyData[0]).toEqual({ year: 2022, count: 400_000 });
+    expect(data.yearlyData[0]).toEqual({ year: 2022, count: 400_000, killed: 3800, injured: 120_000 });
 
     expect(data.causesData).toHaveLength(4);
     expect(data.causesData[0]).toEqual({ label: "Speeding", count: 5000 });
