@@ -200,6 +200,10 @@
 .leaflet-container {
   height: 100%;
   width: 100%;
+  /* Override leaflet's hardcoded #ddd so the container background
+   * (visible during zoom animations before tiles load) follows the theme.
+   * Without this, dark mode flashes near-white on county click. */
+  background: rgb(var(--surface-container));
 }
 
 .county-focus-tooltip {
