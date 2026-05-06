@@ -29,11 +29,10 @@ export default function Layout() {
           <Outlet />
         </main>
       ) : isAskPage ? (
-        <div key={location.pathname} className="page-enter pt-12 md:pt-16 min-h-screen flex flex-col pb-20 md:pb-0">
-          <main className="flex-1">
+        <div key={location.pathname} className="page-enter pt-12 pb-14 md:pt-16 md:pb-0 h-dvh flex flex-col overflow-hidden">
+          <main className="flex-1 flex flex-col overflow-hidden">
             <Outlet />
           </main>
-          <div className="hidden md:block"><Footer /></div>
         </div>
       ) : (
         <div key={location.pathname} className="page-enter pt-12 md:pt-16 min-h-screen flex flex-col pb-20 md:pb-0">

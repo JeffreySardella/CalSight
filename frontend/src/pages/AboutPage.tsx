@@ -56,7 +56,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-3 gap-4 md:gap-6">
           {[
             { value: "11.1M", label: "Police-reported crashes" },
-            { value: "17", label: "Government data sources" },
+            { value: "9", label: "Government data sources" },
             { value: "25.3M", label: "Total rows in database" },
           ].map(({ value, label }) => (
             <div key={label} className="bg-surface-container-lowest rounded-lg ambient-shadow flex flex-col items-center justify-center text-center gap-4 py-6 md:py-8 px-6">
@@ -80,7 +80,7 @@ export default function AboutPage() {
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">4,350,202 rows · 2016-2026</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">4,350,202 rows</p>
               <a href="https://data.ca.gov/dataset/ccrs" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function AboutPage() {
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">6,779,445 rows · 2001-2015</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">6,779,445 rows</p>
               <a href="https://www.chp.ca.gov/programs-services/services-information/switrs-statewide-integrated-traffic-records-system" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
             </div>
           </div>
@@ -108,49 +108,26 @@ export default function AboutPage() {
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">1,012 rows · 2005-2022</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">1,012 rows</p>
               <a href="https://data.census.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
             </div>
           </div>
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">NOAA / BLS / DMV</h3>
-              <p className="text-sm text-on-surface-variant mt-1">Weather, Unemployment &amp; Vehicle Data</p>
-              <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                Monthly county weather (NOAA, 2001-2025), monthly unemployment rates (BLS, 2005-2025), annual vehicle registrations by county (CA DMV, 2019-2026), and licensed driver counts (CA DMV, 2008-2024).
-              </p>
+              <h3 className="font-headline text-xl font-bold text-on-surface">Supplementary Sources</h3>
+              <p className="text-sm text-on-surface-variant mt-1">Rate normalization, weather, and contextual data</p>
+              <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
+                <li>NOAA monthly county weather (2001-2025)</li>
+                <li>BLS monthly unemployment rates (2005-2025)</li>
+                <li>CA DMV vehicle registrations (2019-2026)</li>
+                <li>CA DMV licensed driver counts (2008-2024)</li>
+                <li>Caltrans AADT for state highways</li>
+                <li>CalEnviroScreen 4.0 — environmental justice scores (2021 snapshot)</li>
+              </ul>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">32,306 rows combined</p>
-              <a href="https://www.bls.gov/lau/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
-            </div>
-          </div>
-
-          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
-            <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">Caltrans</h3>
-              <p className="text-sm text-on-surface-variant mt-1">Traffic Volumes &amp; Road Miles</p>
-              <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                Annual average daily traffic (AADT) and road miles for state-managed highways. Covers state routes only — local and county roads are not included.
-              </p>
-            </div>
-            <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">413 rows · state highways only</p>
-              <a href="https://dot.ca.gov/programs/traffic-operations/census" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
-            </div>
-          </div>
-
-          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
-            <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">CalEnviroScreen</h3>
-              <p className="text-sm text-on-surface-variant mt-1">CA Office of Environmental Health Hazard Assessment</p>
-              <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                Environmental justice scores for all 58 counties, derived from 8,035 census tracts (version 4.0, based on 2021 data). A single snapshot — not a time series.
-              </p>
-            </div>
-            <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">58 rows · 2021 snapshot</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~32,800 rows combined</p>
               <a href="https://oehha.ca.gov/calenviroscreen" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
             </div>
           </div>

@@ -61,7 +61,8 @@ SUPPORTS_TOOL_USE = {"groq", "gemini", "openrouter", "ollama"}
 
 # In-memory cooldown tracker: provider_name -> timestamp when cooldown expires
 _provider_cooldowns: dict[str, float] = {}
-_COOLDOWN_SECONDS = 300  # 5 minutes default
+_provider_failures: dict[str, int] = {}
+_BASE_COOLDOWN_SECONDS = 30
 _DAILY_COOLDOWN_SECONDS = 1800  # 30 min for daily token limits
 
 
@@ -69,18 +70,26 @@ class AllProvidersExhausted(Exception):
     pass
 
 
-def _mark_cooled_down(provider_name: str, seconds: int = _COOLDOWN_SECONDS):
-    """Mark a provider as rate-limited for N seconds."""
+def _mark_cooled_down(provider_name: str, seconds: int | None = None):
+    """Mark a provider as rate-limited with exponential backoff."""
+    _provider_failures[provider_name] = _provider_failures.get(provider_name, 0) + 1
+    if seconds is None:
+        failures = _provider_failures[provider_name]
+        seconds = min(_BASE_COOLDOWN_SECONDS * (2 ** (failures - 1)), 300)
     _provider_cooldowns[provider_name] = time.time() + seconds
-    logger.info("Provider %s cooled down for %ds", provider_name, seconds)
+    logger.info("Provider %s cooled down for %ds (failure #%d)", provider_name, seconds, _provider_failures.get(provider_name, 0))
+
+
+def _mark_success(provider_name: str):
+    """Reset failure count on successful call."""
+    _provider_failures.pop(provider_name, None)
 
 
 def _is_available(provider_name: str) -> bool:
     """Check if a provider is past its cooldown period."""
     cooldown_until = _provider_cooldowns.get(provider_name, 0)
     if time.time() >= cooldown_until:
-        if provider_name in _provider_cooldowns:
-            del _provider_cooldowns[provider_name]
+        _provider_cooldowns.pop(provider_name, None)
         return True
     remaining = int(cooldown_until - time.time())
     logger.debug("Provider %s still cooling down (%ds left)", provider_name, remaining)
@@ -238,6 +247,7 @@ def generate_with_fallback(
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
+            _mark_success(name)
             return response, name
 
         except RateLimitError as e:
@@ -245,7 +255,12 @@ def generate_with_fallback(
             if "tokens per day" in error_msg.lower() or "tpd" in error_msg.lower():
                 _mark_cooled_down(name, _DAILY_COOLDOWN_SECONDS)
             else:
-                _mark_cooled_down(name, _COOLDOWN_SECONDS)
+                retry_after = None
+                if hasattr(e, "response") and e.response is not None:
+                    retry_after_str = e.response.headers.get("retry-after")
+                    if retry_after_str and retry_after_str.isdigit():
+                        retry_after = int(retry_after_str)
+                _mark_cooled_down(name, retry_after)
             logger.warning("Provider %s rate limited: %s", name, e)
             last_error = e
             continue

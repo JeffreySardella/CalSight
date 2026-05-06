@@ -64,56 +64,76 @@ export default function AskAiPage() {
     return () => clearInterval(interval);
   }, [cooldownEnd]);
 
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = el.scrollHeight + "px";
+  }, [inputValue]);
+
   const handleSend = () => {
     if (!inputValue.trim() || isLoading || cooldownRemaining > 0) return;
     sendMessage(inputValue);
     setInputValue("");
-    if (inputRef.current) inputRef.current.style.height = "auto";
   };
 
   const handleSuggestionClick = (question: string) => {
     setInputValue(question);
-    inputRef.current?.focus();
   };
 
   const filterSummary = (() => {
     const parts: string[] = [];
-    if (selectedCounties.size > 0) parts.push([...selectedCounties].join(", "));
-    if (selectedYears.size > 0) {
-      const years = [...selectedYears].sort();
-      parts.push(years.length > 3 ? `${years[0]}-${years[years.length - 1]}` : years.join(", "));
+    if (selectedCounties.size > 0) {
+      parts.push(selectedCounties.size <= 2 ? [...selectedCounties].join(", ") : `${selectedCounties.size} counties`);
     }
-    if (selectedSeverities.size > 0) parts.push([...selectedSeverities].join(", "));
-    if (selectedCauses.size > 0) parts.push([...selectedCauses].join(", "));
-    if (selectedAlcohol) parts.push("Alcohol involved");
-    if (selectedDistracted) parts.push("Distraction involved");
-    return parts.length > 0 ? parts.join(" | ") : "All California data";
+    if (selectedYears.size > 0) {
+      const years = [...selectedYears].map(Number).sort((a, b) => a - b);
+      const ranges: string[] = [];
+      let start = years[0], end = years[0];
+      for (let i = 1; i < years.length; i++) {
+        if (years[i] === end + 1) { end = years[i]; }
+        else { ranges.push(start === end ? `${start}` : `${start}-${end}`); start = end = years[i]; }
+      }
+      ranges.push(start === end ? `${start}` : `${start}-${end}`);
+      parts.push(ranges.join(", "));
+    }
+    if (selectedSeverities.size > 0) {
+      parts.push(selectedSeverities.size <= 2 ? [...selectedSeverities].join(", ") : `${selectedSeverities.size} severities`);
+    }
+    if (selectedCauses.size > 0) {
+      parts.push(selectedCauses.size <= 2 ? [...selectedCauses].join(", ") : `${selectedCauses.size} causes`);
+    }
+    if (selectedAlcohol) parts.push("Alcohol");
+    if (selectedDistracted) parts.push("Distracted");
+    return parts.length > 0 ? parts.join(" · ") : "All California data";
   })();
 
   return (
-    <div className="max-w-[840px] mx-auto px-3 md:px-6 pt-6 md:pt-8 pb-32 md:pb-4 min-h-[calc(100vh-8rem)] flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="font-headline text-2xl font-extrabold tracking-tighter text-on-surface">
+    <div className="flex flex-col h-full max-w-[840px] mx-auto w-full">
+      {/* STICKY HEADER */}
+      <div className="flex-none flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-outline-variant bg-surface z-10">
+        <div className="min-w-0">
+          <h1 className="font-headline text-lg md:text-2xl font-extrabold tracking-tighter text-on-surface">
             Ask AI
           </h1>
-          <p className="text-xs text-on-surface-variant">
-            Answering with: {filterSummary}
+          <p className="text-[10px] md:text-xs text-on-surface-variant truncate">
+            {filterSummary}
           </p>
         </div>
         {hasMessages && (
           <button
             type="button"
             onClick={clearConversation}
-            className="text-xs text-on-surface-variant hover:text-on-surface flex items-center gap-1 transition-colors"
+            className="flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-surface-container text-on-surface-variant hover:text-on-surface text-xs font-medium transition-colors whitespace-nowrap"
           >
-            <span className="material-symbols-outlined text-sm">delete</span>
-            Clear
+            <span className="material-symbols-outlined text-sm">add</span>
+            New Chat
           </button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto mb-4" role="log" aria-label="AI conversation">
+      {/* SCROLLABLE MESSAGE AREA */}
+      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4" role="log" aria-label="AI conversation">
         {!hasMessages ? (
           <>
             <section className="mb-8">
@@ -163,6 +183,11 @@ export default function AskAiPage() {
                 ))}
               </ul>
             </section>
+
+            <p className="text-[10px] text-on-surface-variant/50 text-center pt-6">
+              Conversations clear when you close this tab.{" "}
+              <Link to="/privacy" className="underline hover:text-on-surface-variant">Privacy Policy</Link>
+            </p>
           </>
         ) : (
           <>
@@ -194,18 +219,19 @@ export default function AskAiPage() {
         )}
       </div>
 
-      <div className="fixed bottom-[60px] left-0 right-0 px-3 pb-2 md:sticky md:bottom-0 md:px-0 z-40 md:pb-2 bg-surface md:bg-transparent">
-        <div className="relative flex items-center bg-surface-container-high rounded-xl p-1.5 md:p-2 group transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/20">
-          <span className="material-symbols-outlined ml-3 text-on-surface-variant">
+      {/* STICKY FOOTER */}
+      <div className="flex-none px-3 md:px-6 pt-1.5 pb-1.5 md:pt-2 md:pb-3 border-t border-outline-variant bg-surface">
+        <div className="relative flex items-end bg-surface-container-high rounded-xl p-1 md:p-2 group transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/20">
+          <span className="material-symbols-outlined ml-2 md:ml-3 mb-2 text-on-surface-variant text-[20px] md:text-[24px]">
             auto_awesome
           </span>
           <textarea
             ref={inputRef}
             value={inputValue}
-            onChange={(e) => { setInputValue(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
+            onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            className="w-full bg-transparent border-none focus:ring-0 resize-none px-3 py-2.5 text-on-surface placeholder:text-outline font-body text-sm"
-            placeholder="Ask about California crash data..."
+            className="w-full bg-transparent border-none focus:ring-0 resize-none overflow-hidden px-2 md:px-3 py-2 md:py-2.5 text-on-surface placeholder:text-outline font-body text-sm"
+            placeholder="Ask about crash data..."
             aria-label="Ask a question about California crash data"
             disabled={isLoading}
             maxLength={500}
@@ -218,13 +244,13 @@ export default function AskAiPage() {
             type="button"
             onClick={handleSend}
             disabled={!inputValue.trim() || isLoading || cooldownRemaining > 0}
-            className="bg-primary text-on-primary px-4 py-2.5 rounded-lg flex items-center gap-1.5 hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+            className="bg-primary text-on-primary px-3 py-2 md:px-4 md:py-2.5 rounded-lg flex items-center gap-1 md:gap-1.5 hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
           >
             {cooldownRemaining > 0 ? (
               <span>{cooldownRemaining}s</span>
             ) : (
               <>
-                <span className="font-medium">Send</span>
+                <span className="hidden md:inline font-medium">Send</span>
                 <span className="material-symbols-outlined text-sm">send</span>
               </>
             )}

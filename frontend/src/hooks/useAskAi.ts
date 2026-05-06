@@ -8,6 +8,7 @@ const COOLDOWN_MS = 15_000;
 const API_URL = `${API_BASE}/api/ask`;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 3000;
+const COOLDOWN_KEY = "calsight-ask-ai-cooldown";
 
 export interface ChartData {
   type: "bar" | "line" | "pie";
@@ -58,7 +59,10 @@ export function useAskAi() {
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cooldownEnd, setCooldownEnd] = useState<number>(0);
+  const [cooldownEnd, setCooldownEnd] = useState<number>(() => {
+    const stored = sessionStorage.getItem(COOLDOWN_KEY);
+    return stored ? Number(stored) : 0;
+  });
   const [searchParams] = useSearchParams();
 
   const messagesRef = useRef(messages);
@@ -67,6 +71,14 @@ export function useAskAi() {
   useEffect(() => {
     saveMessages(messages);
   }, [messages]);
+
+  useEffect(() => {
+    if (cooldownEnd > Date.now()) {
+      sessionStorage.setItem(COOLDOWN_KEY, String(cooldownEnd));
+    } else {
+      sessionStorage.removeItem(COOLDOWN_KEY);
+    }
+  }, [cooldownEnd]);
 
   const sendMessage = useCallback(async (question: string) => {
     if (!question.trim() || isLoading) return;
@@ -82,7 +94,7 @@ export function useAskAi() {
     setIsLoading(true);
     setCooldownEnd(Date.now() + COOLDOWN_MS);
 
-    const history = messagesRef.current.slice(-10).map((m) => ({
+    const history = [...messagesRef.current, userMsg].slice(-10).map((m) => ({
       role: m.role,
       content: m.content,
     }));
@@ -94,18 +106,24 @@ export function useAskAi() {
 
     const body = JSON.stringify({ question: question.trim(), filters, history });
 
+    let lastWas429 = false;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        if (attempt > 0) {
+        if (attempt > 0 && !lastWas429) {
           setError(`Retrying... (attempt ${attempt + 1}/${MAX_RETRIES})`);
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
         }
+        lastWas429 = false;
 
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45_000);
         const resp = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body,
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
 
         if (resp.status === 503) {
           if (attempt < MAX_RETRIES - 1) continue;
@@ -119,8 +137,10 @@ export function useAskAi() {
 
         if (resp.status === 429) {
           const data = await resp.json().catch(() => ({}));
-          const retryAfter = data.retry_after || 60;
+          const retryAfter = data.retry_after || 15;
           if (attempt < MAX_RETRIES - 1) {
+            lastWas429 = true;
+            setError(`Rate limited. Waiting ${retryAfter}s...`);
             await new Promise((r) => setTimeout(r, retryAfter * 1000));
             continue;
           }
@@ -161,9 +181,10 @@ export function useAskAi() {
         setMessages((prev) => [...prev, aiMsg]);
         setIsLoading(false);
         return;
-      } catch {
+      } catch (e: unknown) {
         if (attempt < MAX_RETRIES - 1) continue;
-        setError("Couldn't reach the server. Check your connection.");
+        const isTimeout = e instanceof DOMException && e.name === "AbortError";
+        setError(isTimeout ? "Request timed out. Try a simpler question." : "Couldn't reach the server. Check your connection.");
       }
     }
     setIsLoading(false);
@@ -181,7 +202,9 @@ export function useAskAi() {
   const clearConversation = useCallback(() => {
     setMessages([]);
     sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(COOLDOWN_KEY);
     setError(null);
+    setCooldownEnd(0);
   }, []);
 
   return {

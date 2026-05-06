@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -102,7 +104,20 @@ def feedback(body: FeedbackRequest, db: Session = Depends(get_db)):
 
 @router.post("/ask", response_model=AskResponse)
 @limiter.limit("10/minute;200/day")
-def ask(request: Request, body: AskRequest, db: Session = Depends(get_db)):
+async def ask(request: Request, body: AskRequest, db: Session = Depends(get_db)):
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_handle_ask, body, db),
+            timeout=60.0,
+        )
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            status_code=504,
+            content={"message": "Request timed out. Please try again.", "retry_after": 5},
+        )
+
+
+def _handle_ask(body: AskRequest, db: Session) -> AskResponse:
     filters_summary = build_filters_summary(body.filters)
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(active_filters=filters_summary)
 
