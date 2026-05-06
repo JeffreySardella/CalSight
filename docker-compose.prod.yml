@@ -8,3 +8,18 @@ services:
     environment:
       DEBUG: "false"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy

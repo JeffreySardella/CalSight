@@ -47,7 +47,12 @@ jobs:
           printf 'LLM_FALLBACK_3_KEY=%s\n' "$CEREBRAS_KEY" >> backend/.env
           printf 'DEBUG=false\n' >> backend/.env
 
-      - name: Build and restart backend
+      - name: Stop standalone cloudflared (if still running as systemd)
+        run: systemctl disable --now cloudflared 2>/dev/null || true
+
+      - name: Build and restart backend + tunnel
+        env:
+          CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
         run: docker compose -f docker-compose.prod.yml up --build -d
 
       - name: Run database migrations
@@ -56,19 +61,23 @@ jobs:
       - name: Refresh materialized views
         run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.refresh_materialized_views
 
-      - name: Verify backend is healthy
+      - name: Verify backend + tunnel are healthy
         run: |
-          for i in 1 2 3 4 5; do
-            if curl -sf http://127.0.0.1:8000/docs > /dev/null; then
+          for i in 1 2 3 4 5 6; do
+            if curl -sf http://127.0.0.1:8000/api/health > /dev/null; then
               echo "Backend is up"
-              exit 0
+              break
             fi
-            echo "Attempt $i/5 failed, waiting..."
+            echo "Attempt $i/6 failed, waiting..."
             sleep 5
           done
-          echo "Backend failed to start — showing logs:"
-          docker compose -f docker-compose.prod.yml logs --tail=50 backend
-          exit 1
+          if ! curl -sf http://127.0.0.1:8000/api/health > /dev/null; then
+            echo "Backend failed to start — showing logs:"
+            docker compose -f docker-compose.prod.yml logs --tail=50 backend
+            exit 1
+          fi
+          echo "Checking tunnel..."
+          docker compose -f docker-compose.prod.yml ps tunnel --format '{{.State}}' | grep -q running && echo "Tunnel is running" || { echo "Tunnel not running:"; docker compose -f docker-compose.prod.yml logs --tail=20 tunnel; exit 1; }
 
       - name: Notify Discord
         if: always()
