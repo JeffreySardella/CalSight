@@ -19,6 +19,7 @@ import type { Map as LeafletMap } from "leaflet";
 import MapCanvas from "./MapCanvas";
 import { mockMapInstance } from "../../__mocks__/leaflet";
 import { ThemeProvider } from "../../context/ThemeContext";
+import { LayersStateProvider } from "../../hooks/useLayersState";
 
 const defaultHeatmapProps = {
   heatmapPoints: [] as { lat: number; lng: number; weight: number }[],
@@ -28,7 +29,11 @@ const defaultHeatmapProps = {
 };
 
 function renderWithTheme(ui: React.ReactElement) {
-  return render(<ThemeProvider>{ui}</ThemeProvider>);
+  return render(
+    <ThemeProvider>
+      <LayersStateProvider>{ui}</LayersStateProvider>
+    </ThemeProvider>
+  );
 }
 
 describe("MapCanvas", () => {

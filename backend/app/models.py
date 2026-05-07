@@ -95,6 +95,14 @@ class Crash(Base):
     is_alcohol_involved = Column(Boolean)     # True if any party was HBD or on drugs
     is_distraction_involved = Column(Boolean) # True if any party was on their phone
 
+    # True when lat/lng falls outside the assigned county's polygon.
+    # Set by etl.validate_coords; NULL means not yet validated.
+    coord_county_mismatch = Column(Boolean)
+    # True when lat/lng falls over any water body (rivers, lakes, ocean).
+    # Stricter than coord_county_mismatch which only checks major lakes + coast.
+    coord_over_water = Column(Boolean)
+    coord_validated_at = Column(DateTime)
+
     # Data provenance — which source this record came from
     data_source = Column(String(10))  # "switrs" or "ccrs"
 

@@ -24,7 +24,7 @@ import MapCanvas from "../components/map/MapCanvas";
 import AiInsightCard from "../components/map/AiInsightCard";
 import Breadcrumb from "../components/map/Breadcrumb";
 import { EmptyState } from "../components/ui/EmptyState";
-import { useCrashHeatmap } from "../hooks/useCrashHeatmap";
+import { useCrashHeatmap, useBatchedHeatmap } from "../hooks/useCrashHeatmap";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
@@ -36,6 +36,27 @@ const PANEL_META: Record<string, { title: string; subtitle: string }> = {
 };
 
 const VALID_PANELS = new Set(Object.keys(PANEL_META));
+
+function HeatmapLoadingPill() {
+  const [showSlow, setShowSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSlow(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+      <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-full ghost-border shadow-lg flex flex-col items-center gap-1">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-medium text-on-surface-variant">Loading crash data...</span>
+        </div>
+        {showSlow && (
+          <span className="text-[10px] text-on-surface-variant/70">Large county — this may take a moment</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function MapPageInner() {
   const {
@@ -99,13 +120,38 @@ function MapPageInner() {
 
   const heatmapEnabled = useCountyDetail || otherLayers.heatmapStatewide;
 
-  const heatmap = useCrashHeatmap({
-    enabled: heatmapEnabled,
-    county: heatmapCountySlugs,
+  const statewideHeatmap = useCrashHeatmap({
+    enabled: heatmapEnabled && !useCountyDetail,
+    county: null,
     years: [...selectedYears],
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
     resolution: effectiveResolution,
+  });
+
+  const countyHeatmap = useBatchedHeatmap({
+    enabled: heatmapEnabled && useCountyDetail,
+    county: heatmapCountySlugs,
+    years: [...selectedYears],
+    severities: [...selectedSeverities],
+    causes: [...selectedCauses],
+    resolution: "raw",
+  });
+
+  const heatmap = useCountyDetail
+    ? { points: countyHeatmap.points, totalCrashes: countyHeatmap.totalCrashes, isLoading: countyHeatmap.isLoading, error: countyHeatmap.error }
+    : statewideHeatmap;
+
+  const mismatchCountySlug = focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null;
+  const mismatchHeatmap = useCrashHeatmap({
+    enabled: otherLayers.coordMismatches && !!mismatchCountySlug,
+    county: mismatchCountySlug,
+    years: [...selectedYears],
+    severities: [...selectedSeverities],
+    causes: [...selectedCauses],
+    resolution: "raw",
+    mismatchOnly: true,
+    includeRivers: otherLayers.coordIncludeRivers,
   });
 
   const coordCoverage = useCoordCoverage([...selectedYears]);
@@ -320,6 +366,7 @@ function MapPageInner() {
           heatmapResolution={effectiveResolution}
           heatmapPalette={palette}
           countyDrilldown={useCountyDetail}
+          mismatchPoints={otherLayers.coordMismatches ? mismatchHeatmap.points : []}
         />
 
         {/* Mobile: search + filter icon buttons (right), hide when search expanded */}
@@ -394,7 +441,21 @@ function MapPageInner() {
           countyActive={!!focusedCounty}
           countyTotalCrashes={inspectedData?.rawCount ?? null}
           searchOpen={mobileSearchExpanded}
+          mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
         />
+        {heatmapEnabled && heatmap.isLoading && (
+          <HeatmapLoadingPill />
+        )}
+        {useCountyDetail && !countyHeatmap.isLoading && countyHeatmap.totalBatches && countyHeatmap.totalBatches > 1 && countyHeatmap.hasMore && (
+          <div className="absolute top-2 left-2 md:top-2 md:left-16 z-20 md:z-30">
+            <div className="bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1.5 rounded-full text-[11px] font-medium ghost-border shadow-lg flex items-center gap-2">
+              <span className="inline-block w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-on-surface-variant">
+                Loading batch {countyHeatmap.currentBatch}/{countyHeatmap.totalBatches}
+              </span>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Mobile filter bottom sheet */}
@@ -445,6 +506,7 @@ function ChoroplethLegendContainer({
   countyActive,
   countyTotalCrashes,
   searchOpen,
+  mismatchCount,
 }: {
   choroplethData: ChoroplethData;
   coordCoverage?: CoordCoverage | null;
@@ -454,6 +516,7 @@ function ChoroplethLegendContainer({
   countyActive?: boolean;
   countyTotalCrashes?: number | null;
   searchOpen?: boolean;
+  mismatchCount?: number | null;
 }) {
   const queryClient = useQueryClient();
   return (
@@ -471,6 +534,7 @@ function ChoroplethLegendContainer({
       heatmapLoading={heatmapLoading}
       countyActive={countyActive}
       countyTotalCrashes={countyTotalCrashes}
+      mismatchCount={mismatchCount}
     />
   );
 }

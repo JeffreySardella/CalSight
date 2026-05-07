@@ -4,9 +4,10 @@ import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CountyBoundaries from "./CountyBoundaries";
 import CrashHeatmap from "./CrashHeatmap";
+import CoordMismatchLayer from "./CoordMismatchLayer";
 import CaliforniaMask from "./CaliforniaMask";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
-import type { HeatmapResolution } from "../../hooks/useLayersState";
+import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 
@@ -30,6 +31,7 @@ interface MapCanvasProps {
   heatmapResolution: HeatmapResolution;
   heatmapPalette: PaletteKey;
   countyDrilldown?: boolean;
+  mismatchPoints?: HeatmapPoint[];
 }
 
 const HEATMAP_MAX_ZOOM: Record<string, number> = {
@@ -50,8 +52,11 @@ function MapInternals({
   heatmapResolution,
   heatmapPalette,
   countyDrilldown,
+  mismatchPoints = [],
 }: MapCanvasProps) {
   const map = useMap();
+  const { otherLayers } = useLayersState();
+  const showMask = heatmapActive && !otherLayers.coordMismatches && !countyDrilldown;
 
   useEffect(() => {
     onMapReady(map);
@@ -84,18 +89,19 @@ function MapInternals({
         onSelectCounty={onSelectCounty}
       />
       {heatmapActive && (
-        <>
-          <CrashHeatmap
-            points={heatmapPoints}
-            resolution={heatmapResolution}
-            palette={heatmapPalette}
-          />
-          <CaliforniaMask
-            focusedCounty={countyDrilldown ? focusedCounty : null}
-            compareCounty={countyDrilldown ? (compareCounty ?? null) : null}
-          />
-        </>
+        <CrashHeatmap
+          points={heatmapPoints}
+          resolution={heatmapResolution}
+          palette={heatmapPalette}
+        />
       )}
+      {showMask && (
+        <CaliforniaMask
+          focusedCounty={countyDrilldown ? focusedCounty : null}
+          compareCounty={countyDrilldown ? (compareCounty ?? null) : null}
+        />
+      )}
+      {mismatchPoints.length > 0 && <CoordMismatchLayer points={mismatchPoints} palette={heatmapPalette} />}
     </>
   );
 }
@@ -111,6 +117,7 @@ export default function MapCanvas({
   heatmapResolution,
   heatmapPalette,
   countyDrilldown,
+  mismatchPoints = [],
 }: MapCanvasProps) {
   const isDark = useIsDark();
   // CartoDB tile variants — swap between light_* and dark_* so counties
@@ -160,6 +167,7 @@ export default function MapCanvas({
         heatmapResolution={heatmapResolution}
         heatmapPalette={heatmapPalette}
         countyDrilldown={countyDrilldown}
+        mismatchPoints={mismatchPoints}
       />
 
       <TileLayer
