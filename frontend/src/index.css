@@ -206,6 +206,10 @@
   background: rgb(var(--surface-container));
 }
 
+.leaflet-overlay-pane canvas {
+  pointer-events: none;
+}
+
 .county-focus-tooltip {
   background: rgba(0, 0, 0, 0.8);
   border: none;
