@@ -2,12 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { DEFAULT_MEASURE, MEASURES, type MeasureKey } from "../lib/choropleth/measures";
 import { PALETTES, type PaletteKey } from "../lib/choropleth/palettes";
 
-export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "incidents" | "countyBoundaries" | "roadTypes" | "schoolZones" | "hospitals";
+export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "coordMismatches" | "incidents" | "countyBoundaries" | "roadTypes" | "schoolZones" | "hospitals";
 export type HeatmapResolution = "raw" | "low" | "medium" | "high";
 
 const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
   heatmapStatewide: false,
   heatmapCounty: true,
+  coordMismatches: false,
   incidents: false,
   countyBoundaries: true,
   roadTypes: false,

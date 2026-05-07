@@ -107,6 +107,17 @@ function MapPageInner() {
     resolution: effectiveResolution,
   });
 
+  const mismatchCountySlug = focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null;
+  const mismatchHeatmap = useCrashHeatmap({
+    enabled: otherLayers.coordMismatches && !!mismatchCountySlug,
+    county: mismatchCountySlug,
+    years: [...selectedYears],
+    severities: [...selectedSeverities],
+    causes: [...selectedCauses],
+    resolution: "raw",
+    mismatchOnly: true,
+  });
+
   const coordCoverage = useCoordCoverage([...selectedYears]);
   const choroplethFilters = useMemo(
     () => ({
@@ -319,6 +330,7 @@ function MapPageInner() {
           heatmapResolution={effectiveResolution}
           heatmapPalette={palette}
           countyDrilldown={useCountyDetail}
+          mismatchPoints={otherLayers.coordMismatches ? mismatchHeatmap.points : []}
         />
 
         {/* Mobile: search + filter icon buttons (right), hide when search expanded */}

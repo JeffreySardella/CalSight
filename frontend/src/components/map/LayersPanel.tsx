@@ -172,6 +172,17 @@ export default function LayersPanel() {
               Shows individual crash locations when you click a county
             </p>
           )}
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.coordMismatches ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Coord Mismatches
+            </span>
+            <Toggle enabled={otherLayers.coordMismatches} onToggle={() => toggleOtherLayer("coordMismatches")} />
+          </div>
+          {otherLayers.coordMismatches && (
+            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+              Orange dots = crashes whose lat/lng falls outside their assigned county (requires county selected)
+            </p>
+          )}
         </div>
       </div>
 

@@ -56,7 +56,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-3 gap-4 md:gap-6">
           {[
             { value: "11.1M", label: "Police-reported crashes" },
-            { value: "9", label: "Government data sources" },
+            { value: "17", label: "Data sources" },
             { value: "25.3M", label: "Total rows in database" },
           ].map(({ value, label }) => (
             <div key={label} className="bg-surface-container-lowest rounded-lg ambient-shadow flex flex-col items-center justify-center text-center gap-4 py-6 md:py-8 px-6">
@@ -102,33 +102,66 @@ export default function AboutPage() {
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
               <h3 className="font-headline text-xl font-bold text-on-surface">US Census Bureau</h3>
-              <p className="text-sm text-on-surface-variant mt-1">American Community Survey (ACS)</p>
+              <p className="text-sm text-on-surface-variant mt-1">ACS Demographics + TIGER/Line Boundaries</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                28 demographic and economic fields per county per year — population, income, poverty, race, education, vehicle ownership. 5-year estimates for all 58 counties starting 2010; 1-year estimates for larger counties 2005-2009.
+                28 demographic fields per county per year (population, income, poverty, race, education). TIGER/Line 2023 survey-grade county boundaries for coordinate validation. AREAWATER 2023 for lake and harbor exclusion.
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">1,012 rows</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">1,012 rows + boundaries</p>
               <a href="https://data.census.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
             </div>
           </div>
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">Supplementary Sources</h3>
-              <p className="text-sm text-on-surface-variant mt-1">Rate normalization, weather, and contextual data</p>
+              <h3 className="font-headline text-xl font-bold text-on-surface">California State Agencies</h3>
+              <p className="text-sm text-on-surface-variant mt-1">DMV, Caltrans, OEHHA, CDE, OSHPD</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
-                <li>NOAA monthly county weather (2001-2025)</li>
-                <li>BLS monthly unemployment rates (2005-2025)</li>
                 <li>CA DMV vehicle registrations (2019-2026)</li>
                 <li>CA DMV licensed driver counts (2008-2024)</li>
-                <li>Caltrans AADT for state highways</li>
-                <li>CalEnviroScreen 4.0 — environmental justice scores (2021 snapshot)</li>
+                <li>Caltrans AADT traffic volumes for state highways</li>
+                <li>CalEnviroScreen 4.0 environmental justice scores</li>
+                <li>CDE school locations statewide</li>
+                <li>OSHPD/HCAI hospital locations</li>
               </ul>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~32,800 rows combined</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~34,000 rows combined</p>
               <a href="https://oehha.ca.gov/calenviroscreen" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
+            <div>
+              <h3 className="font-headline text-xl font-bold text-on-surface">Federal Agencies</h3>
+              <p className="text-sm text-on-surface-variant mt-1">NOAA, BLS, FHWA</p>
+              <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
+                <li>NOAA monthly county weather data (2001-2025)</li>
+                <li>BLS monthly unemployment rates (2005-2025)</li>
+                <li>FHWA HPMS road miles and speed limits</li>
+              </ul>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~18,000 rows combined</p>
+              <a href="https://www.ncdc.noaa.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
+            <div>
+              <h3 className="font-headline text-xl font-bold text-on-surface">OpenStreetMap + AI</h3>
+              <p className="text-sm text-on-surface-variant mt-1">Spatial validation and insight generation</p>
+              <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
+                <li>OSM bridge locations (55K+ segments) for coordinate validation</li>
+                <li>Groq (llama-3.3-70b) — primary AI insight generation</li>
+                <li>Google Gemini 2.5 Flash — fallback</li>
+                <li>OpenRouter + Cerebras — additional fallbacks</li>
+              </ul>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">OSM data © contributors</p>
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">OSM License</a>
             </div>
           </div>
         </div>

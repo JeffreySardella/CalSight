@@ -131,9 +131,12 @@ def upsert_crashes(session, rows: list[dict]) -> int:
         return 0
 
     stmt = pg_insert(Crash).values(valid_rows)
+    update_set = {col: stmt.excluded[col] for col in _UPSERT_COLUMNS}
+    update_set["coord_county_mismatch"] = None
+    update_set["coord_validated_at"] = None
     stmt = stmt.on_conflict_do_update(
         constraint="uq_crashes_collision_source",
-        set_={col: stmt.excluded[col] for col in _UPSERT_COLUMNS},
+        set_=update_set,
     )
     session.execute(stmt)
     return len(rows)

@@ -15,10 +15,15 @@ interface AiInsightCardProps {
 }
 
 function fmt(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 100_000) return `${(n / 1_000).toFixed(0)}K`;
+  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString("en-US");
 }
 
 function fmtMeasure(n: number): string {
+  if (n >= 100_000) return `${(n / 1_000).toFixed(0)}K`;
+  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
   return Math.round(n).toLocaleString("en-US");
 }
 
@@ -48,12 +53,13 @@ function MetricGrid({ data, measureLabel }: { data: ChoroplethPoint; measureLabe
 }
 
 function MetricCell({ label, value }: { label: string; value: string }) {
+  const textSize = value.length > 6 ? "text-xs" : value.length > 4 ? "text-sm" : "text-base";
   return (
-    <div className="bg-surface-container-low/50 p-2.5 rounded-lg">
-      <p className="text-[9px] text-on-surface-variant font-bold uppercase tracking-widest mb-1">
+    <div className="bg-surface-container-low/50 p-2.5 rounded-lg min-w-0">
+      <p className="text-[9px] text-on-surface-variant font-bold uppercase tracking-widest mb-1 truncate">
         {label}
       </p>
-      <p className="text-base font-bold text-on-surface">{value}</p>
+      <p className={`${textSize} font-bold text-on-surface truncate`}>{value}</p>
     </div>
   );
 }

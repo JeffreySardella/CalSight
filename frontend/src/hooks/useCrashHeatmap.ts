@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useCallback } from "react";
 import { API_BASE } from "../config";
 import type { HeatmapResolution } from "./useLayersState";
 import { slugify } from "./useFilterParams";
@@ -19,11 +20,16 @@ interface HeatmapParams {
   alcohol?: boolean | null;
   distracted?: boolean | null;
   resolution: HeatmapResolution;
+  mismatchOnly?: boolean;
+  batch?: number;
+  batchSize?: number;
 }
 
 interface HeatmapApiResponse {
   points: HeatmapPoint[];
   total_crashes: number;
+  batch: number | null;
+  total_batches: number | null;
 }
 
 function buildUrl(params: HeatmapParams): string {
@@ -35,6 +41,9 @@ function buildUrl(params: HeatmapParams): string {
   if (params.alcohol != null) sp.set("alcohol", String(params.alcohol));
   if (params.distracted != null) sp.set("distracted", String(params.distracted));
   sp.set("resolution", params.resolution);
+  if (params.mismatchOnly) sp.set("mismatch_only", "true");
+  if (params.batch) sp.set("batch", String(params.batch));
+  if (params.batchSize) sp.set("batch_size", String(params.batchSize));
   return `${API_BASE}/api/crashes/heatmap?${sp.toString()}`;
 }
 
@@ -55,6 +64,9 @@ export function useCrashHeatmap(params: HeatmapParams) {
       params.alcohol,
       params.distracted,
       params.resolution,
+      params.mismatchOnly ?? false,
+      params.batch ?? null,
+      params.batchSize ?? null,
     ],
     queryFn: () => fetchHeatmap(params),
     enabled: params.enabled,
@@ -64,6 +76,48 @@ export function useCrashHeatmap(params: HeatmapParams) {
   return {
     points: data?.points ?? [],
     totalCrashes: data?.total_crashes ?? 0,
+    batch: data?.batch ?? null,
+    totalBatches: data?.total_batches ?? null,
+    isLoading,
+    error,
+  };
+}
+
+export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSize"> & { batchSize?: number }) {
+  const size = params.batchSize ?? 300_000;
+  const [currentBatch, setCurrentBatch] = useState(1);
+  const [allPoints, setAllPoints] = useState<HeatmapPoint[]>([]);
+
+  const { points, totalCrashes, batch, totalBatches, isLoading, error } = useCrashHeatmap({
+    ...params,
+    batch: currentBatch,
+    batchSize: size,
+  });
+
+  useEffect(() => {
+    if (points.length > 0 && batch === currentBatch) {
+      setAllPoints((prev) => currentBatch === 1 ? points : [...prev, ...points]);
+    }
+  }, [points, batch, currentBatch]);
+
+  useEffect(() => {
+    setCurrentBatch(1);
+    setAllPoints([]);
+  }, [params.county, params.years, params.severities, params.causes, params.resolution, params.mismatchOnly]);
+
+  const loadNextBatch = useCallback(() => {
+    if (totalBatches && currentBatch < totalBatches) {
+      setCurrentBatch((b) => b + 1);
+    }
+  }, [currentBatch, totalBatches]);
+
+  return {
+    points: allPoints,
+    totalCrashes,
+    currentBatch,
+    totalBatches,
+    hasMore: totalBatches != null && currentBatch < totalBatches,
+    loadNextBatch,
     isLoading,
     error,
   };

@@ -12,6 +12,7 @@ const FATAL_DOT_COLORS: Record<PaletteKey, string> = {
 };
 import type { DataSummary } from "../../hooks/useChoroplethData";
 import type { CoordCoverage } from "../../hooks/useCoordCoverage";
+import { useCoordValidation } from "../../hooks/useCoordValidation";
 
 type Props = {
   demographicsAvailable: boolean;
@@ -48,6 +49,7 @@ const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], part
 
 export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, countyActive, countyTotalCrashes }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
+  const coordValidation = useCoordValidation();
   const isDark = useIsDark();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -234,11 +236,16 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         <div data-testid="data-summary" className="text-[11px] sm:text-[10px] text-on-surface-variant mt-2 leading-snug">
           <span className="font-mono font-semibold">{formatCount(dataSummary.totalCrashes)}</span> crashes
 
+          {coordValidation && coordValidation.mismatched > 0 && (
+            <div className="mt-0.5 text-[10px] text-on-surface-variant/80">
+              <span className="font-mono">{formatCount(coordValidation.mismatched)}</span> audited outside county
+            </div>
+          )}
           {coordCoverage && (
             <div className="mt-0.5 text-[10px]">
-              <span className="font-mono">{formatCount(coordCoverage.mapped)}</span> of{" "}
+              <span className="font-mono">{formatCount(coordCoverage.mapped - (coordValidation?.mismatched ?? 0))}</span> of{" "}
               <span className="font-mono">{formatCount(coordCoverage.total)}</span> mapped (
-              <span className="font-mono">{Math.round(coordCoverage.pct)}%</span>)
+              <span className="font-mono">{Math.round((coordCoverage.mapped - (coordValidation?.mismatched ?? 0)) / coordCoverage.total * 100)}%</span>)
             </div>
           )}
 

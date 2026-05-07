@@ -4,7 +4,7 @@ import logging
 from enum import Enum
 
 from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import func, literal_column
+from sqlalchemy import func, literal_column, or_
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
@@ -57,6 +57,9 @@ def crash_heatmap(
     alcohol: str | None = Query(None),
     distracted: str | None = Query(None),
     resolution: Resolution | None = Query(None),
+    mismatch_only: str | None = Query(None),
+    batch: int | None = Query(None, ge=1),
+    batch_size: int | None = Query(None, ge=1000, le=500_000),
     db: Session = Depends(get_db),
 ):
     """Crash locations for heatmap rendering.
@@ -97,18 +100,33 @@ def crash_heatmap(
     preds.append(Crash.longitude.isnot(None))
     preds.append(Crash.latitude.between(32.5, 42.05))
     preds.append(Crash.longitude.between(-124.5, -114.0))
+    mismatch_flag = parse_bool_flag(mismatch_only, "mismatch_only")
+    if mismatch_flag is True:
+        preds.append(Crash.coord_county_mismatch == True)  # noqa: E712
+    elif county_codes:
+        preds.append(or_(Crash.coord_county_mismatch.is_(None), Crash.coord_county_mismatch == False))  # noqa: E712
 
     if resolution == Resolution.raw:
         total_q = db.query(func.count()).filter(*preds).scalar() or 0
+
+        page_size = batch_size or RAW_POINT_LIMIT
+        total_batches = max(1, (total_q + page_size - 1) // page_size) if batch else None
+        current_batch = batch or 1
+        offset = (current_batch - 1) * page_size
+
         rows = (
             db.query(Crash.latitude, Crash.longitude, Crash.severity)
             .filter(*preds)
-            .limit(RAW_POINT_LIMIT)
+            .order_by(Crash.id)
+            .limit(page_size)
+            .offset(offset)
             .all()
         )
         return HeatmapResponse(
             points=[HeatmapPoint(lat=r.latitude, lng=r.longitude, weight=1, severity=r.severity) for r in rows],
             total_crashes=total_q,
+            batch=current_batch if batch else None,
+            total_batches=total_batches,
         )
 
     step = _STEP[resolution]
