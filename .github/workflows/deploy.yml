@@ -50,6 +50,11 @@ jobs:
       - name: Stop standalone cloudflared (if still running as systemd)
         run: systemctl disable --now cloudflared 2>/dev/null || true
 
+      - name: Stage county boundaries for coord validation
+        run: |
+          mkdir -p backend/data
+          cp frontend/public/ca-counties.geojson backend/data/ca-counties-tiger.geojson
+
       - name: Build and restart backend + tunnel
         env:
           CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
@@ -60,6 +65,9 @@ jobs:
 
       - name: Refresh materialized views
         run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.refresh_materialized_views
+
+      - name: Validate crash coordinates (background, ~15 min)
+        run: docker compose -f docker-compose.prod.yml exec -T -d backend python -m etl.validate_coords
 
       - name: Verify backend + tunnel are healthy
         run: |
