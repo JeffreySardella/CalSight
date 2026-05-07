@@ -43,11 +43,13 @@ function measureValue(data: ChoroplethPoint): string {
 
 function MetricGrid({ data, measureLabel }: { data: ChoroplethPoint; measureLabel: string }) {
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-3 gap-2">
       <MetricCell label="Crashes" value={fmt(data.rawCount)} />
       <MetricCell label="Killed" value={fmt(data.totalKilled)} />
       <MetricCell label="Injured" value={fmt(data.totalInjured)} />
-      <MetricCell label={measureLabel} value={measureValue(data)} />
+      <div className="col-span-3">
+        <MetricCell label={measureLabel} value={measureValue(data)} />
+      </div>
     </div>
   );
 }
@@ -56,10 +58,10 @@ function MetricCell({ label, value }: { label: string; value: string }) {
   const textSize = value.length > 6 ? "text-xs" : value.length > 4 ? "text-sm" : "text-base";
   return (
     <div className="bg-surface-container-low/50 p-2.5 rounded-lg min-w-0">
-      <p className="text-[9px] text-on-surface-variant font-bold uppercase tracking-widest mb-1 truncate">
+      <p className="text-[8px] text-on-surface-variant font-bold uppercase tracking-wider mb-1 leading-tight" style={{ wordBreak: "break-word" }}>
         {label}
       </p>
-      <p className={`${textSize} font-bold text-on-surface truncate`}>{value}</p>
+      <p className={`${textSize} font-bold text-on-surface`}>{value}</p>
     </div>
   );
 }

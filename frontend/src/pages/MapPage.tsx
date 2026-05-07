@@ -23,7 +23,7 @@ import DataExportPanel, {
 import MapCanvas from "../components/map/MapCanvas";
 import AiInsightCard from "../components/map/AiInsightCard";
 import Breadcrumb from "../components/map/Breadcrumb";
-import { useCrashHeatmap } from "../hooks/useCrashHeatmap";
+import { useCrashHeatmap, useBatchedHeatmap } from "../hooks/useCrashHeatmap";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
@@ -98,14 +98,27 @@ function MapPageInner() {
 
   const heatmapEnabled = useCountyDetail || otherLayers.heatmapStatewide;
 
-  const heatmap = useCrashHeatmap({
-    enabled: heatmapEnabled,
-    county: heatmapCountySlugs,
+  const statewideHeatmap = useCrashHeatmap({
+    enabled: heatmapEnabled && !useCountyDetail,
+    county: null,
     years: [...selectedYears],
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
     resolution: effectiveResolution,
   });
+
+  const countyHeatmap = useBatchedHeatmap({
+    enabled: heatmapEnabled && useCountyDetail,
+    county: heatmapCountySlugs,
+    years: [...selectedYears],
+    severities: [...selectedSeverities],
+    causes: [...selectedCauses],
+    resolution: "raw",
+  });
+
+  const heatmap = useCountyDetail
+    ? { points: countyHeatmap.points, totalCrashes: countyHeatmap.totalCrashes, isLoading: countyHeatmap.isLoading, error: countyHeatmap.error }
+    : statewideHeatmap;
 
   const mismatchCountySlug = focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null;
   const mismatchHeatmap = useCrashHeatmap({
@@ -390,6 +403,19 @@ function MapPageInner() {
           countyTotalCrashes={inspectedData?.rawCount ?? null}
           searchOpen={mobileSearchExpanded}
         />
+        {useCountyDetail && countyHeatmap.hasMore && (
+          <div className="absolute bottom-12 left-16 z-20 md:z-30">
+            <button
+              onClick={countyHeatmap.loadNextBatch}
+              disabled={countyHeatmap.isLoading}
+              className="bg-primary text-on-primary px-4 py-2 rounded-full text-xs font-bold tracking-wider uppercase shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {countyHeatmap.isLoading
+                ? `Loading batch ${countyHeatmap.currentBatch}...`
+                : `Load more (batch ${countyHeatmap.currentBatch} of ${countyHeatmap.totalBatches})`}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Mobile filter bottom sheet */}
