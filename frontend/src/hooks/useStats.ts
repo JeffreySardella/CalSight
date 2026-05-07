@@ -49,6 +49,7 @@ export interface UseStatsResult {
   data: StatsData | null;
   loading: boolean;
   error: string | null;
+  refetch: () => void;
 }
 
 type YearRow = { year: number; crash_count: number; total_killed: number; total_injured: number };
@@ -303,5 +304,6 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     data,
     loading,
     error: rawError ? String(rawError) : null,
+    refetch: () => queries.forEach((q) => q.refetch()),
   };
 }
