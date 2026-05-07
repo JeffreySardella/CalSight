@@ -229,8 +229,9 @@ function MapPageInner() {
       setCompareCounty(null);
       setCompareMode(false);
       setShowInsight(false);
+      clearCounties();
     }
-  }, [compareMode]);
+  }, [compareMode, clearCounties]);
 
   function handleClearAll() {
     clearFilters();
