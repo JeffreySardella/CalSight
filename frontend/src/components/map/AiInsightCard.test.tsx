@@ -68,9 +68,9 @@ describe("AiInsightCard", () => {
       />,
     );
     await expandCard();
-    expect(screen.getByText("48,291")).toBeInTheDocument();
+    expect(screen.getByText("48.3K")).toBeInTheDocument();
     expect(screen.getByText("412")).toBeInTheDocument();
-    expect(screen.getByText("12,847")).toBeInTheDocument();
+    expect(screen.getByText("12.8K")).toBeInTheDocument();
   });
 
   it("calls onClose when close button is clicked", async () => {
