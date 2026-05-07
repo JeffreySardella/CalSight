@@ -76,7 +76,7 @@ function MetricCell({ label, value }: { label: string; value: string }) {
       <p className="text-[8px] text-on-surface-variant font-bold uppercase tracking-wider mb-1 leading-tight" style={{ wordBreak: "break-word" }}>
         {label}
       </p>
-      <p className={`${textSize} font-bold text-on-surface`}>{value}</p>
+      <p className={`${textSize} font-bold text-on-surface truncate`}>{value}</p>
     </div>
   );
 }

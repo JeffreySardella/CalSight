@@ -93,7 +93,11 @@ export default function CountyBoundaries({
 
   useEffect(() => {
     installHatchPattern();
-  }, []);
+    if (!map.getPane("countyPane")) {
+      const pane = map.createPane("countyPane");
+      pane.style.zIndex = "450";
+    }
+  }, [map]);
 
   useEffect(() => {
     fetch("/ca-counties.geojson")
@@ -218,6 +222,7 @@ export default function CountyBoundaries({
 
     try {
       const layer = L.geoJSON(geojson, {
+        pane: "countyPane",
         style: (feature) => computeStyle(feature ?? { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [] } }),
         onEachFeature: (feature, featureLayer) => {
           const name = getCountyName(feature);

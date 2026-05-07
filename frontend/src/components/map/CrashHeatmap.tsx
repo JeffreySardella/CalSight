@@ -186,6 +186,7 @@ function useFatalLayer(points: HeatmapPoint[], resolution: HeatmapResolution, pa
       _reset: () => void;
     };
     const internals = layer as unknown as HeatInternals;
+
     map.off("zoomanim", internals._animateZoom, layer);
 
     const onZoomStart = () => {
