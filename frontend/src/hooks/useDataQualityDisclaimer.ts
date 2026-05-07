@@ -15,6 +15,12 @@ export type DataQualityDisclaimers = {
   preDataOnly: boolean;
   /** Selection includes some pre-2016 years (demographic charts cover 2016+ only). */
   hasPreCcrsYears: boolean;
+  /**
+   * Selection includes pre-2009 years. ACS 1-year estimates only cover counties
+   * with population ≥65k, so per-capita columns may be NULL for smaller counties
+   * during 2001–2008.
+   */
+  hasPreAcsYears: boolean;
   agePct: number | null;
   genderPct: number | null;
   /** age_pct < 50% for the current scope. */
@@ -52,9 +58,10 @@ export function useDataQualityDisclaimer(
   const years = allYears ? [...YEARS] : selectedYears;
   const preDataOnly = !allYears && years.every((y) => y < 2016);
   const hasPreCcrsYears = !allYears && !preDataOnly && years.some((y) => y < 2016);
+  const hasPreAcsYears = !allYears && years.some((y) => y < 2009);
 
   if (!data) {
-    return { preDataOnly, hasPreCcrsYears, agePct: null, genderPct: null, showAgeWarning: false, showGenderWarning: false };
+    return { preDataOnly, hasPreCcrsYears, hasPreAcsYears, agePct: null, genderPct: null, showAgeWarning: false, showGenderWarning: false };
   }
 
   // All-time row for this scope: year IS NULL
@@ -65,6 +72,7 @@ export function useDataQualityDisclaimer(
   return {
     preDataOnly,
     hasPreCcrsYears,
+    hasPreAcsYears,
     agePct,
     genderPct,
     showAgeWarning: agePct !== null && agePct < 50,
