@@ -16,6 +16,9 @@ import {
 } from "recharts";
 import { useStats, type HourlyDataPoint, type YearlyDataPoint, type CauseDataPoint, type MonthlyDataPoint, type DayOfWeekDataPoint } from "../hooks/useStats";
 import { useDataQualityDisclaimer } from "../hooks/useDataQualityDisclaimer";
+import { Skeleton } from "../components/ui/Skeleton";
+import { EmptyState } from "../components/ui/EmptyState";
+import { ErrorState } from "../components/ui/ErrorState";
 
 function DataQualityNote({ text }: { text: string }) {
   return (
@@ -109,7 +112,7 @@ export default function StatsPage() {
     causes: [...filters.selectedCauses],
     counties: [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")),
   }), [filters.selectedYears, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
-  const { data, loading, error } = useStats(statsFilters);
+  const { data, loading, error, refetch } = useStats(statsFilters);
   const dqDisclaimers = useDataQualityDisclaimer(
     [...filters.selectedYears],
     [...filters.selectedCounties],
@@ -321,9 +324,13 @@ export default function StatsPage() {
             Total Incidents
           </p>
           <div className="flex items-baseline gap-3">
-            <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
-              {totalIncidents != null ? totalIncidents.toLocaleString() : "—"}
-            </h2>
+            {loading ? (
+              <Skeleton className="h-10 w-40" />
+            ) : (
+              <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
+                {totalIncidents != null ? totalIncidents.toLocaleString() : "—"}
+              </h2>
+            )}
             {incidentYoYPct != null && (
               <span className={`text-sm font-bold flex items-center ${incidentUp ? "text-error" : "text-primary"}`}>
                 <span className="material-symbols-outlined text-[18px]">
@@ -343,9 +350,13 @@ export default function StatsPage() {
           <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
             KSI Rate / 100K Pop.
           </p>
-          <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
-            {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
-          </h2>
+          {loading ? (
+            <Skeleton className="h-10 w-24" />
+          ) : (
+            <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
+              {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
+            </h2>
+          )}
           <p className="text-on-surface-variant text-[10px] mt-2 italic">
             Killed &amp; seriously injured per 100K residents
           </p>
@@ -357,11 +368,15 @@ export default function StatsPage() {
             YoY Fatality Change
           </p>
           <div className="flex items-baseline gap-3">
-            <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
-              {yoyFatalityChangePct != null
-                ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%`
-                : "—"}
-            </h2>
+            {loading ? (
+              <Skeleton className="h-10 w-32" />
+            ) : (
+              <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
+                {yoyFatalityChangePct != null
+                  ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%`
+                  : "—"}
+              </h2>
+            )}
             {yoyFatalityChangePct != null && (
               <span className={`text-sm font-bold flex items-center ${fatalityUp ? "text-error" : "text-primary"}`}>
                 <span className="material-symbols-outlined text-[18px]">
@@ -391,9 +406,9 @@ export default function StatsPage() {
             </div>
           </div>
           {loading ? (
-            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+            <Skeleton className="h-48 w-full" />
           ) : error ? (
-            <div className="h-48 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+            <ErrorState onRetry={refetch} className="h-48" />
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={hourlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
@@ -445,9 +460,9 @@ export default function StatsPage() {
             Primary Cause
           </h3>
           {loading ? (
-            <div className="h-40 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+            <Skeleton className="h-40 w-full" />
           ) : error ? (
-            <div className="h-40 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+            <ErrorState onRetry={refetch} className="h-40" />
           ) : causesWithPct.length <= 5 ? (
             <>
               <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
@@ -520,9 +535,9 @@ export default function StatsPage() {
             </div>
           </div>
           {loading ? (
-            <div className="h-64 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+            <Skeleton className="h-64 w-full" />
           ) : error ? (
-            <div className="h-64 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+            <ErrorState onRetry={refetch} className="h-64" />
           ) : yearlyData.length < 3 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {yearlyData.map((yr) => (
@@ -603,9 +618,9 @@ export default function StatsPage() {
             </div>
           </div>
           {loading ? (
-            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+            <Skeleton className="h-48 w-full" />
           ) : error ? (
-            <div className="h-48 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+            <ErrorState onRetry={refetch} className="h-48" />
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={monthlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
@@ -654,9 +669,9 @@ export default function StatsPage() {
             Day of Week
           </h3>
           {loading ? (
-            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+            <Skeleton className="h-48 w-full" />
           ) : error ? (
-            <div className="h-48 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+            <ErrorState onRetry={refetch} className="h-48" />
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={dayOfWeekData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
@@ -686,9 +701,9 @@ export default function StatsPage() {
             Severity Breakdown
           </h3>
           {loading ? (
-            <div className="h-40 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+            <Skeleton className="h-40 w-full" />
           ) : error ? (
-            <div className="h-40 flex items-center justify-center text-error text-sm">Failed to load data.</div>
+            <ErrorState onRetry={refetch} className="h-40" />
           ) : (
             <>
               <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
@@ -743,12 +758,13 @@ export default function StatsPage() {
             <DataQualityNote text={`Gender recorded for ${Math.round(dqDisclaimers.genderPct)}% of parties. Chart may not be fully representative.`} />
           )}
           {loading ? (
-            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+            <Skeleton className="h-48 w-full" />
           ) : !genderData.length ? (
-            <div className="h-48 flex flex-col items-center justify-center gap-2 text-on-surface-variant text-sm text-center px-4">
-              <span className="material-symbols-outlined text-[28px] opacity-40">person_off</span>
-              <span>{dqDisclaimers.preDataOnly ? "Gender data requires 2016 or later (CCRS)." : "No gender data for the current filters."}</span>
-            </div>
+            <EmptyState
+              icon="person_off"
+              description={dqDisclaimers.preDataOnly ? "Gender data requires 2016 or later (CCRS)." : "No gender data for the current filters."}
+              className="h-48"
+            />
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={genderData} barCategoryGap="25%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
@@ -798,12 +814,13 @@ export default function StatsPage() {
             <DataQualityNote text={`Age recorded for ${Math.round(dqDisclaimers.agePct)}% of parties. Chart may not be fully representative.`} />
           )}
           {loading ? (
-            <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">Loading…</div>
+            <Skeleton className="h-48 w-full" />
           ) : !ageBracketData.length ? (
-            <div className="h-48 flex flex-col items-center justify-center gap-2 text-on-surface-variant text-sm text-center px-4">
-              <span className="material-symbols-outlined text-[28px] opacity-40">person_off</span>
-              <span>{dqDisclaimers.preDataOnly ? "Age data requires 2016 or later (CCRS)." : "No age data for the current filters."}</span>
-            </div>
+            <EmptyState
+              icon="person_off"
+              description={dqDisclaimers.preDataOnly ? "Age data requires 2016 or later (CCRS)." : "No age data for the current filters."}
+              className="h-48"
+            />
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={ageBracketData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
