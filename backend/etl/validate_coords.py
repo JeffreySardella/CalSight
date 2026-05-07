@@ -42,6 +42,9 @@ BATCH_SIZE = 10_000
 GEOJSON_PATH = os.path.join(
     os.path.dirname(__file__), "..", "data", "ca-counties-tiger.geojson"
 )
+GEOJSON_FALLBACK = os.path.join(
+    os.path.dirname(__file__), "..", "..", "frontend", "public", "ca-counties.geojson"
+)
 
 # With TIGER/Line boundaries (survey-grade precision), no buffer needed.
 # The boundary IS the ground truth.
@@ -108,8 +111,11 @@ def run(county_code: int | None = None, audit_only: bool = False, buffer_m: floa
     """
     geojson_path = os.path.normpath(GEOJSON_PATH)
     if not os.path.exists(geojson_path):
-        logger.error("GeoJSON not found at %s", geojson_path)
-        sys.exit(1)
+        geojson_path = os.path.normpath(GEOJSON_FALLBACK)
+        if not os.path.exists(geojson_path):
+            logger.error("GeoJSON not found at %s or %s", GEOJSON_PATH, GEOJSON_FALLBACK)
+            sys.exit(1)
+        logger.info("Using frontend GeoJSON fallback: %s", geojson_path)
 
     polygons = load_county_polygons(geojson_path, buffer_m=buffer_m)
 
