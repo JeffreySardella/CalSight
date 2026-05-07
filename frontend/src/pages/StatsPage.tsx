@@ -409,6 +409,8 @@ export default function StatsPage() {
             <Skeleton className="h-48 w-full" />
           ) : error ? (
             <ErrorState onRetry={refetch} className="h-48" />
+          ) : !hourlyData.length ? (
+            <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={hourlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
@@ -463,6 +465,8 @@ export default function StatsPage() {
             <Skeleton className="h-40 w-full" />
           ) : error ? (
             <ErrorState onRetry={refetch} className="h-40" />
+          ) : !causesWithPct.length ? (
+            <EmptyState icon="search_off" description="No data for the selected filters." className="h-40" />
           ) : causesWithPct.length <= 5 ? (
             <>
               <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
@@ -538,6 +542,8 @@ export default function StatsPage() {
             <Skeleton className="h-64 w-full" />
           ) : error ? (
             <ErrorState onRetry={refetch} className="h-64" />
+          ) : !yearlyData.length ? (
+            <EmptyState icon="search_off" description="No data for the selected filters." className="h-64" />
           ) : yearlyData.length < 3 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {yearlyData.map((yr) => (
@@ -621,6 +627,8 @@ export default function StatsPage() {
             <Skeleton className="h-48 w-full" />
           ) : error ? (
             <ErrorState onRetry={refetch} className="h-48" />
+          ) : !monthlyData.length ? (
+            <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={monthlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
@@ -672,6 +680,8 @@ export default function StatsPage() {
             <Skeleton className="h-48 w-full" />
           ) : error ? (
             <ErrorState onRetry={refetch} className="h-48" />
+          ) : !dayOfWeekData.length ? (
+            <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={dayOfWeekData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
@@ -704,6 +714,8 @@ export default function StatsPage() {
             <Skeleton className="h-40 w-full" />
           ) : error ? (
             <ErrorState onRetry={refetch} className="h-40" />
+          ) : !sevWithPct.length ? (
+            <EmptyState icon="search_off" description="No data for the selected filters." className="h-40" />
           ) : (
             <>
               <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
@@ -863,6 +875,9 @@ export default function StatsPage() {
               Normalized rates for cross-county comparison
             </p>
           </div>
+          {dqDisclaimers.hasPreAcsYears && (
+            <DataQualityNote text="Pre-2009 demographic data is only available for California's largest counties (≥65k population). Per-capita columns may show '—' for smaller counties during 2001–2008." />
+          )}
           <div className="space-y-1">
             {Object.entries(
               sortedRateData.reduce<Record<string, typeof sortedRateData>>((acc, r) => {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChoroplethPoint } from "../../hooks/useChoroplethData";
+import { Skeleton } from "../ui/Skeleton";
 
 interface AiInsightCardProps {
   onClose: () => void;
@@ -12,6 +13,21 @@ interface AiInsightCardProps {
   compareData?: ChoroplethPoint;
   /** LLM-generated narrative blurb. null/undefined = section hidden. */
   narrative?: string | null;
+  /** True while choropleth data is still fetching — show skeletons in place of metric cells. */
+  loading?: boolean;
+}
+
+function SkeletonMetricGrid() {
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="bg-surface-container-low/50 p-2.5 rounded-lg">
+          <Skeleton className="h-2 w-12 mb-1.5" />
+          <Skeleton className="h-4 w-10" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function fmt(n: number): string {
@@ -88,6 +104,7 @@ export default function AiInsightCard({
   compareCountyName,
   compareData,
   narrative,
+  loading,
 }: AiInsightCardProps) {
   const [expanded, setExpanded] = useState(
     () => window.matchMedia("(min-width: 768px)").matches,
@@ -149,7 +166,11 @@ export default function AiInsightCard({
               </>
             ) : (
               <>
-                {data && <MetricGrid data={data} measureLabel={measureLabel} />}
+                {data ? (
+                  <MetricGrid data={data} measureLabel={measureLabel} />
+                ) : loading ? (
+                  <SkeletonMetricGrid />
+                ) : null}
 
                 {/* AI narrative blurb — single-county mode only, hidden when null */}
                 {!compareMode && narrative && (
