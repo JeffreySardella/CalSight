@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import NavBar from "./NavBar";
 import Footer from "./Footer";
 import BottomTabBar from "./BottomTabBar";
+import { OfflineIndicator } from "./ui/OfflineIndicator";
 
 export default function Layout() {
   const location = useLocation();
@@ -24,6 +25,7 @@ export default function Layout() {
   return (
     <>
       <NavBar />
+      <OfflineIndicator />
       {isMapPage ? (
         <main className="pt-12 pb-14 md:pt-16 md:pb-0 flex h-dvh overflow-hidden">
           <Outlet />

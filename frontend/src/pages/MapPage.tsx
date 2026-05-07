@@ -424,6 +424,7 @@ function MapPageInner() {
             compareCountyName={compareCounty ?? undefined}
             compareData={comparePointData}
             narrative={insightData?.narrative}
+            loading={choroplethData.isLoading}
           />
         )}
         <Breadcrumb
