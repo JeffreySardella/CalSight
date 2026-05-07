@@ -13,3 +13,5 @@ class HeatmapPoint(BaseModel):
 class HeatmapResponse(BaseModel):
     points: list[HeatmapPoint]
     total_crashes: int
+    batch: int | None = None
+    total_batches: int | None = None

@@ -1,3 +1,8 @@
+# Large generated spatial data (regenerate via etl/validate_coords.py)
+backend/data/ca-bridges.geojson
+backend/data/ca-counties-tiger.geojson
+backend/data/ca-land-boundary.geojson
+
 # Logs
 logs
 *.log

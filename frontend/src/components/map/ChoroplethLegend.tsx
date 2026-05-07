@@ -10,8 +10,16 @@ const FATAL_DOT_COLORS: Record<PaletteKey, string> = {
   cool: "#dc2626",
   colorblind: "#e66100",
 };
+
+const MISMATCH_DOT_COLORS: Record<PaletteKey, string> = {
+  default: "#f97316",
+  warm: "#a78bfa",
+  cool: "#fb7185",
+  colorblind: "#17becf",
+};
 import type { DataSummary } from "../../hooks/useChoroplethData";
 import type { CoordCoverage } from "../../hooks/useCoordCoverage";
+import { useCoordValidation } from "../../hooks/useCoordValidation";
 
 type Props = {
   demographicsAvailable: boolean;
@@ -27,6 +35,7 @@ type Props = {
   heatmapLoading?: boolean;
   countyActive?: boolean;
   countyTotalCrashes?: number | null;
+  mismatchCount?: number | null;
 };
 
 function formatYearList(years: number[]): string {
@@ -46,8 +55,9 @@ function formatCount(n: number): string {
 
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
 
-export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, countyActive, countyTotalCrashes }: Props) {
+export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, countyActive, countyTotalCrashes, mismatchCount }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
+  const coordValidation = useCoordValidation();
   const isDark = useIsDark();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -172,6 +182,12 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: FATAL_DOT_COLORS[palette] }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Fatal</span>
           </div>
+          {mismatchCount != null && mismatchCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: MISMATCH_DOT_COLORS[palette] }} />
+              <span className="text-[10px] text-on-surface-variant font-semibold">Mismatched</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -187,7 +203,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           {heatmapLoading
             ? "Loading heatmap..."
             : countyActive && countyTotalCrashes && heatmapDisplayed != null
-              ? `${formatCount(heatmapDisplayed)} mapped (${Math.round((heatmapDisplayed / countyTotalCrashes) * 100)}%)`
+              ? `${formatCount(heatmapDisplayed)} mapped (${Math.round((heatmapDisplayed / countyTotalCrashes) * 100)}%)${mismatchCount ? ` · ${formatCount(mismatchCount)} bad coords` : ""}`
               : heatmapDisplayed != null && heatmapDisplayed < heatmapCrashes!
                 ? `${formatCount(heatmapDisplayed)} of ${formatCount(heatmapCrashes!)} mapped`
                 : `${formatCount(heatmapCrashes!)} mapped`}
@@ -234,11 +250,16 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         <div data-testid="data-summary" className="text-[11px] sm:text-[10px] text-on-surface-variant mt-2 leading-snug">
           <span className="font-mono font-semibold">{formatCount(dataSummary.totalCrashes)}</span> crashes
 
+          {coordValidation && coordValidation.mismatched > 0 && (
+            <div className="mt-0.5 text-[10px] text-on-surface-variant/80">
+              <span className="font-mono">{formatCount(coordValidation.mismatched)}</span> audited outside county
+            </div>
+          )}
           {coordCoverage && (
             <div className="mt-0.5 text-[10px]">
-              <span className="font-mono">{formatCount(coordCoverage.mapped)}</span> of{" "}
+              <span className="font-mono">{formatCount(coordCoverage.mapped - (coordValidation?.mismatched ?? 0))}</span> of{" "}
               <span className="font-mono">{formatCount(coordCoverage.total)}</span> mapped (
-              <span className="font-mono">{Math.round(coordCoverage.pct)}%</span>)
+              <span className="font-mono">{Math.round((coordCoverage.mapped - (coordValidation?.mismatched ?? 0)) / coordCoverage.total * 100)}%</span>)
             </div>
           )}
 

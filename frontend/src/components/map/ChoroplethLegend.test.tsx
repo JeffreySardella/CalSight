@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useEffect } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LayersStateProvider, useLayersState } from "../../hooks/useLayersState";
 import { ThemeProvider } from "../../context/ThemeContext";
 import ChoroplethLegend from "./ChoroplethLegend";
@@ -22,6 +23,8 @@ function MeasureSetter({ measure }: { measure: MeasureKey }) {
 
 const BASE_SUMMARY: DataSummary = { totalCrashes: 500_000, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
 
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
 function Harness({
   edges = null as number[] | null,
   demographicsAvailable = true,
@@ -29,12 +32,14 @@ function Harness({
   choroplethOn = true,
 }) {
   return (
-    <ThemeProvider>
-      <LayersStateProvider>
-        <Seeder edges={edges} choroplethOn={choroplethOn} />
-        <ChoroplethLegend demographicsAvailable={demographicsAvailable} dataSummary={dataSummary} />
-      </LayersStateProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <LayersStateProvider>
+          <Seeder edges={edges} choroplethOn={choroplethOn} />
+          <ChoroplethLegend demographicsAvailable={demographicsAvailable} dataSummary={dataSummary} />
+        </LayersStateProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -76,12 +81,14 @@ describe("ChoroplethLegend", () => {
       return <div data-testid="current">{s.measure}</div>;
     }
     render(
+      <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LayersStateProvider>
           <Probe />
           <ChoroplethLegend demographicsAvailable={true} />
         </LayersStateProvider>
-      </ThemeProvider>,
+      </ThemeProvider>
+      </QueryClientProvider>,
     );
     const trigger = screen.getByLabelText(/measure/i);
     fireEvent.click(trigger);
@@ -92,11 +99,13 @@ describe("ChoroplethLegend", () => {
   it("shows an error message with retry button when isError is true", () => {
     const onRetry = vi.fn();
     render(
+      <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LayersStateProvider>
           <ChoroplethLegend demographicsAvailable={true} isError={true} onRetry={onRetry} />
         </LayersStateProvider>
-      </ThemeProvider>,
+      </ThemeProvider>
+      </QueryClientProvider>,
     );
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(/couldn't load data/i);
@@ -106,11 +115,13 @@ describe("ChoroplethLegend", () => {
 
   it("shows a 422 warning instead of the error message when is422 is true", () => {
     render(
+      <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LayersStateProvider>
           <ChoroplethLegend demographicsAvailable={true} isError={true} is422={true} />
         </LayersStateProvider>
-      </ThemeProvider>,
+      </ThemeProvider>
+      </QueryClientProvider>,
     );
     expect(screen.getByRole("status")).toHaveTextContent(/filter value was rejected/i);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -118,11 +129,13 @@ describe("ChoroplethLegend", () => {
 
   it("shows a loading skeleton when isLoading is true", () => {
     render(
+      <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LayersStateProvider>
           <ChoroplethLegend demographicsAvailable={true} isLoading={true} />
         </LayersStateProvider>
-      </ThemeProvider>,
+      </ThemeProvider>
+      </QueryClientProvider>,
     );
     expect(screen.getByText(/loading data/i)).toBeInTheDocument();
   });
@@ -158,12 +171,14 @@ describe("ChoroplethLegend", () => {
 
   it("does not show missing-demographics alert for raw measures", () => {
     render(
+      <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LayersStateProvider>
           <MeasureSetter measure="crashes_raw" />
           <ChoroplethLegend demographicsAvailable={true} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024] }} />
         </LayersStateProvider>
-      </ThemeProvider>,
+      </ThemeProvider>
+      </QueryClientProvider>,
     );
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -174,12 +189,14 @@ describe("ChoroplethLegend", () => {
       return <div data-testid="current">{s.measure}</div>;
     }
     render(
+      <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LayersStateProvider>
           <Probe />
           <ChoroplethLegend demographicsAvailable={true} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024] }} />
         </LayersStateProvider>
-      </ThemeProvider>,
+      </ThemeProvider>
+      </QueryClientProvider>,
     );
     expect(screen.getByTestId("current")).toHaveTextContent("crashes_per_100k");
     fireEvent.click(screen.getByRole("button", { name: /switch to total crashes/i }));
