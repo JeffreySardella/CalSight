@@ -22,6 +22,7 @@ function fmt(n: number): string {
 }
 
 function fmtMeasure(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 100_000) return `${(n / 1_000).toFixed(0)}K`;
   if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
   return Math.round(n).toLocaleString("en-US");
@@ -43,13 +44,11 @@ function measureValue(data: ChoroplethPoint): string {
 
 function MetricGrid({ data, measureLabel }: { data: ChoroplethPoint; measureLabel: string }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-2 gap-2">
       <MetricCell label="Crashes" value={fmt(data.rawCount)} />
+      <MetricCell label={measureLabel} value={measureValue(data)} />
       <MetricCell label="Killed" value={fmt(data.totalKilled)} />
       <MetricCell label="Injured" value={fmt(data.totalInjured)} />
-      <div className="col-span-3">
-        <MetricCell label={measureLabel} value={measureValue(data)} />
-      </div>
     </div>
   );
 }
@@ -103,7 +102,7 @@ export default function AiInsightCard({
   const isComparing = compareMode && compareCountyName && compareData;
 
   return (
-    <div className="fixed bottom-card-mobile left-0 right-0 z-40 md:absolute md:bottom-2 md:left-16 md:right-auto md:max-w-sm md:z-30">
+    <div className="fixed bottom-card-mobile left-0 right-0 z-40 md:absolute md:bottom-2 md:left-16 md:right-auto md:w-[480px] md:z-30">
       <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden">
         {/* Collapsed bar — always visible */}
         <div

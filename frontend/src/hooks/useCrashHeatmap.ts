@@ -21,6 +21,7 @@ interface HeatmapParams {
   distracted?: boolean | null;
   resolution: HeatmapResolution;
   mismatchOnly?: boolean;
+  includeRivers?: boolean;
   batch?: number;
   batchSize?: number;
 }
@@ -42,6 +43,7 @@ function buildUrl(params: HeatmapParams): string {
   if (params.distracted != null) sp.set("distracted", String(params.distracted));
   sp.set("resolution", params.resolution);
   if (params.mismatchOnly) sp.set("mismatch_only", "true");
+  if (params.includeRivers) sp.set("include_rivers", "true");
   if (params.batch) sp.set("batch", String(params.batch));
   if (params.batchSize) sp.set("batch_size", String(params.batchSize));
   return `${API_BASE}/api/crashes/heatmap?${sp.toString()}`;
@@ -65,6 +67,7 @@ export function useCrashHeatmap(params: HeatmapParams) {
       params.distracted,
       params.resolution,
       params.mismatchOnly ?? false,
+      params.includeRivers ?? false,
       params.batch ?? null,
       params.batchSize ?? null,
     ],
@@ -84,7 +87,7 @@ export function useCrashHeatmap(params: HeatmapParams) {
 }
 
 export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSize"> & { batchSize?: number }) {
-  const size = params.batchSize ?? 300_000;
+  const size = params.batchSize ?? 1_100_000;
   const [currentBatch, setCurrentBatch] = useState(1);
   const [allPoints, setAllPoints] = useState<HeatmapPoint[]>([]);
 
@@ -100,10 +103,18 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     }
   }, [points, batch, currentBatch]);
 
+  const filterKey = `${params.county}|${params.years.join(",")}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}`;
   useEffect(() => {
     setCurrentBatch(1);
     setAllPoints([]);
-  }, [params.county, params.years, params.severities, params.causes, params.resolution, params.mismatchOnly]);
+  }, [filterKey]);
+
+  // Auto-load next batch when current one finishes
+  useEffect(() => {
+    if (!isLoading && totalBatches && currentBatch < totalBatches && points.length > 0) {
+      setCurrentBatch((b) => b + 1);
+    }
+  }, [isLoading, totalBatches, currentBatch, points.length]);
 
   const loadNextBatch = useCallback(() => {
     if (totalBatches && currentBatch < totalBatches) {

@@ -24,6 +24,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("crashes", sa.Column("coord_county_mismatch", sa.Boolean))
+    op.add_column("crashes", sa.Column("coord_over_water", sa.Boolean))
     op.add_column("crashes", sa.Column("coord_validated_at", sa.DateTime))
     op.create_index(
         "ix_crashes_coord_mismatch",
@@ -36,4 +37,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_crashes_coord_mismatch", table_name="crashes")
     op.drop_column("crashes", "coord_validated_at")
+    op.drop_column("crashes", "coord_over_water")
     op.drop_column("crashes", "coord_county_mismatch")

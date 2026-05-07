@@ -24,7 +24,7 @@ from app.schemas.heatmap import HeatmapPoint, HeatmapResponse
 router = APIRouter(tags=["heatmap"])
 logger = logging.getLogger(__name__)
 
-RAW_POINT_LIMIT = 300_000
+RAW_POINT_LIMIT = 1_100_000
 
 
 class Resolution(str, Enum):
@@ -58,8 +58,9 @@ def crash_heatmap(
     distracted: str | None = Query(None),
     resolution: Resolution | None = Query(None),
     mismatch_only: str | None = Query(None),
+    include_rivers: str | None = Query(None),
     batch: int | None = Query(None, ge=1),
-    batch_size: int | None = Query(None, ge=1000, le=500_000),
+    batch_size: int | None = Query(None, ge=1000, le=2_000_000),
     db: Session = Depends(get_db),
 ):
     """Crash locations for heatmap rendering.
@@ -101,10 +102,20 @@ def crash_heatmap(
     preds.append(Crash.latitude.between(32.5, 42.05))
     preds.append(Crash.longitude.between(-124.5, -114.0))
     mismatch_flag = parse_bool_flag(mismatch_only, "mismatch_only")
+    rivers_flag = parse_bool_flag(include_rivers, "include_rivers")
     if mismatch_flag is True:
-        preds.append(Crash.coord_county_mismatch == True)  # noqa: E712
+        if rivers_flag is True:
+            preds.append(or_(Crash.coord_county_mismatch == True, Crash.coord_over_water == True))  # noqa: E712
+        else:
+            preds.append(Crash.coord_county_mismatch == True)  # noqa: E712
     elif county_codes:
-        preds.append(or_(Crash.coord_county_mismatch.is_(None), Crash.coord_county_mismatch == False))  # noqa: E712
+        if rivers_flag is True:
+            preds.append(or_(
+                Crash.coord_county_mismatch.is_(None) & Crash.coord_over_water.isnot(True),
+                Crash.coord_county_mismatch == False,  # noqa: E712
+            ))
+        else:
+            preds.append(or_(Crash.coord_county_mismatch.is_(None), Crash.coord_county_mismatch == False))  # noqa: E712
 
     if resolution == Resolution.raw:
         total_q = db.query(func.count()).filter(*preds).scalar() or 0

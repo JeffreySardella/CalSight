@@ -101,7 +101,7 @@ function MapInternals({
           compareCounty={countyDrilldown ? (compareCounty ?? null) : null}
         />
       )}
-      {mismatchPoints.length > 0 && <CoordMismatchLayer points={mismatchPoints} />}
+      {mismatchPoints.length > 0 && <CoordMismatchLayer points={mismatchPoints} palette={heatmapPalette} />}
     </>
   );
 }

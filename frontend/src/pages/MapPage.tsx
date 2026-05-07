@@ -36,6 +36,27 @@ const PANEL_META: Record<string, { title: string; subtitle: string }> = {
 
 const VALID_PANELS = new Set(Object.keys(PANEL_META));
 
+function HeatmapLoadingPill() {
+  const [showSlow, setShowSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSlow(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+      <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-full ghost-border shadow-lg flex flex-col items-center gap-1">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-medium text-on-surface-variant">Loading crash data...</span>
+        </div>
+        {showSlow && (
+          <span className="text-[10px] text-on-surface-variant/70">Large county — this may take a moment</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MapPageInner() {
   const {
     selectedYears,
@@ -129,6 +150,7 @@ function MapPageInner() {
     causes: [...selectedCauses],
     resolution: "raw",
     mismatchOnly: true,
+    includeRivers: otherLayers.coordIncludeRivers,
   });
 
   const coordCoverage = useCoordCoverage([...selectedYears]);
@@ -402,18 +424,19 @@ function MapPageInner() {
           countyActive={!!focusedCounty}
           countyTotalCrashes={inspectedData?.rawCount ?? null}
           searchOpen={mobileSearchExpanded}
+          mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
         />
-        {useCountyDetail && countyHeatmap.hasMore && (
-          <div className="absolute bottom-12 left-16 z-20 md:z-30">
-            <button
-              onClick={countyHeatmap.loadNextBatch}
-              disabled={countyHeatmap.isLoading}
-              className="bg-primary text-on-primary px-4 py-2 rounded-full text-xs font-bold tracking-wider uppercase shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {countyHeatmap.isLoading
-                ? `Loading batch ${countyHeatmap.currentBatch}...`
-                : `Load more (batch ${countyHeatmap.currentBatch} of ${countyHeatmap.totalBatches})`}
-            </button>
+        {heatmapEnabled && heatmap.isLoading && (
+          <HeatmapLoadingPill />
+        )}
+        {useCountyDetail && !countyHeatmap.isLoading && countyHeatmap.totalBatches && countyHeatmap.totalBatches > 1 && countyHeatmap.hasMore && (
+          <div className="absolute top-2 left-2 md:top-2 md:left-16 z-20 md:z-30">
+            <div className="bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1.5 rounded-full text-[11px] font-medium ghost-border shadow-lg flex items-center gap-2">
+              <span className="inline-block w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-on-surface-variant">
+                Loading batch {countyHeatmap.currentBatch}/{countyHeatmap.totalBatches}
+              </span>
+            </div>
           </div>
         )}
       </section>
@@ -466,6 +489,7 @@ function ChoroplethLegendContainer({
   countyActive,
   countyTotalCrashes,
   searchOpen,
+  mismatchCount,
 }: {
   choroplethData: ChoroplethData;
   coordCoverage?: CoordCoverage | null;
@@ -475,6 +499,7 @@ function ChoroplethLegendContainer({
   countyActive?: boolean;
   countyTotalCrashes?: number | null;
   searchOpen?: boolean;
+  mismatchCount?: number | null;
 }) {
   const queryClient = useQueryClient();
   return (
@@ -492,6 +517,7 @@ function ChoroplethLegendContainer({
       heatmapLoading={heatmapLoading}
       countyActive={countyActive}
       countyTotalCrashes={countyTotalCrashes}
+      mismatchCount={mismatchCount}
     />
   );
 }
