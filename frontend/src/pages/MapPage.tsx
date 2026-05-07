@@ -23,6 +23,7 @@ import DataExportPanel, {
 import MapCanvas from "../components/map/MapCanvas";
 import AiInsightCard from "../components/map/AiInsightCard";
 import Breadcrumb from "../components/map/Breadcrumb";
+import { EmptyState } from "../components/ui/EmptyState";
 import { useCrashHeatmap, useBatchedHeatmap } from "../hooks/useCrashHeatmap";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
@@ -395,6 +396,21 @@ function MapPageInner() {
             onSelect={(name) => { handleSelectCounty(name); setMobileSearchExpanded(false); }}
             map={mapRef.current}
           />
+        )}
+
+        {!choroplethData.isLoading
+          && !choroplethData.isError
+          && choroplethData.dataSummary.totalCrashes === 0
+          && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none p-4">
+            <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-xl px-6 py-5 ambient-shadow pointer-events-auto max-w-xs">
+              <EmptyState
+                icon="filter_list_off"
+                title="No matching crashes"
+                description="Adjust your filters to see data on the map."
+              />
+            </div>
+          </div>
         )}
 
         {showInsight && focusedCounty && (
