@@ -142,6 +142,10 @@ def stats(
     cause: str | None = Query(None),
     alcohol: str | None = Query(None),
     distracted: str | None = Query(None),
+    pedestrian: str | None = Query(None),
+    cyclist: str | None = Query(None),
+    drug: str | None = Query(None),
+    driver_age: str | None = Query(None),
     group_by: str | None = Query(
         None,
         pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|rate)$",
@@ -174,6 +178,16 @@ def stats(
             "distracted",
             "Distracted filter is not supported on /api/stats. Use /api/crashes?distracted=true.",
         )
+    for param_name, param_val in [
+        ("pedestrian", pedestrian), ("cyclist", cyclist),
+        ("drug", drug), ("driver_age", driver_age),
+    ]:
+        if param_val is not None and param_val != "":
+            raise FilterError(
+                param_name,
+                f"{param_name} filter is not supported on /api/stats (materialized "
+                f"views don't carry party-level columns). Use /api/crashes?{param_name}=...",
+            )
 
     years = parse_year(year)
     county_codes = parse_county_codes(county, get_slug_map(db)) if county else None

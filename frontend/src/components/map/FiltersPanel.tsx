@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { YEARS, CA_COUNTIES, CAUSES, SEVERITIES } from "../../hooks/useFilterParams";
+import { YEARS, CA_COUNTIES, CAUSES, SEVERITIES, INVOLVEMENTS, DRIVER_AGE_BRACKETS } from "../../hooks/useFilterParams";
 import SearchableMultiSelect from "../ui/SearchableMultiSelect";
 
 const DISPLAY_YEAR_COUNT = 6;
@@ -23,6 +23,10 @@ interface FiltersPanelProps {
   selectedCauses: Set<string>;
   selectedAlcohol: boolean;
   selectedDistracted: boolean;
+  selectedPedestrian: boolean;
+  selectedCyclist: boolean;
+  selectedDrug: boolean;
+  selectedDriverAge: string | null;
   onToggleYear: (year: number) => void;
   onSetYearRange: (from: number, to: number) => void;
   onSetYears?: (years: Set<number>) => void;
@@ -40,6 +44,10 @@ interface FiltersPanelProps {
   onClearCauses?: () => void;
   onToggleAlcohol: () => void;
   onToggleDistracted: () => void;
+  onTogglePedestrian: () => void;
+  onToggleCyclist: () => void;
+  onToggleDrug: () => void;
+  onSetDriverAge: (bracket: string | null) => void;
   resetKey?: number;
 }
 
@@ -48,6 +56,12 @@ export default function FiltersPanel({
   selectedSeverities,
   selectedCounties,
   selectedCauses,
+  selectedAlcohol,
+  selectedDistracted,
+  selectedPedestrian,
+  selectedCyclist,
+  selectedDrug,
+  selectedDriverAge,
   onToggleYear,
   onSetYearRange,
   onSetYears,
@@ -63,6 +77,12 @@ export default function FiltersPanel({
   onSetCauses,
   onSetAllCauses,
   onClearCauses,
+  onToggleAlcohol,
+  onToggleDistracted,
+  onTogglePedestrian,
+  onToggleCyclist,
+  onToggleDrug,
+  onSetDriverAge,
   resetKey = 0,
 }: FiltersPanelProps) {
   // "range" = from–to input, "custom" = single year input, null = default pill view
@@ -338,6 +358,61 @@ export default function FiltersPanel({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Involvement Type */}
+      <div className="space-y-3">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          Involvement
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {INVOLVEMENTS.map((inv) => {
+            const isActive =
+              inv.value === "alcohol" ? selectedAlcohol :
+              inv.value === "distracted" ? selectedDistracted :
+              inv.value === "pedestrian" ? selectedPedestrian :
+              inv.value === "cyclist" ? selectedCyclist :
+              inv.value === "drug" ? selectedDrug : false;
+            const onToggle =
+              inv.value === "alcohol" ? onToggleAlcohol :
+              inv.value === "distracted" ? onToggleDistracted :
+              inv.value === "pedestrian" ? onTogglePedestrian :
+              inv.value === "cyclist" ? onToggleCyclist :
+              inv.value === "drug" ? onToggleDrug : () => {};
+            return (
+              <button
+                key={inv.value}
+                onClick={onToggle}
+                className={`flex items-center gap-1.5 ${isActive ? PILL_ACTIVE : PILL_INACTIVE}`}
+              >
+                <span className="material-symbols-outlined text-[14px]">
+                  {inv.icon}
+                </span>
+                {inv.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-on-surface-variant">2016+ data only (CCRS)</p>
+      </div>
+
+      {/* Driver Age */}
+      <div className="space-y-3">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          At-Fault Driver Age
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {DRIVER_AGE_BRACKETS.map((bracket) => (
+            <button
+              key={bracket.value}
+              onClick={() => onSetDriverAge(selectedDriverAge === bracket.value ? null : bracket.value)}
+              className={selectedDriverAge === bracket.value ? PILL_ACTIVE : PILL_INACTIVE}
+            >
+              {bracket.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-on-surface-variant">2016+ data only (CCRS)</p>
       </div>
 
     </div>

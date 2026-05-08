@@ -19,6 +19,10 @@ interface HeatmapParams {
   causes: string[];
   alcohol?: boolean | null;
   distracted?: boolean | null;
+  pedestrian?: boolean | null;
+  cyclist?: boolean | null;
+  drug?: boolean | null;
+  driverAge?: string | null;
   resolution: HeatmapResolution;
   mismatchOnly?: boolean;
   includeRivers?: boolean;
@@ -41,6 +45,10 @@ function buildUrl(params: HeatmapParams): string {
   if (params.causes.length) sp.set("cause", params.causes.join(","));
   if (params.alcohol != null) sp.set("alcohol", String(params.alcohol));
   if (params.distracted != null) sp.set("distracted", String(params.distracted));
+  if (params.pedestrian != null) sp.set("pedestrian", String(params.pedestrian));
+  if (params.cyclist != null) sp.set("cyclist", String(params.cyclist));
+  if (params.drug != null) sp.set("drug", String(params.drug));
+  if (params.driverAge) sp.set("driver_age", params.driverAge);
   sp.set("resolution", params.resolution);
   if (params.mismatchOnly) sp.set("mismatch_only", "true");
   if (params.includeRivers) sp.set("include_rivers", "true");
@@ -65,6 +73,10 @@ export function useCrashHeatmap(params: HeatmapParams) {
       params.causes,
       params.alcohol,
       params.distracted,
+      params.pedestrian,
+      params.cyclist,
+      params.drug,
+      params.driverAge,
       params.resolution,
       params.mismatchOnly ?? false,
       params.includeRivers ?? false,

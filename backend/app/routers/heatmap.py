@@ -15,6 +15,7 @@ from app.filters import (
     parse_bool_flag,
     parse_cause,
     parse_county_codes,
+    parse_driver_age,
     parse_severity,
     parse_year,
 )
@@ -56,6 +57,10 @@ def crash_heatmap(
     cause: str | None = Query(None),
     alcohol: str | None = Query(None),
     distracted: str | None = Query(None),
+    pedestrian: str | None = Query(None),
+    cyclist: str | None = Query(None),
+    drug: str | None = Query(None),
+    driver_age: str | None = Query(None),
     resolution: Resolution | None = Query(None),
     mismatch_only: str | None = Query(None),
     include_rivers: str | None = Query(None),
@@ -79,6 +84,10 @@ def crash_heatmap(
     causes = parse_cause(cause)
     alcohol_v = parse_bool_flag(alcohol, "alcohol")
     distracted_v = parse_bool_flag(distracted, "distracted")
+    pedestrian_v = parse_bool_flag(pedestrian, "pedestrian")
+    cyclist_v = parse_bool_flag(cyclist, "cyclist")
+    drug_v = parse_bool_flag(drug, "drug")
+    driver_age_v = parse_driver_age(driver_age)
 
     if resolution is None:
         resolution = Resolution.raw if county_codes else Resolution.low
@@ -96,6 +105,10 @@ def crash_heatmap(
         causes=causes,
         alcohol=alcohol_v,
         distracted=distracted_v,
+        pedestrian=pedestrian_v,
+        cyclist=cyclist_v,
+        drug=drug_v,
+        driver_age=driver_age_v,
     )
     preds.append(Crash.latitude.isnot(None))
     preds.append(Crash.longitude.isnot(None))

@@ -155,6 +155,32 @@ def parse_bool_flag(raw: str | None, name: str) -> bool | None:
     )
 
 
+def parse_driver_age(raw: str | None) -> tuple[int, int] | None:
+    """Parse ?driver_age=16-21 or ?driver_age=65+ into (min, max) tuple."""
+    if raw is None or raw == "":
+        return None
+    raw = raw.strip()
+    if raw.endswith("+"):
+        try:
+            min_age = int(raw[:-1])
+        except ValueError:
+            raise FilterError("driver_age", f"Invalid age bracket '{raw}'.") from None
+        return (min_age, 200)
+    if "-" in raw:
+        parts = raw.split("-", 1)
+        try:
+            min_age, max_age = int(parts[0]), int(parts[1])
+        except ValueError:
+            raise FilterError("driver_age", f"Invalid age bracket '{raw}'.") from None
+        if min_age > max_age:
+            raise FilterError("driver_age", f"Min age {min_age} > max age {max_age}.")
+        return (min_age, max_age)
+    raise FilterError(
+        "driver_age",
+        f"Expected format '16-21' or '65+'; got '{raw}'.",
+    )
+
+
 def build_crash_predicates(
     *,
     years: set[int] | None = None,
@@ -163,6 +189,10 @@ def build_crash_predicates(
     causes: set[str] | None = None,
     alcohol: bool | None = None,
     distracted: bool | None = None,
+    pedestrian: bool | None = None,
+    cyclist: bool | None = None,
+    drug: bool | None = None,
+    driver_age: tuple[int, int] | None = None,
 ) -> list[ColumnElement]:
     """Build SQLAlchemy WHERE predicates for the crashes table."""
     preds: list[ColumnElement] = []
@@ -178,4 +208,12 @@ def build_crash_predicates(
         preds.append(Crash.is_alcohol_involved.is_(alcohol))
     if distracted is not None:
         preds.append(Crash.is_distraction_involved.is_(distracted))
+    if pedestrian is not None:
+        preds.append(Crash.pedestrian_involved.is_(pedestrian))
+    if cyclist is not None:
+        preds.append(Crash.cyclist_involved.is_(cyclist))
+    if drug is not None:
+        preds.append(Crash.is_drug_involved.is_(drug))
+    if driver_age is not None:
+        preds.append(Crash.at_fault_driver_age.between(driver_age[0], driver_age[1]))
     return preds

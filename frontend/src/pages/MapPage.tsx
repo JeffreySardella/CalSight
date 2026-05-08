@@ -67,6 +67,10 @@ function MapPageInner() {
     selectedCauses,
     selectedAlcohol,
     selectedDistracted,
+    selectedPedestrian,
+    selectedCyclist,
+    selectedDrug,
+    selectedDriverAge,
     toggleYear,
     setYearRange,
     setYears,
@@ -85,6 +89,10 @@ function MapPageInner() {
     clearSeverities,
     toggleAlcohol,
     toggleDistracted,
+    togglePedestrian,
+    toggleCyclist,
+    toggleDrug,
+    setDriverAge,
     clearFilters,
     panel: panelParam,
     clearPanel,
@@ -121,12 +129,22 @@ function MapPageInner() {
 
   const heatmapEnabled = useCountyDetail || otherLayers.heatmapStatewide;
 
+  const involvementFilters = {
+    alcohol: selectedAlcohol || undefined,
+    distracted: selectedDistracted || undefined,
+    pedestrian: selectedPedestrian || undefined,
+    cyclist: selectedCyclist || undefined,
+    drug: selectedDrug || undefined,
+    driverAge: selectedDriverAge ?? undefined,
+  };
+
   const statewideHeatmap = useCrashHeatmap({
     enabled: heatmapEnabled && !useCountyDetail,
     county: null,
     years: [...selectedYears],
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
+    ...involvementFilters,
     resolution: effectiveResolution,
   });
 
@@ -136,6 +154,7 @@ function MapPageInner() {
     years: [...selectedYears],
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
+    ...involvementFilters,
     resolution: "raw",
   });
 
@@ -150,6 +169,7 @@ function MapPageInner() {
     years: [...selectedYears],
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
+    ...involvementFilters,
     resolution: "raw",
     mismatchOnly: true,
     includeRivers: otherLayers.coordIncludeRivers,
@@ -287,6 +307,10 @@ function MapPageInner() {
     selectedCauses,
     selectedAlcohol,
     selectedDistracted,
+    selectedPedestrian,
+    selectedCyclist,
+    selectedDrug,
+    selectedDriverAge,
     onToggleYear: toggleYear,
     onSetYearRange: setYearRange,
     onSetYears: setYears,
@@ -304,6 +328,10 @@ function MapPageInner() {
     onClearCauses: clearCauses,
     onToggleAlcohol: toggleAlcohol,
     onToggleDistracted: toggleDistracted,
+    onTogglePedestrian: togglePedestrian,
+    onToggleCyclist: toggleCyclist,
+    onToggleDrug: toggleDrug,
+    onSetDriverAge: setDriverAge,
     resetKey,
   };
 
