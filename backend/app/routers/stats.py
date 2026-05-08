@@ -11,8 +11,10 @@ from app.filters import (
     build_crash_predicates,
     parse_cause,
     parse_county_codes,
+    parse_date_range,
     parse_severity,
     parse_year,
+    years_from_date_range,
 )
 from app.models import County, Crash
 from app.schemas.stats import (
@@ -137,6 +139,8 @@ def _apply_filters(stmt, view, years, county_codes, severities, causes):
 def stats(
     response: Response,
     year: str | None = Query(None),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
     county: str | None = Query(None),
     severity: str | None = Query(None),
     cause: str | None = Query(None),
@@ -161,6 +165,11 @@ def stats(
     those columns). Use `/api/crashes` with those filters for drill-down.
     `cause` filter is incompatible with `group_by=gender|age_bracket`
     because the victim-demographics view doesn't carry canonical_cause.
+
+    `start`/`end` (YYYY-MM) are accepted but rounded outward to year
+    boundaries here, since the underlying materialized views aggregate by
+    year. For month-precise filtering, use `/api/crashes` or
+    `/api/crashes/heatmap`.
     """
     response.headers["Cache-Control"] = "public, max-age=300"
 
@@ -175,7 +184,8 @@ def stats(
             "Distracted filter is not supported on /api/stats. Use /api/crashes?distracted=true.",
         )
 
-    years = parse_year(year)
+    date_range = parse_date_range(start, end)
+    years = years_from_date_range(date_range) if date_range is not None else parse_year(year)
     county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
     severities = parse_severity(severity)
     causes = parse_cause(cause)

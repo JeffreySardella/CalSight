@@ -6,7 +6,7 @@ import { useChoroplethData, type ChoroplethFilters } from "./useChoroplethData";
 import type { MeasureKey } from "../lib/choropleth/measures";
 
 const FILTERS: ChoroplethFilters = {
-  years: [2023],
+  dateRange: { start: { year: 2023, month: 1 }, end: { year: 2023, month: 12 } },
   severities: [],
   causes: [],
 };
@@ -44,9 +44,9 @@ describe("useChoroplethData", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(fetchSpy).toHaveBeenCalledTimes(3);
     const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => u.includes("/api/stats") && u.includes("group_by=county") && u.includes("year=2023"))).toBe(true);
+    expect(urls.some((u) => u.includes("/api/stats") && u.includes("group_by=county") && u.includes("start=2023-01") && u.includes("end=2023-12"))).toBe(true);
     expect(urls.some((u) => u.includes("/api/stats") && u.includes("group_by=year"))).toBe(true);
-    expect(urls.some((u) => u.includes("/api/demographics") && u.includes("year=2023"))).toBe(true);
+    expect(urls.some((u) => u.includes("/api/demographics") && u.includes("start=2023-01") && u.includes("end=2023-12"))).toBe(true);
     expect(urls.every((u) => !u.includes("county="))).toBe(true);
   });
 
@@ -166,7 +166,11 @@ describe("useChoroplethData", () => {
       ]));
     });
 
-    const filters: ChoroplethFilters = { years: [2023, 2024, 2025], severities: [], causes: [] };
+    const filters: ChoroplethFilters = {
+      dateRange: { start: { year: 2023, month: 1 }, end: { year: 2025, month: 12 } },
+      severities: [],
+      causes: [],
+    };
     const { result } = renderHook(
       () => useChoroplethData("crashes_per_100k", filters),
       { wrapper: makeWrapper() },
@@ -179,7 +183,7 @@ describe("useChoroplethData", () => {
   it("returns empty missingDemoYears in dataSummary when no years are selected", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify([])));
 
-    const filters: ChoroplethFilters = { years: [], severities: [], causes: [] };
+    const filters: ChoroplethFilters = { dateRange: null, severities: [], causes: [] };
     const { result } = renderHook(
       () => useChoroplethData("crashes_per_100k", filters),
       { wrapper: makeWrapper() },
@@ -204,7 +208,11 @@ describe("useChoroplethData", () => {
       return new Response(JSON.stringify(demoRows));
     });
 
-    const filters: ChoroplethFilters = { years: [2007], severities: [], causes: [] };
+    const filters: ChoroplethFilters = {
+      dateRange: { start: { year: 2007, month: 1 }, end: { year: 2007, month: 12 } },
+      severities: [],
+      causes: [],
+    };
     const { result } = renderHook(
       () => useChoroplethData("crashes_per_100k", filters),
       { wrapper: makeWrapper() },
@@ -230,7 +238,11 @@ describe("useChoroplethData", () => {
       return new Response(JSON.stringify([]));
     });
 
-    const filters: ChoroplethFilters = { years: [currentYear - 1, currentYear], severities: [], causes: [] };
+    const filters: ChoroplethFilters = {
+      dateRange: { start: { year: currentYear - 1, month: 1 }, end: { year: currentYear, month: 12 } },
+      severities: [],
+      causes: [],
+    };
     const { result } = renderHook(
       () => useChoroplethData("crashes_raw", filters),
       { wrapper: makeWrapper() },
