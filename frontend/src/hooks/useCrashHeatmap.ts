@@ -97,17 +97,17 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     batchSize: size,
   });
 
-  useEffect(() => {
-    if (points.length > 0 && batch === currentBatch) {
-      setAllPoints((prev) => currentBatch === 1 ? points : [...prev, ...points]);
-    }
-  }, [points, batch, currentBatch]);
-
   const filterKey = `${params.county}|${params.years.join(",")}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}`;
   useEffect(() => {
     setCurrentBatch(1);
     setAllPoints([]);
   }, [filterKey]);
+
+  useEffect(() => {
+    if (points.length > 0 && batch === currentBatch) {
+      setAllPoints((prev) => currentBatch === 1 ? points : [...prev, ...points]);
+    }
+  }, [points, batch, currentBatch, filterKey]);
 
   // Auto-load next batch when current one finishes
   useEffect(() => {

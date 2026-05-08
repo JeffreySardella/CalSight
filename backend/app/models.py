@@ -796,6 +796,12 @@ class EtlRun(Base):
     error_message = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
 
+    validation_status = Column(String(20))
+    rows_before = Column(Integer)
+    rows_after = Column(Integer)
+    diff_summary = Column(Text)
+    triggered_by = Column(String(20))
+
     __table_args__ = (
         Index("ix_etl_runs_source_started_at", "source", "started_at"),
     )

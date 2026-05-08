@@ -74,7 +74,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
 
   const [mobileExpanded, setMobileExpanded] = useState(false);
 
-  if (!choroplethOn) return null;
+  if (!choroplethOn && !countyActive) return null;
 
   const colors = getPalette(palette, isDark);
   const activeMeasure = MEASURES[measure];

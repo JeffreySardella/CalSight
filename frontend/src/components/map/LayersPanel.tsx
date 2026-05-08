@@ -118,6 +118,7 @@ export default function LayersPanel() {
                   const next = !otherLayers.heatmapStatewide;
                   setOtherLayer("heatmapStatewide", next);
                   if (next) setChoroplethOn(false);
+                  else setChoroplethOn(true);
                 }}
               />
               {heatmapStatewideL && (
