@@ -62,8 +62,92 @@ export const INVOLVEMENTS = [
 
 const CAUSE_VALUES: Set<string> = new Set(CAUSES.map((c) => c.value));
 
-const DEFAULT_YEARS = new Set<number>();
 const DEFAULT_SEVERITIES = new Set<string>();
+
+// ── Date range types ──
+
+export type YearMonth = { year: number; month: number }; // month: 1–12
+
+/**
+ * Filter on `crash_datetime`. `start` and `end` are independent — either side
+ * may be null (open-ended). The "no filter" representation is `null` for the
+ * whole DateRangeFilter, not `{ start: null, end: null }`.
+ */
+export type DateRangeFilter = { start: YearMonth | null; end: YearMonth | null };
+
+export function formatYearMonth(ym: YearMonth): string {
+  return `${ym.year}-${String(ym.month).padStart(2, "0")}`;
+}
+
+export function parseYearMonth(raw: string | null): YearMonth | null {
+  if (!raw) return null;
+  const m = /^(\d{4})-(\d{1,2})$/.exec(raw);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  if (!Number.isInteger(y) || !Number.isInteger(mo)) return null;
+  if (y < START_YEAR || y > currentYear) return null;
+  if (mo < 1 || mo > 12) return null;
+  return { year: y, month: mo };
+}
+
+/** Compare two YearMonths; -1 / 0 / 1 like Array.prototype.sort. */
+function compareYM(a: YearMonth, b: YearMonth): number {
+  if (a.year !== b.year) return a.year - b.year;
+  return a.month - b.month;
+}
+
+/** Read the current date-range filter from the URL. Null = no filter. */
+function readDateRange(searchParams: URLSearchParams): DateRangeFilter | null {
+  const start = parseYearMonth(searchParams.get("start"));
+  const end = parseYearMonth(searchParams.get("end"));
+
+  if (start || end) {
+    return { start, end };
+  }
+
+  // Legacy: ?year=2020,2023 collapses to a Jan(min)–Dec(max) range so old
+  // permalinks keep working. We only convert here for display; year-mode
+  // mutators are no longer exposed.
+  const legacyYears = parseLegacyYearList(searchParams.get("year"));
+  if (legacyYears.length > 0) {
+    const min = Math.min(...legacyYears);
+    const max = Math.max(...legacyYears);
+    return {
+      start: { year: min, month: 1 },
+      end: { year: max, month: 12 },
+    };
+  }
+
+  return null;
+}
+
+function parseLegacyYearList(param: string | null): number[] {
+  if (!param) return [];
+  return param
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && YEARS.includes(n));
+}
+
+/**
+ * Project a date range onto a year set — every year between start.year and
+ * end.year inclusive. Used for legacy consumers (charts, MV-backed endpoints)
+ * that only know about whole-year filtering.
+ */
+export function yearsInRange(range: DateRangeFilter | null): Set<number> {
+  if (!range) return new Set<number>();
+  const startY = range.start ? range.start.year : START_YEAR;
+  const endY = range.end ? range.end.year : currentYear;
+  if (startY > endY) return new Set<number>();
+  const out = new Set<number>();
+  for (let y = startY; y <= endY; y++) {
+    if (y >= START_YEAR && y <= currentYear) out.add(y);
+  }
+  return out;
+}
 
 // ── Slug utilities ──
 
@@ -88,22 +172,6 @@ const COUNTY_SLUG_MAP: Map<string, string> = new Map(
 );
 
 // ── Shared parsers (exported so StatsPage can use them too) ──
-
-export function parseYears(param: string | null): Set<number> {
-  // null = param missing from URL entirely → first visit, use defaults
-  // ""   = param present but empty → user cleared everything, allow empty
-  if (param === null) return new Set(DEFAULT_YEARS);
-  if (param === "") return new Set<number>();
-
-  const parsed = param
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map(Number)
-    .filter((n) => !Number.isNaN(n) && YEARS.includes(n));
-
-  return new Set(parsed);
-}
 
 export function parseSeverities(param: string | null): Set<string> {
   if (param === null) return new Set(DEFAULT_SEVERITIES);
@@ -146,7 +214,9 @@ export function parseBoolFlag(param: string | null): boolean {
 
 // ── Shared utilities ──
 
-const FILTER_KEYS = ["year", "severity", "county", "cause", "alcohol", "distracted"] as const;
+const FILTER_KEYS = [
+  "start", "end", "year", "severity", "county", "cause", "alcohol", "distracted",
+] as const;
 
 export function buildFilterQS(searchParams: URLSearchParams): string {
   const params = new URLSearchParams();
@@ -164,10 +234,12 @@ export function buildFilterQS(searchParams: URLSearchParams): string {
 export function useFilterParams() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ── Memoize parsed Sets by their raw URL string ──────────────────────
-  // Without this, every render produces a brand-new Set object which
-  // cascades through useMemo/useCallback deps in CountyBoundaries,
-  // ChoroplethLegendContainer, etc., causing an infinite re-render loop.
+  // ── Memoize parsed values by their raw URL string ──
+  // Without this, every render produces a brand-new Set/object which
+  // cascades through useMemo deps in CountyBoundaries, ChoroplethLegend,
+  // etc., causing an infinite re-render loop.
+  const startParam = searchParams.get("start");
+  const endParam = searchParams.get("end");
   const yearParam = searchParams.get("year");
   const severityParam = searchParams.get("severity");
   const countyParam = searchParams.get("county");
@@ -176,10 +248,18 @@ export function useFilterParams() {
   const distractedParam = searchParams.get("distracted");
   const panel = searchParams.get("panel");
 
-  // ── Memoized parsed Sets ──
-  // Only recompute when the raw URL string actually changes,
-  // preventing new Set references on every render.
-  const selectedYears = useMemo(() => parseYears(yearParam), [yearParam]);
+  const selectedDateRange = useMemo<DateRangeFilter | null>(() => {
+    // Re-derive directly from the raw URL params so this stays referentially
+    // stable between renders — the parsed result only changes when the raw
+    // URL strings actually change.
+    const sp = new URLSearchParams();
+    if (startParam != null) sp.set("start", startParam);
+    if (endParam != null) sp.set("end", endParam);
+    if (yearParam != null) sp.set("year", yearParam);
+    return readDateRange(sp);
+  }, [startParam, endParam, yearParam]);
+
+  const selectedYears = useMemo(() => yearsInRange(selectedDateRange), [selectedDateRange]);
   const selectedSeverities = useMemo(() => parseSeverities(severityParam), [severityParam]);
   const selectedCounties = useMemo(() => parseCounties(countyParam), [countyParam]);
   const selectedCauses = useMemo(() => parseCauses(causeParam), [causeParam]);
@@ -187,47 +267,34 @@ export function useFilterParams() {
   const selectedDistracted = useMemo(() => parseBoolFlag(distractedParam), [distractedParam]);
 
   // ── Action callbacks ──
-  // Each reads the *latest* URL state via the functional updater
-  // inside setSearchParams, avoiding stale-closure bugs.
 
-  const toggleYear = useCallback(
-    (year: number) => {
+  const setDateRange = useCallback(
+    (start: YearMonth | null, end: YearMonth | null) => {
+      // Auto-correct flipped ranges.
+      if (start && end && compareYM(start, end) > 0) {
+        [start, end] = [end, start];
+      }
       setSearchParams((prev) => {
-        const current = parseYears(prev.get("year"));
-        if (current.has(year)) current.delete(year);
-        else current.add(year);
-        return buildNextParams(prev, { years: current });
+        const params = new URLSearchParams(prev);
+        params.delete("year"); // Drop legacy param when entering date-range mode.
+        if (start) params.set("start", formatYearMonth(start));
+        else params.delete("start");
+        if (end) params.set("end", formatYearMonth(end));
+        else params.delete("end");
+        return params;
       }, { replace: true });
     },
     [setSearchParams],
   );
 
-  const setYearRange = useCallback(
-    (from: number, to: number) => {
-      setSearchParams((prev) => {
-        const current = parseYears(prev.get("year"));
-        for (let y = from; y <= to; y++) {
-          if (YEARS.includes(y)) current.add(y);
-        }
-        return buildNextParams(prev, { years: current });
-      }, { replace: true });
-    },
-    [setSearchParams],
-  );
-
-  const setYears = useCallback(
-    (years: Set<number>) => {
-      setSearchParams((prev) => buildNextParams(prev, { years }), { replace: true });
-    },
-    [setSearchParams],
-  );
-
-  const clearYears = useCallback(() => {
-    setSearchParams((prev) => buildNextParams(prev, { years: new Set() }), { replace: true });
-  }, [setSearchParams]);
-
-  const setAllYears = useCallback(() => {
-    setSearchParams((prev) => buildNextParams(prev, { years: new Set(YEARS) }), { replace: true });
+  const clearDateRange = useCallback(() => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete("start");
+      params.delete("end");
+      params.delete("year");
+      return params;
+    }, { replace: true });
   }, [setSearchParams]);
 
   const toggleSeverity = useCallback(
@@ -323,11 +390,13 @@ export function useFilterParams() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  // Clears all filter dimensions — year, severity, cause, alcohol, distracted.
+  // Clears all filter dimensions — date range, severity, cause, alcohol, distracted.
   // (County is intentionally preserved; use clearCounties() separately.)
   const clearFilters = useCallback(() => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
+      params.delete("start");
+      params.delete("end");
       params.delete("year");
       params.delete("severity");
       params.delete("cause");
@@ -345,17 +414,15 @@ export function useFilterParams() {
   }, [setSearchParams]);
 
   return {
+    selectedDateRange,
     selectedYears,
     selectedSeverities,
     selectedCounties,
     selectedCauses,
     selectedAlcohol,
     selectedDistracted,
-    toggleYear,
-    setYearRange,
-    setYears,
-    clearYears,
-    setAllYears,
+    setDateRange,
+    clearDateRange,
     toggleSeverity,
     toggleCounty,
     setCounty,
@@ -376,11 +443,8 @@ export function useFilterParams() {
 }
 
 // ── Helper: build next URLSearchParams from prev + partial overrides ──
-// Used by the functional setSearchParams updaters above so each action
-// reads the *latest* URL state, avoiding stale-closure bugs.
 
 type ParamOverrides = {
-  years?: Set<number>;
   severities?: Set<string>;
   counties?: Set<string>;
   causes?: Set<string>;
@@ -394,16 +458,10 @@ function buildNextParams(
 ): URLSearchParams {
   const params = new URLSearchParams(prev);
 
-  const years = overrides.years ?? parseYears(prev.get("year"));
   const severities = overrides.severities ?? parseSeverities(prev.get("severity"));
   const counties = overrides.counties ?? parseCounties(prev.get("county"));
   const causes = overrides.causes ?? parseCauses(prev.get("cause"));
 
-  if (years.size > 0) {
-    params.set("year", [...years].sort().join(","));
-  } else {
-    params.delete("year");
-  }
   if (severities.size > 0) {
     params.set("severity", [...severities].map(slugify).sort().join(","));
   } else {

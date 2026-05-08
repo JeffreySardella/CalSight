@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { YEARS } from "./useFilterParams";
+import { YEARS, yearsInRange, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
 
 type QualityRow = {
@@ -34,7 +34,7 @@ function slugify(name: string) {
 }
 
 export function useDataQualityDisclaimer(
-  selectedYears: number[],
+  dateRange: DateRangeFilter | null,
   selectedCounties: string[],
 ): DataQualityDisclaimers {
   const singleCounty = selectedCounties.length === 1 ? slugify(selectedCounties[0]) : null;
@@ -54,8 +54,9 @@ export function useDataQualityDisclaimer(
     staleTime: 5 * 60 * 1000,
   });
 
-  const allYears = selectedYears.length === 0 || selectedYears.length === YEARS.length;
-  const years = allYears ? [...YEARS] : selectedYears;
+  const yearsArray = [...yearsInRange(dateRange)];
+  const allYears = yearsArray.length === 0 || yearsArray.length === YEARS.length;
+  const years = allYears ? [...YEARS] : yearsArray;
   const preDataOnly = !allYears && years.every((y) => y < 2016);
   const hasPreCcrsYears = !allYears && !preDataOnly && years.some((y) => y < 2016);
   const hasPreAcsYears = !allYears && years.some((y) => y < 2009);

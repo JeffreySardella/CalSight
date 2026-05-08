@@ -34,7 +34,7 @@ describe("useCrashHeatmap", () => {
         useCrashHeatmap({
           enabled: true,
           county: "los-angeles",
-          years: [2023],
+          dateRange: { start: { year: 2023, month: 1 }, end: { year: 2023, month: 12 } },
           severities: [],
           causes: [],
           resolution: "medium",
@@ -50,7 +50,8 @@ describe("useCrashHeatmap", () => {
     const url = String(spy.mock.calls[0][0]);
     expect(url).toContain("/api/crashes/heatmap");
     expect(url).toContain("county=los-angeles");
-    expect(url).toContain("year=2023");
+    expect(url).toContain("start=2023-01");
+    expect(url).toContain("end=2023-12");
     expect(url).toContain("resolution=medium");
   });
 
@@ -64,7 +65,7 @@ describe("useCrashHeatmap", () => {
         useCrashHeatmap({
           enabled: false,
           county: null,
-          years: [],
+          dateRange: null,
           severities: [],
           causes: [],
           resolution: "low",
@@ -85,7 +86,7 @@ describe("useCrashHeatmap", () => {
         useCrashHeatmap({
           enabled: true,
           county: null,
-          years: [],
+          dateRange: null,
           severities: [],
           causes: [],
           resolution: "low",

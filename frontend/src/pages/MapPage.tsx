@@ -61,17 +61,15 @@ function HeatmapLoadingPill() {
 
 function MapPageInner() {
   const {
+    selectedDateRange,
     selectedYears,
     selectedSeverities,
     selectedCounties,
     selectedCauses,
     selectedAlcohol,
     selectedDistracted,
-    toggleYear,
-    setYearRange,
-    setYears,
-    clearYears,
-    setAllYears,
+    setDateRange,
+    clearDateRange,
     toggleSeverity,
     toggleCounty,
     setCounty,
@@ -124,7 +122,7 @@ function MapPageInner() {
   const statewideHeatmap = useCrashHeatmap({
     enabled: heatmapEnabled && !useCountyDetail,
     county: null,
-    years: [...selectedYears],
+    dateRange: selectedDateRange,
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
     resolution: effectiveResolution,
@@ -133,7 +131,7 @@ function MapPageInner() {
   const countyHeatmap = useBatchedHeatmap({
     enabled: heatmapEnabled && useCountyDetail,
     county: heatmapCountySlugs,
-    years: [...selectedYears],
+    dateRange: selectedDateRange,
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
     resolution: "raw",
@@ -147,7 +145,7 @@ function MapPageInner() {
   const mismatchHeatmap = useCrashHeatmap({
     enabled: otherLayers.coordMismatches && !!mismatchCountySlug,
     county: mismatchCountySlug,
-    years: [...selectedYears],
+    dateRange: selectedDateRange,
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
     resolution: "raw",
@@ -155,14 +153,14 @@ function MapPageInner() {
     includeRivers: otherLayers.coordIncludeRivers,
   });
 
-  const coordCoverage = useCoordCoverage([...selectedYears]);
+  const coordCoverage = useCoordCoverage(selectedDateRange);
   const choroplethFilters = useMemo(
     () => ({
-      years: [...selectedYears].sort((a, b) => a - b),
+      dateRange: selectedDateRange,
       severities: [...selectedSeverities],
       causes: [...selectedCauses],
     }),
-    [selectedYears, selectedSeverities, selectedCauses],
+    [selectedDateRange, selectedSeverities, selectedCauses],
   );
   const choroplethData = useChoroplethData(measure, choroplethFilters);
 
@@ -281,17 +279,14 @@ function MapPageInner() {
   const meta = activePanel ? PANEL_META[activePanel] : null;
 
   const filtersPanelProps = {
-    selectedYears,
+    selectedDateRange,
     selectedSeverities,
     selectedCounties,
     selectedCauses,
     selectedAlcohol,
     selectedDistracted,
-    onToggleYear: toggleYear,
-    onSetYearRange: setYearRange,
-    onSetYears: setYears,
-    onClearYears: clearYears,
-    onSetAllYears: setAllYears,
+    onSetDateRange: setDateRange,
+    onClearDateRange: clearDateRange,
     onToggleSeverity: toggleSeverity,
     onSetSeverities: setSeverities,
     onSetAllSeverities: setAllSeverities,

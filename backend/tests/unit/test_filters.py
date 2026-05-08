@@ -1,5 +1,7 @@
 """Unit tests for URL-param parsers and predicate builder in app.filters."""
 
+from datetime import date
+
 import pytest
 
 from app.filters import (
@@ -8,8 +10,10 @@ from app.filters import (
     parse_bool_flag,
     parse_cause,
     parse_county_codes,
+    parse_date_range,
     parse_severity,
     parse_year,
+    years_from_date_range,
 )
 
 
@@ -173,3 +177,99 @@ def test_build_crash_predicates_combined():
         years={2023}, county_codes={19}, severities={"Fatal"}
     )
     assert len(preds) == 3
+
+
+# --- date range ---
+
+def test_parse_date_range_both_none_returns_none():
+    assert parse_date_range(None, None) is None
+
+
+def test_parse_date_range_both_empty_returns_none():
+    assert parse_date_range("", "") is None
+
+
+def test_parse_date_range_full_range():
+    start, end = parse_date_range("2020-03", "2022-08")
+    assert start == date(2020, 3, 1)
+    # end is the last day of the end month, inclusive.
+    assert end == date(2022, 8, 31)
+
+
+def test_parse_date_range_open_start():
+    result = parse_date_range(None, "2023-06")
+    assert result is not None
+    start, end = result
+    assert start is None
+    assert end == date(2023, 6, 30)
+
+
+def test_parse_date_range_open_end():
+    result = parse_date_range("2023-01", None)
+    assert result is not None
+    start, end = result
+    assert start == date(2023, 1, 1)
+    assert end is None
+
+
+def test_parse_date_range_february_leap_year():
+    _, end = parse_date_range("2020-02", "2020-02")
+    assert end == date(2020, 2, 29)
+
+
+def test_parse_date_range_rejects_bad_format():
+    with pytest.raises(FilterError) as exc_info:
+        parse_date_range("2020", None)
+    assert exc_info.value.filter == "start"
+
+
+def test_parse_date_range_rejects_bad_month():
+    with pytest.raises(FilterError) as exc_info:
+        parse_date_range("2020-13", None)
+    assert exc_info.value.filter == "start"
+
+
+def test_parse_date_range_rejects_out_of_range_year():
+    with pytest.raises(FilterError) as exc_info:
+        parse_date_range("1990-06", None)
+    assert exc_info.value.filter == "start"
+
+
+def test_parse_date_range_rejects_inverted_range():
+    with pytest.raises(FilterError) as exc_info:
+        parse_date_range("2023-06", "2020-01")
+    assert exc_info.value.filter == "end"
+
+
+def test_years_from_date_range_full():
+    dr = parse_date_range("2020-03", "2022-08")
+    assert years_from_date_range(dr) == {2020, 2021, 2022}
+
+
+def test_years_from_date_range_single_month():
+    dr = parse_date_range("2023-06", "2023-06")
+    assert years_from_date_range(dr) == {2023}
+
+
+def test_years_from_date_range_none():
+    assert years_from_date_range(None) is None
+
+
+def test_build_crash_predicates_uses_date_range_over_years():
+    dr = parse_date_range("2023-01", "2023-12")
+    preds = build_crash_predicates(years={2020}, date_range=dr)
+    # Both bounds (>= start, <= end) — no crash_year predicate.
+    assert len(preds) == 2
+    compiled = " ".join(
+        str(p.compile(compile_kwargs={"literal_binds": True})) for p in preds
+    )
+    assert "crashes.crash_datetime" in compiled
+    assert "crash_year" not in compiled
+
+
+def test_build_crash_predicates_open_ended_date_range():
+    dr = parse_date_range("2023-01", None)
+    preds = build_crash_predicates(date_range=dr)
+    assert len(preds) == 1
+    compiled = str(preds[0].compile(compile_kwargs={"literal_binds": True}))
+    assert "crashes.crash_datetime >=" in compiled

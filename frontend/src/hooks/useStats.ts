@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
-import { YEARS, SEVERITIES, CAUSES } from "./useFilterParams";
+import { SEVERITIES, CAUSES, formatYearMonth, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
 
 export type StatsFilters = {
-  years: number[];
+  dateRange: DateRangeFilter | null;
   severities: string[];
   causes: string[];
   counties: string[];
@@ -102,17 +102,23 @@ function severityToSlug(s: string): string {
 
 function normalizeFilters(f: StatsFilters): StatsFilters {
   return {
-    years: f.years.length === YEARS.length ? [] : f.years,
+    dateRange: f.dateRange,
     severities: f.severities.length === SEVERITIES.length ? [] : f.severities,
     causes: f.causes.length === CAUSES.length ? [] : f.causes,
     counties: f.counties,
   };
 }
 
+function appendDateRange(p: URLSearchParams, dr: DateRangeFilter | null) {
+  if (!dr) return;
+  if (dr.start) p.set("start", formatYearMonth(dr.start));
+  if (dr.end) p.set("end", formatYearMonth(dr.end));
+}
+
 function buildUrl(groupBy: string, filters: StatsFilters): string {
   const p = new URLSearchParams();
   p.set("group_by", groupBy);
-  if (filters.years.length) p.set("year", filters.years.join(","));
+  appendDateRange(p, filters.dateRange);
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
   if (filters.counties.length) p.set("county", filters.counties.join(","));
@@ -122,7 +128,7 @@ function buildUrl(groupBy: string, filters: StatsFilters): string {
 function buildVictimUrl(groupBy: string, filters: StatsFilters): string {
   const p = new URLSearchParams();
   p.set("group_by", groupBy);
-  if (filters.years.length) p.set("year", filters.years.join(","));
+  appendDateRange(p, filters.dateRange);
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.counties.length) p.set("county", filters.counties.join(","));
   return `${API_BASE}/api/stats?${p}`;
@@ -130,7 +136,7 @@ function buildVictimUrl(groupBy: string, filters: StatsFilters): string {
 
 function buildDemoUrl(filters: StatsFilters): string {
   const p = new URLSearchParams();
-  if (filters.years.length) p.set("year", filters.years.join(","));
+  appendDateRange(p, filters.dateRange);
   if (filters.counties.length) p.set("county", filters.counties.join(","));
   const qs = p.toString();
   return `${API_BASE}/api/demographics${qs ? `?${qs}` : ""}`;
@@ -171,49 +177,54 @@ function computeHeroMetrics(yearRows: YearRow[], population: number | null): Her
 
 export function useStats(rawFilters: StatsFilters): UseStatsResult {
   const filters = normalizeFilters(rawFilters);
-
-  const demoFilters = { years: filters.years, counties: filters.counties };
+  // Stable cache key shape — DateRangeFilter is referentially stable thanks to
+  // useFilterParams's memoization, but we serialize it for the query key so
+  // structural equality checks behave predictably across renders.
+  const dateKey = filters.dateRange
+    ? `${filters.dateRange.start ? formatYearMonth(filters.dateRange.start) : ""}|${filters.dateRange.end ? formatYearMonth(filters.dateRange.end) : ""}`
+    : "";
+  const cacheKey = { d: dateKey, s: filters.severities, c: filters.causes, co: filters.counties };
 
   const queries = useQueries({
     queries: [
       {
-        queryKey: ["stats", "year", filters],
+        queryKey: ["stats", "year", cacheKey],
         queryFn: () => fetchJson<YearRow[]>(buildUrl("year", filters)),
       },
       {
-        queryKey: ["stats", "hour", filters],
+        queryKey: ["stats", "hour", cacheKey],
         queryFn: () => fetchJson<HourRow[]>(buildUrl("hour", filters)),
       },
       {
-        queryKey: ["stats", "cause", filters],
+        queryKey: ["stats", "cause", cacheKey],
         queryFn: () => fetchJson<CauseRow[]>(buildUrl("cause", filters)),
       },
       {
-        queryKey: ["stats", "demographics", demoFilters],
+        queryKey: ["stats", "demographics", { d: dateKey, co: filters.counties }],
         queryFn: () => fetchJson<DemoRow[]>(buildDemoUrl(filters)),
       },
       {
-        queryKey: ["stats", "severity", filters],
+        queryKey: ["stats", "severity", cacheKey],
         queryFn: () => fetchJson<SeverityRow[]>(buildUrl("severity", filters)),
       },
       {
-        queryKey: ["stats", "gender", { years: filters.years, severities: filters.severities, counties: filters.counties }],
+        queryKey: ["stats", "gender", { d: dateKey, s: filters.severities, co: filters.counties }],
         queryFn: () => fetchJson<GenderRow[]>(buildVictimUrl("gender", filters)),
       },
       {
-        queryKey: ["stats", "age_bracket", { years: filters.years, severities: filters.severities, counties: filters.counties }],
+        queryKey: ["stats", "age_bracket", { d: dateKey, s: filters.severities, co: filters.counties }],
         queryFn: () => fetchJson<AgeBracketRow[]>(buildVictimUrl("age_bracket", filters)),
       },
       {
-        queryKey: ["stats", "month", filters],
+        queryKey: ["stats", "month", cacheKey],
         queryFn: () => fetchJson<MonthRow[]>(buildUrl("month", filters)),
       },
       {
-        queryKey: ["stats", "day_of_week", filters],
+        queryKey: ["stats", "day_of_week", cacheKey],
         queryFn: () => fetchJson<DayOfWeekRow[]>(buildUrl("day_of_week", filters)),
       },
       {
-        queryKey: ["stats", "rate", { years: filters.years, counties: filters.counties, severities: filters.severities }],
+        queryKey: ["stats", "rate", { d: dateKey, co: filters.counties, s: filters.severities }],
         queryFn: () => fetchJson<RateRow[]>(buildUrl("rate", filters)),
       },
     ],

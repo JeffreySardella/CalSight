@@ -43,7 +43,7 @@ export default function CountyBoundaries({
   onSelectCounty,
 }: CountyBoundariesProps) {
   const map = useMap();
-  const { selectedYears, selectedSeverities, selectedCauses, selectedCounties } = useFilterParams();
+  const { selectedDateRange, selectedSeverities, selectedCauses, selectedCounties } = useFilterParams();
   const { choroplethOn, measure, palette, setBucketEdges, otherLayers } = useLayersState();
   const isDark = useIsDark();
 
@@ -57,11 +57,11 @@ export default function CountyBoundaries({
   // params (MVs don't carry them). See stats.py lines 134-143.
   const filters = useMemo(
     () => ({
-      years: [...selectedYears].sort((a, b) => a - b),
+      dateRange: selectedDateRange,
       severities: [...selectedSeverities],
       causes: [...selectedCauses],
     }),
-    [selectedYears, selectedSeverities, selectedCauses],
+    [selectedDateRange, selectedSeverities, selectedCauses],
   );
   const { byCountyCode } = useChoroplethData(measure, filters);
 

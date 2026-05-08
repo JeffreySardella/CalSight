@@ -15,6 +15,7 @@ from app.filters import (
     parse_bool_flag,
     parse_cause,
     parse_county_codes,
+    parse_date_range,
     parse_severity,
     parse_year,
 )
@@ -41,6 +42,8 @@ COUNT_STATEMENT_TIMEOUT_MS = 5000
 def list_crashes(
     response: Response,
     year: str | None = Query(None),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
     county: str | None = Query(None),
     severity: str | None = Query(None),
     cause: str | None = Query(None),
@@ -54,7 +57,9 @@ def list_crashes(
     """Paginated crash detail records.
 
     Filters (all multi-value, comma-separated):
-      - `year=2020,2023`
+      - `start=2020-01&end=2023-12` (month-resolution date range; either
+        side may be omitted)
+      - `year=2020,2023` (legacy; ignored when `start` or `end` is set)
       - `county=los-angeles,orange` (slugified county names)
       - `severity=fatal,injury,property-damage-only`
       - `cause=dui,speeding,lane-change,other`
@@ -68,7 +73,8 @@ def list_crashes(
     """
     response.headers["Cache-Control"] = "public, max-age=300"
 
-    years = parse_year(year)
+    date_range = parse_date_range(start, end)
+    years = parse_year(year) if date_range is None else None
     county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
     severities = parse_severity(severity)
     causes = parse_cause(cause)
@@ -76,18 +82,20 @@ def list_crashes(
     distracted_v = parse_bool_flag(distracted, "distracted")
 
     if include_total and not any([
-        years, county_codes, severities, causes,
+        date_range is not None, years, county_codes, severities, causes,
         alcohol_v is not None, distracted_v is not None,
     ]):
         raise FilterError(
             "include_total",
-            "include_total=true requires at least one filter (year, county, "
-            "severity, cause, alcohol, distracted). Unbounded COUNT(*) over "
-            "11M crashes is too slow. For aggregate totals, use /api/stats.",
+            "include_total=true requires at least one filter (start/end, "
+            "year, county, severity, cause, alcohol, distracted). Unbounded "
+            "COUNT(*) over 11M crashes is too slow. For aggregate totals, "
+            "use /api/stats.",
         )
 
     preds = build_crash_predicates(
         years=years,
+        date_range=date_range,
         county_codes=county_codes,
         severities=severities,
         causes=causes,
