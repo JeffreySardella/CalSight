@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useStats, type StatsFilters } from "./useStats";
 
 const FILTERS: StatsFilters = {
-  years: [2022, 2023],
+  dateRange: { start: { year: 2022, month: 1 }, end: { year: 2023, month: 12 } },
   severities: [],
   causes: [],
   counties: [],
@@ -75,10 +75,10 @@ describe("useStats", () => {
 
     expect(spy).toHaveBeenCalledTimes(10);
     const urls = spy.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => u.includes("group_by=year") && u.includes("year=2022%2C2023"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=hour") && u.includes("year=2022%2C2023"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=cause") && u.includes("year=2022%2C2023"))).toBe(true);
-    expect(urls.some((u) => u.includes("/api/demographics") && u.includes("year=2022%2C2023"))).toBe(true);
+    expect(urls.some((u) => u.includes("group_by=year") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
+    expect(urls.some((u) => u.includes("group_by=hour") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
+    expect(urls.some((u) => u.includes("group_by=cause") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
+    expect(urls.some((u) => u.includes("/api/demographics") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=severity"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=gender"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=age_bracket"))).toBe(true);

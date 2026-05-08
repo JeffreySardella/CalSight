@@ -12,7 +12,8 @@ error envelope documented in the spec.
 
 from __future__ import annotations
 
-from datetime import date
+from calendar import monthrange
+from datetime import date, datetime, time
 
 from sqlalchemy import ColumnElement
 
@@ -55,6 +56,87 @@ def parse_year(raw: str | None) -> set[int] | None:
             )
         out.add(y)
     return out or None
+
+
+# Date range — month-resolution start/end (?start=2020-01&end=2023-12).
+DateRange = tuple[date | None, date | None]
+
+
+def _parse_year_month(raw: str, filter_name: str) -> tuple[int, int]:
+    parts = raw.split("-")
+    if len(parts) != 2 or len(parts[0]) != 4 or len(parts[1]) != 2:
+        raise FilterError(
+            filter_name,
+            f"{filter_name} must be in YYYY-MM format; got '{raw}'.",
+        )
+    try:
+        y = int(parts[0])
+        m = int(parts[1])
+    except ValueError:
+        raise FilterError(
+            filter_name,
+            f"{filter_name} must be in YYYY-MM format; got '{raw}'.",
+        ) from None
+    current_year = date.today().year
+    if y < _FIRST_YEAR or y > current_year:
+        raise FilterError(
+            filter_name,
+            f"Year {y} is outside the supported range "
+            f"({_FIRST_YEAR}-{current_year}).",
+        )
+    if m < 1 or m > 12:
+        raise FilterError(
+            filter_name,
+            f"Month must be 1-12; got {m}.",
+        )
+    return y, m
+
+
+def parse_date_range(start: str | None, end: str | None) -> DateRange | None:
+    """Parse ?start=YYYY-MM&end=YYYY-MM into a (start_date, end_date) tuple.
+
+    `start` becomes the first day of the start month; `end` becomes the
+    last day of the end month (inclusive). Either side may be omitted.
+    Returns None when both inputs are empty/missing.
+    """
+    has_start = start is not None and start != ""
+    has_end = end is not None and end != ""
+    if not has_start and not has_end:
+        return None
+
+    start_d: date | None = None
+    end_d: date | None = None
+
+    if has_start:
+        sy, sm = _parse_year_month(start, "start")  # type: ignore[arg-type]
+        start_d = date(sy, sm, 1)
+    if has_end:
+        ey, em = _parse_year_month(end, "end")  # type: ignore[arg-type]
+        end_d = date(ey, em, monthrange(ey, em)[1])
+
+    if start_d and end_d and start_d > end_d:
+        raise FilterError(
+            "end",
+            f"end ({end}) must be on or after start ({start}).",
+        )
+
+    return start_d, end_d
+
+
+def years_from_date_range(date_range: DateRange | None) -> set[int] | None:
+    """Convert a date range into the set of years it spans.
+
+    Used for endpoints that aggregate against year-resolution materialized
+    views; month-level precision is rounded outward.
+    """
+    if date_range is None:
+        return None
+    start_d, end_d = date_range
+    start_y = start_d.year if start_d else _FIRST_YEAR
+    end_y = end_d.year if end_d else date.today().year
+    if start_y > end_y:
+        return set()
+    return set(range(start_y, end_y + 1))
 
 
 def parse_county_codes(
@@ -184,6 +266,7 @@ def parse_driver_age(raw: str | None) -> tuple[int, int] | None:
 def build_crash_predicates(
     *,
     years: set[int] | None = None,
+    date_range: DateRange | None = None,
     county_codes: set[int] | None = None,
     severities: set[str] | None = None,
     causes: set[str] | None = None,
@@ -194,9 +277,19 @@ def build_crash_predicates(
     drug: bool | None = None,
     driver_age: tuple[int, int] | None = None,
 ) -> list[ColumnElement]:
-    """Build SQLAlchemy WHERE predicates for the crashes table."""
+    """Build SQLAlchemy WHERE predicates for the crashes table.
+
+    `date_range` filters on `crash_datetime` at month resolution and takes
+    precedence over `years` when both are supplied.
+    """
     preds: list[ColumnElement] = []
-    if years:
+    if date_range is not None:
+        start_d, end_d = date_range
+        if start_d:
+            preds.append(Crash.crash_datetime >= datetime.combine(start_d, time.min))
+        if end_d:
+            preds.append(Crash.crash_datetime <= datetime.combine(end_d, time.max))
+    elif years:
         preds.append(Crash.crash_year.in_(years))
     if county_codes:
         preds.append(Crash.county_code.in_(county_codes))

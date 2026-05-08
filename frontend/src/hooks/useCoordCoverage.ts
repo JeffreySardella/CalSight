@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { YEARS } from "./useFilterParams";
+import { YEARS, yearsInRange, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
 
 type DataQualityRow = {
@@ -15,7 +15,7 @@ export type CoordCoverage = {
   pct: number;
 };
 
-export function useCoordCoverage(selectedYears: number[]): CoordCoverage | null {
+export function useCoordCoverage(dateRange: DateRangeFilter | null): CoordCoverage | null {
   const { data } = useQuery<DataQualityRow[]>({
     queryKey: ["data-quality-statewide"],
     queryFn: async () => {
@@ -31,9 +31,9 @@ export function useCoordCoverage(selectedYears: number[]): CoordCoverage | null 
   // Only statewide per-year rows (county_code null, year present)
   const statewide = data.filter((r) => r.county_code === null && r.year !== null);
 
-  const allYears = selectedYears.length === 0 || selectedYears.length === YEARS.length;
-  const yearSet = allYears ? null : new Set(selectedYears);
-  const rows = yearSet ? statewide.filter((r) => yearSet.has(r.year!)) : statewide;
+  const yearSet = yearsInRange(dateRange);
+  const allYears = yearSet.size === 0 || yearSet.size === YEARS.length;
+  const rows = allYears ? statewide : statewide.filter((r) => yearSet.has(r.year!));
 
   if (!rows.length) return null;
 

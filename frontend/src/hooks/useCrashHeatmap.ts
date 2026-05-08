@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useCallback } from "react";
 import { API_BASE } from "../config";
 import type { HeatmapResolution } from "./useLayersState";
-import { slugify } from "./useFilterParams";
+import { slugify, formatYearMonth, type DateRangeFilter } from "./useFilterParams";
 
 export interface HeatmapPoint {
   lat: number;
@@ -14,7 +14,7 @@ export interface HeatmapPoint {
 interface HeatmapParams {
   enabled: boolean;
   county: string | null;
-  years: number[];
+  dateRange: DateRangeFilter | null;
   severities: string[];
   causes: string[];
   alcohol?: boolean | null;
@@ -30,6 +30,11 @@ interface HeatmapParams {
   batchSize?: number;
 }
 
+function dateRangeKey(dr: DateRangeFilter | null): string {
+  if (!dr) return "";
+  return `${dr.start ? formatYearMonth(dr.start) : ""}|${dr.end ? formatYearMonth(dr.end) : ""}`;
+}
+
 interface HeatmapApiResponse {
   points: HeatmapPoint[];
   total_crashes: number;
@@ -40,7 +45,8 @@ interface HeatmapApiResponse {
 function buildUrl(params: HeatmapParams): string {
   const sp = new URLSearchParams();
   if (params.county) sp.set("county", params.county);
-  if (params.years.length) sp.set("year", params.years.join(","));
+  if (params.dateRange?.start) sp.set("start", formatYearMonth(params.dateRange.start));
+  if (params.dateRange?.end) sp.set("end", formatYearMonth(params.dateRange.end));
   if (params.severities.length) sp.set("severity", params.severities.map(slugify).join(","));
   if (params.causes.length) sp.set("cause", params.causes.join(","));
   if (params.alcohol != null) sp.set("alcohol", String(params.alcohol));
@@ -68,7 +74,7 @@ export function useCrashHeatmap(params: HeatmapParams) {
     queryKey: [
       "crashHeatmap",
       params.county,
-      params.years,
+      dateRangeKey(params.dateRange),
       params.severities,
       params.causes,
       params.alcohol,
@@ -109,7 +115,7 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     batchSize: size,
   });
 
-  const filterKey = `${params.county}|${params.years.join(",")}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}`;
+  const filterKey = `${params.county}|${dateRangeKey(params.dateRange)}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}`;
   useEffect(() => {
     setCurrentBatch(1);
     setAllPoints([]);

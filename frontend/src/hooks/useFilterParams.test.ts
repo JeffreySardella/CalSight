@@ -3,6 +3,9 @@ import {
   parseBoolFlag,
   parseSeverities,
   parseCauses,
+  parseYearMonth,
+  formatYearMonth,
+  yearsInRange,
   SEVERITIES,
   CAUSES,
   INVOLVEMENTS,
@@ -53,8 +56,8 @@ describe("CAUSES", () => {
 });
 
 describe("INVOLVEMENTS", () => {
-  it("has alcohol and distracted", () => {
-    expect(INVOLVEMENTS.map((i) => i.value)).toEqual(["alcohol", "distracted"]);
+  it("has all involvement types", () => {
+    expect(INVOLVEMENTS.map((i) => i.value)).toEqual(["alcohol", "distracted", "pedestrian", "cyclist", "drug"]);
   });
 });
 
@@ -79,5 +82,59 @@ describe("parseCauses", () => {
   it("rejects removed causes", () => {
     const result = parseCauses("distracted,weather");
     expect(result.size).toBe(0);
+  });
+});
+
+describe("parseYearMonth", () => {
+  it("parses YYYY-MM into a YearMonth", () => {
+    expect(parseYearMonth("2023-07")).toEqual({ year: 2023, month: 7 });
+  });
+
+  it("returns null for malformed input", () => {
+    expect(parseYearMonth("2023")).toBeNull();
+    expect(parseYearMonth("2023/07")).toBeNull();
+    expect(parseYearMonth("")).toBeNull();
+    expect(parseYearMonth(null)).toBeNull();
+  });
+
+  it("rejects out-of-range months", () => {
+    expect(parseYearMonth("2023-00")).toBeNull();
+    expect(parseYearMonth("2023-13")).toBeNull();
+  });
+
+  it("rejects out-of-range years", () => {
+    expect(parseYearMonth("1990-06")).toBeNull();
+  });
+});
+
+describe("formatYearMonth", () => {
+  it("zero-pads single-digit months", () => {
+    expect(formatYearMonth({ year: 2023, month: 3 })).toBe("2023-03");
+  });
+
+  it("preserves double-digit months", () => {
+    expect(formatYearMonth({ year: 2023, month: 12 })).toBe("2023-12");
+  });
+});
+
+describe("yearsInRange", () => {
+  it("returns an empty set for null", () => {
+    expect(yearsInRange(null).size).toBe(0);
+  });
+
+  it("expands an inclusive range to whole years", () => {
+    const range = {
+      start: { year: 2020, month: 3 },
+      end: { year: 2022, month: 8 },
+    };
+    expect(yearsInRange(range)).toEqual(new Set([2020, 2021, 2022]));
+  });
+
+  it("supports an open-ended start (defaults to first available year)", () => {
+    const range = { start: null, end: { year: 2002, month: 6 } };
+    const out = yearsInRange(range);
+    expect(out.has(2001)).toBe(true);
+    expect(out.has(2002)).toBe(true);
+    expect(out.has(2003)).toBe(false);
   });
 });

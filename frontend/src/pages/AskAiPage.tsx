@@ -39,7 +39,7 @@ function buildPopularQuestions(county: string | null) {
 export default function AskAiPage() {
   const [inputValue, setInputValue] = useState("");
   const { messages, isLoading, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
-  const { selectedCounties, selectedYears, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted } = useFilterParams();
+  const { selectedCounties, selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted } = useFilterParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
@@ -47,7 +47,11 @@ export default function AskAiPage() {
   const hasMessages = messages.length > 0;
 
   const activeCounty = selectedCounties.size === 1 ? [...selectedCounties][0] : null;
-  const activeYear = selectedYears.size > 0 ? String(Math.min(...selectedYears)) : null;
+  const activeYear = selectedDateRange?.start
+    ? String(selectedDateRange.start.year)
+    : selectedDateRange?.end
+      ? String(selectedDateRange.end.year)
+      : null;
 
   const guidedTopics = useMemo(() => buildGuidedTopics(activeCounty, activeYear), [activeCounty, activeYear]);
   const communityInquiries = useMemo(() => buildPopularQuestions(activeCounty), [activeCounty]);
@@ -86,16 +90,12 @@ export default function AskAiPage() {
     if (selectedCounties.size > 0) {
       parts.push(selectedCounties.size <= 2 ? [...selectedCounties].join(", ") : `${selectedCounties.size} counties`);
     }
-    if (selectedYears.size > 0) {
-      const years = [...selectedYears].map(Number).sort((a, b) => a - b);
-      const ranges: string[] = [];
-      let start = years[0], end = years[0];
-      for (let i = 1; i < years.length; i++) {
-        if (years[i] === end + 1) { end = years[i]; }
-        else { ranges.push(start === end ? `${start}` : `${start}-${end}`); start = end = years[i]; }
-      }
-      ranges.push(start === end ? `${start}` : `${start}-${end}`);
-      parts.push(ranges.join(", "));
+    if (selectedDateRange) {
+      const fmt = (ym: { year: number; month: number } | null) =>
+        ym ? `${ym.year}-${String(ym.month).padStart(2, "0")}` : null;
+      const s = fmt(selectedDateRange.start);
+      const e = fmt(selectedDateRange.end);
+      if (s || e) parts.push(`${s ?? "earliest"} → ${e ?? "latest"}`);
     }
     if (selectedSeverities.size > 0) {
       parts.push(selectedSeverities.size <= 2 ? [...selectedSeverities].join(", ") : `${selectedSeverities.size} severities`);

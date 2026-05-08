@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useFilterParams, YEARS, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
+import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
 import {
@@ -107,14 +107,14 @@ export default function StatsPage() {
   const [resetKey, setResetKey] = useState(0);
   const filters = useFilterParams();
   const statsFilters = useMemo(() => ({
-    years: [...filters.selectedYears],
+    dateRange: filters.selectedDateRange,
     severities: [...filters.selectedSeverities],
     causes: [...filters.selectedCauses],
     counties: [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")),
-  }), [filters.selectedYears, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
+  }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
   const { data, loading, error, refetch } = useStats(statsFilters);
   const dqDisclaimers = useDataQualityDisclaimer(
-    [...filters.selectedYears],
+    filters.selectedDateRange,
     [...filters.selectedCounties],
   );
   const [, forceUpdate] = useState(false);
@@ -155,7 +155,7 @@ export default function StatsPage() {
   const causeColor = (label: string) => causeColorMap[label] ?? clrOnSurfaceVariant;
   const severityColor = (label: string) => severityColorMap[label] ?? clrOnSurfaceVariant;
 
-  const years      = filters.selectedYears;
+  const dateRange  = filters.selectedDateRange;
   const severities = filters.selectedSeverities;
   const counties   = filters.selectedCounties;
   const causes     = filters.selectedCauses;
@@ -167,7 +167,6 @@ export default function StatsPage() {
 
   // Build typed chips so each one knows how to remove itself.
   // "All X" chips open the filter panel instead of removing — they have no onRemove.
-  const sortedYears = [...years].sort((a, b) => a - b);
   type Chip = { label: string; onRemove?: () => void; onOpen?: () => void };
 
   const openFilters = () => setShowMobileFilters(true);
@@ -176,11 +175,12 @@ export default function StatsPage() {
     ? [{ label: "All Counties", onOpen: openFilters }]
     : [...counties].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCounty(c) }));
 
-  const yearChips: Chip[] = years.size === 0 || years.size === YEARS.length
-    ? [{ label: years.size === 0 ? "All Years" : "All Years", onOpen: openFilters }]
-    : sortedYears.length >= 3 && sortedYears.every((y, i) => i === 0 || y === sortedYears[i - 1] + 1)
-      ? [{ label: `${sortedYears[0]}–${sortedYears[sortedYears.length - 1]}`, onRemove: () => filters.clearYears() }]
-      : sortedYears.map((y) => ({ label: String(y), onRemove: () => filters.toggleYear(y) }));
+  const dateRangeLabel = dateRange
+    ? `${dateRange.start ? formatYearMonth(dateRange.start) : "earliest"} – ${dateRange.end ? formatYearMonth(dateRange.end) : "latest"}`
+    : null;
+  const yearChips: Chip[] = dateRangeLabel
+    ? [{ label: dateRangeLabel, onRemove: () => filters.clearDateRange() }]
+    : [{ label: "All Years", onOpen: openFilters }];
 
   const severityChips: Chip[] = severities.size === 0 || severities.size === SEVERITIES.length
     ? [{ label: "All Severities", onOpen: openFilters }]
@@ -973,7 +973,7 @@ export default function StatsPage() {
             icon: "filter_list",
             content: (
               <FiltersPanel
-                selectedYears={filters.selectedYears}
+                selectedDateRange={filters.selectedDateRange}
                 selectedSeverities={filters.selectedSeverities}
                 selectedCounties={filters.selectedCounties}
                 selectedCauses={filters.selectedCauses}
@@ -983,11 +983,8 @@ export default function StatsPage() {
                 selectedCyclist={filters.selectedCyclist}
                 selectedDrug={filters.selectedDrug}
                 selectedDriverAge={filters.selectedDriverAge}
-                onToggleYear={filters.toggleYear}
-                onSetYearRange={filters.setYearRange}
-                onClearYears={filters.clearYears}
-                onSetYears={filters.setYears}
-                onSetAllYears={filters.setAllYears}
+                onSetDateRange={filters.setDateRange}
+                onClearDateRange={filters.clearDateRange}
                 onToggleSeverity={filters.toggleSeverity}
                 onSetSeverities={filters.setSeverities}
                 onSetAllSeverities={filters.setAllSeverities}

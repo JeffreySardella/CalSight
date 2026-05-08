@@ -15,6 +15,7 @@ from app.filters import (
     parse_bool_flag,
     parse_cause,
     parse_county_codes,
+    parse_date_range,
     parse_driver_age,
     parse_severity,
     parse_year,
@@ -52,6 +53,8 @@ _DECIMALS = {
 def crash_heatmap(
     response: Response,
     year: str | None = Query(None),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
     county: str | None = Query(None),
     severity: str | None = Query(None),
     cause: str | None = Query(None),
@@ -78,7 +81,8 @@ def crash_heatmap(
     """
     response.headers["Cache-Control"] = "public, max-age=300"
 
-    years = parse_year(year)
+    date_range = parse_date_range(start, end)
+    years = parse_year(year) if date_range is None else None
     county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
     severities = parse_severity(severity)
     causes = parse_cause(cause)
@@ -100,6 +104,7 @@ def crash_heatmap(
 
     preds = build_crash_predicates(
         years=years,
+        date_range=date_range,
         county_codes=county_codes,
         severities=severities,
         causes=causes,

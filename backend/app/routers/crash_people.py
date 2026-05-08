@@ -19,7 +19,9 @@ from app.database import get_db
 from app.filters import (
     FilterError,
     parse_county_codes,
+    parse_date_range,
     parse_year,
+    years_from_date_range,
 )
 from app.models import Crash, CrashParty, CrashVictim
 from app.schemas.common import PaginatedResponse
@@ -127,6 +129,8 @@ def list_parties(
     data_source: str | None = Query(None, pattern="^(ccrs|switrs)$"),
     county: str | None = Query(None),
     year: str | None = Query(None),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
     gender: str | None = Query(None),
     age_min: int | None = Query(None, ge=0, le=130),
     age_max: int | None = Query(None, ge=0, le=130),
@@ -161,7 +165,8 @@ def list_parties(
     if data_source is not None:
         q = q.filter(CrashParty.data_source == data_source)
 
-    needs_join = bool(county) or bool(year)
+    date_range = parse_date_range(start, end)
+    needs_join = bool(county) or bool(year) or date_range is not None
     if needs_join:
         q = q.join(
             Crash,
@@ -172,7 +177,11 @@ def list_parties(
             codes = parse_county_codes(county, get_slug_map(db))
             if codes:
                 q = q.filter(Crash.county_code.in_(codes))
-        if year:
+        if date_range is not None:
+            years = years_from_date_range(date_range)
+            if years:
+                q = q.filter(Crash.crash_year.in_(years))
+        elif year:
             years = parse_year(year)
             if years:
                 q = q.filter(Crash.crash_year.in_(years))
@@ -204,6 +213,8 @@ def list_victims(
     data_source: str | None = Query(None, pattern="^(ccrs|switrs)$"),
     county: str | None = Query(None),
     year: str | None = Query(None),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
     gender: str | None = Query(None),
     age_min: int | None = Query(None, ge=0, le=130),
     age_max: int | None = Query(None, ge=0, le=130),
@@ -234,7 +245,8 @@ def list_victims(
     if data_source is not None:
         q = q.filter(CrashVictim.data_source == data_source)
 
-    needs_join = bool(county) or bool(year)
+    date_range = parse_date_range(start, end)
+    needs_join = bool(county) or bool(year) or date_range is not None
     if needs_join:
         q = q.join(
             Crash,
@@ -245,7 +257,11 @@ def list_victims(
             codes = parse_county_codes(county, get_slug_map(db))
             if codes:
                 q = q.filter(Crash.county_code.in_(codes))
-        if year:
+        if date_range is not None:
+            years = years_from_date_range(date_range)
+            if years:
+                q = q.filter(Crash.crash_year.in_(years))
+        elif year:
             years = parse_year(year)
             if years:
                 q = q.filter(Crash.crash_year.in_(years))
