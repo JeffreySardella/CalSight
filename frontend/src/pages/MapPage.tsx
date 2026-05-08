@@ -23,6 +23,7 @@ import DataExportPanel, {
 import MapCanvas from "../components/map/MapCanvas";
 import AiInsightCard from "../components/map/AiInsightCard";
 import Breadcrumb from "../components/map/Breadcrumb";
+import StatewideHeatmapCard from "../components/map/StatewideHeatmapCard";
 import { EmptyState } from "../components/ui/EmptyState";
 import { useCrashHeatmap, useBatchedHeatmap } from "../hooks/useCrashHeatmap";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
@@ -103,7 +104,7 @@ function MapPageInner() {
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
 
-  const { measure, otherLayers, heatmapResolution, palette } = useLayersState();
+  const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
 
   const useCountyDetail = !!focusedCounty && otherLayers.heatmapCounty && (!compareMode || !!compareCounty);
 
@@ -444,6 +445,14 @@ function MapPageInner() {
           searchOpen={mobileSearchExpanded}
           mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
         />
+        {otherLayers.heatmapStatewide && !focusedCounty && !choroplethOn && (
+          <StatewideHeatmapCard
+            totalCrashes={statewideHeatmap.totalCrashes}
+            displayed={statewideHeatmap.points.length}
+            isLoading={statewideHeatmap.isLoading}
+            searchOpen={mobileSearchExpanded}
+          />
+        )}
         {heatmapEnabled && heatmap.isLoading && (
           <HeatmapLoadingPill />
         )}
