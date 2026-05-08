@@ -125,6 +125,7 @@ def run_job(job: Job, triggered_by: str = "manual") -> EtlRun:
         logger.exception("Job %s failed unexpectedly", job.name)
 
     finally:
+        db.expunge(record)
         db.close()
 
     return record
