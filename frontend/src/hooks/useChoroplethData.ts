@@ -7,11 +7,18 @@ import {
   type MeasureKey,
   type MeasureResult,
 } from "../lib/choropleth/measures";
-import { CA_COUNTIES, YEARS, SEVERITIES, CAUSES } from "./useFilterParams";
+import {
+  CA_COUNTIES,
+  SEVERITIES,
+  CAUSES,
+  formatYearMonth,
+  yearsInRange,
+  type DateRangeFilter,
+} from "./useFilterParams";
 import { API_BASE } from "../config";
 
 export type ChoroplethFilters = {
-  years: number[];           // parsed from URL; empty = no year filter
+  dateRange: DateRangeFilter | null;
   severities: string[];      // backend values, e.g. "Fatal"
   causes: string[];          // URL slugs, e.g. ["dui", "lane-change"]
   // NOTE: alcohol / distracted are intentionally NOT here — /api/stats runs
@@ -57,7 +64,7 @@ export type ChoroplethData = {
 
 function normalizeFilters(filters: ChoroplethFilters): ChoroplethFilters {
   return {
-    years: filters.years.length === YEARS.length ? [] : filters.years,
+    dateRange: filters.dateRange,
     severities: filters.severities.length === SEVERITIES.length ? [] : filters.severities,
     causes: filters.causes.length === CAUSES.length ? [] : filters.causes,
   };
@@ -67,10 +74,16 @@ function severityToSlug(s: string): string {
   return s.toLowerCase().replace(/ /g, "-");
 }
 
+function appendDateRange(p: URLSearchParams, dr: DateRangeFilter | null) {
+  if (!dr) return;
+  if (dr.start) p.set("start", formatYearMonth(dr.start));
+  if (dr.end) p.set("end", formatYearMonth(dr.end));
+}
+
 function buildStatsUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   p.set("group_by", "county");
-  if (filters.years.length) p.set("year", filters.years.join(","));
+  appendDateRange(p, filters.dateRange);
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
   // alcohol / distracted are NOT forwarded — /api/stats rejects them (MVs
@@ -81,7 +94,7 @@ function buildStatsUrl(filters: ChoroplethFilters): string {
 function buildYearStatsUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   p.set("group_by", "year");
-  if (filters.years.length) p.set("year", filters.years.join(","));
+  appendDateRange(p, filters.dateRange);
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
   return `${API_BASE}/api/stats?${p}`;
@@ -89,17 +102,22 @@ function buildYearStatsUrl(filters: ChoroplethFilters): string {
 
 function buildDemoUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
-  if (filters.years.length) p.set("year", filters.years.join(","));
+  appendDateRange(p, filters.dateRange);
   const qs = p.toString();
   return `${API_BASE}/api/demographics${qs ? `?${qs}` : ""}`;
 }
 
 export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFilters): ChoroplethData {
   const filters = normalizeFilters(rawFilters);
+  const dateKey = filters.dateRange
+    ? `${filters.dateRange.start ? formatYearMonth(filters.dateRange.start) : ""}|${filters.dateRange.end ? formatYearMonth(filters.dateRange.end) : ""}`
+    : "";
+  const cacheKey = { d: dateKey, s: filters.severities, c: filters.causes };
+
   const queries = useQueries({
     queries: [
       {
-        queryKey: ["choropleth", "stats", filters],
+        queryKey: ["choropleth", "stats", cacheKey],
         placeholderData: (prev: CountyStats[] | undefined) => prev,
         queryFn: async (): Promise<CountyStats[]> => {
           const res = await fetch(buildStatsUrl(filters));
@@ -112,7 +130,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
         },
       },
       {
-        queryKey: ["choropleth", "demographics", filters.years],
+        queryKey: ["choropleth", "demographics", dateKey],
         placeholderData: (prev: CountyYearDemo[] | undefined) => prev,
         queryFn: async (): Promise<CountyYearDemo[]> => {
           const res = await fetch(buildDemoUrl(filters));
@@ -121,7 +139,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
         },
       },
       {
-        queryKey: ["choropleth", "yearStats", filters],
+        queryKey: ["choropleth", "yearStats", cacheKey],
         placeholderData: (prev: YearStats[] | undefined) => prev,
         queryFn: async (): Promise<YearStats[]> => {
           const res = await fetch(buildYearStatsUrl(filters));
@@ -165,7 +183,8 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       }
     }
 
-    if (filters.years.length === 0 || !demos) {
+    const yearsForDisclaimer = [...yearsInRange(filters.dateRange)];
+    if (yearsForDisclaimer.length === 0 || !demos) {
       return { totalCrashes, missingDemoYears: [], partialDemoYears: [], sparseYears };
     }
 
@@ -177,13 +196,13 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     }
     const missingDemoYears: number[] = [];
     const partialDemoYears: number[] = [];
-    for (const y of [...filters.years].sort((a, b) => a - b)) {
+    for (const y of yearsForDisclaimer.sort((a, b) => a - b)) {
       const count = countiesByYear.get(y) ?? 0;
       if (count === 0) missingDemoYears.push(y);
       else if (count < CA_COUNTIES.length) partialDemoYears.push(y);
     }
     return { totalCrashes, missingDemoYears, partialDemoYears, sparseYears };
-  }, [filters.years, demos, yearStats]);
+  }, [filters.dateRange, demos, yearStats]);
 
   const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error) as (Error & { status?: number }) | null;
 
