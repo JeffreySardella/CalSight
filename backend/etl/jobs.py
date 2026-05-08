@@ -22,11 +22,21 @@ def build_default_registry() -> JobRegistry:
         max_drop_pct=5,
     ))
     registry.register(Job(
-        name="parties_victims",
+        name="parties",
         module="etl.load_parties_victims",
+        args=["--table", "parties"],
         depends_on=["crashes_ccrs"],
         schedule="daily",
         table_name="crash_parties",
+        max_drop_pct=5,
+    ))
+    registry.register(Job(
+        name="victims",
+        module="etl.load_parties_victims",
+        args=["--table", "victims"],
+        depends_on=["crashes_ccrs"],
+        schedule="daily",
+        table_name="crash_victims",
         max_drop_pct=5,
     ))
     registry.register(Job(
@@ -111,7 +121,7 @@ def build_default_registry() -> JobRegistry:
     registry.register(Job(
         name="backfill",
         module="etl.backfill_derived",
-        depends_on=["crashes_ccrs", "parties_victims"],
+        depends_on=["crashes_ccrs", "parties", "victims"],
         schedule="daily",
     ))
     registry.register(Job(

@@ -2,7 +2,7 @@
 
 Usage:
     python -m etl.run_all                  # Run all non-static jobs
-    python -m etl.run_all --only crashes_ccrs,parties_victims
+    python -m etl.run_all --only crashes_ccrs,parties,victims
     python -m etl.run_all --include-static # Include SWITRS (normally skipped)
     python -m etl.run_all --dry-run        # Show execution order, don't run
 """
