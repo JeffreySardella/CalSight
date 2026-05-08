@@ -81,3 +81,13 @@ class CountyInsightOut(BaseModel):
     narrative: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class CountyInsightCardOut(BaseModel):
+    county_code: int
+    county_name: str
+    year: int
+    angle: str
+    narrative: str
+
+    model_config = {"from_attributes": True}
