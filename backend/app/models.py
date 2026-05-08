@@ -383,6 +383,27 @@ class CountyInsightDetail(Base):
     )
 
 
+class CountyInsightCard(Base):
+    """Per-county narrative insight cards with different angles (overview, dui, trend, etc.)."""
+
+    __tablename__ = "county_insight_cards"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        Integer, ForeignKey("counties.code"), nullable=False
+    )
+    county_name = Column(String(50), nullable=False)
+    year = Column(Integer, nullable=False)
+    angle = Column(String(40), nullable=False)
+    narrative = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("county_code", "year", "angle"),
+        Index("ix_county_insight_cards_county_year", "county_code", "year"),
+    )
+
+
 class Weather(Base):
     """Monthly weather summary per county.
 
@@ -796,8 +817,33 @@ class EtlRun(Base):
     error_message = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
 
+    validation_status = Column(String(20))
+    rows_before = Column(Integer)
+    rows_after = Column(Integer)
+    diff_summary = Column(Text)
+    triggered_by = Column(String(20))
+
     __table_args__ = (
         Index("ix_etl_runs_source_started_at", "source", "started_at"),
+    )
+
+
+class StatewideInsight(Base):
+    __tablename__ = "statewide_insights"
+
+    id = Column(Integer, primary_key=True)
+    year = Column(Integer, nullable=False)
+    angle = Column(String(40), nullable=False)
+    total_crashes = Column(Integer)
+    total_killed = Column(Integer)
+    total_injured = Column(Integer)
+    narrative = Column(Text)
+    data_source = Column(String(10))
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("year", "angle"),
+        Index("ix_statewide_insights_year", "year"),
     )
 
 

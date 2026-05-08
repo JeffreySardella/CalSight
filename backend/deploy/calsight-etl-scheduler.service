@@ -1,0 +1,17 @@
+[Unit]
+Description=CalSight ETL Scheduler (daily at 2 AM)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/calsight/backend
+ExecStart=/usr/bin/docker exec calsight-backend python -m etl.scheduler --cron "0 2 * * *"
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=calsight-etl
+
+[Install]
+WantedBy=multi-user.target

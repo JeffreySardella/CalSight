@@ -10,6 +10,7 @@ import AboutPage from "./pages/AboutPage";
 import AskAiPage from "./pages/AskAiPage";
 // PrivacyPage will be created in a later task
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const AdminEtlPage = lazy(() => import("./pages/AdminEtlPage"));
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -22,6 +23,7 @@ export default function App() {
               <Route path="about" element={<AboutPage />} />
               <Route path="ask" element={<AskAiPage />} />
               <Route path="privacy" element={<Suspense fallback={null}><PrivacyPage /></Suspense>} />
+              <Route path="admin/etl" element={<Suspense fallback={null}><AdminEtlPage /></Suspense>} />
             </Route>
           </Routes>
           <div

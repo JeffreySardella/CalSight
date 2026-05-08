@@ -6,7 +6,7 @@ the table metadata — no database connection needed.
 
 from sqlalchemy import String
 
-from app.models import County, Crash, Demographic, CountyInsight, CountyInsightDetail, EtlRun
+from app.models import County, Crash, Demographic, CountyInsight, CountyInsightCard, CountyInsightDetail, EtlRun
 
 
 class TestCountyModel:
@@ -111,6 +111,38 @@ class TestCountyInsightModel:
                 if cols == {"county_code", "year"}:
                     unique_cols = cols
         assert unique_cols == {"county_code", "year"}
+
+
+class TestCountyInsightCardModel:
+    def test_table_name(self):
+        assert CountyInsightCard.__tablename__ == "county_insight_cards"
+
+    def test_county_code_has_foreign_key(self):
+        col = CountyInsightCard.__table__.c.county_code
+        fk_targets = {fk.target_fullname for fk in col.foreign_keys}
+        assert "counties.code" in fk_targets
+
+    def test_has_narrative_column(self):
+        columns = {c.name for c in CountyInsightCard.__table__.columns}
+        assert "narrative" in columns
+
+    def test_has_angle_column(self):
+        columns = {c.name for c in CountyInsightCard.__table__.columns}
+        assert "angle" in columns
+
+    def test_unique_constraint_county_year_angle(self):
+        constraints = CountyInsightCard.__table__.constraints
+        unique_cols = None
+        for c in constraints:
+            if hasattr(c, "columns") and len(c.columns) == 3:
+                cols = {col.name for col in c.columns}
+                if cols == {"county_code", "year", "angle"}:
+                    unique_cols = cols
+        assert unique_cols == {"county_code", "year", "angle"}
+
+    def test_has_county_year_index(self):
+        indexes = {idx.name for idx in CountyInsightCard.__table__.indexes}
+        assert "ix_county_insight_cards_county_year" in indexes
 
 
 class TestCountyInsightDetailModel:

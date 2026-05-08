@@ -9,12 +9,14 @@ from app.database import get_db
 from app.filters import parse_county_codes, parse_year
 from app.models import (
     CountyInsight,
+    CountyInsightCard,
     DataQualityStat,
     LicensedDriver,
     UnemploymentRate,
     VehicleRegistration,
 )
 from app.schemas.context import (
+    CountyInsightCardOut,
     CountyInsightOut,
     DataQualityStatOut,
     LicensedDriverOut,
@@ -161,3 +163,31 @@ def list_insights(
         if years:
             q = q.filter(CountyInsight.year.in_(years))
     return [CountyInsightOut.model_validate(r) for r in q.all()]
+
+
+@router.get("/insight-cards", response_model=list[CountyInsightCardOut])
+def list_insight_cards(
+    response: Response,
+    county: str | None = Query(None),
+    year: str | None = Query(None),
+    angle: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """County insight narrative cards with multiple angles per county/year.
+
+    Angles include: overview, dui, cause_focus, trend, comparison,
+    unique_factor, safety_ranking.
+    """
+    response.headers["Cache-Control"] = _FIVE_MIN
+    q = db.query(CountyInsightCard)
+    if county:
+        codes = parse_county_codes(county, get_slug_map(db))
+        if codes:
+            q = q.filter(CountyInsightCard.county_code.in_(codes))
+    if year:
+        years = parse_year(year)
+        if years:
+            q = q.filter(CountyInsightCard.year.in_(years))
+    if angle:
+        q = q.filter(CountyInsightCard.angle == angle)
+    return [CountyInsightCardOut.model_validate(r) for r in q.all()]
