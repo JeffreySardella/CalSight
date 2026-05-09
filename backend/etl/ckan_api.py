@@ -132,12 +132,8 @@ def transform_ccrs(record: dict) -> dict:
 
     Returns a dict ready to be inserted into the crashes table.
     """
-    ped_action = record.get("PedestrianActionCode")
-    pedestrian_involved = (
-        ped_action is not None
-        and ped_action != ""
-        and ped_action != "0"
-    )
+    ped_action = str(record.get("PedestrianActionCode") or "").strip().upper()
+    pedestrian_involved = ped_action in ("B", "C", "D", "E", "F", "G")
 
     crash_datetime_raw = record.get("Crash Date Time")
     crash_datetime = None

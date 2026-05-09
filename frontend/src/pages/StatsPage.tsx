@@ -979,6 +979,10 @@ export default function StatsPage() {
                 selectedCauses={filters.selectedCauses}
                 selectedAlcohol={filters.selectedAlcohol}
                 selectedDistracted={filters.selectedDistracted}
+                selectedPedestrian={filters.selectedPedestrian}
+                selectedCyclist={filters.selectedCyclist}
+                selectedDrug={filters.selectedDrug}
+                selectedDriverAge={filters.selectedDriverAge}
                 onSetDateRange={filters.setDateRange}
                 onClearDateRange={filters.clearDateRange}
                 onToggleSeverity={filters.toggleSeverity}
@@ -993,6 +997,10 @@ export default function StatsPage() {
                 onClearCauses={filters.clearCauses}
                 onToggleAlcohol={filters.toggleAlcohol}
                 onToggleDistracted={filters.toggleDistracted}
+                onTogglePedestrian={filters.togglePedestrian}
+                onToggleCyclist={filters.toggleCyclist}
+                onToggleDrug={filters.toggleDrug}
+                onSetDriverAge={filters.setDriverAge}
                 resetKey={resetKey}
               />
             ),

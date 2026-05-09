@@ -56,8 +56,8 @@ describe("CAUSES", () => {
 });
 
 describe("INVOLVEMENTS", () => {
-  it("has alcohol and distracted", () => {
-    expect(INVOLVEMENTS.map((i) => i.value)).toEqual(["alcohol", "distracted"]);
+  it("has all involvement types", () => {
+    expect(INVOLVEMENTS.map((i) => i.value)).toEqual(["alcohol", "distracted", "pedestrian", "cyclist", "drug"]);
   });
 });
 

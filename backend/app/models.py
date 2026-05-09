@@ -92,8 +92,11 @@ class Crash(Base):
     # can filter on these without joining to the 8.8M row parties table.
     # Only set for CCRS crashes (2016+) — SWITRS has no party data so these
     # stay null for pre-2016 crashes.
-    is_alcohol_involved = Column(Boolean)     # True if any party was HBD or on drugs
+    is_alcohol_involved = Column(Boolean)     # True if any party was HBD
     is_distraction_involved = Column(Boolean) # True if any party was on their phone
+    cyclist_involved = Column(Boolean)        # True if any party was a bicyclist
+    is_drug_involved = Column(Boolean)        # True if any party was under drug influence
+    at_fault_driver_age = Column(SmallInteger) # Age of the at-fault driver
 
     # True when lat/lng falls outside the assigned county's polygon.
     # Set by etl.validate_coords; NULL means not yet validated.
@@ -137,6 +140,7 @@ class Crash(Base):
         Index("ix_crashes_crash_datetime", "crash_datetime"),
         Index("ix_crashes_primary_factor", "primary_factor"),
         Index("ix_crashes_county_datetime", "county_code", "crash_datetime"),
+        Index("ix_crashes_at_fault_driver_age", "at_fault_driver_age"),
     )
 
 

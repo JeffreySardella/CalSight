@@ -331,6 +331,200 @@ def backfill_distraction_flags(db):
     logger.info("Marked %d crashes as NOT distraction-involved", total_negative)
 
 
+def backfill_pedestrian_flags(db):
+    """Fix pedestrian_involved using crash_parties as ground truth.
+
+    The original ETL set this from PedestrianActionCode, but code "A"
+    (No Pedestrian Involved) was incorrectly treated as True, flagging
+    99.5% of crashes. This resets the column using party_type = 'Pedestrian'
+    from crash_parties, which gives the correct ~3.3% rate.
+
+    SWITRS (pre-2016) gets set to NULL since we have no party data
+    to verify against.
+    """
+    logger.info("Fixing pedestrian_involved flags...")
+
+    # Step 1: NULL out SWITRS rows (no party data to verify)
+    r = db.execute(text("""
+        UPDATE crashes
+        SET pedestrian_involved = NULL
+        WHERE data_source = 'switrs'
+          AND pedestrian_involved IS NOT NULL
+    """))
+    db.commit()
+    logger.info("Set %d SWITRS rows to NULL", r.rowcount)
+
+    # Step 2: find CCRS crashes with a pedestrian party
+    result = db.execute(text("""
+        SELECT DISTINCT collision_id
+        FROM crash_parties
+        WHERE party_type = 'Pedestrian'
+    """))
+    ped_ids = [row[0] for row in result]
+    logger.info("Found %d pedestrian-involved collision IDs", len(ped_ids))
+
+    # Step 3: reset all CCRS to FALSE first
+    total_reset = 0
+    for year in _ccrs_year_range(db):
+        r = db.execute(text("""
+            UPDATE crashes
+            SET pedestrian_involved = FALSE
+            WHERE data_source = 'ccrs'
+              AND crash_datetime >= :start AND crash_datetime < :end
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        total_reset += r.rowcount
+    logger.info("Reset %d CCRS crashes to FALSE", total_reset)
+
+    # Step 4: set TRUE for crashes with pedestrian parties
+    total_positive = 0
+    for i in range(0, len(ped_ids), 1000):
+        batch = ped_ids[i:i + 1000]
+        r = db.execute(text("""
+            UPDATE crashes
+            SET pedestrian_involved = TRUE
+            WHERE collision_id = ANY(:ids)
+              AND data_source = 'ccrs'
+        """), {"ids": batch})
+        db.commit()
+        total_positive += r.rowcount
+    logger.info("Marked %d crashes as pedestrian-involved", total_positive)
+
+
+def backfill_cyclist_flags(db):
+    """Tag each CCRS crash with whether a bicyclist was involved.
+
+    Same batch pattern as alcohol flags. Checks crash_parties.party_type
+    for 'Bicyclist'. pedestrian_involved already exists on the crashes
+    table from the original ETL, so we only need cyclist here.
+    """
+    logger.info("Finding cyclist-involved collision IDs...")
+    result = db.execute(text("""
+        SELECT DISTINCT collision_id
+        FROM crash_parties
+        WHERE party_type = 'Bicyclist'
+    """))
+    cyclist_ids = [row[0] for row in result]
+    logger.info("Found %d cyclist-involved collision IDs", len(cyclist_ids))
+
+    total_positive = 0
+    for i in range(0, len(cyclist_ids), 1000):
+        batch = cyclist_ids[i:i + 1000]
+        r = db.execute(text("""
+            UPDATE crashes
+            SET cyclist_involved = TRUE
+            WHERE collision_id = ANY(:ids)
+              AND data_source = 'ccrs'
+              AND cyclist_involved IS NULL
+        """), {"ids": batch})
+        db.commit()
+        total_positive += r.rowcount
+
+    logger.info("Marked %d crashes as cyclist-involved", total_positive)
+
+    total_negative = 0
+    for year in _ccrs_year_range(db):
+        r = db.execute(text("""
+            UPDATE crashes
+            SET cyclist_involved = FALSE
+            WHERE cyclist_involved IS NULL
+              AND data_source = 'ccrs'
+              AND crash_datetime >= :start AND crash_datetime < :end
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        total_negative += r.rowcount
+
+    logger.info("Marked %d crashes as NOT cyclist-involved", total_negative)
+
+
+def backfill_drug_flags(db):
+    """Tag each CCRS crash with whether drugs (not alcohol) were involved.
+
+    Distinct from is_alcohol_involved -- this only matches
+    'UNDER_DRUG_INFLUENCE' in the sobriety field. A crash can be both
+    alcohol-involved AND drug-involved if different parties had each.
+    """
+    logger.info("Finding drug-involved collision IDs...")
+    result = db.execute(text("""
+        SELECT DISTINCT collision_id
+        FROM crash_parties
+        WHERE sobriety = 'UNDER_DRUG_INFLUENCE'
+    """))
+    drug_ids = [row[0] for row in result]
+    logger.info("Found %d drug-involved collision IDs", len(drug_ids))
+
+    total_positive = 0
+    for i in range(0, len(drug_ids), 1000):
+        batch = drug_ids[i:i + 1000]
+        r = db.execute(text("""
+            UPDATE crashes
+            SET is_drug_involved = TRUE
+            WHERE collision_id = ANY(:ids)
+              AND data_source = 'ccrs'
+              AND is_drug_involved IS NULL
+        """), {"ids": batch})
+        db.commit()
+        total_positive += r.rowcount
+
+    logger.info("Marked %d crashes as drug-involved", total_positive)
+
+    total_negative = 0
+    for year in _ccrs_year_range(db):
+        r = db.execute(text("""
+            UPDATE crashes
+            SET is_drug_involved = FALSE
+            WHERE is_drug_involved IS NULL
+              AND data_source = 'ccrs'
+              AND crash_datetime >= :start AND crash_datetime < :end
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        total_negative += r.rowcount
+
+    logger.info("Marked %d crashes as NOT drug-involved", total_negative)
+
+
+def backfill_at_fault_driver_age(db):
+    """Copy the at-fault driver's age onto the crash row.
+
+    Finds the party where at_fault = TRUE and party_type = 'Driver',
+    takes their age. If multiple at-fault drivers exist (rare -- multi-vehicle
+    collisions with shared fault), takes the youngest since young-driver
+    analysis is the primary use case.
+
+    Only CCRS (2016+) has party data.
+    """
+    logger.info("Backfilling at-fault driver age...")
+    total = 0
+    for year in _ccrs_year_range(db):
+        r = db.execute(text("""
+            UPDATE crashes c
+            SET at_fault_driver_age = sub.age
+            FROM (
+                SELECT DISTINCT ON (p.collision_id)
+                    p.collision_id, p.age
+                FROM crash_parties p
+                JOIN crashes cr ON cr.collision_id = p.collision_id
+                    AND cr.data_source = p.data_source
+                WHERE p.at_fault = TRUE
+                  AND p.party_type = 'Driver'
+                  AND p.age IS NOT NULL
+                  AND p.age BETWEEN 1 AND 120
+                  AND cr.data_source = 'ccrs'
+                  AND cr.crash_datetime >= :start AND cr.crash_datetime < :end
+                ORDER BY p.collision_id, p.age
+            ) sub
+            WHERE c.collision_id = sub.collision_id
+              AND c.data_source = 'ccrs'
+              AND c.at_fault_driver_age IS NULL
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        if r.rowcount > 0:
+            logger.info("At-fault driver age %d: %d rows", year, r.rowcount)
+            total += r.rowcount
+
+    logger.info("At-fault driver age backfill done: %d rows", total)
+
+
 def backfill_crash_hour(db):
     """Extract the hour (0-23) from crash_datetime into its own column.
 
@@ -626,8 +820,12 @@ def run():
         backfill_day_of_week(db)
         backfill_county_name(db)
         backfill_severity(db)
+        backfill_pedestrian_flags(db)
         backfill_alcohol_flags(db)
         backfill_distraction_flags(db)
+        backfill_cyclist_flags(db)
+        backfill_drug_flags(db)
+        backfill_at_fault_driver_age(db)
         backfill_canonical_cause(db)
         logger.info("=== Done ===")
     finally:
