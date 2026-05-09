@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { NavLink, useSearchParams } from "react-router-dom";
 import { buildFilterQS } from "../hooks/useFilterParams";
-import logo from "../assets/logo.png";
+import logo from "../assets/logo.webp";
 import SettingsPopover from "./SettingsPopover";
 
 const navLinks = [
