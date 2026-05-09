@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   YEARS,
   CA_COUNTIES,
@@ -332,58 +332,100 @@ interface MonthYearPickerProps {
   onChange: (next: YearMonth | null) => void;
 }
 
+function StyledSelect({ ariaLabel, value, placeholder, options, onChange }: {
+  ariaLabel: string;
+  value: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative flex-1 min-w-0">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20 text-left"
+      >
+        <span className={selected ? "text-on-surface" : "text-outline"}>
+          {selected?.label ?? placeholder}
+        </span>
+        <span className="material-symbols-outlined text-[16px] text-on-surface-variant ml-1 shrink-0">expand_more</span>
+      </button>
+      {open && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-surface-container-lowest rounded-lg shadow-lg border border-outline-variant/15 bottom-full mb-1 md:bottom-auto md:mb-0 md:top-full md:mt-1">
+          <button
+            type="button"
+            onClick={() => { onChange(""); setOpen(false); }}
+            className="w-full px-4 py-2.5 text-sm text-left text-on-surface-variant hover:bg-surface-container transition-colors"
+          >
+            {placeholder}
+          </button>
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`w-full px-4 py-2.5 text-sm text-left hover:bg-surface-container transition-colors ${
+                o.value === value ? "text-primary font-semibold" : "text-on-surface"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MonthYearPicker({ label, value, onChange }: MonthYearPickerProps) {
-  const handleMonth = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value;
-    if (v === "") {
-      onChange(null);
-      return;
-    }
+  const handleMonth = (v: string) => {
+    if (v === "") { onChange(null); return; }
     const month = Number(v);
     const year = value?.year ?? YEARS[YEARS.length - 1];
     onChange({ year, month });
   };
 
-  const handleYear = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = e.target.value;
-    if (v === "") {
-      onChange(null);
-      return;
-    }
+  const handleYear = (v: string) => {
+    if (v === "") { onChange(null); return; }
     const year = Number(v);
     const month = value?.month ?? 1;
     onChange({ year, month });
   };
-
-  const selectClass = "flex-1 min-w-0 px-3 py-3 rounded-lg text-sm bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20";
 
   return (
     <div className="flex items-center gap-2">
       <span className="w-10 shrink-0 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
         {label}
       </span>
-      <select
-        aria-label={`${label} month`}
-        value={value?.month ?? ""}
+      <StyledSelect
+        ariaLabel={`${label} month`}
+        value={value?.month?.toString() ?? ""}
+        placeholder="Month"
+        options={MONTHS.map((m) => ({ value: m.value.toString(), label: m.label }))}
         onChange={handleMonth}
-        className={selectClass}
-      >
-        <option value="">Month</option>
-        {MONTHS.map((m) => (
-          <option key={m.value} value={m.value}>{m.label}</option>
-        ))}
-      </select>
-      <select
-        aria-label={`${label} year`}
-        value={value?.year ?? ""}
+      />
+      <StyledSelect
+        ariaLabel={`${label} year`}
+        value={value?.year?.toString() ?? ""}
+        placeholder="Year"
+        options={[...YEARS].reverse().map((y) => ({ value: y.toString(), label: y.toString() }))}
         onChange={handleYear}
-        className={`${selectClass} max-w-[5rem]`}
-      >
-        <option value="">Year</option>
-        {[...YEARS].reverse().map((y) => (
-          <option key={y} value={y}>{y}</option>
-        ))}
-      </select>
+      />
     </div>
   );
 }
