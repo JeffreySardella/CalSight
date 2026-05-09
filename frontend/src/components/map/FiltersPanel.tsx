@@ -355,11 +355,11 @@ function MonthYearPicker({ label, value, onChange }: MonthYearPickerProps) {
     onChange({ year, month });
   };
 
-  const selectClass = "px-2.5 py-2 rounded-md text-xs font-semibold bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20";
+  const selectClass = "flex-1 min-w-0 px-3 py-3 rounded-lg text-sm bg-surface-container-high text-on-surface border-none focus:ring-2 focus:ring-primary/20";
 
   return (
     <div className="flex items-center gap-2">
-      <span className="w-10 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+      <span className="w-10 shrink-0 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
         {label}
       </span>
       <select
@@ -377,7 +377,7 @@ function MonthYearPicker({ label, value, onChange }: MonthYearPickerProps) {
         aria-label={`${label} year`}
         value={value?.year ?? ""}
         onChange={handleYear}
-        className={selectClass}
+        className={`${selectClass} max-w-[5rem]`}
       >
         <option value="">Year</option>
         {[...YEARS].reverse().map((y) => (
