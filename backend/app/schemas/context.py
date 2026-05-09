@@ -91,3 +91,14 @@ class CountyInsightCardOut(BaseModel):
     narrative: str
 
     model_config = {"from_attributes": True}
+
+
+class StatewideInsightOut(BaseModel):
+    year: int
+    angle: str
+    narrative: str
+    total_crashes: int | None = None
+    total_killed: int | None = None
+    total_injured: int | None = None
+
+    model_config = {"from_attributes": True}

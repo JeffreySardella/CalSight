@@ -29,6 +29,8 @@ import { useCrashHeatmap, useBatchedHeatmap } from "../hooks/useCrashHeatmap";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
+import { useRandomInsight } from "../hooks/useRandomInsight";
+import StatewideInsightCard from "../components/map/StatewideInsightCard";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -199,6 +201,14 @@ function MapPageInner() {
   // so the closing animation has a name to show), so use focusedCounty as the
   // real enable gate.
   const { data: insightData } = useCountyInsight(
+    focusedCounty ? insightCounty : null,
+    insightYear,
+  );
+
+  const {
+    card: randomCard,
+    refresh: refreshRandomCard,
+  } = useRandomInsight(
     focusedCounty ? insightCounty : null,
     insightYear,
   );
@@ -448,7 +458,9 @@ function MapPageInner() {
             onCompare={handleStartCompare}
             compareCountyName={compareCounty ?? undefined}
             compareData={comparePointData}
-            narrative={insightData?.narrative}
+            narrative={randomCard?.narrative ?? insightData?.narrative}
+            narrativeAngle={randomCard?.angle}
+            onRefreshNarrative={randomCard ? refreshRandomCard : undefined}
             loading={choroplethData.isLoading}
           />
         )}
@@ -476,7 +488,14 @@ function MapPageInner() {
             searchOpen={mobileSearchExpanded}
           />
         )}
-        {heatmapEnabled && !useCountyDetail && heatmap.isLoading && (
+        {!focusedCounty && randomCard && (
+          <StatewideInsightCard
+            card={randomCard}
+            onRefresh={refreshRandomCard}
+            searchOpen={mobileSearchExpanded}
+          />
+        )}
+        {heatmapEnabled && heatmap.isLoading && (
           <HeatmapLoadingPill />
         )}
         {useCountyDetail && (countyHeatmap.isLoading || countyHeatmap.hasMore) && !countyHeatmap.error && (
