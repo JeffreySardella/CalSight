@@ -64,9 +64,10 @@ export const INVOLVEMENTS = [
 ] as const;
 
 export const DRIVER_AGE_BRACKETS = [
-  { value: "16-21", label: "16-21" },
-  { value: "16-24", label: "16-24" },
-  { value: "19-34", label: "19-34" },
+  { value: "16-21", label: "16–21" },
+  { value: "22-34", label: "22–34" },
+  { value: "35-49", label: "35–49" },
+  { value: "50-64", label: "50–64" },
   { value: "65+", label: "65+" },
 ] as const;
 

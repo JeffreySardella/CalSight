@@ -141,6 +141,11 @@ class Crash(Base):
         Index("ix_crashes_primary_factor", "primary_factor"),
         Index("ix_crashes_county_datetime", "county_code", "crash_datetime"),
         Index("ix_crashes_at_fault_driver_age", "at_fault_driver_age"),
+        Index("ix_crashes_alcohol", "is_alcohol_involved", postgresql_where="is_alcohol_involved IS NOT NULL"),
+        Index("ix_crashes_distraction", "is_distraction_involved", postgresql_where="is_distraction_involved IS NOT NULL"),
+        Index("ix_crashes_pedestrian", "pedestrian_involved", postgresql_where="pedestrian_involved = true"),
+        Index("ix_crashes_cyclist", "cyclist_involved", postgresql_where="cyclist_involved IS NOT NULL"),
+        Index("ix_crashes_drug", "is_drug_involved", postgresql_where="is_drug_involved IS NOT NULL"),
     )
 
 

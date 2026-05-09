@@ -221,6 +221,7 @@ def _seed(session: Session) -> None:
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_cause"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_hour"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crash_victims_by_demographics"))
+    session.execute(text("REFRESH MATERIALIZED VIEW mv_at_fault_parties_by_demographics"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_month"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crash_rates"))
     session.commit()
