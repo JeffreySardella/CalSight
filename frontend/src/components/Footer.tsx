@@ -23,7 +23,7 @@ export default function Footer() {
           <Link
             key={link.label}
             to={link.to}
-            className="text-on-surface-variant hover:underline decoration-outline-variant opacity-80 hover:opacity-100 transition-opacity"
+            className="text-on-surface-variant hover:underline decoration-outline-variant hover:text-on-surface transition-colors"
           >
             {link.label}
           </Link>
