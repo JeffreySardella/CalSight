@@ -73,7 +73,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">CCRS</h3>
+              <h2 className="font-headline text-xl font-bold text-on-surface">CCRS</h2>
               <p className="text-sm text-on-surface-variant mt-1">California Crash Reporting System</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
                 4.35M crashes from 2016-2026. Includes party-level demographics (age, gender, sobriety) and victim records. Published by CHP via data.ca.gov.
@@ -87,7 +87,7 @@ export default function AboutPage() {
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">SWITRS</h3>
+              <h2 className="font-headline text-xl font-bold text-on-surface">SWITRS</h2>
               <p className="text-sm text-on-surface-variant mt-1">Statewide Integrated Traffic Records System</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
                 6.78M crashes from 2001-2015. Crash-level records only — no party or driver demographics. Archived by UC Berkeley and published by CHP.
@@ -101,7 +101,7 @@ export default function AboutPage() {
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">US Census Bureau</h3>
+              <h2 className="font-headline text-xl font-bold text-on-surface">US Census Bureau</h2>
               <p className="text-sm text-on-surface-variant mt-1">ACS Demographics + TIGER/Line Boundaries</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
                 28 demographic fields per county per year (population, income, poverty, race, education). TIGER/Line 2023 survey-grade county boundaries for coordinate validation. AREAWATER 2023 for lake and harbor exclusion.
@@ -115,7 +115,7 @@ export default function AboutPage() {
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">California State Agencies</h3>
+              <h2 className="font-headline text-xl font-bold text-on-surface">California State Agencies</h2>
               <p className="text-sm text-on-surface-variant mt-1">DMV, Caltrans, OEHHA, CDE, OSHPD</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
                 <li>CA DMV vehicle registrations (2019-2026)</li>
@@ -134,7 +134,7 @@ export default function AboutPage() {
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">Federal Agencies</h3>
+              <h2 className="font-headline text-xl font-bold text-on-surface">Federal Agencies</h2>
               <p className="text-sm text-on-surface-variant mt-1">NOAA, BLS, FHWA</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
                 <li>NOAA monthly county weather data (2001-2025)</li>
@@ -150,7 +150,7 @@ export default function AboutPage() {
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h3 className="font-headline text-xl font-bold text-on-surface">OpenStreetMap + AI</h3>
+              <h2 className="font-headline text-xl font-bold text-on-surface">OpenStreetMap + AI</h2>
               <p className="text-sm text-on-surface-variant mt-1">Spatial validation and insight generation</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
                 <li>OSM bridge locations (55K+ segments) for coordinate validation</li>
@@ -203,7 +203,7 @@ export default function AboutPage() {
             },
           ].map(({ title, body }) => (
             <div key={title} className="border-t border-outline-variant/20 pt-4">
-              <h4 className="text-sm font-semibold text-on-surface mb-1">{title}</h4>
+              <h3 className="text-sm font-semibold text-on-surface mb-1">{title}</h3>
               <p className="text-sm text-on-surface-variant leading-relaxed">{body}</p>
             </div>
           ))}
@@ -226,9 +226,9 @@ export default function AboutPage() {
             <div className="w-12 h-12 flex items-center justify-center rounded-full bg-primary-container text-primary">
               <span className="material-symbols-outlined">map</span>
             </div>
-            <h4 className="font-headline font-bold text-lg text-on-surface">
+            <h3 className="font-headline font-bold text-lg text-on-surface">
               Explore
-            </h4>
+            </h3>
             <p className="text-sm text-on-surface-variant leading-relaxed">
               Interactive GIS mapping allows you to visualize incident density
               across specific neighborhoods and corridors.
@@ -239,9 +239,9 @@ export default function AboutPage() {
             <div className="w-12 h-12 flex items-center justify-center rounded-full bg-tertiary-container text-tertiary">
               <span className="material-symbols-outlined">insights</span>
             </div>
-            <h4 className="font-headline font-bold text-lg text-on-surface">
+            <h3 className="font-headline font-bold text-lg text-on-surface">
               Analyze
-            </h4>
+            </h3>
             <p className="text-sm text-on-surface-variant leading-relaxed">
               Drill down into time-of-day, weather conditions, and vehicle types
               to understand the root causes of risk.
@@ -252,9 +252,9 @@ export default function AboutPage() {
             <div className="w-12 h-12 flex items-center justify-center rounded-full bg-secondary-container text-secondary">
               <span className="material-symbols-outlined">psychology</span>
             </div>
-            <h4 className="font-headline font-bold text-lg text-on-surface">
+            <h3 className="font-headline font-bold text-lg text-on-surface">
               Discover
-            </h4>
+            </h3>
             <p className="text-sm text-on-surface-variant leading-relaxed">
               Cross-reference crash patterns with demographics, weather, and
               infrastructure data to find unexpected correlations.
@@ -274,7 +274,7 @@ export default function AboutPage() {
               JS
             </div>
             <div>
-              <h4 className="font-bold text-on-surface">Jeffrey Sardella</h4>
+              <h3 className="font-bold text-on-surface">Jeffrey Sardella</h3>
               <p className="text-xs text-primary font-medium">
                 Project Lead & Full-Stack Developer
               </p>
@@ -286,7 +286,7 @@ export default function AboutPage() {
               MS
             </div>
             <div>
-              <h4 className="font-bold text-on-surface">Maksim Shkrabak</h4>
+              <h3 className="font-bold text-on-surface">Maksim Shkrabak</h3>
               <p className="text-xs text-primary font-medium">
                 Developer
               </p>
@@ -298,7 +298,7 @@ export default function AboutPage() {
               JL
             </div>
             <div>
-              <h4 className="font-bold text-on-surface">John Longarini</h4>
+              <h3 className="font-bold text-on-surface">John Longarini</h3>
               <p className="text-xs text-primary font-medium">
                 Developer
               </p>
@@ -310,7 +310,7 @@ export default function AboutPage() {
               GK
             </div>
             <div>
-              <h4 className="font-bold text-on-surface">Gavin Kabel</h4>
+              <h3 className="font-bold text-on-surface">Gavin Kabel</h3>
               <p className="text-xs text-primary font-medium">
                 Developer
               </p>
