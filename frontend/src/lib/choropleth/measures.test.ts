@@ -8,7 +8,7 @@ const tenCrashes = {
   total_killed: 2,
   total_injured: 3,
 };
-const pop50k = { county_code: 19, year: 2023, population: 50_000 };
+const pop50k = { county_code: 19, year: 2023, population: 50_000, median_income: 75_000 };
 
 describe("computeMeasureValue", () => {
   it("crashes_per_100k divides crashes by (pop/100k)", () => {
@@ -56,21 +56,61 @@ describe("computeMeasureValue", () => {
     // total: 25 per 100k
     const stats = { ...tenCrashes, crash_count: 15 };
     const demos = [
-      { county_code: 19, year: 2020, population: 100_000 },
-      { county_code: 19, year: 2023, population: 50_000 },
+      { county_code: 19, year: 2020, population: 100_000, median_income: 60_000 },
+      { county_code: 19, year: 2023, population: 50_000, median_income: 75_000 },
     ];
     const perYearCrashes = new Map<number, number>([[2020, 5], [2023, 10]]);
     const r = computeMeasureValue("crashes_per_100k", stats, demos, { perYearCrashes });
     expect(r.value).toBe(25);
   });
 
+  it("crashes_per_10k_income normalizes by median household income", () => {
+    // 10 crashes / 75,000 income * 10,000 = 1.333…
+    const r = computeMeasureValue("crashes_per_10k_income", tenCrashes, [pop50k]);
+    expect(r.hasEnoughData).toBe(true);
+    expect(r.value).toBeCloseTo((10 / 75_000) * 10_000, 5);
+  });
+
+  it("crashes_per_10k_income returns no-data when median_income is null", () => {
+    const r = computeMeasureValue("crashes_per_10k_income", tenCrashes, [
+      { ...pop50k, median_income: null },
+    ]);
+    expect(r.hasEnoughData).toBe(false);
+    expect(r.value).toBeNull();
+  });
+
+  it("crashes_per_10k_income returns no-data below MIN_CRASHES_FOR_RATE", () => {
+    const sparse = { ...tenCrashes, crash_count: 4 };
+    const r = computeMeasureValue("crashes_per_10k_income", sparse, [pop50k]);
+    expect(r.hasEnoughData).toBe(false);
+  });
+
+  it("crashes_per_10k_income works for multi-year via perYearCrashes", () => {
+    // 2020: 5 / 60,000 * 10,000 ≈ 0.8333
+    // 2023: 10 / 75,000 * 10,000 ≈ 1.3333
+    // total ≈ 2.1666
+    const stats = { ...tenCrashes, crash_count: 15 };
+    const demos = [
+      { county_code: 19, year: 2020, population: 100_000, median_income: 60_000 },
+      { county_code: 19, year: 2023, population: 50_000, median_income: 75_000 },
+    ];
+    const perYearCrashes = new Map<number, number>([[2020, 5], [2023, 10]]);
+    const r = computeMeasureValue("crashes_per_10k_income", stats, demos, { perYearCrashes });
+    expect(r.value).toBeCloseTo((5 / 60_000) * 10_000 + (10 / 75_000) * 10_000, 5);
+  });
+
   it("MIN_CRASHES_FOR_RATE equals 5", () => {
     expect(MIN_CRASHES_FOR_RATE).toBe(5);
   });
 
-  it("MEASURES exposes 5 measures including default", () => {
+  it("MEASURES exposes 6 measures including default and income", () => {
     const keys: MeasureKey[] = Object.keys(MEASURES) as MeasureKey[];
-    expect(keys).toHaveLength(5);
+    expect(keys).toHaveLength(6);
     expect(keys).toContain("crashes_per_100k");
+    expect(keys).toContain("crashes_per_10k_income");
+  });
+
+  it("crashes_per_10k_income measure is tagged as perIncome", () => {
+    expect(MEASURES.crashes_per_10k_income.kind).toBe("perIncome");
   });
 });

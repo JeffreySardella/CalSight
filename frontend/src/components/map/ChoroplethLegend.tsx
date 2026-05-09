@@ -131,7 +131,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           >
             {allMeasures.map((m) => {
               const isSelected = m.key === measure;
-              const isDisabled = m.kind === "perCapita" && !demographicsAvailable;
+              const isDisabled = (m.kind === "perCapita" || m.kind === "perIncome") && !demographicsAvailable;
               return (
                 <button
                   key={m.key}
@@ -231,7 +231,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         </div>
       )}
 
-      {!countyActive && activeMeasure.kind === "perCapita" && (dataSummary.missingDemoYears.length > 0 || dataSummary.partialDemoYears.length > 0) && (
+      {!countyActive && (activeMeasure.kind === "perCapita" || activeMeasure.kind === "perIncome") && (dataSummary.missingDemoYears.length > 0 || dataSummary.partialDemoYears.length > 0) && (
         <div role="alert" className="bg-red-500/15 rounded-md px-2 py-1.5 mt-1.5 text-[10px] text-red-600 dark:text-red-400 font-semibold">
           {dataSummary.missingDemoYears.length > 0 && (
             <div>No census data for {formatYearList(dataSummary.missingDemoYears)}</div>

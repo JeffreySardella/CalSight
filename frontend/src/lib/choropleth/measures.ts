@@ -8,14 +8,15 @@ export type MeasureKey =
   | "crashes_per_100k"
   | "fatalities_per_100k"
   | "injuries_per_100k"
+  | "crashes_per_10k_income"
   | "crashes_raw"
   | "fatality_rate";
 
 export type Measure = {
   key: MeasureKey;
   label: string;
-  /** "perCapita" needs demographics; "raw" and "rate" do not. */
-  kind: "perCapita" | "raw" | "rate";
+  /** "perCapita" / "perIncome" need demographics; "raw" and "rate" do not. */
+  kind: "perCapita" | "perIncome" | "raw" | "rate";
   formatLabel: (n: number) => string;
 };
 
@@ -37,6 +38,16 @@ export const MEASURES: Record<MeasureKey, Measure> = {
     label: "Injuries per 100k residents",
     kind: "perCapita",
     formatLabel: (n) => n.toFixed(0),
+  },
+  crashes_per_10k_income: {
+    // Crashes normalized by median household income — surfaces equity
+    // dimensions that pure population-based rates miss. Higher values
+    // mean more crashes per dollar of income, a proxy for under-invested
+    // / lower-resource areas. ACS B19013 median household income.
+    key: "crashes_per_10k_income",
+    label: "Crashes per $10K median income",
+    kind: "perIncome",
+    formatLabel: compact,
   },
   crashes_raw: {
     key: "crashes_raw",
@@ -70,6 +81,7 @@ export type CountyYearDemo = {
   county_code: number;
   year: number;
   population: number | null;
+  median_income: number | null;
 };
 
 export type MeasureResult = {
@@ -103,10 +115,29 @@ export function computeMeasureValue(
     return { value: (stats.total_killed / stats.crash_count) * 100, hasEnoughData: true };
   }
 
-  // Per-capita branches need population.
   if (stats.crash_count < MIN_CRASHES_FOR_RATE) {
     return { value: null, hasEnoughData: false };
   }
+
+  if (measure === "crashes_per_10k_income") {
+    if (demographics.length === 0 || demographics.some((d) => d.median_income == null)) {
+      return { value: null, hasEnoughData: false };
+    }
+    if (opts.perYearCrashes && opts.perYearCrashes.size > 0) {
+      let total = 0;
+      for (const d of demographics) {
+        const crashes = opts.perYearCrashes.get(d.year);
+        if (crashes == null || d.median_income == null || d.median_income === 0) continue;
+        total += (crashes / d.median_income) * 10_000;
+      }
+      return { value: total, hasEnoughData: true };
+    }
+    const summedIncome = demographics.reduce((acc, d) => acc + (d.median_income ?? 0), 0);
+    if (summedIncome === 0) return { value: null, hasEnoughData: false };
+    return { value: (stats.crash_count / summedIncome) * 10_000, hasEnoughData: true };
+  }
+
+  // Per-capita branches need population.
   if (demographics.length === 0 || demographics.some((d) => d.population == null)) {
     return { value: null, hasEnoughData: false };
   }
