@@ -181,8 +181,14 @@ function MapPageInner() {
       dateRange: selectedDateRange,
       severities: [...selectedSeverities],
       causes: [...selectedCauses],
+      alcohol: selectedAlcohol || undefined,
+      distracted: selectedDistracted || undefined,
+      pedestrian: selectedPedestrian || undefined,
+      cyclist: selectedCyclist || undefined,
+      drug: selectedDrug || undefined,
+      driverAge: selectedDriverAge ?? undefined,
     }),
-    [selectedDateRange, selectedSeverities, selectedCauses],
+    [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge],
   );
   const choroplethData = useChoroplethData(measure, choroplethFilters);
 
