@@ -19,16 +19,14 @@ import { API_BASE } from "../config";
 
 export type ChoroplethFilters = {
   dateRange: DateRangeFilter | null;
-  severities: string[];      // backend values, e.g. "Fatal"
-  causes: string[];          // URL slugs, e.g. ["dui", "lane-change"]
-  // NOTE: alcohol / distracted are intentionally NOT here — /api/stats runs
-  // against materialized views that don't carry is_alcohol_involved /
-  // is_distraction_involved. Sending those params causes a 422. The URL
-  // state (?alcohol=true / ?distracted=true) is preserved for future
-  // /api/crashes drill-down endpoints.
-  // `county` is intentionally omitted — the map always fetches stats for
-  // ALL counties so the choropleth color scale stays globally consistent.
-  // County filtering is applied visually in CountyBoundaries.computeStyle.
+  severities: string[];
+  causes: string[];
+  alcohol?: boolean;
+  distracted?: boolean;
+  pedestrian?: boolean;
+  cyclist?: boolean;
+  drug?: boolean;
+  driverAge?: string | null;
 };
 
 export type ChoroplethPoint = MeasureResult & {
@@ -67,6 +65,12 @@ function normalizeFilters(filters: ChoroplethFilters): ChoroplethFilters {
     dateRange: filters.dateRange,
     severities: filters.severities.length === SEVERITIES.length ? [] : filters.severities,
     causes: filters.causes.length === CAUSES.length ? [] : filters.causes,
+    alcohol: filters.alcohol,
+    distracted: filters.distracted,
+    pedestrian: filters.pedestrian,
+    cyclist: filters.cyclist,
+    drug: filters.drug,
+    driverAge: filters.driverAge,
   };
 }
 
@@ -80,14 +84,22 @@ function appendDateRange(p: URLSearchParams, dr: DateRangeFilter | null) {
   if (dr.end) p.set("end", formatYearMonth(dr.end));
 }
 
+function appendInvolvement(p: URLSearchParams, filters: ChoroplethFilters) {
+  if (filters.alcohol) p.set("alcohol", "true");
+  if (filters.distracted) p.set("distracted", "true");
+  if (filters.pedestrian) p.set("pedestrian", "true");
+  if (filters.cyclist) p.set("cyclist", "true");
+  if (filters.drug) p.set("drug", "true");
+  if (filters.driverAge) p.set("driver_age", filters.driverAge);
+}
+
 function buildStatsUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   p.set("group_by", "county");
   appendDateRange(p, filters.dateRange);
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
-  // alcohol / distracted are NOT forwarded — /api/stats rejects them (MVs
-  // don't carry those columns). See stats.py lines 134-143.
+  appendInvolvement(p, filters);
   return `${API_BASE}/api/stats?${p}`;
 }
 
@@ -97,6 +109,7 @@ function buildYearStatsUrl(filters: ChoroplethFilters): string {
   appendDateRange(p, filters.dateRange);
   if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
+  appendInvolvement(p, filters);
   return `${API_BASE}/api/stats?${p}`;
 }
 
@@ -112,7 +125,11 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
   const dateKey = filters.dateRange
     ? `${filters.dateRange.start ? formatYearMonth(filters.dateRange.start) : ""}|${filters.dateRange.end ? formatYearMonth(filters.dateRange.end) : ""}`
     : "";
-  const cacheKey = { d: dateKey, s: filters.severities, c: filters.causes };
+  const cacheKey = {
+    d: dateKey, s: filters.severities, c: filters.causes,
+    al: filters.alcohol, di: filters.distracted, pe: filters.pedestrian,
+    cy: filters.cyclist, dr: filters.drug, da: filters.driverAge,
+  };
 
   const queries = useQueries({
     queries: [
