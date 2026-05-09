@@ -20,6 +20,8 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
         table_name="crashes",
         max_drop_pct=5,
+        source_type="ckan",
+        freshness_resource_id="b8ce0ca4-b4e9-490d-b4d1-1f4ec48cbefb",
     ))
     registry.register(Job(
         name="parties",
@@ -30,6 +32,8 @@ def build_default_registry() -> JobRegistry:
         table_name="crash_parties",
         max_drop_pct=5,
         timeout=21600,
+        source_type="ckan",
+        freshness_resource_id="348a4266-bbb6-439f-b6c7-0018cc79f0fe",
     ))
     registry.register(Job(
         name="victims",
@@ -40,6 +44,8 @@ def build_default_registry() -> JobRegistry:
         table_name="crash_victims",
         max_drop_pct=5,
         timeout=14400,
+        source_type="ckan",
+        freshness_resource_id="bbe0c38e-d0eb-4152-86e2-0b0895e66ba9",
     ))
     registry.register(Job(
         name="demographics",
@@ -47,6 +53,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="demographics",
         max_drop_pct=10,
+        source_type="federal",
+        freshness_table="demographics",
     ))
     registry.register(Job(
         name="weather",
@@ -54,6 +62,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="county_weather",
         max_drop_pct=5,
+        source_type="federal",
+        freshness_table="county_weather",
     ))
     registry.register(Job(
         name="hospitals",
@@ -61,6 +71,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="hospitals",
         max_drop_pct=20,
+        source_type="ckan",
+        freshness_resource_id="3d2503d7-56ad-4f38-8435-3d86d27b7407",
     ))
     registry.register(Job(
         name="schools",
@@ -68,6 +80,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="schools",
         max_drop_pct=20,
+        source_type="ckan",
+        freshness_resource_id="23740f30-e860-4ada-a7cb-8de6d21e2c78",
     ))
     registry.register(Job(
         name="speed_limits",
@@ -75,6 +89,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="speed_limits",
         max_drop_pct=20,
+        source_type="arcgis",
+        freshness_url="https://geo.dot.gov/server/rest/services/Hosted/HPMS_Full_CA_2022/FeatureServer/0/query",
     ))
     registry.register(Job(
         name="aadt",
@@ -82,6 +98,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="caltrans_aadt",
         max_drop_pct=20,
+        source_type="arcgis",
+        freshness_url="https://caltrans-gis.dot.ca.gov/arcgis/rest/services/CHhighway/Traffic_AADT/FeatureServer/0/query",
     ))
     registry.register(Job(
         name="vehicles",
@@ -89,6 +107,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="dmv_vehicles",
         max_drop_pct=10,
+        source_type="ckan",
+        freshness_resource_id="b459d957-5d94-4b10-999d-770419870364",
     ))
     registry.register(Job(
         name="unemployment",
@@ -96,6 +116,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="bls_unemployment",
         max_drop_pct=10,
+        source_type="federal",
+        freshness_table="bls_unemployment",
     ))
     registry.register(Job(
         name="calenviroscreen",
@@ -103,6 +125,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="calenviroscreen",
         max_drop_pct=20,
+        source_type="arcgis",
+        freshness_url="https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services/CalEnviroScreen_4_0_Results_/FeatureServer/0/query",
     ))
     registry.register(Job(
         name="licensed_drivers",
@@ -110,6 +134,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="licensed_drivers",
         max_drop_pct=10,
+        source_type="ckan",
+        freshness_resource_id="0abef7f0-285f-4887-9b4e-69e86d89ceb1",
     ))
     registry.register(Job(
         name="road_miles",
@@ -117,6 +143,8 @@ def build_default_registry() -> JobRegistry:
         schedule="monthly",
         table_name="road_miles",
         max_drop_pct=20,
+        source_type="ckan",
+        freshness_resource_id="5180390d-e323-4751-8ce9-939e62918233",
     ))
 
     # --- Tier 2: Internal transforms (depend on external loads) ---

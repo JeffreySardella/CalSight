@@ -6,11 +6,14 @@ import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Literal
 
 from app.database import SessionLocal
 from app.models import EtlRun
 
 logger = logging.getLogger(__name__)
+
+SourceType = Literal["ckan", "arcgis", "federal", "none"]
 
 
 @dataclass
@@ -23,6 +26,10 @@ class Job:
     max_drop_pct: float = 10.0
     table_name: str | None = None
     timeout: int = 3600
+    source_type: SourceType = "none"
+    freshness_resource_id: str | None = None
+    freshness_url: str | None = None
+    freshness_table: str | None = None
 
 
 class JobRegistry:
@@ -72,8 +79,35 @@ def resolve_execution_order(registry: JobRegistry) -> list[Job]:
     return order
 
 
-def run_job(job: Job, triggered_by: str = "manual") -> EtlRun:
+def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False) -> EtlRun:
+    from etl._utils import check_source_freshness
+
     db = SessionLocal()
+
+    freshness = None
+    if not force_refresh and job.source_type != "none":
+        freshness = check_source_freshness(job, db)
+        logger.info("Freshness check for %s: %s", job.name, freshness.reason)
+
+        if not freshness.is_fresh:
+            record = EtlRun(
+                source=job.name,
+                status="skipped_unchanged",
+                started_at=datetime.utcnow(),
+                finished_at=datetime.utcnow(),
+                triggered_by=triggered_by,
+                error_message=freshness.reason,
+                validation_status="skipped",
+                last_source_modified=freshness.last_source_modified,
+                source_row_count=freshness.source_row_count,
+            )
+            db.add(record)
+            db.commit()
+            db.refresh(record)
+            db.expunge(record)
+            db.close()
+            return record
+
     record = EtlRun(
         source=job.name,
         status="running",
@@ -104,6 +138,9 @@ def run_job(job: Job, triggered_by: str = "manual") -> EtlRun:
         else:
             record.status = "success"
             record.validation_status = "passed"
+            if freshness:
+                record.last_source_modified = freshness.last_source_modified
+                record.source_row_count = freshness.source_row_count
 
         record.finished_at = datetime.utcnow()
         db.commit()
@@ -138,6 +175,7 @@ def run_pipeline(
     triggered_by: str = "manual",
     only: list[str] | None = None,
     skip_static: bool = True,
+    force_refresh: bool = False,
 ) -> list[EtlRun]:
     order = resolve_execution_order(registry)
 
@@ -149,6 +187,7 @@ def run_pipeline(
 
     results: list[EtlRun] = []
     failed: set[str] = set()
+    skipped_unchanged: set[str] = set()
 
     for job in order:
         blocked_by = [dep for dep in job.depends_on if dep in failed]
@@ -171,9 +210,35 @@ def run_pipeline(
             failed.add(job.name)
             continue
 
-        record = run_job(job, triggered_by=triggered_by)
+        if (
+            not force_refresh
+            and job.source_type == "none"
+            and job.depends_on
+            and all(dep in skipped_unchanged for dep in job.depends_on)
+        ):
+            logger.info("Skipping %s — all deps unchanged: %s", job.name, job.depends_on)
+            db = SessionLocal()
+            record = EtlRun(
+                source=job.name,
+                status="skipped_unchanged",
+                started_at=datetime.utcnow(),
+                finished_at=datetime.utcnow(),
+                triggered_by=triggered_by,
+                error_message=f"All dependencies unchanged: {', '.join(job.depends_on)}",
+                validation_status="skipped",
+            )
+            db.add(record)
+            db.commit()
+            db.close()
+            results.append(record)
+            skipped_unchanged.add(job.name)
+            continue
+
+        record = run_job(job, triggered_by=triggered_by, force_refresh=force_refresh)
         results.append(record)
         if record.status == "error":
             failed.add(job.name)
+        elif record.status == "skipped_unchanged":
+            skipped_unchanged.add(job.name)
 
     return results
