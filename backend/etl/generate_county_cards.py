@@ -43,8 +43,10 @@ def _ordinal(n: int) -> str:
 
 
 def _hour_label(h: int) -> str:
-    if h == 0: return "midnight"
-    if h == 12: return "noon"
+    if h == 0:
+        return "midnight"
+    if h == 12:
+        return "noon"
     return f"{h % 12} {'AM' if h < 12 else 'PM'}"
 
 
