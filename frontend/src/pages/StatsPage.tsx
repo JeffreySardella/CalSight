@@ -221,8 +221,10 @@ export default function StatsPage() {
   const yearlyData     = data?.yearlyData     ?? [];
   const causesData     = data?.causesData     ?? [];
   const severityData   = data?.severityData   ?? [];
-  const genderData     = data?.genderData     ?? [];
-  const ageBracketData = data?.ageBracketData ?? [];
+  const genderData             = data?.genderData             ?? [];
+  const ageBracketData         = data?.ageBracketData         ?? [];
+  const atFaultGenderData      = data?.atFaultGenderData      ?? [];
+  const atFaultAgeBracketData  = data?.atFaultAgeBracketData  ?? [];
   const monthlyData    = data?.monthlyData    ?? [];
   const dayOfWeekData  = data?.dayOfWeekData  ?? [];
   const rateData       = data?.rateData       ?? [];
@@ -853,6 +855,108 @@ export default function StatsPage() {
                       <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
                         <p className="font-headline font-bold text-on-surface">{d.label}</p>
                         <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} victims</p>
+                      </div>
+                    );
+                  }}
+                  cursor={{ fill: "rgba(87,95,107,0.06)" }}
+                />
+                <Bar dataKey="count" radius={[2, 2, 0, 0]} fill={clrPrimaryContainer} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* At-Fault Drivers by Gender */}
+        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
+          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
+            At-Fault Drivers by Gender
+          </h3>
+          {dqDisclaimers.preDataOnly && (
+            <DataQualityNote text="At-fault driver data is only available from 2016 onward (CCRS)." />
+          )}
+          {!dqDisclaimers.preDataOnly && dqDisclaimers.hasPreCcrsYears && (
+            <DataQualityNote text="Pre-2016 years have no at-fault data — chart covers 2016+ only." />
+          )}
+          {loading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : !atFaultGenderData.length ? (
+            <EmptyState
+              icon="person_off"
+              description={dqDisclaimers.preDataOnly ? "At-fault data requires 2016 or later (CCRS)." : "No at-fault driver data for the current filters."}
+              className="h-48"
+            />
+          ) : (
+            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
+              <BarChart data={atFaultGenderData} barCategoryGap="25%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload as { label: string; count: number };
+                    const total = atFaultGenderData.reduce((s, g) => s + g.count, 0);
+                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
+                    return (
+                      <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+                        <p className="font-headline font-bold text-on-surface">{d.label}</p>
+                        <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} drivers</p>
+                      </div>
+                    );
+                  }}
+                  cursor={{ fill: "rgba(87,95,107,0.06)" }}
+                />
+                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                  {atFaultGenderData.map((_, i) => (
+                    <Cell key={i} fill={[clrPrimary, clrTertiary, clrPrimaryContainer][i] ?? clrPrimaryContainer} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* At-Fault Drivers by Age */}
+        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
+          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
+            At-Fault Drivers by Age
+          </h3>
+          {dqDisclaimers.preDataOnly && (
+            <DataQualityNote text="At-fault driver data is only available from 2016 onward (CCRS)." />
+          )}
+          {!dqDisclaimers.preDataOnly && dqDisclaimers.hasPreCcrsYears && (
+            <DataQualityNote text="Pre-2016 years have no at-fault data — chart covers 2016+ only." />
+          )}
+          {loading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : !atFaultAgeBracketData.length ? (
+            <EmptyState
+              icon="person_off"
+              description={dqDisclaimers.preDataOnly ? "At-fault data requires 2016 or later (CCRS)." : "No at-fault driver data for the current filters."}
+              className="h-48"
+            />
+          ) : (
+            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
+              <BarChart data={atFaultAgeBracketData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload as { label: string; count: number };
+                    const total = atFaultAgeBracketData.reduce((s, a) => s + a.count, 0);
+                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
+                    return (
+                      <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
+                        <p className="font-headline font-bold text-on-surface">{d.label}</p>
+                        <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} drivers</p>
                       </div>
                     );
                   }}

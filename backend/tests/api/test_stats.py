@@ -134,6 +134,81 @@ def test_stats_gender_severity_filter_works(client):
     assert len(body) >= 1
 
 
+# --- group_by=at_fault_gender / at_fault_age_bracket
+#     (mv_at_fault_parties_by_demographics) ---
+
+
+def test_stats_group_by_at_fault_gender_returns_party_buckets(client):
+    response = client.get("/api/stats?group_by=at_fault_gender")
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    # Seed has 2 at-fault parties total, both male (parties 1001 + 1003).
+    # The non-at-fault parties (1002, 1004) MUST NOT appear.
+    male_row = next((r for r in body if r["gender"] == "M"), None)
+    assert male_row is not None
+    assert male_row["party_count"] == 2
+    # No female at-fault parties in seed → row should not exist or be 0.
+    female_row = next((r for r in body if r["gender"] == "F"), None)
+    assert female_row is None or female_row["party_count"] == 0
+    for row in body:
+        # Party-count fields must not leak as victim_count.
+        assert "victim_count" not in row
+        assert "party_count" in row
+        assert "fatal_party_count" in row
+
+
+def test_stats_group_by_at_fault_age_bracket(client):
+    response = client.get("/api/stats?group_by=at_fault_age_bracket")
+    assert response.status_code == 200
+    body = response.json()
+    brackets = {row["age_bracket"] for row in body}
+    # Seed: at-fault driver ages 42 (25_44) and 22 (18_24).
+    assert "25_44" in brackets
+    assert "18_24" in brackets
+
+
+def test_stats_at_fault_gender_with_county_filter(client):
+    response = client.get("/api/stats?group_by=at_fault_gender&county=los-angeles")
+    assert response.status_code == 200
+    body = response.json()
+    # Only crash 3 (LA) has an at-fault party (1001, M, 42).
+    male_row = next((r for r in body if r["gender"] == "M"), None)
+    assert male_row is not None
+    assert male_row["party_count"] == 1
+    assert male_row["fatal_party_count"] == 1
+
+
+def test_stats_at_fault_gender_rejects_cause_filter(client):
+    response = client.get("/api/stats?group_by=at_fault_gender&cause=dui")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "cause"
+
+
+def test_stats_at_fault_age_bracket_rejects_cause_filter(client):
+    response = client.get("/api/stats?group_by=at_fault_age_bracket&cause=speeding")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "cause"
+
+
+def test_stats_at_fault_gender_severity_filter_works(client):
+    """Severity filter IS supported — mv_at_fault has a severity column."""
+    response = client.get("/api/stats?group_by=at_fault_gender&severity=fatal")
+    assert response.status_code == 200
+    body = response.json()
+    # Crash 3 (LA, Fatal severity) has 1 male at-fault party.
+    male_row = next((r for r in body if r["gender"] == "M"), None)
+    assert male_row is not None
+    assert male_row["party_count"] == 1
+
+
+def test_stats_rejects_unknown_group_by(client):
+    """Sanity: pattern validator still rejects garbage values, even with the
+    new at_fault_* options on the allowlist."""
+    response = client.get("/api/stats?group_by=at_fault_height")
+    assert response.status_code == 422
+
+
 # --- group_by=month (mv_crashes_by_month) ---
 
 

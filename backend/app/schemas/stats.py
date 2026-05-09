@@ -61,6 +61,26 @@ class AgeBracketRow(BaseModel):
     fatal_victim_count: int
 
 
+class AtFaultGenderRow(BaseModel):
+    """Row from /api/stats?group_by=at_fault_gender. Counts AT-FAULT PARTIES
+    (typically drivers), not victims and not crashes. Sourced from
+    mv_at_fault_parties_by_demographics. Complements GenderRow's victim
+    counts: a single fatal crash with a male at-fault driver and 2 female
+    passenger victims contributes 1 to this row's party_count and 2 to
+    GenderRow's victim_count."""
+    gender: str
+    party_count: int
+    fatal_party_count: int
+
+
+class AtFaultAgeBracketRow(BaseModel):
+    """Row from /api/stats?group_by=at_fault_age_bracket. Same at-fault-party
+    caveat as AtFaultGenderRow. Buckets match AgeBracketRow."""
+    age_bracket: str
+    party_count: int
+    fatal_party_count: int
+
+
 class MonthRow(BaseModel):
     month: int
     crash_count: int
