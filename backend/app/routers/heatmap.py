@@ -26,7 +26,7 @@ from app.schemas.heatmap import HeatmapPoint, HeatmapResponse
 router = APIRouter(tags=["heatmap"])
 logger = logging.getLogger(__name__)
 
-RAW_POINT_LIMIT = 1_100_000
+RAW_POINT_LIMIT = 150_000
 
 
 class Resolution(str, Enum):
