@@ -476,17 +476,43 @@ function MapPageInner() {
             searchOpen={mobileSearchExpanded}
           />
         )}
-        {heatmapEnabled && heatmap.isLoading && (
+        {heatmapEnabled && !useCountyDetail && heatmap.isLoading && (
           <HeatmapLoadingPill />
         )}
-        {useCountyDetail && !countyHeatmap.isLoading && countyHeatmap.totalBatches && countyHeatmap.totalBatches > 1 && countyHeatmap.hasMore && (
-          <div className="absolute top-2 left-2 md:top-2 md:left-16 z-20 md:z-30">
-            <div className="bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1.5 rounded-full text-[11px] font-medium ghost-border shadow-lg flex items-center gap-2">
-              <span className="inline-block w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <span className="text-on-surface-variant">
-                Loading batch {countyHeatmap.currentBatch}/{countyHeatmap.totalBatches}
-              </span>
+        {useCountyDetail && (countyHeatmap.isLoading || countyHeatmap.hasMore) && !countyHeatmap.error && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+            <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-full ghost-border shadow-lg flex flex-col items-center gap-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs font-medium text-on-surface-variant">
+                  {countyHeatmap.totalCrashes > 0
+                    ? `${countyHeatmap.points.length.toLocaleString()} / ${countyHeatmap.totalCrashes.toLocaleString()} crashes loaded`
+                    : "Loading crash data..."}
+                </span>
+              </div>
+              {countyHeatmap.totalCrashes > 0 && (
+                <div className="w-full h-1 bg-outline/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (countyHeatmap.points.length / countyHeatmap.totalCrashes) * 100)}%` }}
+                  />
+                </div>
+              )}
             </div>
+          </div>
+        )}
+        {useCountyDetail && countyHeatmap.error && countyHeatmap.points.length > 0 && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+            <button
+              onClick={() => countyHeatmap.retry()}
+              className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-full ghost-border shadow-lg flex items-center gap-2 hover:bg-surface-container-low/95 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[14px] text-error">wifi_off</span>
+              <span className="text-xs font-medium text-on-surface-variant">
+                {countyHeatmap.points.length.toLocaleString()} / {countyHeatmap.totalCrashes.toLocaleString()} loaded
+              </span>
+              <span className="text-xs text-primary font-semibold">Retry</span>
+            </button>
           </div>
         )}
       </section>
