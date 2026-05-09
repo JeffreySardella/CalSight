@@ -35,13 +35,54 @@ Cache
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_code, get_slug_map
 from app.database import get_db
-from app.models import County, CountyInsight
+from app.models import County, CountyInsight, CountyInsightCard, StatewideInsight
+from app.schemas.context import CountyInsightCardOut, StatewideInsightOut
 
 router = APIRouter(tags=["insights"])
+
+
+@router.get("/insights/statewide", response_model=StatewideInsightOut)
+def get_random_statewide_insight(
+    response: Response,
+    year: int | None = Query(None, description="Filter by year; omit for any year"),
+    db: Session = Depends(get_db),
+):
+    """Return one random statewide insight card."""
+    response.headers["Cache-Control"] = "public, max-age=300"
+    q = db.query(StatewideInsight)
+    if year is not None:
+        q = q.filter(StatewideInsight.year == year)
+    row = q.order_by(func.random()).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="No statewide insights found")
+    return StatewideInsightOut.model_validate(row)
+
+
+@router.get("/insight-cards/random", response_model=CountyInsightCardOut)
+def get_random_county_insight_card(
+    response: Response,
+    county: str = Query(..., description="County slug, e.g. 'los-angeles'"),
+    year: int | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Return one random insight card for a county."""
+    response.headers["Cache-Control"] = "public, max-age=300"
+    slug_map = get_slug_map(db)
+    code = get_code(county, slug_map)
+    if code is None:
+        raise HTTPException(status_code=404, detail=f"County '{county}' not found")
+    q = db.query(CountyInsightCard).filter(CountyInsightCard.county_code == code)
+    if year is not None:
+        q = q.filter(CountyInsightCard.year == year)
+    row = q.order_by(func.random()).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="No insight cards found")
+    return CountyInsightCardOut.model_validate(row)
 
 
 @router.get("/insights/{county_slug}")

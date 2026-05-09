@@ -13,6 +13,10 @@ interface AiInsightCardProps {
   compareData?: ChoroplethPoint;
   /** LLM-generated narrative blurb. null/undefined = section hidden. */
   narrative?: string | null;
+  /** Angle label for the insight card (e.g. "overview", "dui"). */
+  narrativeAngle?: string | null;
+  /** Callback to fetch a different random insight card. */
+  onRefreshNarrative?: () => void;
   /** True while choropleth data is still fetching — show skeletons in place of metric cells. */
   loading?: boolean;
 }
@@ -101,6 +105,34 @@ function CompareRow({ label, aVal, bVal, isMeasure }: { label: string; aVal: num
   );
 }
 
+const ANGLE_LABELS: Record<string, string> = {
+  overview: "Overview",
+  dui: "DUI Trends",
+  cause_focus: "Top Causes",
+  trend: "Trend Analysis",
+  comparison: "Comparison",
+  unique_factor: "Notable Factor",
+  safety_ranking: "Safety Ranking",
+  fun_fact: "Fun Fact",
+  fun_fact_timing: "Fun Fact",
+  fun_fact_comparison: "Fun Fact",
+  fun_fact_quirky: "Fun Fact",
+  fun_fact_records: "Fun Fact",
+  fun_fact_surprising: "Fun Fact",
+  geography: "Geography",
+  weather: "Weather",
+  highway: "Highway",
+  commuter: "Commuter",
+  ems_response: "EMS",
+  economic: "Economic",
+  infrastructure: "Infrastructure",
+  seasonal: "Seasonal",
+  pedestrian: "Pedestrian",
+  tourism: "Tourism",
+  nighttime: "Nighttime",
+  wildlife: "Wildlife",
+};
+
 export default function AiInsightCard({
   onClose,
   countyName,
@@ -111,6 +143,8 @@ export default function AiInsightCard({
   compareCountyName,
   compareData,
   narrative,
+  narrativeAngle,
+  onRefreshNarrative,
   loading,
 }: AiInsightCardProps) {
   const [expanded, setExpanded] = useState(
@@ -181,10 +215,28 @@ export default function AiInsightCard({
 
                 {/* AI narrative blurb — single-county mode only, hidden when null */}
                 {!compareMode && narrative && (
-                  <div className="flex gap-2 items-start bg-surface-container-lowest rounded-lg px-3 py-2.5 animate-[fadeIn_0.4s_ease]">
-                    <span className="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">
-                      auto_awesome
-                    </span>
+                  <div className="bg-surface-container-lowest rounded-lg px-3 py-2.5 animate-[fadeIn_0.4s_ease] space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[16px] text-primary shrink-0">
+                          auto_awesome
+                        </span>
+                        {narrativeAngle && (
+                          <span className="text-[10px] text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded-full">
+                            {ANGLE_LABELS[narrativeAngle] ?? narrativeAngle}
+                          </span>
+                        )}
+                      </div>
+                      {onRefreshNarrative && (
+                        <button
+                          onClick={onRefreshNarrative}
+                          className="p-1 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
+                          title="Show another insight"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">refresh</span>
+                        </button>
+                      )}
+                    </div>
                     <p className="text-xs text-on-surface-variant font-body leading-relaxed">
                       {narrative}
                     </p>
