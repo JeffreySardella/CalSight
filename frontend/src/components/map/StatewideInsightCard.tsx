@@ -36,17 +36,25 @@ export default function StatewideInsightCard({
   searchOpen,
 }: StatewideInsightCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const shouldTruncate = card.narrative.length > 180;
+  const [dismissed, setDismissed] = useState(false);
+
+  if (dismissed) return null;
+
+  const mobileLimit = 100;
+  const desktopLimit = 200;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const limit = isMobile ? mobileLimit : desktopLimit;
+  const shouldTruncate = card.narrative.length > limit;
   const displayText = shouldTruncate && !expanded
-    ? card.narrative.slice(0, 180) + "..."
+    ? card.narrative.slice(0, limit) + "..."
     : card.narrative;
 
   return (
     <div
       className={`absolute bottom-card-mobile left-0 right-0 z-20 md:bottom-2 md:left-16 md:right-auto md:w-[400px] md:z-30 transition-opacity duration-200 ${searchOpen ? "opacity-0 pointer-events-none" : ""}`}
     >
-      <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden">
-        <div className="px-4 py-3 space-y-2">
+      <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden max-h-[40vh] md:max-h-none overflow-y-auto">
+        <div className="px-3 py-2.5 md:px-4 md:py-3 space-y-1.5 md:space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <span className="material-symbols-outlined text-[16px] text-primary shrink-0">
@@ -59,13 +67,22 @@ export default function StatewideInsightCard({
                 {ANGLE_LABELS[card.angle] ?? card.angle}
               </span>
             </div>
-            <button
-              onClick={onRefresh}
-              className="p-1.5 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors shrink-0"
-              title="Show another insight"
-            >
-              <span className="material-symbols-outlined text-[16px]">refresh</span>
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={onRefresh}
+                className="p-1.5 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
+                title="Show another insight"
+              >
+                <span className="material-symbols-outlined text-[16px]">refresh</span>
+              </button>
+              <button
+                onClick={() => setDismissed(true)}
+                className="p-1.5 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors md:hidden"
+                aria-label="Dismiss insight"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            </div>
           </div>
           <p className="text-xs text-on-surface-variant font-body leading-relaxed">
             {displayText}

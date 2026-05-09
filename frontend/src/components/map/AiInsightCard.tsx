@@ -154,7 +154,7 @@ export default function AiInsightCard({
 
   return (
     <div className="fixed bottom-card-mobile left-0 right-0 z-40 md:absolute md:bottom-2 md:left-16 md:right-auto md:w-[480px] md:z-30">
-      <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden">
+      <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden max-h-[50vh] md:max-h-none overflow-y-auto">
         {/* Collapsed bar — always visible */}
         <div
           className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
@@ -237,7 +237,7 @@ export default function AiInsightCard({
                         </button>
                       )}
                     </div>
-                    <p className="text-xs text-on-surface-variant font-body leading-relaxed">
+                    <p className="text-xs text-on-surface-variant font-body leading-relaxed md:line-clamp-none line-clamp-4">
                       {narrative}
                     </p>
                   </div>
