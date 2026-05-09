@@ -16,6 +16,8 @@ export interface CauseDataPoint { label: string; count: number }
 export interface SeverityDataPoint { label: string; count: number }
 export interface GenderDataPoint { label: string; count: number }
 export interface AgeBracketDataPoint { label: string; count: number }
+export interface AtFaultGenderDataPoint { label: string; count: number }
+export interface AtFaultAgeBracketDataPoint { label: string; count: number }
 export interface HeroMetrics {
   totalIncidents?: number;
   incidentYoYPct?: number;
@@ -39,6 +41,8 @@ export interface StatsData {
   severityData: SeverityDataPoint[];
   genderData: GenderDataPoint[];
   ageBracketData: AgeBracketDataPoint[];
+  atFaultGenderData: AtFaultGenderDataPoint[];
+  atFaultAgeBracketData: AtFaultAgeBracketDataPoint[];
   monthlyData: MonthlyDataPoint[];
   dayOfWeekData: DayOfWeekDataPoint[];
   rateData: RateDataPoint[];
@@ -58,6 +62,8 @@ type CauseRow = { canonical_cause: string; crash_count: number; total_killed: nu
 type SeverityRow = { severity: string; crash_count: number; total_killed: number; total_injured: number };
 type GenderRow = { gender: string; victim_count: number; fatal_victim_count: number };
 type AgeBracketRow = { age_bracket: string; victim_count: number; fatal_victim_count: number };
+type AtFaultGenderRow = { gender: string; party_count: number; fatal_party_count: number };
+type AtFaultAgeBracketRow = { age_bracket: string; party_count: number; fatal_party_count: number };
 type DemoRow = { county_code: number; year: number; population: number | null };
 type MonthRow = { month: number; crash_count: number; total_killed: number; total_injured: number };
 type DayOfWeekRow = { day_of_week: number; crash_count: number };
@@ -216,6 +222,14 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
         queryFn: () => fetchJson<AgeBracketRow[]>(buildVictimUrl("age_bracket", filters)),
       },
       {
+        queryKey: ["stats", "at_fault_gender", { d: dateKey, s: filters.severities, co: filters.counties }],
+        queryFn: () => fetchJson<AtFaultGenderRow[]>(buildVictimUrl("at_fault_gender", filters)),
+      },
+      {
+        queryKey: ["stats", "at_fault_age_bracket", { d: dateKey, s: filters.severities, co: filters.counties }],
+        queryFn: () => fetchJson<AtFaultAgeBracketRow[]>(buildVictimUrl("at_fault_age_bracket", filters)),
+      },
+      {
         queryKey: ["stats", "month", cacheKey],
         queryFn: () => fetchJson<MonthRow[]>(buildUrl("month", filters)),
       },
@@ -230,7 +244,7 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     ],
   });
 
-  const [yearQ, hourQ, causeQ, demoQ, severityQ, genderQ, ageQ, monthQ, dowQ, rateQ] = queries;
+  const [yearQ, hourQ, causeQ, demoQ, severityQ, genderQ, ageQ, atFaultGenderQ, atFaultAgeQ, monthQ, dowQ, rateQ] = queries;
   const loading = yearQ.isLoading || hourQ.isLoading || causeQ.isLoading;
   const rawError = yearQ.error ?? hourQ.error ?? causeQ.error;
 
@@ -274,6 +288,21 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
         count: r.victim_count,
       }));
 
+    const atFaultGenderData: AtFaultGenderDataPoint[] = (atFaultGenderQ.data ?? [])
+      .filter((r) => r.gender && r.gender !== "unknown")
+      .map((r) => ({
+        label: r.gender.charAt(0).toUpperCase() + r.gender.slice(1),
+        count: r.party_count,
+      }));
+
+    const atFaultAgeBracketData: AtFaultAgeBracketDataPoint[] = (atFaultAgeQ.data ?? [])
+      .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket) - AGE_ORDER.indexOf(b.age_bracket))
+      .filter((r) => r.age_bracket !== "unknown")
+      .map((r) => ({
+        label: AGE_LABEL[r.age_bracket] ?? r.age_bracket,
+        count: r.party_count,
+      }));
+
     const monthlyData: MonthlyDataPoint[] = (monthQ.data ?? []).map((r) => ({
       month: r.month,
       label: MONTH_LABEL[r.month - 1] ?? String(r.month),
@@ -308,8 +337,8 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
       : null;
     const heroMetrics = computeHeroMetrics(yearQ.data, population);
 
-    return { hourlyData, yearlyData, causesData, severityData, genderData, ageBracketData, monthlyData, dayOfWeekData, rateData, heroMetrics };
-  }, [yearQ.data, hourQ.data, causeQ.data, demoQ.data, severityQ.data, genderQ.data, ageQ.data, monthQ.data, dowQ.data, rateQ.data]);
+    return { hourlyData, yearlyData, causesData, severityData, genderData, ageBracketData, atFaultGenderData, atFaultAgeBracketData, monthlyData, dayOfWeekData, rateData, heroMetrics };
+  }, [yearQ.data, hourQ.data, causeQ.data, demoQ.data, severityQ.data, genderQ.data, ageQ.data, atFaultGenderQ.data, atFaultAgeQ.data, monthQ.data, dowQ.data, rateQ.data]);
 
   return {
     data,

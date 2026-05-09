@@ -73,7 +73,7 @@ describe("useStats", () => {
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(spy).toHaveBeenCalledTimes(10);
+    expect(spy).toHaveBeenCalledTimes(12);
     const urls = spy.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.includes("group_by=year") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=hour") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
@@ -82,9 +82,56 @@ describe("useStats", () => {
     expect(urls.some((u) => u.includes("group_by=severity"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=gender"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=age_bracket"))).toBe(true);
+    expect(urls.some((u) => u.includes("group_by=at_fault_gender"))).toBe(true);
+    expect(urls.some((u) => u.includes("group_by=at_fault_age_bracket"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=month"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=day_of_week"))).toBe(true);
     expect(urls.some((u) => u.includes("group_by=rate"))).toBe(true);
+  });
+
+  it("maps at-fault demographic responses to chart data points", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("group_by=at_fault_gender")) {
+        return new Response(JSON.stringify([
+          { gender: "M", party_count: 7000, fatal_party_count: 200 },
+          { gender: "F", party_count: 3000, fatal_party_count: 80 },
+          { gender: "U", party_count: 100, fatal_party_count: 1 },
+        ]));
+      }
+      if (url.includes("group_by=at_fault_age_bracket")) {
+        return new Response(JSON.stringify([
+          { age_bracket: "25_44", party_count: 5000, fatal_party_count: 100 },
+          { age_bracket: "18_24", party_count: 2500, fatal_party_count: 60 },
+          { age_bracket: "45_64", party_count: 2000, fatal_party_count: 40 },
+          { age_bracket: "over_65", party_count: 800, fatal_party_count: 30 },
+          { age_bracket: "under_18", party_count: 200, fatal_party_count: 5 },
+          { age_bracket: "unknown", party_count: 50, fatal_party_count: 0 },
+        ]));
+      }
+      if (url.includes("group_by=year")) return new Response(JSON.stringify(YEAR_ROWS));
+      if (url.includes("group_by=hour")) return new Response(JSON.stringify(HOUR_ROWS));
+      if (url.includes("group_by=cause")) return new Response(JSON.stringify(CAUSE_ROWS));
+      return new Response(JSON.stringify([]));
+    });
+
+    const { result } = renderHook(() => useStats(FILTERS), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const data = result.current.data!;
+    // "U" passes through — matches the existing victim Gender chart behavior
+    // (the filter excludes the literal string "unknown", but the MV stores
+    // the value as "U"). Worth a follow-up to filter both, but out of scope.
+    expect(data.atFaultGenderData).toEqual([
+      { label: "M", count: 7000 },
+      { label: "F", count: 3000 },
+      { label: "U", count: 100 },
+    ]);
+    // Sorted by AGE_ORDER (under_18 → over_65), with "unknown" filtered out.
+    expect(data.atFaultAgeBracketData.map((r) => r.label)).toEqual([
+      "Under 18", "18–24", "25–44", "45–64", "65+",
+    ]);
+    expect(data.atFaultAgeBracketData.find((r) => r.label === "25–44")?.count).toBe(5000);
   });
 
   it("maps API responses to chart data shapes", async () => {

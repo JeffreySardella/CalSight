@@ -19,6 +19,8 @@ from app.filters import (
 from app.models import County, Crash
 from app.schemas.stats import (
     AgeBracketRow,
+    AtFaultAgeBracketRow,
+    AtFaultGenderRow,
     CauseRow,
     CountyRow,
     DayOfWeekRow,
@@ -83,6 +85,21 @@ mv_victims = Table(
     Column("age_bracket", String),
     Column("victim_count", Integer),
     Column("fatal_victim_count", Integer),
+)
+
+# Per at-fault-party demographic aggregates. Backs ?group_by=at_fault_gender
+# / at_fault_age_bracket. Source: crash_parties WHERE at_fault=TRUE, JOINed
+# to crashes on (collision_id, data_source). Columns must mirror migration
+# f8a1b2c3d4e5_add_mv_at_fault_parties_by_demographics.
+mv_at_fault = Table(
+    "mv_at_fault_parties_by_demographics", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("severity", String),
+    Column("gender", String),
+    Column("age_bracket", String),
+    Column("party_count", Integer),
+    Column("fatal_party_count", Integer),
 )
 
 mv_month = Table(
@@ -152,7 +169,7 @@ def stats(
     driver_age: str | None = Query(None),
     group_by: str | None = Query(
         None,
-        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|rate)$",
+        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|rate)$",
     ),
     db: Session = Depends(get_db),
 ):
@@ -163,12 +180,16 @@ def stats(
       - `cause` OR any cause filter -> mv_crashes_by_cause
       - `gender` / `age_bracket` -> mv_crash_victims_by_demographics
         (counts VICTIMS, not crashes — see GenderRow docstring)
+      - `at_fault_gender` / `at_fault_age_bracket` ->
+        mv_at_fault_parties_by_demographics (counts AT-FAULT PARTIES —
+        typically drivers — not victims and not crashes)
       - everything else -> mv_crashes_by_year
 
     `alcohol` / `distracted` are not supported here (crash views don't carry
     those columns). Use `/api/crashes` with those filters for drill-down.
-    `cause` filter is incompatible with `group_by=gender|age_bracket`
-    because the victim-demographics view doesn't carry canonical_cause.
+    `cause` filter is incompatible with `group_by=gender|age_bracket|
+    at_fault_gender|at_fault_age_bracket` because the demographic views
+    don't carry canonical_cause.
 
     `start`/`end` (YYYY-MM) are accepted but rounded outward to year
     boundaries here, since the underlying materialized views aggregate by
@@ -204,11 +225,12 @@ def stats(
     severities = parse_severity(severity)
     causes = parse_cause(cause)
 
-    if group_by in ("gender", "age_bracket") and causes:
+    if group_by in ("gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket") and causes:
         raise FilterError(
             "cause",
-            "cause filter is not supported with group_by=gender or age_bracket "
-            "(victim-demographics view doesn't carry canonical_cause).",
+            "cause filter is not supported with demographic group_by values "
+            "(gender, age_bracket, at_fault_gender, at_fault_age_bracket) — "
+            "those views don't carry canonical_cause.",
         )
 
     view = _pick_view(group_by, has_cause_filter=bool(causes))
@@ -492,6 +514,62 @@ def stats(
                 age_bracket=r.age_bracket,
                 victim_count=r.victim_count,
                 fatal_victim_count=r.fatal_victim_count,
+            ).model_dump()
+            for r in rows
+        ]
+
+    # --- group_by=at_fault_gender (at-fault-parties MV) ---
+    if group_by == "at_fault_gender":
+        v = mv_at_fault
+        stmt = (
+            select(
+                v.c.gender,
+                func.sum(v.c.party_count).label("party_count"),
+                func.sum(v.c.fatal_party_count).label("fatal_party_count"),
+            )
+            .group_by(v.c.gender)
+            .order_by(func.sum(v.c.party_count).desc())
+        )
+        if years:
+            stmt = stmt.where(v.c.crash_year.in_(years))
+        if county_codes:
+            stmt = stmt.where(v.c.county_code.in_(county_codes))
+        if severities:
+            stmt = stmt.where(v.c.severity.in_(severities))
+        rows = db.execute(stmt).all()
+        return [
+            AtFaultGenderRow(
+                gender=r.gender,
+                party_count=r.party_count,
+                fatal_party_count=r.fatal_party_count,
+            ).model_dump()
+            for r in rows
+        ]
+
+    # --- group_by=at_fault_age_bracket (at-fault-parties MV) ---
+    if group_by == "at_fault_age_bracket":
+        v = mv_at_fault
+        stmt = (
+            select(
+                v.c.age_bracket,
+                func.sum(v.c.party_count).label("party_count"),
+                func.sum(v.c.fatal_party_count).label("fatal_party_count"),
+            )
+            .group_by(v.c.age_bracket)
+            .order_by(func.sum(v.c.party_count).desc())
+        )
+        if years:
+            stmt = stmt.where(v.c.crash_year.in_(years))
+        if county_codes:
+            stmt = stmt.where(v.c.county_code.in_(county_codes))
+        if severities:
+            stmt = stmt.where(v.c.severity.in_(severities))
+        rows = db.execute(stmt).all()
+        return [
+            AtFaultAgeBracketRow(
+                age_bracket=r.age_bracket,
+                party_count=r.party_count,
+                fatal_party_count=r.fatal_party_count,
             ).model_dump()
             for r in rows
         ]
