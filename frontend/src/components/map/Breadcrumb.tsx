@@ -9,7 +9,7 @@ export default function Breadcrumb({ inspectedCounty, compareCounty, onDeselect 
 
   let label: React.ReactNode;
   if (inspectedCounty && compareCounty) {
-    label = <span className="text-on-surface">{inspectedCounty} <span className="text-on-surface/60">vs</span> {compareCounty}</span>;
+    label = <span className="text-on-surface">{inspectedCounty} <span className="text-on-surface-variant">vs</span> {compareCounty}</span>;
   } else if (inspectedCounty) {
     label = <span className="text-on-surface">{inspectedCounty} County</span>;
   } else {
@@ -18,12 +18,12 @@ export default function Breadcrumb({ inspectedCounty, compareCounty, onDeselect 
 
   return (
     <div className="hidden md:block absolute top-8 left-8 z-10 pointer-events-auto">
-      <div className="bg-surface-container-lowest/40 backdrop-blur-sm px-4 py-2 rounded-lg">
-        <p className="text-[11px] font-medium tracking-[0.3em] text-on-surface/60 uppercase">
+      <div className="bg-surface-container-lowest/90 backdrop-blur-sm px-4 py-2 rounded-lg">
+        <p className="text-[11px] font-medium tracking-[0.3em] text-on-surface-variant uppercase">
           {hasSelection ? (
             <button
               onClick={onDeselect}
-              className="hover:underline hover:text-on-surface/80 cursor-pointer transition-colors"
+              className="hover:underline hover:text-on-surface cursor-pointer transition-colors"
             >
               State Index
             </button>

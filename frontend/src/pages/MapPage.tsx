@@ -368,6 +368,7 @@ function MapPageInner() {
 
   return (
     <>
+      <h1 className="sr-only">California Crash Map Explorer</h1>
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:flex h-full z-40">
         <IconRail activePanel={activePanel} onPanelToggle={handleToggle} />
@@ -409,14 +410,14 @@ function MapPageInner() {
           <div className="absolute top-3 right-3 z-20 md:hidden flex items-center gap-2">
             <button
               onClick={() => setMobileSearchExpanded(true)}
-              className="flex items-center justify-center w-10 h-10 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
+              className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
               aria-label="Search"
             >
               <span className="material-symbols-outlined text-[20px]">search</span>
             </button>
             <button
               onClick={() => setShowMobileFilters(true)}
-              className="flex items-center justify-center w-10 h-10 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
+              className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
               aria-label="Open filters"
             >
               <span className="material-symbols-outlined text-[20px]">tune</span>
