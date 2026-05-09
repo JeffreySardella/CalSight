@@ -936,7 +936,7 @@ export default function StatsPage() {
       )}
 
       {/* Methodology Footer */}
-      <section className="border-t border-outline-variant/15 pt-12 pb-16 opacity-60 hover:opacity-100 transition-opacity">
+      <section className="border-t border-outline-variant/15 pt-12 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-[10px] leading-relaxed uppercase tracking-widest font-medium text-on-surface-variant">
           <div className="space-y-4">
             <h4 className="font-bold text-on-surface text-[11px]">Methodology Statement</h4>

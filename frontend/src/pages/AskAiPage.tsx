@@ -137,9 +137,9 @@ export default function AskAiPage() {
         {!hasMessages ? (
           <>
             <section className="mb-8">
-              <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-4">
+              <h2 className="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-4">
                 Explore Topics
-              </h3>
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {guidedTopics.map((topic) => (
                   <button
@@ -153,7 +153,7 @@ export default function AskAiPage() {
                         {topic.icon}
                       </span>
                       <div>
-                        <h4 className="font-bold text-sm text-on-surface mb-0.5">{topic.title}</h4>
+                        <h3 className="font-bold text-sm text-on-surface mb-0.5">{topic.title}</h3>
                         <p className="text-xs text-on-surface-variant">{topic.question}</p>
                       </div>
                     </div>
@@ -163,9 +163,9 @@ export default function AskAiPage() {
             </section>
 
             <section>
-              <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-4">
+              <h2 className="text-xs font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-4">
                 Popular Questions
-              </h3>
+              </h2>
               <ul className="space-y-1">
                 {communityInquiries.map((q) => (
                   <li key={q}>
@@ -184,7 +184,7 @@ export default function AskAiPage() {
               </ul>
             </section>
 
-            <p className="text-[10px] text-on-surface-variant/50 text-center pt-6">
+            <p className="text-[10px] text-on-surface-variant text-center pt-6">
               Conversations clear when you close this tab.{" "}
               <Link to="/privacy" className="underline hover:text-on-surface-variant">Privacy Policy</Link>
             </p>
@@ -257,11 +257,11 @@ export default function AskAiPage() {
           </button>
         </div>
         <div className="hidden md:flex items-center justify-between mt-2 px-2">
-          <p className="text-[10px] text-on-surface-variant/50">
+          <p className="text-[10px] text-on-surface-variant">
             Your questions are processed by third-party AI providers.{" "}
             <Link to="/privacy" className="underline hover:text-on-surface-variant">Privacy Policy</Link>
           </p>
-          <p className="text-[10px] text-on-surface-variant/50 italic">
+          <p className="text-[10px] text-on-surface-variant italic">
             AI can hallucinate — verify critical data.
           </p>
         </div>
