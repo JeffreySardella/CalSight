@@ -229,15 +229,6 @@ def stats(
             driver_age=driver_age_v,
         )
 
-<<<<<<< Updated upstream
-    if has_involvement and group_by in ("gender", "age_bracket"):
-        raise FilterError(
-            "involvement",
-            "Involvement filters cannot be combined with group_by=gender or age_bracket.",
-        )
-
-    if group_by in ("gender", "age_bracket") and causes:
-=======
     if has_involvement and group_by in ("gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket"):
         raise FilterError(
             "involvement",
@@ -245,7 +236,6 @@ def stats(
         )
 
     if group_by in ("gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket") and causes:
->>>>>>> Stashed changes
         raise FilterError(
             "cause",
             "cause filter is not supported with demographic group_by values "
