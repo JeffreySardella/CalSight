@@ -30,7 +30,6 @@ import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
 import { useRandomInsight } from "../hooks/useRandomInsight";
-import StatewideInsightCard from "../components/map/StatewideInsightCard";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -108,6 +107,7 @@ function MapPageInner() {
   const [compareMode, setCompareMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [insightCounty, setInsightCounty] = useState("Fresno");
+  const [showStatewide, setShowStatewide] = useState(true);
   const mapRef = useRef<LeafletMap | null>(null);
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
@@ -489,11 +489,17 @@ function MapPageInner() {
             searchOpen={mobileSearchExpanded}
           />
         )}
-        {!focusedCounty && randomCard && (
-          <StatewideInsightCard
-            card={randomCard}
-            onRefresh={refreshRandomCard}
-            searchOpen={mobileSearchExpanded}
+        {!focusedCounty && showStatewide && randomCard && (
+          <AiInsightCard
+            onClose={() => setShowStatewide(false)}
+            countyName="California"
+            data={undefined}
+            measureLabel=""
+            compareMode={false}
+            onCompare={() => {}}
+            narrative={randomCard.narrative}
+            narrativeAngle={randomCard.angle}
+            onRefreshNarrative={refreshRandomCard}
           />
         )}
         {heatmapEnabled && heatmap.isLoading && (
