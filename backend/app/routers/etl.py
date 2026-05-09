@@ -27,6 +27,8 @@ class LastRun(BaseModel):
     error_message: Optional[str]
     triggered_by: Optional[str]
     validation_status: Optional[str]
+    last_source_modified: Optional[datetime] = None
+    source_row_count: Optional[int] = None
 
 
 class SourceStatus(BaseModel):
@@ -46,6 +48,8 @@ class RunHistoryItem(BaseModel):
     triggered_by: Optional[str]
     validation_status: Optional[str]
     error_message: Optional[str]
+    last_source_modified: Optional[datetime] = None
+    source_row_count: Optional[int] = None
 
 
 @router.get("/etl/status")
@@ -71,6 +75,8 @@ def etl_status(db: Session = Depends(get_db)):
                 error_message=last.error_message,
                 triggered_by=last.triggered_by,
                 validation_status=last.validation_status,
+                last_source_modified=last.last_source_modified,
+                source_row_count=last.source_row_count,
             ) if last else None,
         ))
     return {"sources": [s.model_dump() for s in sources]}
@@ -98,6 +104,8 @@ def etl_runs(
                 triggered_by=r.triggered_by,
                 validation_status=r.validation_status,
                 error_message=r.error_message,
+                last_source_modified=r.last_source_modified,
+                source_row_count=r.source_row_count,
             ).model_dump()
             for r in rows
         ]
@@ -108,13 +116,19 @@ def etl_runs(
 def trigger_etl_run(
     background_tasks: BackgroundTasks,
     only: Optional[str] = Query(None, description="Comma-separated job names"),
+    force_refresh: bool = Query(False, description="Bypass freshness checks"),
 ):
     from etl.orchestrator import run_pipeline
 
     job_names = only.split(",") if only else None
 
     def _run():
-        run_pipeline(_registry, triggered_by="api", only=job_names)
+        run_pipeline(
+            _registry,
+            triggered_by="api",
+            only=job_names,
+            force_refresh=force_refresh,
+        )
 
     background_tasks.add_task(_run)
-    return {"status": "started", "jobs": job_names or "all"}
+    return {"status": "started", "jobs": job_names or "all", "force_refresh": force_refresh}

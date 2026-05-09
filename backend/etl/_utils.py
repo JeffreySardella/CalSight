@@ -35,13 +35,18 @@ import functools
 import logging
 import time
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Iterator, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Iterator, TypeVar
 
 import httpx
+from sqlalchemy import desc, text
 
 from app.database import SessionLocal
 from app.models import EtlRun
+
+if TYPE_CHECKING:
+    from etl.orchestrator import Job
 
 logger = logging.getLogger(__name__)
 
@@ -279,3 +284,143 @@ def track_etl_run(source: str) -> Callable[[F], F]:
         return wrapper  # type: ignore[return-value]
 
     return decorator
+
+
+# ---------------------------------------------------------------------------
+# Source freshness checking
+# ---------------------------------------------------------------------------
+
+CKAN_RESOURCE_SHOW_URL = "https://data.ca.gov/api/3/action/resource_show"
+
+
+@dataclass
+class FreshnessResult:
+    is_fresh: bool
+    last_source_modified: datetime | None
+    source_row_count: int | None
+    reason: str
+
+
+def check_source_freshness(job: Job, db_session) -> FreshnessResult:
+    """Check whether a source has new data since the last successful run.
+
+    Returns is_fresh=False when source is unchanged and job should be
+    skipped.  Returns is_fresh=True when source has new data, or when
+    no prior successful run exists (first-time load always runs).
+    """
+    if job.source_type == "none":
+        return FreshnessResult(True, None, None, "no freshness config")
+
+    last_run = (
+        db_session.query(EtlRun)
+        .filter(EtlRun.source == job.name, EtlRun.status == "success")
+        .order_by(desc(EtlRun.finished_at))
+        .first()
+    )
+
+    if last_run is None:
+        return FreshnessResult(True, None, None, "no prior successful run")
+
+    if job.source_type == "ckan":
+        return _check_ckan_freshness(job, last_run)
+    if job.source_type == "arcgis":
+        return _check_arcgis_freshness(job, last_run)
+    if job.source_type == "federal":
+        return _check_federal_freshness(job, last_run, db_session)
+
+    return FreshnessResult(True, None, None, f"unknown source_type {job.source_type!r}")
+
+
+def _check_ckan_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
+    if not job.freshness_resource_id:
+        return FreshnessResult(True, None, None, "ckan type but no resource_id")
+
+    try:
+        resp = get_with_retry(
+            CKAN_RESOURCE_SHOW_URL,
+            params={"id": job.freshness_resource_id},
+            timeout=15.0,
+        )
+        resource = resp.json().get("result", {})
+        modified_str = resource.get("last_modified") or resource.get("created")
+        if not modified_str:
+            return FreshnessResult(True, None, None, "ckan returned no timestamp")
+
+        source_modified = datetime.fromisoformat(
+            modified_str.replace("Z", "+00:00")
+        ).replace(tzinfo=None)
+
+        if source_modified <= last_run.finished_at:
+            return FreshnessResult(
+                False, source_modified, None,
+                f"source unchanged ({source_modified.isoformat()} <= {last_run.finished_at.isoformat()})",
+            )
+
+        return FreshnessResult(
+            True, source_modified, None,
+            f"source updated ({source_modified.isoformat()} > {last_run.finished_at.isoformat()})",
+        )
+    except Exception as exc:
+        logger.warning("CKAN freshness check failed for %s: %s", job.name, exc)
+        return FreshnessResult(True, None, None, f"freshness check error: {exc}")
+
+
+def _check_arcgis_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
+    if not job.freshness_url:
+        return FreshnessResult(True, None, None, "arcgis type but no freshness_url")
+
+    try:
+        resp = get_with_retry(
+            job.freshness_url,
+            params={"where": "1=1", "returnCountOnly": "true", "f": "json"},
+            timeout=15.0,
+        )
+        count = resp.json().get("count")
+        if count is None:
+            return FreshnessResult(True, None, None, "arcgis returned no count")
+
+        prior_count = last_run.source_row_count
+        if prior_count is not None and count == prior_count:
+            return FreshnessResult(
+                False, None, count,
+                f"row count unchanged at {count}",
+            )
+
+        return FreshnessResult(
+            True, None, count,
+            f"row count changed: {prior_count} -> {count}" if prior_count else f"first count: {count}",
+        )
+    except Exception as exc:
+        logger.warning("ArcGIS freshness check failed for %s: %s", job.name, exc)
+        return FreshnessResult(True, None, None, f"freshness check error: {exc}")
+
+
+_ALLOWED_FRESHNESS_TABLES = {"demographics", "county_weather", "bls_unemployment"}
+
+
+def _check_federal_freshness(job: Job, last_run: EtlRun, db_session) -> FreshnessResult:
+    if not job.freshness_table:
+        return FreshnessResult(True, None, None, "federal type but no freshness_table")
+
+    if job.freshness_table not in _ALLOWED_FRESHNESS_TABLES:
+        return FreshnessResult(True, None, None, f"unknown freshness_table {job.freshness_table!r}")
+
+    try:
+        current_count = int(
+            db_session.execute(text(f"SELECT COUNT(*) FROM {job.freshness_table}")).scalar()  # noqa: S608
+        )
+        prior_count = last_run.source_row_count
+
+        if prior_count is not None and current_count == prior_count:
+            return FreshnessResult(
+                False, None, current_count,
+                f"DB row count unchanged at {current_count}",
+            )
+
+        return FreshnessResult(
+            True, None, current_count,
+            f"DB count changed: {prior_count} -> {current_count}" if prior_count else f"first count: {current_count}",
+        )
+    except Exception as exc:
+        logger.warning("Federal freshness check failed for %s: %s", job.name, exc)
+        return FreshnessResult(True, None, None, f"freshness check error: {exc}")
