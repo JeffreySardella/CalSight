@@ -269,6 +269,7 @@ export default function StatsPage() {
 
   return (
     <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
+      <h1 className="sr-only">Statistics Dashboard</h1>
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full md:w-auto">

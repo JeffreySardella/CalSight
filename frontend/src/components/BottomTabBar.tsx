@@ -14,7 +14,7 @@ export default function BottomTabBar() {
   const qs = buildFilterQS(searchParams);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-surface-container-lowest bottom-tab-shadow" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-surface-container-lowest bottom-tab-shadow" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="flex items-center justify-around h-14">
         {tabs.map((tab) => (
           <NavLink

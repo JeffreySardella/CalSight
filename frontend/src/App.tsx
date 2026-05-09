@@ -26,14 +26,6 @@ export default function App() {
               <Route path="admin/etl" element={<Suspense fallback={null}><AdminEtlPage /></Suspense>} />
             </Route>
           </Routes>
-          <div
-            className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-0 z-[60]"
-            style={{
-              backgroundImage:
-                "url('https://www.transparenttextures.com/patterns/natural-paper.png')",
-              backgroundRepeat: "repeat",
-            }}
-          />
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>

@@ -251,7 +251,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           <span className="font-mono font-semibold">{formatCount(dataSummary.totalCrashes)}</span> crashes
 
           {coordValidation && coordValidation.mismatched > 0 && (
-            <div className="mt-0.5 text-[10px] text-on-surface-variant/80">
+            <div className="mt-0.5 text-[10px] text-on-surface-variant">
               <span className="font-mono">{formatCount(coordValidation.mismatched)}</span> audited outside county
             </div>
           )}
