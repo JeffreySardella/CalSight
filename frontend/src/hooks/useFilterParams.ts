@@ -47,7 +47,7 @@ export const CAUSES = [
   { value: "turning", label: "Improper Turn", icon: "turn_right" },
   { value: "following-too-close", label: "Tailgating", icon: "car_crash" },
   { value: "signal-violation", label: "Signal Violation", icon: "traffic" },
-  { value: "pedestrian-violation", label: "Pedestrian", icon: "directions_walk" },
+  { value: "pedestrian-violation", label: "Ped. Violation", icon: "directions_walk" },
   { value: "unsafe-backing", label: "Unsafe Backing", icon: "keyboard_return" },
   { value: "other", label: "Other", icon: "more_horiz" },
 ] as const;
@@ -58,7 +58,7 @@ export const CAUSES = [
 export const INVOLVEMENTS = [
   { value: "alcohol", label: "Alcohol", icon: "local_bar" },
   { value: "distracted", label: "Distracted", icon: "phonelink_ring" },
-  { value: "pedestrian", label: "Pedestrian", icon: "directions_walk" },
+  { value: "pedestrian", label: "Ped. Involved", icon: "directions_walk" },
   { value: "cyclist", label: "Cyclist", icon: "pedal_bike" },
   { value: "drug", label: "Drug-Involved", icon: "medication" },
 ] as const;

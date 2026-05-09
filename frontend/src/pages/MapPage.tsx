@@ -11,9 +11,8 @@ import { MEASURES } from "../lib/choropleth/measures";
 import KeyboardHelpModal from "../components/map/KeyboardHelpModal";
 import IconRail from "../components/map/IconRail";
 import SidePanel from "../components/map/SidePanel";
-import FiltersPanel, {
-  FiltersPanelFooter,
-} from "../components/map/FiltersPanel";
+import FilterWizard from "../components/map/filters/FilterWizard";
+import type { StagedFilters } from "../hooks/useStagedFilters";
 import LayersPanel, {
   LayersPanelFooter,
 } from "../components/map/LayersPanel";
@@ -30,6 +29,7 @@ import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
 import { useRandomInsight } from "../hooks/useRandomInsight";
+import ActiveFiltersBanner from "../components/map/ActiveFiltersBanner";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -75,16 +75,12 @@ function MapPageInner() {
     selectedDriverAge,
     setDateRange,
     clearDateRange,
-    toggleSeverity,
     toggleCounty,
     setCounty,
     clearCounties,
-    toggleCause,
     setCauses,
-    setAllCauses,
     clearCauses,
     setSeverities,
-    setAllSeverities,
     clearSeverities,
     toggleAlcohol,
     toggleDistracted,
@@ -101,7 +97,6 @@ function MapPageInner() {
   const [showInsight, setShowInsight] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [mobileSearchExpanded, setMobileSearchExpanded] = useState(false);
-  const [resetKey, setResetKey] = useState(0);
   const [focusedCounty, setFocusedCounty] = useState<string | null>(null);
   const [compareCounty, setCompareCounty] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
@@ -270,7 +265,6 @@ function MapPageInner() {
 
   function handleClearAll() {
     clearFilters();
-    setResetKey((k) => k + 1);
   }
 
   const handleCloseOverlay = useCallback(() => {
@@ -314,42 +308,73 @@ function MapPageInner() {
 
   const meta = activePanel ? PANEL_META[activePanel] : null;
 
-  const filtersPanelProps = {
-    selectedDateRange,
-    selectedSeverities,
-    selectedCounties,
-    selectedCauses,
-    selectedAlcohol,
-    selectedDistracted,
-    selectedPedestrian,
-    selectedCyclist,
-    selectedDrug,
-    selectedDriverAge,
-    onSetDateRange: setDateRange,
-    onClearDateRange: clearDateRange,
-    onToggleSeverity: toggleSeverity,
-    onSetSeverities: setSeverities,
-    onSetAllSeverities: setAllSeverities,
-    onClearSeverities: clearSeverities,
-    onToggleCounty: toggleCounty,
-    onClearCounties: clearCounties,
-    onToggleCause: toggleCause,
-    onSetCauses: setCauses,
-    onSetAllCauses: setAllCauses,
-    onClearCauses: clearCauses,
-    onToggleAlcohol: toggleAlcohol,
-    onToggleDistracted: toggleDistracted,
-    onTogglePedestrian: togglePedestrian,
-    onToggleCyclist: toggleCyclist,
-    onToggleDrug: toggleDrug,
-    onSetDriverAge: setDriverAge,
-    resetKey,
-  };
+  const initialStagedFilters: StagedFilters = useMemo(() => ({
+    selectedYears: new Set(selectedYears),
+    dateRange: selectedDateRange,
+    severities: new Set(selectedSeverities),
+    causes: new Set(selectedCauses),
+    alcohol: selectedAlcohol,
+    distracted: selectedDistracted,
+    pedestrian: selectedPedestrian,
+    cyclist: selectedCyclist,
+    drug: selectedDrug,
+    driverAge: selectedDriverAge,
+  }), [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedYears]);
+
+  const handleApplyFilters = useCallback((filters: StagedFilters) => {
+    // Years -> date range
+    if (filters.selectedYears.size > 0) {
+      const years = [...filters.selectedYears].sort();
+      setDateRange(
+        { year: years[0], month: 1 },
+        { year: years[years.length - 1], month: 12 },
+      );
+    } else {
+      clearDateRange();
+    }
+
+    // Severities
+    if (filters.severities.size > 0) {
+      setSeverities(filters.severities);
+    } else {
+      clearSeverities();
+    }
+
+    // Causes
+    if (filters.causes.size > 0) {
+      setCauses(filters.causes);
+    } else {
+      clearCauses();
+    }
+
+    // Involvement — only toggle if different from current state
+    if (filters.alcohol !== selectedAlcohol) toggleAlcohol();
+    if (filters.distracted !== selectedDistracted) toggleDistracted();
+    if (filters.pedestrian !== selectedPedestrian) togglePedestrian();
+    if (filters.cyclist !== selectedCyclist) toggleCyclist();
+    if (filters.drug !== selectedDrug) toggleDrug();
+
+    // Driver age
+    setDriverAge(filters.driverAge);
+
+    // Close panels
+    setShowMobileFilters(false);
+    setActivePanel(null);
+  }, [setDateRange, clearDateRange, setSeverities, clearSeverities, setCauses, clearCauses, toggleAlcohol, toggleDistracted, togglePedestrian, toggleCyclist, toggleDrug, setDriverAge, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug]);
 
   function renderPanelContent() {
     switch (activePanel) {
       case "filters":
-        return <FiltersPanel {...filtersPanelProps} />;
+        return (
+          <FilterWizard
+            initial={initialStagedFilters}
+            selectedCounties={selectedCounties}
+            onToggleCounty={toggleCounty}
+            onClearCounties={clearCounties}
+            onApply={handleApplyFilters}
+            onClear={handleClearAll}
+          />
+        );
       case "layers":
         return <LayersPanel />;
       case "export":
@@ -361,8 +386,6 @@ function MapPageInner() {
 
   function renderPanelFooter() {
     switch (activePanel) {
-      case "filters":
-        return <FiltersPanelFooter onClear={handleClearAll} />;
       case "layers":
         return <LayersPanelFooter />;
       case "export":
@@ -380,7 +403,7 @@ function MapPageInner() {
         <IconRail activePanel={activePanel} onPanelToggle={handleToggle} />
         <div
           className="transition-all duration-300 overflow-hidden"
-          style={{ width: activePanel && meta ? 300 : 0 }}
+          style={{ width: activePanel && meta ? (activePanel === "filters" ? 400 : 300) : 0 }}
         >
           {activePanel && meta && (
             <SidePanel
@@ -439,6 +462,22 @@ function MapPageInner() {
             map={mapRef.current}
           />
         )}
+
+        <ActiveFiltersBanner
+          dateRange={selectedDateRange}
+          severities={selectedSeverities}
+          causes={selectedCauses}
+          alcohol={selectedAlcohol}
+          distracted={selectedDistracted}
+          pedestrian={selectedPedestrian}
+          cyclist={selectedCyclist}
+          drug={selectedDrug}
+          driverAge={selectedDriverAge}
+          totalCrashes={choroplethData.dataSummary.totalCrashes}
+          isLoading={choroplethData.isLoading}
+          onClear={handleClearAll}
+          searchOpen={mobileSearchExpanded}
+        />
 
         {!choroplethData.isLoading
           && !choroplethData.isError
@@ -560,7 +599,14 @@ function MapPageInner() {
             label: "Filters",
             icon: "filter_list",
             content: (
-              <FiltersPanel {...filtersPanelProps} />
+              <FilterWizard
+                initial={initialStagedFilters}
+                selectedCounties={selectedCounties}
+                onToggleCounty={toggleCounty}
+                onClearCounties={clearCounties}
+                onApply={handleApplyFilters}
+                onClear={handleClearAll}
+              />
             ),
           },
           {
