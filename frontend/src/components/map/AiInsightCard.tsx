@@ -170,9 +170,9 @@ export default function AiInsightCard({
           onClick={() => setExpanded((v) => !v)}
         >
           <div className="min-w-0">
-            <h3 className="font-headline text-base font-bold text-on-surface tracking-tight truncate">
+            <h2 className="font-headline text-base font-bold text-on-surface tracking-tight truncate">
               {isComparing ? `${countyName} vs ${compareCountyName}` : isStatewide ? "California Insight" : `${countyName} County`}
-            </h3>
+            </h2>
             {data && !expanded && (
               <p className="text-[11px] text-on-surface-variant mt-0.5">
                 {fmt(data.rawCount)} crashes · {fmt(data.totalKilled)} killed
