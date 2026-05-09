@@ -826,6 +826,8 @@ class EtlRun(Base):
     rows_after = Column(Integer)
     diff_summary = Column(Text)
     triggered_by = Column(String(20))
+    last_source_modified = Column(DateTime)
+    source_row_count = Column(Integer)
 
     __table_args__ = (
         Index("ix_etl_runs_source_started_at", "source", "started_at"),

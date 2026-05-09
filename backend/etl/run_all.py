@@ -43,6 +43,11 @@ def main() -> int:
         choices=["manual", "schedule", "api"],
         help="How this run was triggered (recorded in etl_runs)",
     )
+    parser.add_argument(
+        "--force-refresh",
+        action="store_true",
+        help="Bypass freshness checks and re-run all jobs regardless of source state",
+    )
     args = parser.parse_args()
 
     registry = build_default_registry()
@@ -58,7 +63,10 @@ def main() -> int:
         print(f"\nExecution order ({len(order)} jobs):\n")
         for i, job in enumerate(order, 1):
             deps = f" (after: {', '.join(job.depends_on)})" if job.depends_on else ""
-            print(f"  {i:2d}. {job.name:<25s} [{job.schedule}]{deps}")
+            fresh = f" src={job.source_type}" if job.source_type != "none" else ""
+            print(f"  {i:2d}. {job.name:<25s} [{job.schedule}]{deps}{fresh}")
+        if args.force_refresh:
+            print("  [--force-refresh: freshness checks disabled]")
         print()
         return 0
 
@@ -71,17 +79,22 @@ def main() -> int:
         triggered_by=args.triggered_by,
         only=only,
         skip_static=not args.include_static,
+        force_refresh=args.force_refresh,
     )
 
     succeeded = sum(1 for r in results if r.status == "success")
-    failed = sum(1 for r in results if r.status == "error")
+    failed_count = sum(1 for r in results if r.status == "error")
     skipped = sum(1 for r in results if r.status == "skipped")
+    unchanged = sum(1 for r in results if r.status == "skipped_unchanged")
 
     logger.info("=" * 50)
-    logger.info("  Complete: %d succeeded, %d failed, %d skipped", succeeded, failed, skipped)
+    logger.info(
+        "  Complete: %d succeeded, %d failed, %d skipped, %d unchanged",
+        succeeded, failed_count, skipped, unchanged,
+    )
     logger.info("=" * 50)
 
-    return 1 if failed > 0 else 0
+    return 1 if failed_count > 0 else 0
 
 
 if __name__ == "__main__":
