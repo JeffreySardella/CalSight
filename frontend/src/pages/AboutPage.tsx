@@ -81,7 +81,7 @@ export default function AboutPage() {
             </div>
             <div className="flex items-center justify-between mt-6">
               <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">4,350,202 rows</p>
-              <a href="https://data.ca.gov/dataset/ccrs" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
+              <a href="https://data.ca.gov/dataset/ccrs" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">CCRS on data.ca.gov</a>
             </div>
           </div>
 
@@ -95,7 +95,7 @@ export default function AboutPage() {
             </div>
             <div className="flex items-center justify-between mt-6">
               <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">6,779,445 rows</p>
-              <a href="https://www.chp.ca.gov/programs-services/services-information/switrs-statewide-integrated-traffic-records-system" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
+              <a href="https://www.chp.ca.gov/programs-services/services-information/switrs-statewide-integrated-traffic-records-system" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">SWITRS on CHP.ca.gov</a>
             </div>
           </div>
 
@@ -109,7 +109,7 @@ export default function AboutPage() {
             </div>
             <div className="flex items-center justify-between mt-6">
               <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">1,012 rows + boundaries</p>
-              <a href="https://data.census.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
+              <a href="https://data.census.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">US Census data explorer</a>
             </div>
           </div>
 
@@ -128,7 +128,7 @@ export default function AboutPage() {
             </div>
             <div className="flex items-center justify-between mt-6">
               <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~34,000 rows combined</p>
-              <a href="https://oehha.ca.gov/calenviroscreen" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
+              <a href="https://oehha.ca.gov/calenviroscreen" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">CalEnviroScreen on OEHHA</a>
             </div>
           </div>
 
@@ -144,7 +144,7 @@ export default function AboutPage() {
             </div>
             <div className="flex items-center justify-between mt-6">
               <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~18,000 rows combined</p>
-              <a href="https://www.ncdc.noaa.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Learn More</a>
+              <a href="https://www.ncdc.noaa.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">NOAA Climate Data Center</a>
             </div>
           </div>
 
@@ -208,11 +208,11 @@ export default function AboutPage() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-on-surface-variant/60 italic">
+        <p className="text-xs text-on-surface-variant italic">
           Full technical detail in{" "}
-          <a href="https://github.com/JeffreySardella/CalSight/blob/main/backend/DATA_GAPS.md" target="_blank" rel="noopener noreferrer" className="underline hover:text-on-surface-variant transition-colors">DATA_GAPS.md</a>
+          <a href="https://github.com/JeffreySardella/CalSight/blob/main/backend/DATA_GAPS.md" target="_blank" rel="noopener noreferrer" className="underline hover:text-on-surface transition-colors">DATA_GAPS.md</a>
           {" "}and{" "}
-          <a href="https://github.com/JeffreySardella/CalSight/blob/main/backend/DATA_VALIDATION.md" target="_blank" rel="noopener noreferrer" className="underline hover:text-on-surface-variant transition-colors">DATA_VALIDATION.md</a>.
+          <a href="https://github.com/JeffreySardella/CalSight/blob/main/backend/DATA_VALIDATION.md" target="_blank" rel="noopener noreferrer" className="underline hover:text-on-surface transition-colors">DATA_VALIDATION.md</a>.
         </p>
       </section>
 
@@ -318,7 +318,7 @@ export default function AboutPage() {
           </div>
 
         </div>
-        <p className="text-xs text-on-surface-variant/50 italic md:hidden">
+        <p className="text-xs text-on-surface-variant italic md:hidden">
           Scroll for more
         </p>
       </section>
