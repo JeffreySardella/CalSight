@@ -29,6 +29,7 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
         table_name="crash_parties",
         max_drop_pct=5,
+        timeout=21600,
     ))
     registry.register(Job(
         name="victims",
@@ -38,6 +39,7 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
         table_name="crash_victims",
         max_drop_pct=5,
+        timeout=14400,
     ))
     registry.register(Job(
         name="demographics",
