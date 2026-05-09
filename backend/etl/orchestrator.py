@@ -22,6 +22,7 @@ class Job:
     schedule: str = "daily"
     max_drop_pct: float = 10.0
     table_name: str | None = None
+    timeout: int = 3600
 
 
 class JobRegistry:
@@ -92,7 +93,7 @@ def run_job(job: Job, triggered_by: str = "manual") -> EtlRun:
             cmd,
             capture_output=True,
             text=True,
-            timeout=3600,
+            timeout=job.timeout,
         )
         elapsed = time.monotonic() - start
 
@@ -110,7 +111,7 @@ def run_job(job: Job, triggered_by: str = "manual") -> EtlRun:
 
     except subprocess.TimeoutExpired:
         record.status = "error"
-        record.error_message = "Job timed out after 3600s"
+        record.error_message = f"Job timed out after {job.timeout}s"
         record.finished_at = datetime.utcnow()
         record.validation_status = "skipped"
         db.commit()
@@ -125,6 +126,7 @@ def run_job(job: Job, triggered_by: str = "manual") -> EtlRun:
         logger.exception("Job %s failed unexpectedly", job.name)
 
     finally:
+        db.refresh(record)
         db.expunge(record)
         db.close()
 
