@@ -174,14 +174,23 @@ export default function AiInsightCard({
   onRefreshNarrative,
   loading,
 }: AiInsightCardProps) {
-  const [expanded, setExpanded] = useState(
-    () => window.matchMedia("(min-width: 768px)").matches,
-  );
+  const isStatewide = !data && !loading;
+  const [expanded, setExpanded] = useState(() => {
+    if (isStatewide) {
+      const seen = localStorage.getItem("calsight-insight-seen");
+      if (!seen) {
+        localStorage.setItem("calsight-insight-seen", "1");
+        return true;
+      }
+      return window.matchMedia("(min-width: 768px)").matches;
+    }
+    return window.matchMedia("(min-width: 768px)").matches;
+  });
   const isComparing = compareMode && compareCountyName && compareData;
 
   return (
     <div className="fixed bottom-card-mobile left-0 right-0 z-40 md:absolute md:bottom-2 md:left-16 md:right-auto md:w-[480px] md:z-30">
-      <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden max-h-[50vh] md:max-h-none overflow-y-auto">
+      <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden max-h-[60vh] md:max-h-none flex flex-col">
         {/* Collapsed bar — always visible */}
         <div
           className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
@@ -189,7 +198,7 @@ export default function AiInsightCard({
         >
           <div className="min-w-0">
             <h3 className="font-headline text-base font-bold text-on-surface tracking-tight truncate">
-              {isComparing ? `${countyName} vs ${compareCountyName}` : data ? `${countyName} County` : "California Insight"}
+              {isComparing ? `${countyName} vs ${compareCountyName}` : isStatewide ? "California Insight" : `${countyName} County`}
             </h3>
             {data && !expanded && (
               <p className="text-[11px] text-on-surface-variant mt-0.5">
@@ -212,7 +221,7 @@ export default function AiInsightCard({
 
         {/* Expanded content */}
         {expanded && (
-          <div className="px-4 pb-4 space-y-3">
+          <div className="px-4 pb-4 space-y-3 overflow-y-auto">
             {isComparing && data ? (
               <>
                 <div className="flex items-center justify-between">
