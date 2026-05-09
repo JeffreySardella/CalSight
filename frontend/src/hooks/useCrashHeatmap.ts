@@ -28,6 +28,7 @@ interface HeatmapParams {
   includeRivers?: boolean;
   batch?: number;
   batchSize?: number;
+  _retryKey?: number;
 }
 
 function dateRangeKey(dr: DateRangeFilter | null): string {
@@ -63,8 +64,12 @@ function buildUrl(params: HeatmapParams): string {
   return `${API_BASE}/api/crashes/heatmap?${sp.toString()}`;
 }
 
+export const FETCH_TIMEOUT_MS = 15_000;
+
 async function fetchHeatmap(params: HeatmapParams): Promise<HeatmapApiResponse> {
-  const res = await fetch(buildUrl(params));
+  const res = await fetch(buildUrl(params), {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`heatmap ${res.status}`);
   return res.json();
 }
@@ -88,6 +93,7 @@ export function useCrashHeatmap(params: HeatmapParams) {
       params.includeRivers ?? false,
       params.batch ?? null,
       params.batchSize ?? null,
+      params._retryKey ?? 0,
     ],
     queryFn: () => fetchHeatmap(params),
     enabled: params.enabled,
@@ -105,14 +111,16 @@ export function useCrashHeatmap(params: HeatmapParams) {
 }
 
 export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSize"> & { batchSize?: number }) {
-  const size = params.batchSize ?? 1_100_000;
+  const size = params.batchSize ?? 150_000;
   const [currentBatch, setCurrentBatch] = useState(1);
   const [allPoints, setAllPoints] = useState<HeatmapPoint[]>([]);
+  const [retryKey, setRetryKey] = useState(0);
 
   const { points, totalCrashes, batch, totalBatches, isLoading, error } = useCrashHeatmap({
     ...params,
     batch: currentBatch,
     batchSize: size,
+    _retryKey: retryKey,
   });
 
   const filterKey = `${params.county}|${dateRangeKey(params.dateRange)}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}`;
@@ -127,7 +135,6 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     }
   }, [points, batch, currentBatch, filterKey]);
 
-  // Auto-load next batch when current one finishes
   useEffect(() => {
     if (!isLoading && totalBatches && currentBatch < totalBatches && points.length > 0) {
       setCurrentBatch((b) => b + 1);
@@ -140,6 +147,10 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     }
   }, [currentBatch, totalBatches]);
 
+  const retry = useCallback(() => {
+    setRetryKey((k) => k + 1);
+  }, []);
+
   return {
     points: allPoints,
     totalCrashes,
@@ -147,6 +158,7 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     totalBatches,
     hasMore: totalBatches != null && currentBatch < totalBatches,
     loadNextBatch,
+    retry,
     isLoading,
     error,
   };

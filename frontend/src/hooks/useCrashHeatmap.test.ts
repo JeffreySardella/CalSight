@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
-import { useCrashHeatmap } from "./useCrashHeatmap";
+import { useCrashHeatmap, useBatchedHeatmap, FETCH_TIMEOUT_MS } from "./useCrashHeatmap";
 
 const MOCK_RESPONSE = {
   points: [
@@ -98,5 +98,133 @@ describe("useCrashHeatmap", () => {
     expect(result.current.points).toEqual([]);
     expect(result.current.totalCrashes).toBe(0);
     expect(result.current.error).toBeTruthy();
+  });
+
+  it("passes AbortSignal with timeout to fetch", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(MOCK_RESPONSE)),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useCrashHeatmap({
+          enabled: true,
+          county: null,
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "low",
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const fetchOptions = spy.mock.calls[0][1] as RequestInit;
+    expect(fetchOptions.signal).toBeInstanceOf(AbortSignal);
+    expect(fetchOptions.signal!.aborted).toBe(false);
+  });
+
+  it("exports FETCH_TIMEOUT_MS as 15000", () => {
+    expect(FETCH_TIMEOUT_MS).toBe(15_000);
+  });
+});
+
+describe("useBatchedHeatmap", () => {
+  const BATCH_1 = {
+    points: [{ lat: 34.0, lng: -118.0, weight: 1 }],
+    total_crashes: 3,
+    batch: 1,
+    total_batches: 3,
+  };
+  const BATCH_2 = {
+    points: [{ lat: 34.1, lng: -118.1, weight: 1 }],
+    total_crashes: 3,
+    batch: 2,
+    total_batches: 3,
+  };
+
+  it("defaults to 150K batch size", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(BATCH_1)),
+    );
+
+    renderHook(
+      () =>
+        useBatchedHeatmap({
+          enabled: true,
+          county: "los-angeles",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    const url = String(spy.mock.calls[0][0]);
+    expect(url).toContain("batch_size=150000");
+  });
+
+  it("retains points from earlier batches when a later batch fails", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) {
+        return new Response(JSON.stringify(BATCH_1));
+      }
+      return new Response("server error", { status: 500 });
+    });
+
+    const { result } = renderHook(
+      () =>
+        useBatchedHeatmap({
+          enabled: true,
+          county: "los-angeles",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.points.length).toBe(1));
+    expect(result.current.points).toEqual(BATCH_1.points);
+    expect(result.current.error).toBeTruthy();
+  });
+
+  it("exposes retry function that re-fetches failed batch", async () => {
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) return new Response(JSON.stringify(BATCH_1));
+      if (callCount === 2) return new Response("fail", { status: 500 });
+      return new Response(JSON.stringify(BATCH_2));
+    });
+
+    const { result } = renderHook(
+      () =>
+        useBatchedHeatmap({
+          enabled: true,
+          county: "los-angeles",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.points.length).toBe(1);
+    expect(typeof result.current.retry).toBe("function");
+
+    await act(async () => {
+      result.current.retry();
+    });
+
+    await waitFor(() => expect(result.current.points.length).toBe(2));
+    expect(result.current.error).toBeFalsy();
   });
 });

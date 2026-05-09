@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -71,13 +71,14 @@ function MapInternals({
     }
   }, [map]);
 
-  useEffect(() => {
-    const maxZ = heatmapActive ? (HEATMAP_MAX_ZOOM[heatmapResolution] ?? 12) : 14;
+  useLayoutEffect(() => {
+    const effectiveResolution = countyDrilldown ? "raw" : heatmapResolution;
+    const maxZ = heatmapActive ? (HEATMAP_MAX_ZOOM[effectiveResolution] ?? 12) : 14;
     map.setMaxZoom(maxZ);
     if (map.getZoom() > maxZ) {
       map.setZoom(maxZ);
     }
-  }, [map, heatmapActive, heatmapResolution]);
+  }, [map, heatmapActive, heatmapResolution, countyDrilldown]);
 
   return (
     <>
