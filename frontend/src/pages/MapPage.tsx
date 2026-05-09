@@ -30,7 +30,6 @@ import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
 import { useRandomInsight } from "../hooks/useRandomInsight";
-import StatewideInsightCard from "../components/map/StatewideInsightCard";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -490,10 +489,16 @@ function MapPageInner() {
           />
         )}
         {!focusedCounty && randomCard && (
-          <StatewideInsightCard
-            card={randomCard}
-            onRefresh={refreshRandomCard}
-            searchOpen={mobileSearchExpanded}
+          <AiInsightCard
+            onClose={() => {}}
+            countyName="California"
+            data={undefined}
+            measureLabel=""
+            compareMode={false}
+            onCompare={() => {}}
+            narrative={randomCard.narrative}
+            narrativeAngle={randomCard.angle}
+            onRefreshNarrative={refreshRandomCard}
           />
         )}
         {heatmapEnabled && heatmap.isLoading && (
