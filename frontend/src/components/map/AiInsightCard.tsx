@@ -131,6 +131,33 @@ const ANGLE_LABELS: Record<string, string> = {
   tourism: "Tourism",
   nighttime: "Nighttime",
   wildlife: "Wildlife",
+  county_spotlight: "Spotlight",
+  surprising_stat: "Surprise",
+  historical_context: "History",
+  fatality_paradox: "Fatality",
+  speeding: "Speeding",
+  urban_rural: "Urban vs Rural",
+  time_of_day: "Time of Day",
+  cause_breakdown: "Causes",
+  data_quality: "Data Quality",
+  holiday: "Holiday",
+  vehicle_tech: "Vehicle Tech",
+  income_inequality: "Income",
+  motorcycle: "Motorcycle",
+  recovery_pattern: "Recovery",
+  commuter_corridor: "Commuter",
+  weekend_weekday: "Weekday vs Weekend",
+  age: "Age",
+  injury_severity: "Severity",
+  decade_comparison: "Decade",
+  what_if: "What If",
+  policy: "Policy",
+  enforcement: "Enforcement",
+  rideshare_impact: "Rideshare",
+  intersection: "Intersection",
+  hit_and_run: "Hit & Run",
+  population_growth: "Population",
+  gender: "Gender",
 };
 
 export default function AiInsightCard({
@@ -154,7 +181,7 @@ export default function AiInsightCard({
 
   return (
     <div className="fixed bottom-card-mobile left-0 right-0 z-40 md:absolute md:bottom-2 md:left-16 md:right-auto md:w-[480px] md:z-30">
-      <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden">
+      <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden max-h-[50vh] md:max-h-none overflow-y-auto">
         {/* Collapsed bar — always visible */}
         <div
           className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
@@ -162,7 +189,7 @@ export default function AiInsightCard({
         >
           <div className="min-w-0">
             <h3 className="font-headline text-base font-bold text-on-surface tracking-tight truncate">
-              {isComparing ? `${countyName} vs ${compareCountyName}` : `${countyName} County`}
+              {isComparing ? `${countyName} vs ${compareCountyName}` : data ? `${countyName} County` : "California Insight"}
             </h3>
             {data && !expanded && (
               <p className="text-[11px] text-on-surface-variant mt-0.5">
@@ -237,7 +264,7 @@ export default function AiInsightCard({
                         </button>
                       )}
                     </div>
-                    <p className="text-xs text-on-surface-variant font-body leading-relaxed">
+                    <p className="text-xs text-on-surface-variant font-body leading-relaxed md:line-clamp-none line-clamp-4">
                       {narrative}
                     </p>
                   </div>
@@ -249,7 +276,7 @@ export default function AiInsightCard({
                   </p>
                 )}
 
-                {!compareMode && (
+                {!compareMode && data && (
                   <button
                     onClick={onCompare}
                     className="w-full bg-primary-container text-on-primary-container py-2 rounded-lg text-[11px] font-bold tracking-widest uppercase hover:opacity-90 transition-opacity"
