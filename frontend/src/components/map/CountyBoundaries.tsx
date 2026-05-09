@@ -43,25 +43,26 @@ export default function CountyBoundaries({
   onSelectCounty,
 }: CountyBoundariesProps) {
   const map = useMap();
-  const { selectedDateRange, selectedSeverities, selectedCauses, selectedCounties } = useFilterParams();
+  const { selectedDateRange, selectedSeverities, selectedCauses, selectedCounties, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge } = useFilterParams();
   const { choroplethOn, measure, palette, setBucketEdges, otherLayers } = useLayersState();
   const isDark = useIsDark();
 
   // County filter: empty set = all counties selected (no filtering)
   const hasCountyFilter = selectedCounties.size > 0;
 
-  // Note: `selectedCounties` is intentionally NOT passed into the stats
-  // fetch — we always fetch ALL 58 counties so bucket edges stay globally
-  // consistent. County filtering is applied visually in `computeStyle`.
-  // NOTE: alcohol/distracted are also omitted — /api/stats rejects those
-  // params (MVs don't carry them). See stats.py lines 134-143.
   const filters = useMemo(
     () => ({
       dateRange: selectedDateRange,
       severities: [...selectedSeverities],
       causes: [...selectedCauses],
+      alcohol: selectedAlcohol || undefined,
+      distracted: selectedDistracted || undefined,
+      pedestrian: selectedPedestrian || undefined,
+      cyclist: selectedCyclist || undefined,
+      drug: selectedDrug || undefined,
+      driverAge: selectedDriverAge ?? undefined,
     }),
-    [selectedDateRange, selectedSeverities, selectedCauses],
+    [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge],
   );
   const { byCountyCode } = useChoroplethData(measure, filters);
 

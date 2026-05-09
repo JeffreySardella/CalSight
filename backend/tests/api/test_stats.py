@@ -67,16 +67,20 @@ def test_stats_cause_filter_uses_cause_view(client):
     assert len(body) >= 1
 
 
-def test_stats_rejects_alcohol_filter(client):
+def test_stats_accepts_alcohol_filter(client):
     response = client.get("/api/stats?alcohol=true")
-    assert response.status_code == 422
-    assert response.json()["filter"] == "alcohol"
+    assert response.status_code == 200
 
 
-def test_stats_rejects_distracted_filter(client):
+def test_stats_accepts_distracted_filter(client):
     response = client.get("/api/stats?distracted=true")
+    assert response.status_code == 200
+
+
+def test_stats_rejects_involvement_with_demographics(client):
+    response = client.get("/api/stats?group_by=gender&alcohol=true")
     assert response.status_code == 422
-    assert response.json()["filter"] == "distracted"
+    assert response.json()["filter"] == "involvement"
 
 
 # --- group_by=gender / age_bracket (mv_crash_victims_by_demographics) ---

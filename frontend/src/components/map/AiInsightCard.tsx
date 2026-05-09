@@ -273,7 +273,7 @@ export default function AiInsightCard({
                         </button>
                       )}
                     </div>
-                    <p className="text-xs text-on-surface-variant font-body leading-relaxed md:line-clamp-none line-clamp-4">
+                    <p className="text-xs text-on-surface-variant font-body leading-relaxed">
                       {narrative}
                     </p>
                   </div>
