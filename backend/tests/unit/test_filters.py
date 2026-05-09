@@ -11,6 +11,7 @@ from app.filters import (
     parse_cause,
     parse_county_codes,
     parse_date_range,
+    parse_driver_age,
     parse_severity,
     parse_year,
     years_from_date_range,
@@ -177,6 +178,76 @@ def test_build_crash_predicates_combined():
         years={2023}, county_codes={19}, severities={"Fatal"}
     )
     assert len(preds) == 3
+
+
+# --- driver_age ---
+
+def test_parse_driver_age_none():
+    assert parse_driver_age(None) is None
+
+
+def test_parse_driver_age_empty():
+    assert parse_driver_age("") is None
+
+
+def test_parse_driver_age_range():
+    assert parse_driver_age("16-21") == (16, 21)
+
+
+def test_parse_driver_age_plus():
+    assert parse_driver_age("65+") == (65, 200)
+
+
+def test_parse_driver_age_wide_range():
+    assert parse_driver_age("19-34") == (19, 34)
+
+
+def test_parse_driver_age_rejects_reversed():
+    with pytest.raises(FilterError) as exc_info:
+        parse_driver_age("50-20")
+    assert exc_info.value.filter == "driver_age"
+
+
+def test_parse_driver_age_rejects_garbage():
+    with pytest.raises(FilterError):
+        parse_driver_age("young")
+
+
+def test_parse_driver_age_rejects_no_format():
+    with pytest.raises(FilterError):
+        parse_driver_age("25")
+
+
+# --- new predicate builder params ---
+
+def test_build_crash_predicates_pedestrian():
+    preds = build_crash_predicates(pedestrian=True)
+    assert len(preds) == 1
+    compiled = str(preds[0].compile(compile_kwargs={"literal_binds": True}))
+    assert "pedestrian_involved" in compiled
+
+
+def test_build_crash_predicates_cyclist():
+    preds = build_crash_predicates(cyclist=True)
+    assert len(preds) == 1
+    compiled = str(preds[0].compile(compile_kwargs={"literal_binds": True}))
+    assert "cyclist_involved" in compiled
+
+
+def test_build_crash_predicates_drug():
+    preds = build_crash_predicates(drug=True)
+    assert len(preds) == 1
+    compiled = str(preds[0].compile(compile_kwargs={"literal_binds": True}))
+    assert "is_drug_involved" in compiled
+
+
+def test_build_crash_predicates_driver_age():
+    preds = build_crash_predicates(driver_age=(16, 21))
+    assert len(preds) == 1
+    compiled = str(preds[0].compile(compile_kwargs={"literal_binds": True}))
+    assert "at_fault_driver_age" in compiled
+    assert "BETWEEN" in compiled
+
 
 
 # --- date range ---

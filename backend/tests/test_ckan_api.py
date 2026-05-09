@@ -134,19 +134,25 @@ class TestTransformCcrs:
         assert transform_ccrs(misdemeanor_record)["hit_run"] == "M"
         assert transform_ccrs(felony_record)["hit_run"] == "F"
 
-    def test_pedestrian_not_involved(self):
+    def test_pedestrian_not_involved_null(self):
         """A null PedestrianActionCode means no pedestrian was involved."""
         record = {**_BASE_RAW_RECORD, "PedestrianActionCode": None}
-        result = transform_ccrs(record)
+        assert transform_ccrs(record)["pedestrian_involved"] is False
 
-        assert result["pedestrian_involved"] is False
-
-    def test_pedestrian_involved(self):
-        """A non-empty, non-zero PedestrianActionCode means a pedestrian was involved."""
+    def test_pedestrian_not_involved_code_a(self):
+        """Code 'A' = No Pedestrian Involved."""
         record = {**_BASE_RAW_RECORD, "PedestrianActionCode": "A"}
-        result = transform_ccrs(record)
+        assert transform_ccrs(record)["pedestrian_involved"] is False
 
-        assert result["pedestrian_involved"] is True
+    def test_pedestrian_involved_code_b(self):
+        """Code 'B' = Crossing in crosswalk at intersection."""
+        record = {**_BASE_RAW_RECORD, "PedestrianActionCode": "B"}
+        assert transform_ccrs(record)["pedestrian_involved"] is True
+
+    def test_pedestrian_involved_code_d(self):
+        """Code 'D' = In road (including shoulder)."""
+        record = {**_BASE_RAW_RECORD, "PedestrianActionCode": "D"}
+        assert transform_ccrs(record)["pedestrian_involved"] is True
 
     def test_handles_null_lat_lon(self):
         """Missing coordinates should become None, not raise an error."""

@@ -141,13 +141,8 @@ def transform_switrs(row: dict) -> dict:
     else:
         hit_run = None
 
-    # Pedestrian involved: True if pedestrian_action is present and not a dash/empty
-    ped_action = row.get("pedestrian_action")
-    pedestrian_involved = (
-        ped_action is not None
-        and ped_action != ""
-        and ped_action != "-"
-    )
+    ped_action = str(row.get("pedestrian_action") or "").strip().upper()
+    pedestrian_involved = ped_action in ("B", "C", "D", "E", "F", "G")
 
     return {
         "collision_id": _safe_int(row.get("case_id")),

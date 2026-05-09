@@ -56,8 +56,18 @@ export const CAUSES = [
 // NOTE: These columns are NULL for all SWITRS rows (pre-2016). Enabling either
 // filter implicitly limits results to CCRS data (2016+). See db-schema.md.
 export const INVOLVEMENTS = [
-  { value: "alcohol", label: "Alcohol Involved", icon: "local_bar" },
-  { value: "distracted", label: "Distracted Driving", icon: "phonelink_ring" },
+  { value: "alcohol", label: "Alcohol", icon: "local_bar" },
+  { value: "distracted", label: "Distracted", icon: "phonelink_ring" },
+  { value: "pedestrian", label: "Pedestrian", icon: "directions_walk" },
+  { value: "cyclist", label: "Cyclist", icon: "pedal_bike" },
+  { value: "drug", label: "Drug-Involved", icon: "medication" },
+] as const;
+
+export const DRIVER_AGE_BRACKETS = [
+  { value: "16-21", label: "16-21" },
+  { value: "16-24", label: "16-24" },
+  { value: "19-34", label: "19-34" },
+  { value: "65+", label: "65+" },
 ] as const;
 
 const CAUSE_VALUES: Set<string> = new Set(CAUSES.map((c) => c.value));
@@ -215,7 +225,8 @@ export function parseBoolFlag(param: string | null): boolean {
 // ── Shared utilities ──
 
 const FILTER_KEYS = [
-  "start", "end", "year", "severity", "county", "cause", "alcohol", "distracted",
+  "start", "end", "year", "severity", "county", "cause",
+  "alcohol", "distracted", "pedestrian", "cyclist", "drug", "driver_age",
 ] as const;
 
 export function buildFilterQS(searchParams: URLSearchParams): string {
@@ -246,6 +257,10 @@ export function useFilterParams() {
   const causeParam = searchParams.get("cause");
   const alcoholParam = searchParams.get("alcohol");
   const distractedParam = searchParams.get("distracted");
+  const pedestrianParam = searchParams.get("pedestrian");
+  const cyclistParam = searchParams.get("cyclist");
+  const drugParam = searchParams.get("drug");
+  const driverAgeParam = searchParams.get("driver_age");
   const panel = searchParams.get("panel");
 
   const selectedDateRange = useMemo<DateRangeFilter | null>(() => {
@@ -265,6 +280,10 @@ export function useFilterParams() {
   const selectedCauses = useMemo(() => parseCauses(causeParam), [causeParam]);
   const selectedAlcohol = useMemo(() => parseBoolFlag(alcoholParam), [alcoholParam]);
   const selectedDistracted = useMemo(() => parseBoolFlag(distractedParam), [distractedParam]);
+  const selectedPedestrian = useMemo(() => parseBoolFlag(pedestrianParam), [pedestrianParam]);
+  const selectedCyclist = useMemo(() => parseBoolFlag(cyclistParam), [cyclistParam]);
+  const selectedDrug = useMemo(() => parseBoolFlag(drugParam), [drugParam]);
+  const selectedDriverAge = useMemo(() => driverAgeParam ?? null, [driverAgeParam]);
 
   // ── Action callbacks ──
 
@@ -390,7 +409,35 @@ export function useFilterParams() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  // Clears all filter dimensions — date range, severity, cause, alcohol, distracted.
+  const togglePedestrian = useCallback(() => {
+    setSearchParams((prev) => {
+      const current = parseBoolFlag(prev.get("pedestrian"));
+      return buildNextParams(prev, { pedestrian: !current });
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const toggleCyclist = useCallback(() => {
+    setSearchParams((prev) => {
+      const current = parseBoolFlag(prev.get("cyclist"));
+      return buildNextParams(prev, { cyclist: !current });
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const toggleDrug = useCallback(() => {
+    setSearchParams((prev) => {
+      const current = parseBoolFlag(prev.get("drug"));
+      return buildNextParams(prev, { drug: !current });
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setDriverAge = useCallback(
+    (bracket: string | null) => {
+      setSearchParams((prev) => buildNextParams(prev, { driverAge: bracket }), { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  // Clears all filter dimensions — date range, severity, cause, alcohol, distracted, etc.
   // (County is intentionally preserved; use clearCounties() separately.)
   const clearFilters = useCallback(() => {
     setSearchParams((prev) => {
@@ -402,6 +449,10 @@ export function useFilterParams() {
       params.delete("cause");
       params.delete("alcohol");
       params.delete("distracted");
+      params.delete("pedestrian");
+      params.delete("cyclist");
+      params.delete("drug");
+      params.delete("driver_age");
       return params;
     }, { replace: true });
   }, [setSearchParams]);
@@ -421,6 +472,10 @@ export function useFilterParams() {
     selectedCauses,
     selectedAlcohol,
     selectedDistracted,
+    selectedPedestrian,
+    selectedCyclist,
+    selectedDrug,
+    selectedDriverAge,
     setDateRange,
     clearDateRange,
     toggleSeverity,
@@ -436,6 +491,10 @@ export function useFilterParams() {
     clearSeverities,
     toggleAlcohol,
     toggleDistracted,
+    togglePedestrian,
+    toggleCyclist,
+    toggleDrug,
+    setDriverAge,
     clearFilters,
     panel,
     clearPanel,
@@ -450,6 +509,10 @@ type ParamOverrides = {
   causes?: Set<string>;
   alcohol?: boolean;
   distracted?: boolean;
+  pedestrian?: boolean;
+  cyclist?: boolean;
+  drug?: boolean;
+  driverAge?: string | null;
 };
 
 function buildNextParams(
@@ -486,6 +549,22 @@ function buildNextParams(
   if ("distracted" in overrides) {
     if (overrides.distracted) params.set("distracted", "true");
     else params.delete("distracted");
+  }
+  if ("pedestrian" in overrides) {
+    if (overrides.pedestrian) params.set("pedestrian", "true");
+    else params.delete("pedestrian");
+  }
+  if ("cyclist" in overrides) {
+    if (overrides.cyclist) params.set("cyclist", "true");
+    else params.delete("cyclist");
+  }
+  if ("drug" in overrides) {
+    if (overrides.drug) params.set("drug", "true");
+    else params.delete("drug");
+  }
+  if ("driverAge" in overrides) {
+    if (overrides.driverAge) params.set("driver_age", overrides.driverAge);
+    else params.delete("driver_age");
   }
 
   return params;

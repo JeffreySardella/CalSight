@@ -9,13 +9,14 @@ export type MeasureKey =
   | "fatalities_per_100k"
   | "injuries_per_100k"
   | "crashes_raw"
-  | "fatality_rate";
+  | "fatality_rate"
+  | "crashes_per_income";
 
 export type Measure = {
   key: MeasureKey;
   label: string;
   /** "perCapita" needs demographics; "raw" and "rate" do not. */
-  kind: "perCapita" | "raw" | "rate";
+  kind: "perCapita" | "raw" | "rate" | "perIncome";
   formatLabel: (n: number) => string;
 };
 
@@ -50,6 +51,12 @@ export const MEASURES: Record<MeasureKey, Measure> = {
     kind: "rate",
     formatLabel: (n) => `${n.toFixed(1)}%`,
   },
+  crashes_per_income: {
+    key: "crashes_per_income",
+    label: "Crashes per $100K median income",
+    kind: "perIncome",
+    formatLabel: (n) => n.toFixed(1),
+  },
 };
 
 export const DEFAULT_MEASURE: MeasureKey = "crashes_per_100k";
@@ -70,6 +77,7 @@ export type CountyYearDemo = {
   county_code: number;
   year: number;
   population: number | null;
+  median_income?: number | null;
 };
 
 export type MeasureResult = {
@@ -101,6 +109,16 @@ export function computeMeasureValue(
       return { value: null, hasEnoughData: false };
     }
     return { value: (stats.total_killed / stats.crash_count) * 100, hasEnoughData: true };
+  }
+
+  if (measure === "crashes_per_income") {
+    if (stats.crash_count < MIN_CRASHES_FOR_RATE) {
+      return { value: null, hasEnoughData: false };
+    }
+    const incomes = demographics.filter((d) => d.median_income != null && d.median_income > 0);
+    if (incomes.length === 0) return { value: null, hasEnoughData: false };
+    const avgIncome = incomes.reduce((s, d) => s + d.median_income!, 0) / incomes.length;
+    return { value: (stats.crash_count / avgIncome) * 100_000, hasEnoughData: true };
   }
 
   // Per-capita branches need population.

@@ -68,6 +68,10 @@ function MapPageInner() {
     selectedCauses,
     selectedAlcohol,
     selectedDistracted,
+    selectedPedestrian,
+    selectedCyclist,
+    selectedDrug,
+    selectedDriverAge,
     setDateRange,
     clearDateRange,
     toggleSeverity,
@@ -83,6 +87,10 @@ function MapPageInner() {
     clearSeverities,
     toggleAlcohol,
     toggleDistracted,
+    togglePedestrian,
+    toggleCyclist,
+    toggleDrug,
+    setDriverAge,
     clearFilters,
     panel: panelParam,
     clearPanel,
@@ -119,12 +127,22 @@ function MapPageInner() {
 
   const heatmapEnabled = useCountyDetail || otherLayers.heatmapStatewide;
 
+  const involvementFilters = {
+    alcohol: selectedAlcohol || undefined,
+    distracted: selectedDistracted || undefined,
+    pedestrian: selectedPedestrian || undefined,
+    cyclist: selectedCyclist || undefined,
+    drug: selectedDrug || undefined,
+    driverAge: selectedDriverAge ?? undefined,
+  };
+
   const statewideHeatmap = useCrashHeatmap({
     enabled: heatmapEnabled && !useCountyDetail,
     county: null,
     dateRange: selectedDateRange,
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
+    ...involvementFilters,
     resolution: effectiveResolution,
   });
 
@@ -134,6 +152,7 @@ function MapPageInner() {
     dateRange: selectedDateRange,
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
+    ...involvementFilters,
     resolution: "raw",
   });
 
@@ -148,6 +167,7 @@ function MapPageInner() {
     dateRange: selectedDateRange,
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
+    ...involvementFilters,
     resolution: "raw",
     mismatchOnly: true,
     includeRivers: otherLayers.coordIncludeRivers,
@@ -285,6 +305,10 @@ function MapPageInner() {
     selectedCauses,
     selectedAlcohol,
     selectedDistracted,
+    selectedPedestrian,
+    selectedCyclist,
+    selectedDrug,
+    selectedDriverAge,
     onSetDateRange: setDateRange,
     onClearDateRange: clearDateRange,
     onToggleSeverity: toggleSeverity,
@@ -299,6 +323,10 @@ function MapPageInner() {
     onClearCauses: clearCauses,
     onToggleAlcohol: toggleAlcohol,
     onToggleDistracted: toggleDistracted,
+    onTogglePedestrian: togglePedestrian,
+    onToggleCyclist: toggleCyclist,
+    onToggleDrug: toggleDrug,
+    onSetDriverAge: setDriverAge,
     resetKey,
   };
 

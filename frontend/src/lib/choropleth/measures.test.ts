@@ -68,9 +68,10 @@ describe("computeMeasureValue", () => {
     expect(MIN_CRASHES_FOR_RATE).toBe(5);
   });
 
-  it("MEASURES exposes 5 measures including default", () => {
+  it("MEASURES exposes 6 measures including default", () => {
     const keys: MeasureKey[] = Object.keys(MEASURES) as MeasureKey[];
-    expect(keys).toHaveLength(5);
+    expect(keys).toHaveLength(6);
     expect(keys).toContain("crashes_per_100k");
+    expect(keys).toContain("crashes_per_income");
   });
 });

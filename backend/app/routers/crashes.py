@@ -16,6 +16,7 @@ from app.filters import (
     parse_cause,
     parse_county_codes,
     parse_date_range,
+    parse_driver_age,
     parse_severity,
     parse_year,
 )
@@ -49,6 +50,10 @@ def list_crashes(
     cause: str | None = Query(None),
     alcohol: str | None = Query(None),
     distracted: str | None = Query(None),
+    pedestrian: str | None = Query(None),
+    cyclist: str | None = Query(None),
+    drug: str | None = Query(None),
+    driver_age: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     include_total: bool = Query(False),
@@ -80,17 +85,23 @@ def list_crashes(
     causes = parse_cause(cause)
     alcohol_v = parse_bool_flag(alcohol, "alcohol")
     distracted_v = parse_bool_flag(distracted, "distracted")
+    pedestrian_v = parse_bool_flag(pedestrian, "pedestrian")
+    cyclist_v = parse_bool_flag(cyclist, "cyclist")
+    drug_v = parse_bool_flag(drug, "drug")
+    driver_age_v = parse_driver_age(driver_age)
 
     if include_total and not any([
         date_range is not None, years, county_codes, severities, causes,
         alcohol_v is not None, distracted_v is not None,
+        pedestrian_v is not None, cyclist_v is not None,
+        drug_v is not None, driver_age_v is not None,
     ]):
         raise FilterError(
             "include_total",
             "include_total=true requires at least one filter (start/end, "
-            "year, county, severity, cause, alcohol, distracted). Unbounded "
-            "COUNT(*) over 11M crashes is too slow. For aggregate totals, "
-            "use /api/stats.",
+            "year, county, severity, cause, alcohol, distracted, pedestrian, "
+            "cyclist, drug, driver_age). Unbounded COUNT(*) over 11M crashes "
+            "is too slow. For aggregate totals, use /api/stats.",
         )
 
     preds = build_crash_predicates(
@@ -101,6 +112,10 @@ def list_crashes(
         causes=causes,
         alcohol=alcohol_v,
         distracted=distracted_v,
+        pedestrian=pedestrian_v,
+        cyclist=cyclist_v,
+        drug=drug_v,
+        driver_age=driver_age_v,
     )
 
     q = db.query(Crash).filter(*preds).order_by(
