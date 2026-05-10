@@ -104,26 +104,35 @@ jobs:
         if: always()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GH_STATUS: ${{ job.status }}
+          GH_SHA: ${{ github.sha }}
+          GH_MSG: ${{ github.event.head_commit.message }}
+          GH_REPO: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
+          GH_BRANCH: ${{ github.ref_name }}
+          GH_ACTOR: ${{ github.actor }}
           DISK: ${{ env.DISK }}
           LOGS: ${{ env.LOGS }}
         run: |
           python3 - <<'PYEOF'
           import json, os, urllib.request
-          status       = "${{ job.status }}"
-          commit_sha   = "${{ github.sha }}"
-          commit_msg   = "${{ github.event.head_commit.message }}"
-          commit_url   = "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
-          run_url      = "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          branch       = "${{ github.ref_name }}"
-          actor        = "${{ github.actor }}"
-          short_sha    = commit_sha[:7]
-          disk         = os.environ.get("DISK", "unknown")
-          logs         = os.environ.get("LOGS", "")
+          status     = os.environ["GH_STATUS"]
+          sha        = os.environ["GH_SHA"]
+          msg        = os.environ.get("GH_MSG", "")
+          repo       = os.environ["GH_REPO"]
+          run_id     = os.environ["GH_RUN_ID"]
+          branch     = os.environ["GH_BRANCH"]
+          actor      = os.environ["GH_ACTOR"]
+          short_sha  = sha[:7]
+          commit_url = f"https://github.com/{repo}/commit/{sha}"
+          run_url    = f"https://github.com/{repo}/actions/runs/{run_id}"
+          disk       = os.environ.get("DISK", "unknown")
+          logs       = os.environ.get("LOGS", "")
           if status == "success":
               color  = 3066993
               title  = ":white_check_mark: CalSight Deployed Successfully"
               fields = [
-                  {"name": "Commit",       "value": f"[{short_sha}]({commit_url}) {commit_msg[:100]}", "inline": False},
+                  {"name": "Commit",       "value": f"[{short_sha}]({commit_url}) {msg[:100]}", "inline": False},
                   {"name": "Branch",       "value": branch, "inline": True},
                   {"name": "Triggered by", "value": actor,  "inline": True},
               ]
@@ -131,7 +140,7 @@ jobs:
               color  = 15158332
               title  = ":x: CalSight Deployment FAILED"
               fields = [
-                  {"name": "Commit",                          "value": f"[{short_sha}]({commit_url}) {commit_msg[:100]}", "inline": False},
+                  {"name": "Commit",                          "value": f"[{short_sha}]({commit_url}) {msg[:100]}", "inline": False},
                   {"name": "Branch",                          "value": branch, "inline": True},
                   {"name": "Triggered by",                    "value": actor,  "inline": True},
                   {"name": ":floppy_disk: Disk",              "value": disk,   "inline": False},
