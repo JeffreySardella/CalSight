@@ -92,7 +92,11 @@ export function useFacetCounts(staged: StagedFilters): FacetCounts {
         for (const r of sevData) severities[r.severity] = r.crash_count;
 
         const causes: Record<string, number> = {};
-        for (const r of causeData) causes[r.canonical_cause] = r.crash_count;
+        for (const r of causeData) {
+          const slug = (r.canonical_cause ?? "").replace(/_/g, "-");
+          causes[slug] = r.crash_count;
+          causes[r.canonical_cause] = r.crash_count;
+        }
 
         const involvement: Record<string, number> = {
           alcohol: alcCount,

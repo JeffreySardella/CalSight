@@ -30,6 +30,7 @@ import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
 import { useRandomInsight } from "../hooks/useRandomInsight";
 import ActiveFiltersBanner from "../components/map/ActiveFiltersBanner";
+import { usePrefetchFacets } from "../hooks/usePrefetchFacets";
 import FilteredUrlPrompt from "../components/map/FilteredUrlPrompt";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
@@ -110,6 +111,7 @@ function MapPageInner() {
   const mapRef = useRef<LeafletMap | null>(null);
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
+  usePrefetchFacets();
 
   const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
 
