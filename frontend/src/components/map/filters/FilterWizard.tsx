@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { CA_COUNTIES } from "../../../hooks/useFilterParams";
 import { useLayersState } from "../../../hooks/useLayersState";
 import { useStagedFilters, type StagedFilters } from "../../../hooks/useStagedFilters";
@@ -43,6 +43,10 @@ export default function FilterWizard({
     toggleSeverity, clearSeverities,
     toggleCause, clearCauses,
     toggleInvolvement, setDateRange, setDriverAge,
+    toggleWeather, clearWeather,
+    toggleLighting, clearLighting,
+    toggleCollisionType, clearCollisionType,
+    setRoadType, toggleHitRun,
     clearAll, has2016Plus,
   } = useStagedFilters(initial);
 
@@ -55,6 +59,26 @@ export default function FilterWizard({
 
   const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
   const facets = useFacetCounts(staged);
+
+  const prevStepRef = useRef(step);
+  const [waitingForCounts, setWaitingForCounts] = useState(!facets.loaded);
+
+  useEffect(() => {
+    if (step !== prevStepRef.current) {
+      prevStepRef.current = step;
+      if (facets.loading) {
+        setWaitingForCounts(true);
+      }
+    }
+  }, [step, facets.loading]);
+
+  useEffect(() => {
+    if (waitingForCounts && !facets.loading) {
+      setWaitingForCounts(false);
+    }
+  }, [waitingForCounts, facets.loading]);
+
+  const stepLoading = waitingForCounts || !facets.loaded;
 
   const handleApply = useCallback(() => {
     onApply(staged);
@@ -134,7 +158,7 @@ export default function FilterWizard({
       {/* Step content */}
       <div className="pb-4">
         {step === 0 && (
-          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} yearCounts={facets.years} />
+          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} yearCounts={facets.years} loading={stepLoading} />
         )}
         {step === 1 && (
           <StepWhat
@@ -145,6 +169,7 @@ export default function FilterWizard({
             onClearSeverities={clearSeverities}
             causeCounts={facets.causes}
             severityCounts={facets.severities}
+            loading={stepLoading}
           />
         )}
         {step === 2 && (
@@ -154,15 +179,36 @@ export default function FilterWizard({
             onToggleInvolvement={toggleInvolvement}
             onSetDriverAge={setDriverAge}
             involvementCounts={facets.involvement}
+            driverAgeCounts={facets.driverAge}
+            loading={stepLoading}
           />
         )}
         {step === 3 && (
-          <StepConditions />
+          <StepConditions
+            weather={staged.weather}
+            lighting={staged.lighting}
+            collisionType={staged.collisionType}
+            roadType={staged.roadType}
+            hitRun={staged.hitRun}
+            onToggleWeather={toggleWeather}
+            onClearWeather={clearWeather}
+            onToggleLighting={toggleLighting}
+            onClearLighting={clearLighting}
+            onToggleCollisionType={toggleCollisionType}
+            onClearCollisionType={clearCollisionType}
+            onSetRoadType={setRoadType}
+            onToggleHitRun={toggleHitRun}
+            conditionCounts={facets.conditions}
+            loading={stepLoading}
+          />
         )}
         {step === 4 && (
           <StepViewBy
             measure={measure}
             onSetMeasure={setMeasure}
+            staged={staged}
+            crashCount={liveCount}
+            crashCountLoading={countLoading}
           />
         )}
         {step === 5 && (

@@ -11,6 +11,11 @@ interface ActiveFiltersBannerProps {
   cyclist: boolean;
   drug: boolean;
   driverAge: string | null;
+  weather: Set<string>;
+  lighting: Set<string>;
+  collisionType: Set<string>;
+  roadType: string | null;
+  hitRun: boolean;
   totalCrashes: number;
   isLoading: boolean;
   onClear: () => void;
@@ -33,6 +38,11 @@ export default function ActiveFiltersBanner({
   cyclist,
   drug,
   driverAge,
+  weather,
+  lighting,
+  collisionType,
+  roadType,
+  hitRun,
   totalCrashes,
   isLoading,
   onClear,
@@ -57,6 +67,11 @@ export default function ActiveFiltersBanner({
   if (cyclist) chips.push("Cyclist");
   if (drug) chips.push("Drug");
   if (driverAge) chips.push(`Age ${driverAge}`);
+  if (weather.size > 0) chips.push(`${weather.size} weather`);
+  if (lighting.size > 0) chips.push(`${lighting.size} lighting`);
+  if (collisionType.size > 0) chips.push(`${collisionType.size} collision`);
+  if (roadType) chips.push(roadType === "highway" ? "Highway" : "Local");
+  if (hitRun) chips.push("Hit-and-Run");
 
   const hasInvolvement = alcohol || distracted || pedestrian || cyclist || drug || !!driverAge;
 
