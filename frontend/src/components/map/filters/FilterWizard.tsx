@@ -1,12 +1,15 @@
 import { useState, useCallback } from "react";
 import { CA_COUNTIES } from "../../../hooks/useFilterParams";
+import { useLayersState } from "../../../hooks/useLayersState";
 import { useStagedFilters, type StagedFilters } from "../../../hooks/useStagedFilters";
 import SearchableMultiSelect from "../../ui/SearchableMultiSelect";
 import StepWhen from "./StepWhen";
 import StepWhat from "./StepWhat";
 import StepWho from "./StepWho";
+import StepViewBy from "./StepViewBy";
+import StepDisplay from "./StepDisplay";
 
-const STEPS = ["When", "What", "Who"] as const;
+const STEPS = ["When", "What", "Who", "View", "Display"] as const;
 
 const countyOptions = [
   { value: "__all__", label: "All Counties (Statewide)" },
@@ -40,6 +43,13 @@ export default function FilterWizard({
     clearAll, has2016Plus,
   } = useStagedFilters(initial);
 
+  const {
+    choroplethOn, setChoroplethOn,
+    measure, setMeasure,
+    palette, setPalette,
+    otherLayers, toggleOtherLayer, setOtherLayer,
+  } = useLayersState();
+
   const handleApply = useCallback(() => {
     onApply(staged);
   }, [staged, onApply]);
@@ -49,10 +59,12 @@ export default function FilterWizard({
     onClear();
   }, [clearAll, onClear]);
 
+  const lastStep = STEPS.length - 1;
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="space-y-4">
       {/* County — always visible */}
-      <div className="px-1 pb-4 border-b border-outline-variant/15">
+      <div className="pb-4 border-b border-outline-variant/15">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
           County
         </label>
@@ -69,17 +81,17 @@ export default function FilterWizard({
       </div>
 
       {/* Step dots */}
-      <div className="flex items-center justify-center gap-3 py-4">
+      <div className="flex items-center justify-center gap-2 py-3 flex-wrap">
         {STEPS.map((label, i) => (
           <button
             key={label}
             onClick={() => setStep(i)}
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1"
           >
             <div className={`w-2 h-2 rounded-full transition-all ${
               i === step ? "bg-primary scale-125" : i < step ? "bg-primary/50" : "bg-outline-variant/30"
             }`} />
-            <span className={`text-[10px] font-semibold transition-colors ${
+            <span className={`text-[9px] font-semibold transition-colors ${
               i === step ? "text-on-surface" : "text-on-surface-variant/50"
             }`}>
               {label}
@@ -89,7 +101,7 @@ export default function FilterWizard({
       </div>
 
       {/* Step content */}
-      <div className="flex-1 overflow-y-auto px-1 pb-4">
+      <div className="pb-4">
         {step === 0 && (
           <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} />
         )}
@@ -110,10 +122,36 @@ export default function FilterWizard({
             onSetDriverAge={setDriverAge}
           />
         )}
+        {step === 3 && (
+          <StepViewBy
+            measure={measure}
+            onSetMeasure={setMeasure}
+          />
+        )}
+        {step === 4 && (
+          <StepDisplay
+            choroplethOn={choroplethOn}
+            onToggleChoropleth={() => {
+              if (choroplethOn && !otherLayers.heatmapStatewide) return;
+              setChoroplethOn(!choroplethOn);
+              if (!choroplethOn) setOtherLayer("heatmapStatewide", false);
+            }}
+            heatmapOn={otherLayers.heatmapStatewide}
+            onToggleHeatmap={() => {
+              if (otherLayers.heatmapStatewide && !choroplethOn) return;
+              setOtherLayer("heatmapStatewide", !otherLayers.heatmapStatewide);
+              if (!otherLayers.heatmapStatewide) setChoroplethOn(false);
+            }}
+            palette={palette}
+            onSetPalette={setPalette}
+            countyBoundaries={otherLayers.countyBoundaries}
+            onToggleBoundaries={() => toggleOtherLayer("countyBoundaries")}
+          />
+        )}
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center gap-3 pt-4 border-t border-outline-variant/15">
+      <div className="flex items-center gap-3 pt-4 pb-2 border-t border-outline-variant/15 sticky bottom-0 bg-surface-container-lowest">
         {step > 0 && (
           <button
             onClick={() => setStep((s) => s - 1)}
@@ -129,7 +167,7 @@ export default function FilterWizard({
           Clear All
         </button>
         <div className="flex-1" />
-        {step < 2 ? (
+        {step < lastStep ? (
           <button
             onClick={() => setStep((s) => s + 1)}
             className="px-6 py-2.5 rounded-xl text-sm font-bold bg-primary-container text-on-primary-container hover:opacity-90 transition-opacity"

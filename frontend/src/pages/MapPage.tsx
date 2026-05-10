@@ -598,6 +598,7 @@ function MapPageInner() {
             key: "filters",
             label: "Filters",
             icon: "filter_list",
+            hideFooter: true,
             content: (
               <FilterWizard
                 initial={initialStagedFilters}
