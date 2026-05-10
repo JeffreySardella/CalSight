@@ -43,6 +43,10 @@ export default function FilterWizard({
     toggleSeverity, clearSeverities,
     toggleCause, clearCauses,
     toggleInvolvement, setDateRange, setDriverAge,
+    toggleWeather, clearWeather,
+    toggleLighting, clearLighting,
+    toggleCollisionType, clearCollisionType,
+    setRoadType, toggleHitRun,
     clearAll, has2016Plus,
   } = useStagedFilters(initial);
 
@@ -157,7 +161,22 @@ export default function FilterWizard({
           />
         )}
         {step === 3 && (
-          <StepConditions />
+          <StepConditions
+            weather={staged.weather}
+            lighting={staged.lighting}
+            collisionType={staged.collisionType}
+            roadType={staged.roadType}
+            hitRun={staged.hitRun}
+            onToggleWeather={toggleWeather}
+            onClearWeather={clearWeather}
+            onToggleLighting={toggleLighting}
+            onClearLighting={clearLighting}
+            onToggleCollisionType={toggleCollisionType}
+            onClearCollisionType={clearCollisionType}
+            onSetRoadType={setRoadType}
+            onToggleHitRun={toggleHitRun}
+            conditionCounts={facets.conditions}
+          />
         )}
         {step === 4 && (
           <StepViewBy

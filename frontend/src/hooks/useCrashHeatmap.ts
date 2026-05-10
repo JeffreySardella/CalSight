@@ -23,6 +23,11 @@ interface HeatmapParams {
   cyclist?: boolean | null;
   drug?: boolean | null;
   driverAge?: string | null;
+  weather?: string[];
+  lighting?: string[];
+  collisionType?: string[];
+  roadType?: string | null;
+  hitRun?: boolean;
   resolution: HeatmapResolution;
   mismatchOnly?: boolean;
   includeRivers?: boolean;
@@ -56,6 +61,11 @@ function buildUrl(params: HeatmapParams): string {
   if (params.cyclist != null) sp.set("cyclist", String(params.cyclist));
   if (params.drug != null) sp.set("drug", String(params.drug));
   if (params.driverAge) sp.set("driver_age", params.driverAge);
+  if (params.weather?.length) sp.set("weather", params.weather.join(","));
+  if (params.lighting?.length) sp.set("lighting", params.lighting.join(","));
+  if (params.collisionType?.length) sp.set("collision_type", params.collisionType.join(","));
+  if (params.roadType) sp.set("road_type", params.roadType);
+  if (params.hitRun) sp.set("hit_run", "true");
   sp.set("resolution", params.resolution);
   if (params.mismatchOnly) sp.set("mismatch_only", "true");
   if (params.includeRivers) sp.set("include_rivers", "true");
