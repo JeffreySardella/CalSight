@@ -91,16 +91,55 @@ jobs:
           echo "Checking tunnel..."
           docker compose -f docker-compose.prod.yml ps tunnel --format '{{.State}}' | grep -q running && echo "Tunnel is running" || { echo "Tunnel not running:"; docker compose -f docker-compose.prod.yml logs --tail=20 tunnel; exit 1; }
 
-      - name: Notify Discord
+      - name: Collect disk usage and logs for notification
         if: always()
         run: |
-          STATUS="${{ job.status }}"
-          if [ "$STATUS" = "success" ]; then
-            MESSAGE="CalSight deployed successfully!"
-          else
-            MESSAGE="CalSight deployment FAILED (status: $STATUS)"
-          fi
-          curl -s -o /dev/null -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -d "{\"content\": \"$MESSAGE\"}" \
-            "${{ secrets.DISCORD_WEBHOOK_URL }}"
+          echo "DISK=$(df -h / | awk 'NR==2 {printf "%s used / %s total (%s)", $3, $2, $5}')" >> $GITHUB_ENV
+          echo 'LOGS<<EOF_LOGS' >> $GITHUB_ENV
+          docker compose -f docker-compose.prod.yml logs --tail=20 backend 2>/dev/null || echo "(no logs available)"
+          echo 'EOF_LOGS' >> $GITHUB_ENV
+        continue-on-error: true
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISK: ${{ env.DISK }}
+          LOGS: ${{ env.LOGS }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+          status       = "${{ job.status }}"
+          commit_sha   = "${{ github.sha }}"
+          commit_msg   = "${{ github.event.head_commit.message }}"
+          commit_url   = "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+          run_url      = "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          branch       = "${{ github.ref_name }}"
+          actor        = "${{ github.actor }}"
+          short_sha    = commit_sha[:7]
+          disk         = os.environ.get("DISK", "unknown")
+          logs         = os.environ.get("LOGS", "")
+          if status == "success":
+              color  = 3066993
+              title  = ":white_check_mark: CalSight Deployed Successfully"
+              fields = [
+                  {"name": "Commit",       "value": f"[{short_sha}]({commit_url}) {commit_msg[:100]}", "inline": False},
+                  {"name": "Branch",       "value": branch, "inline": True},
+                  {"name": "Triggered by", "value": actor,  "inline": True},
+              ]
+          else:
+              color  = 15158332
+              title  = ":x: CalSight Deployment FAILED"
+              fields = [
+                  {"name": "Commit",                          "value": f"[{short_sha}]({commit_url}) {commit_msg[:100]}", "inline": False},
+                  {"name": "Branch",                          "value": branch, "inline": True},
+                  {"name": "Triggered by",                    "value": actor,  "inline": True},
+                  {"name": ":floppy_disk: Disk",              "value": disk,   "inline": False},
+                  {"name": ":scroll: Backend logs (last 20)", "value": f"```\n{logs[:900]}\n```", "inline": False},
+                  {"name": ":link: Actions Run",              "value": f"[View Run]({run_url})", "inline": False},
+              ]
+          payload = {"embeds": [{"title": title, "color": color, "fields": fields, "footer": {"text": "CalSight CI/CD"}}]}
+          webhook = os.environ["DISCORD_WEBHOOK_URL"]
+          req = urllib.request.Request(webhook, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
+          urllib.request.urlopen(req)
+          PYEOF
