@@ -15,6 +15,7 @@ vi.mock("./CaliforniaMask", () => ({
   default: () => null,
 }));
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Map as LeafletMap } from "leaflet";
 import MapCanvas from "./MapCanvas";
 import { mockMapInstance } from "../../__mocks__/leaflet";
@@ -29,10 +30,15 @@ const defaultHeatmapProps = {
 };
 
 function renderWithTheme(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <ThemeProvider>
-      <LayersStateProvider>{ui}</LayersStateProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <LayersStateProvider>{ui}</LayersStateProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
