@@ -56,7 +56,24 @@ export function useLiveCrashCount(staged: StagedFilters) {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [staged]);
+  }, [
+    staged.selectedYears.size,
+    [...staged.selectedYears].join(","),
+    staged.severities.size,
+    [...staged.severities].join(","),
+    staged.causes.size,
+    [...staged.causes].join(","),
+    staged.alcohol,
+    staged.distracted,
+    staged.pedestrian,
+    staged.cyclist,
+    staged.drug,
+    staged.driverAge,
+    staged.dateRange?.start?.year,
+    staged.dateRange?.start?.month,
+    staged.dateRange?.end?.year,
+    staged.dateRange?.end?.month,
+  ]);
 
   return { count, loading };
 }

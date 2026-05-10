@@ -106,6 +106,31 @@ export default function FilterWizard({
         ))}
       </div>
 
+      {/* Current filter summary */}
+      {(staged.selectedYears.size > 0 || staged.severities.size > 0 || staged.causes.size > 0 || staged.alcohol || staged.pedestrian || staged.cyclist || staged.drug || staged.distracted || staged.driverAge) && (
+        <div className="flex items-center gap-2 flex-wrap px-1 pb-3">
+          <span className="text-[10px] text-on-surface-variant">Active:</span>
+          {staged.selectedYears.size > 0 && (
+            <span className="text-[9px] bg-primary-container text-on-primary-container px-1.5 py-0.5 rounded-full">
+              {staged.selectedYears.size} year{staged.selectedYears.size > 1 ? "s" : ""}
+            </span>
+          )}
+          {[...staged.severities].map((s) => (
+            <span key={s} className="text-[9px] bg-primary-container text-on-primary-container px-1.5 py-0.5 rounded-full">{s}</span>
+          ))}
+          {[...staged.causes].map((c) => (
+            <span key={c} className="text-[9px] bg-primary-container text-on-primary-container px-1.5 py-0.5 rounded-full">{c}</span>
+          ))}
+          {staged.alcohol && <span className="text-[9px] bg-tertiary-container text-on-tertiary-container px-1.5 py-0.5 rounded-full">Alcohol</span>}
+          {staged.pedestrian && <span className="text-[9px] bg-tertiary-container text-on-tertiary-container px-1.5 py-0.5 rounded-full">Pedestrian</span>}
+          {staged.cyclist && <span className="text-[9px] bg-tertiary-container text-on-tertiary-container px-1.5 py-0.5 rounded-full">Cyclist</span>}
+          {staged.drug && <span className="text-[9px] bg-tertiary-container text-on-tertiary-container px-1.5 py-0.5 rounded-full">Drug</span>}
+          {staged.distracted && <span className="text-[9px] bg-tertiary-container text-on-tertiary-container px-1.5 py-0.5 rounded-full">Distracted</span>}
+          {staged.driverAge && <span className="text-[9px] bg-tertiary-container text-on-tertiary-container px-1.5 py-0.5 rounded-full">Age {staged.driverAge}</span>}
+          {facets.loading && <span className="text-[9px] text-on-surface-variant animate-pulse">updating...</span>}
+        </div>
+      )}
+
       {/* Step content */}
       <div className="pb-4">
         {step === 0 && (
