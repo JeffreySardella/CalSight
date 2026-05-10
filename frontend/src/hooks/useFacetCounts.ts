@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { API_BASE } from "../config";
 import type { StagedFilters } from "./useStagedFilters";
 
@@ -10,14 +10,18 @@ export interface ConditionCounts {
   hitRun?: number;
 }
 
-export interface FacetCounts {
+interface FacetData {
   years: Record<number, number>;
   severities: Record<string, number>;
   causes: Record<string, number>;
   involvement: Record<string, number>;
   driverAge: Record<string, number>;
   conditions: ConditionCounts;
+}
+
+export interface FacetCounts extends FacetData {
   loading: boolean;
+  loaded: boolean;
 }
 
 function buildParams(staged: StagedFilters, exclude: string): string {
@@ -49,9 +53,9 @@ function buildParams(staged: StagedFilters, exclude: string): string {
   return p.toString();
 }
 
-async function fetchCount(url: string, signal: AbortSignal): Promise<number> {
+async function fetchCount(url: string): Promise<number> {
   try {
-    const r = await fetch(url, { signal });
+    const r = await fetch(url);
     if (!r.ok) return 0;
     const data = await r.json();
     return data.total_crashes ?? 0;
@@ -60,123 +64,136 @@ async function fetchCount(url: string, signal: AbortSignal): Promise<number> {
   }
 }
 
-export function useFacetCounts(staged: StagedFilters): FacetCounts {
-  const [counts, setCounts] = useState<FacetCounts>({
-    years: {},
-    severities: {},
-    causes: {},
-    involvement: {},
-    conditions: {},
-    loading: false,
-  });
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+function serializeStaged(staged: StagedFilters): string[] {
+  return [
+    [...staged.selectedYears].sort().join(","),
+    [...staged.severities].sort().join(","),
+    [...staged.causes].sort().join(","),
+    staged.alcohol ? "1" : "0",
+    staged.distracted ? "1" : "0",
+    staged.pedestrian ? "1" : "0",
+    staged.cyclist ? "1" : "0",
+    staged.drug ? "1" : "0",
+    staged.driverAge ?? "",
+    [...staged.weather].sort().join(","),
+    [...staged.lighting].sort().join(","),
+    [...staged.collisionType].sort().join(","),
+    staged.roadType ?? "",
+    staged.hitRun ? "1" : "0",
+    staged.dateRange?.start?.year?.toString() ?? "",
+    staged.dateRange?.start?.month?.toString() ?? "",
+    staged.dateRange?.end?.year?.toString() ?? "",
+    staged.dateRange?.end?.month?.toString() ?? "",
+  ];
+}
 
-  useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (abortRef.current) abortRef.current.abort();
+async function fetchAllFacets(staged: StagedFilters): Promise<FacetData> {
+  const yearParams = buildParams(staged, "year");
+  const sevParams = buildParams(staged, "severity");
+  const causeParams = buildParams(staged, "cause");
+  const baseParams = buildParams(staged, "");
+  const weatherParams = buildParams(staged, "weather");
+  const lightingParams = buildParams(staged, "lighting");
+  const collisionParams = buildParams(staged, "collisionType");
+  const driverAgeParams = buildParams(staged, "driverAge");
+  const roadTypeParams = buildParams(staged, "roadType");
+  const hitRunParams = buildParams(staged, "hitRun");
 
-    timerRef.current = setTimeout(() => {
-      const abort = new AbortController();
-      abortRef.current = abort;
-      setCounts((prev) => ({ ...prev, loading: true }));
+  const fetchJson = (url: string) =>
+    fetch(url).then((r) => r.ok ? r.json() : []).catch(() => []);
 
-      const yearParams = buildParams(staged, "year");
-      const sevParams = buildParams(staged, "severity");
-      const causeParams = buildParams(staged, "cause");
-      const baseParams = buildParams(staged, "");
-      const weatherParams = buildParams(staged, "weather");
-      const lightingParams = buildParams(staged, "lighting");
-      const collisionParams = buildParams(staged, "collisionType");
-
-      const fetchJson = (url: string) =>
-        fetch(url, { signal: abort.signal }).then((r) => r.ok ? r.json() : []).catch(() => []);
-
-      Promise.all([
-        fetchJson(`${API_BASE}/api/stats?group_by=year&${yearParams}`),
-        fetchJson(`${API_BASE}/api/stats?group_by=severity&${sevParams}`),
-        fetchJson(`${API_BASE}/api/stats?group_by=cause&${causeParams}`),
-        fetchCount(`${API_BASE}/api/stats?${baseParams}&alcohol=true`, abort.signal),
-        fetchCount(`${API_BASE}/api/stats?${baseParams}&distracted=true`, abort.signal),
-        fetchCount(`${API_BASE}/api/stats?${baseParams}&pedestrian=true`, abort.signal),
-        fetchCount(`${API_BASE}/api/stats?${baseParams}&cyclist=true`, abort.signal),
-        fetchCount(`${API_BASE}/api/stats?${baseParams}&drug=true`, abort.signal),
-        fetchJson(`${API_BASE}/api/stats?group_by=weather&${weatherParams}`),
-        fetchJson(`${API_BASE}/api/stats?group_by=lighting&${lightingParams}`),
-        fetchJson(`${API_BASE}/api/stats?group_by=collision_type&${collisionParams}`),
-      ]).then(([yearData, sevData, causeData, alcCount, distCount, pedCount, cycCount, drugCount, weatherData, lightingData, collisionData]) => {
-        if (abort.signal.aborted) return;
-
-        const years: Record<number, number> = {};
-        for (const r of yearData) years[r.year] = r.crash_count;
-
-        const severities: Record<string, number> = {};
-        for (const r of sevData) severities[r.severity] = r.crash_count;
-
-        const causes: Record<string, number> = {};
-        for (const r of causeData) {
-          const slug = (r.canonical_cause ?? "").replace(/_/g, "-");
-          causes[slug] = r.crash_count;
-          causes[r.canonical_cause] = r.crash_count;
-        }
-
-        const involvement: Record<string, number> = {
-          alcohol: alcCount,
-          distracted: distCount,
-          pedestrian: pedCount,
-          cyclist: cycCount,
-          drug: drugCount,
-        };
-
-        const weatherCounts: Record<string, number> = {};
-        for (const r of weatherData) if (r.value !== "unknown") weatherCounts[r.value] = r.crash_count;
-
-        const lightingCounts: Record<string, number> = {};
-        for (const r of lightingData) if (r.value !== "unknown") lightingCounts[r.value] = r.crash_count;
-
-        const collisionCounts: Record<string, number> = {};
-        for (const r of collisionData) if (r.value !== "unknown") collisionCounts[r.value] = r.crash_count;
-
-        const conditions: ConditionCounts = {
-          weather: weatherCounts,
-          lighting: lightingCounts,
-          collisionType: collisionCounts,
-        };
-
-        setCounts({ years, severities, causes, involvement, conditions, loading: false });
-      });
-    }, 300);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (abortRef.current) abortRef.current.abort();
-    };
-  }, [
-    staged.selectedYears.size,
-    [...staged.selectedYears].join(","),
-    staged.severities.size,
-    [...staged.severities].join(","),
-    staged.causes.size,
-    [...staged.causes].join(","),
-    staged.alcohol,
-    staged.distracted,
-    staged.pedestrian,
-    staged.cyclist,
-    staged.drug,
-    staged.driverAge,
-    staged.weather.size,
-    [...staged.weather].join(","),
-    staged.lighting.size,
-    [...staged.lighting].join(","),
-    staged.collisionType.size,
-    [...staged.collisionType].join(","),
-    staged.roadType,
-    staged.hitRun,
-    staged.dateRange?.start?.year,
-    staged.dateRange?.start?.month,
-    staged.dateRange?.end?.year,
-    staged.dateRange?.end?.month,
+  const [
+    yearData, sevData, causeData,
+    alcCount, distCount, pedCount, cycCount, drugCount,
+    weatherData, lightingData, collisionData,
+    age1621, age2234, age3549, age5064, age65p,
+    roadHighway, roadLocal, hitRunCount,
+  ] = await Promise.all([
+    fetchJson(`${API_BASE}/api/stats?group_by=year&${yearParams}`),
+    fetchJson(`${API_BASE}/api/stats?group_by=severity&${sevParams}`),
+    fetchJson(`${API_BASE}/api/stats?group_by=cause&${causeParams}`),
+    fetchCount(`${API_BASE}/api/stats?${baseParams}&alcohol=true`),
+    fetchCount(`${API_BASE}/api/stats?${baseParams}&distracted=true`),
+    fetchCount(`${API_BASE}/api/stats?${baseParams}&pedestrian=true`),
+    fetchCount(`${API_BASE}/api/stats?${baseParams}&cyclist=true`),
+    fetchCount(`${API_BASE}/api/stats?${baseParams}&drug=true`),
+    fetchJson(`${API_BASE}/api/stats?group_by=weather&${weatherParams}`),
+    fetchJson(`${API_BASE}/api/stats?group_by=lighting&${lightingParams}`),
+    fetchJson(`${API_BASE}/api/stats?group_by=collision_type&${collisionParams}`),
+    fetchCount(`${API_BASE}/api/stats?${driverAgeParams}&driver_age=16-21`),
+    fetchCount(`${API_BASE}/api/stats?${driverAgeParams}&driver_age=22-34`),
+    fetchCount(`${API_BASE}/api/stats?${driverAgeParams}&driver_age=35-49`),
+    fetchCount(`${API_BASE}/api/stats?${driverAgeParams}&driver_age=50-64`),
+    fetchCount(`${API_BASE}/api/stats?${driverAgeParams}&driver_age=65%2B`),
+    fetchCount(`${API_BASE}/api/stats?${roadTypeParams}&road_type=highway`),
+    fetchCount(`${API_BASE}/api/stats?${roadTypeParams}&road_type=local`),
+    fetchCount(`${API_BASE}/api/stats?${hitRunParams}&hit_run=true`),
   ]);
 
-  return counts;
+  const years: Record<number, number> = {};
+  for (const r of yearData) years[r.year] = r.crash_count;
+
+  const severities: Record<string, number> = {};
+  for (const r of sevData) severities[r.severity] = r.crash_count;
+
+  const causes: Record<string, number> = {};
+  for (const r of causeData) {
+    const slug = (r.canonical_cause ?? "").replace(/_/g, "-");
+    causes[slug] = r.crash_count;
+    causes[r.canonical_cause] = r.crash_count;
+  }
+
+  return {
+    years,
+    severities,
+    causes,
+    involvement: {
+      alcohol: alcCount,
+      distracted: distCount,
+      pedestrian: pedCount,
+      cyclist: cycCount,
+      drug: drugCount,
+    },
+    driverAge: {
+      "16-21": age1621,
+      "22-34": age2234,
+      "35-49": age3549,
+      "50-64": age5064,
+      "65+": age65p,
+    },
+    conditions: {
+      weather: Object.fromEntries(weatherData.filter((r: { value: string }) => r.value !== "unknown").map((r: { value: string; crash_count: number }) => [r.value, r.crash_count])),
+      lighting: Object.fromEntries(lightingData.filter((r: { value: string }) => r.value !== "unknown").map((r: { value: string; crash_count: number }) => [r.value, r.crash_count])),
+      collisionType: Object.fromEntries(collisionData.filter((r: { value: string }) => r.value !== "unknown").map((r: { value: string; crash_count: number }) => [r.value, r.crash_count])),
+      roadType: { highway: roadHighway, local: roadLocal },
+      hitRun: hitRunCount,
+    },
+  };
+}
+
+const EMPTY: FacetData = {
+  years: {},
+  severities: {},
+  causes: {},
+  involvement: {},
+  driverAge: {},
+  conditions: {},
+};
+
+export function useFacetCounts(staged: StagedFilters): FacetCounts {
+  const queryKey = ["facet-counts", ...serializeStaged(staged)];
+
+  const { data, isFetching, isSuccess } = useQuery({
+    queryKey,
+    queryFn: () => fetchAllFacets(staged),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+
+  return {
+    ...(data ?? EMPTY),
+    loading: isFetching,
+    loaded: isSuccess || !!data,
+  };
 }

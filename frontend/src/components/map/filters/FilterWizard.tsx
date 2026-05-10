@@ -138,7 +138,7 @@ export default function FilterWizard({
       {/* Step content */}
       <div className="pb-4">
         {step === 0 && (
-          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} yearCounts={facets.years} />
+          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} yearCounts={facets.years} loading={!facets.loaded} />
         )}
         {step === 1 && (
           <StepWhat
@@ -149,6 +149,7 @@ export default function FilterWizard({
             onClearSeverities={clearSeverities}
             causeCounts={facets.causes}
             severityCounts={facets.severities}
+            loading={!facets.loaded}
           />
         )}
         {step === 2 && (
@@ -158,6 +159,8 @@ export default function FilterWizard({
             onToggleInvolvement={toggleInvolvement}
             onSetDriverAge={setDriverAge}
             involvementCounts={facets.involvement}
+            driverAgeCounts={facets.driverAge}
+            loading={!facets.loaded}
           />
         )}
         {step === 3 && (
@@ -176,6 +179,7 @@ export default function FilterWizard({
             onSetRoadType={setRoadType}
             onToggleHitRun={toggleHitRun}
             conditionCounts={facets.conditions}
+            loading={!facets.loaded}
           />
         )}
         {step === 4 && (

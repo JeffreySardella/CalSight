@@ -33,6 +33,8 @@ interface ConditionCounts {
   weather?: Record<string, number>;
   lighting?: Record<string, number>;
   collisionType?: Record<string, number>;
+  roadType?: Record<string, number>;
+  hitRun?: number;
 }
 
 interface StepConditionsProps {
@@ -50,6 +52,7 @@ interface StepConditionsProps {
   onSetRoadType: (v: string | null) => void;
   onToggleHitRun: () => void;
   conditionCounts?: ConditionCounts;
+  loading?: boolean;
 }
 
 function fmt(n: number): string {
@@ -73,10 +76,29 @@ export default function StepConditions({
   onSetRoadType,
   onToggleHitRun,
   conditionCounts,
+  loading,
 }: StepConditionsProps) {
   const allWeather = weather.size === 0;
   const allLighting = lighting.size === 0;
   const allCollisionTypes = collisionType.size === 0;
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="space-y-3">
+            <div className="h-4 bg-surface-container-high rounded w-48" />
+            <div className="h-3 bg-surface-container-high rounded w-64" />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: i === 4 ? 3 : i === 5 ? 1 : 5 }, (_, j) => (
+                <div key={j} className="h-8 bg-surface-container-high rounded-full w-20" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -165,14 +187,18 @@ export default function StepConditions({
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="All Roads" active={roadType === null} onClick={() => onSetRoadType(null)} />
-          {ROAD_TYPES.map((rt) => (
-            <FilterChip
-              key={rt.value}
-              label={rt.label}
-              active={roadType === rt.value}
-              onClick={() => onSetRoadType(roadType === rt.value ? null : rt.value)}
-            />
-          ))}
+          {ROAD_TYPES.map((rt) => {
+            const count = conditionCounts?.roadType?.[rt.value];
+            return (
+              <FilterChip
+                key={rt.value}
+                label={count != null ? `${rt.label} (${fmt(count)})` : rt.label}
+                active={roadType === rt.value}
+                disabled={count === 0}
+                onClick={() => onSetRoadType(roadType === rt.value ? null : rt.value)}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -186,9 +212,10 @@ export default function StepConditions({
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip
-            label="Hit-and-Run Only"
+            label={conditionCounts?.hitRun != null ? `Hit-and-Run Only (${fmt(conditionCounts.hitRun)})` : "Hit-and-Run Only"}
             icon="warning"
             active={hitRun}
+            disabled={conditionCounts?.hitRun === 0}
             onClick={onToggleHitRun}
           />
         </div>
