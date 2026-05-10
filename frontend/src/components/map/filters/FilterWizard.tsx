@@ -207,6 +207,8 @@ export default function FilterWizard({
             measure={measure}
             onSetMeasure={setMeasure}
             staged={staged}
+            crashCount={liveCount}
+            crashCountLoading={countLoading}
           />
         )}
         {step === 5 && (
