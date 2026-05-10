@@ -63,7 +63,11 @@ jobs:
       - name: Run database migrations
         run: docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
 
-      - name: Backfill canonical condition columns (idempotent, skips existing)
+      - name: Backfill derived fields (severity, flags, driver age, canonical cause)
+        run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.backfill_derived
+        timeout-minutes: 240
+
+      - name: Backfill canonical condition columns (weather, lighting, collision, road)
         run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.backfill_conditions
         timeout-minutes: 240
 
