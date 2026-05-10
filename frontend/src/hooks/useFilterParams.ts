@@ -458,6 +458,44 @@ export function useFilterParams() {
     }, { replace: true });
   }, [setSearchParams]);
 
+  const setAllFilters = useCallback((overrides: {
+    start?: { year: number; month: number } | null;
+    end?: { year: number; month: number } | null;
+    severities?: Set<string>;
+    causes?: Set<string>;
+    alcohol?: boolean;
+    distracted?: boolean;
+    pedestrian?: boolean;
+    cyclist?: boolean;
+    drug?: boolean;
+    driverAge?: string | null;
+  }) => {
+    setSearchParams((prev) => {
+      const params = buildNextParams(prev, {
+        severities: overrides.severities ?? new Set(),
+        causes: overrides.causes ?? new Set(),
+        alcohol: overrides.alcohol ?? false,
+        distracted: overrides.distracted ?? false,
+        pedestrian: overrides.pedestrian ?? false,
+        cyclist: overrides.cyclist ?? false,
+        drug: overrides.drug ?? false,
+        driverAge: overrides.driverAge ?? null,
+      });
+      if (overrides.start) {
+        params.set("start", formatYearMonth(overrides.start));
+      } else {
+        params.delete("start");
+      }
+      if (overrides.end) {
+        params.set("end", formatYearMonth(overrides.end));
+      } else {
+        params.delete("end");
+      }
+      params.delete("year");
+      return params;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const clearPanel = useCallback(() => {
     setSearchParams((prev) => {
       prev.delete("panel");
@@ -497,6 +535,7 @@ export function useFilterParams() {
     toggleDrug,
     setDriverAge,
     clearFilters,
+    setAllFilters,
     panel,
     clearPanel,
   };

@@ -6,8 +6,10 @@ import CountyBoundaries from "./CountyBoundaries";
 import CrashHeatmap from "./CrashHeatmap";
 import CoordMismatchLayer from "./CoordMismatchLayer";
 import CaliforniaMask from "./CaliforniaMask";
+import OverlayMarkers from "./OverlayMarkers";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
+import { useHospitals, useSchools } from "../../hooks/useMapOverlays";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 
@@ -57,6 +59,8 @@ function MapInternals({
   const map = useMap();
   const { otherLayers } = useLayersState();
   const showMask = heatmapActive && !otherLayers.coordMismatches && !countyDrilldown;
+  const { data: hospitals = [] } = useHospitals(otherLayers.hospitals);
+  const { data: schools = [] } = useSchools(otherLayers.schools);
 
   useEffect(() => {
     onMapReady(map);
@@ -103,6 +107,12 @@ function MapInternals({
         />
       )}
       {mismatchPoints.length > 0 && <CoordMismatchLayer points={mismatchPoints} palette={heatmapPalette} />}
+      <OverlayMarkers
+        hospitals={hospitals}
+        schools={schools}
+        showHospitals={otherLayers.hospitals}
+        showSchools={otherLayers.schools}
+      />
     </>
   );
 }

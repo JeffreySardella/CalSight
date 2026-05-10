@@ -2,14 +2,16 @@ import { useState, useCallback } from "react";
 import { CA_COUNTIES } from "../../../hooks/useFilterParams";
 import { useLayersState } from "../../../hooks/useLayersState";
 import { useStagedFilters, type StagedFilters } from "../../../hooks/useStagedFilters";
+import { useLiveCrashCount } from "../../../hooks/useLiveCrashCount";
 import SearchableMultiSelect from "../../ui/SearchableMultiSelect";
 import StepWhen from "./StepWhen";
 import StepWhat from "./StepWhat";
 import StepWho from "./StepWho";
+import StepConditions from "./StepConditions";
 import StepViewBy from "./StepViewBy";
 import StepDisplay from "./StepDisplay";
 
-const STEPS = ["When", "What", "Who", "View", "Display"] as const;
+const STEPS = ["When", "What", "Who", "Conditions", "View", "Display"] as const;
 
 const countyOptions = [
   { value: "__all__", label: "All Counties (Statewide)" },
@@ -24,7 +26,6 @@ interface FilterWizardProps {
   onClearCounties: () => void;
   onApply: (filters: StagedFilters) => void;
   onClear: () => void;
-  onSwitchToSimple?: () => void;
 }
 
 export default function FilterWizard({
@@ -34,14 +35,13 @@ export default function FilterWizard({
   onClearCounties,
   onApply,
   onClear,
-  onSwitchToSimple,
 }: FilterWizardProps) {
   const [step, setStep] = useState(0);
   const {
     staged, toggleYear, setAllYears,
     toggleSeverity, clearSeverities,
     toggleCause, clearCauses,
-    toggleInvolvement, setDriverAge,
+    toggleInvolvement, setDateRange, setDriverAge,
     clearAll, has2016Plus,
   } = useStagedFilters(initial);
 
@@ -51,6 +51,8 @@ export default function FilterWizard({
     palette, setPalette,
     otherLayers, toggleOtherLayer, setOtherLayer,
   } = useLayersState();
+
+  const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
 
   const handleApply = useCallback(() => {
     onApply(staged);
@@ -65,19 +67,6 @@ export default function FilterWizard({
 
   return (
     <div className="space-y-4">
-      {/* Header with Simple toggle */}
-      <div className="flex items-center justify-between pb-2 border-b border-outline-variant/15">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Advanced Filters</span>
-        {onSwitchToSimple && (
-          <button
-            onClick={onSwitchToSimple}
-            className="text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
-          >
-            Simple Mode
-          </button>
-        )}
-      </div>
-
       {/* County */}
       <div className="pb-4 border-b border-outline-variant/15">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
@@ -118,7 +107,7 @@ export default function FilterWizard({
       {/* Step content */}
       <div className="pb-4">
         {step === 0 && (
-          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} />
+          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} />
         )}
         {step === 1 && (
           <StepWhat
@@ -138,12 +127,15 @@ export default function FilterWizard({
           />
         )}
         {step === 3 && (
+          <StepConditions />
+        )}
+        {step === 4 && (
           <StepViewBy
             measure={measure}
             onSetMeasure={setMeasure}
           />
         )}
-        {step === 4 && (
+        {step === 5 && (
           <StepDisplay
             choroplethOn={choroplethOn}
             onToggleChoropleth={() => {
@@ -161,12 +153,16 @@ export default function FilterWizard({
             onSetPalette={setPalette}
             countyBoundaries={otherLayers.countyBoundaries}
             onToggleBoundaries={() => toggleOtherLayer("countyBoundaries")}
+            hospitalsOn={otherLayers.hospitals}
+            onToggleHospitals={() => toggleOtherLayer("hospitals")}
+            schoolsOn={otherLayers.schools}
+            onToggleSchools={() => toggleOtherLayer("schools")}
           />
         )}
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center gap-3 pt-4 pb-2 border-t border-outline-variant/15 sticky bottom-0 bg-surface-container-lowest">
+      <div className="flex items-center gap-3 pt-4 pb-2 border-t border-outline-variant/15">
         {step > 0 && (
           <button
             onClick={() => setStep((s) => s - 1)}
@@ -194,7 +190,7 @@ export default function FilterWizard({
             onClick={handleApply}
             className="px-6 py-2.5 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-opacity"
           >
-            Apply Filters
+            {countLoading ? "Loading..." : liveCount !== null ? `Show ${liveCount >= 1000000 ? `${(liveCount / 1000000).toFixed(1)}M` : liveCount >= 1000 ? `${Math.round(liveCount / 1000)}K` : liveCount.toLocaleString()} Crashes` : "Apply Filters"}
           </button>
         )}
       </div>

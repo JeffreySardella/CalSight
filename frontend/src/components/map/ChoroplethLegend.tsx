@@ -127,7 +127,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           <div
             role="listbox"
             aria-labelledby="choropleth-measure-label"
-            className="absolute z-50 left-0 right-0 top-full mt-1 bg-surface-container-lowest rounded-lg shadow-lg border border-outline-variant/15 overflow-hidden"
+            className="absolute z-50 left-0 right-0 top-full mt-1 bg-surface-container-lowest rounded-lg shadow-lg border border-outline-variant/15 overflow-y-auto max-h-[50vh]"
           >
             {allMeasures.map((m) => {
               const isSelected = m.key === measure;

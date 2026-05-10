@@ -27,19 +27,40 @@ export default function FilterPanelRouter(props: FilterPanelRouterProps) {
     localStorage.setItem("calsight-filter-mode", "simple");
   }, []);
 
-  if (mode === "simple") {
-    return (
-      <SimpleFilterPanel
-        {...props}
-        onSwitchToAdvanced={switchToAdvanced}
-      />
-    );
-  }
-
   return (
-    <FilterWizard
-      {...props}
-      onSwitchToSimple={switchToSimple}
-    />
+    <div className="space-y-4">
+      {/* Mode toggle — always visible */}
+      <div className="flex gap-1 rounded-lg bg-surface-container p-1">
+        <button
+          onClick={switchToSimple}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
+            mode === "simple"
+              ? "bg-primary-container text-on-primary-container"
+              : "text-on-surface-variant hover:text-on-surface"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[14px]">tune</span>
+          Simple
+        </button>
+        <button
+          onClick={switchToAdvanced}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
+            mode === "advanced"
+              ? "bg-primary-container text-on-primary-container"
+              : "text-on-surface-variant hover:text-on-surface"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[14px]">settings</span>
+          Advanced
+        </button>
+      </div>
+
+      {/* Panel content */}
+      {mode === "simple" ? (
+        <SimpleFilterPanel {...props} />
+      ) : (
+        <FilterWizard {...props} />
+      )}
+    </div>
   );
 }

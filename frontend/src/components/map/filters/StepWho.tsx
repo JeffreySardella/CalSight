@@ -28,7 +28,7 @@ export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSe
           </p>
         </div>
         <div className="bg-surface-container rounded-xl px-4 py-6 text-center">
-          <span className="material-symbols-outlined text-[32px] text-on-surface-variant/40 mb-2">lock</span>
+          <span className="material-symbols-outlined text-[32px] text-on-surface-variant/40 block mb-2">info</span>
           <p className="text-sm text-on-surface-variant">
             Select at least one year from 2016 or later in Step 1 to unlock these filters.
           </p>

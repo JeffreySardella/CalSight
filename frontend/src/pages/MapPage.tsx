@@ -74,22 +74,16 @@ function MapPageInner() {
     selectedCyclist,
     selectedDrug,
     selectedDriverAge,
-    setDateRange,
-    clearDateRange,
     toggleCounty,
     setCounty,
     clearCounties,
-    setCauses,
     clearCauses,
-    setSeverities,
     clearSeverities,
     toggleAlcohol,
-    toggleDistracted,
     togglePedestrian,
-    toggleCyclist,
-    toggleDrug,
     setDriverAge,
     clearFilters,
+    setAllFilters,
     panel: panelParam,
     clearPanel,
   } = useFilterParams();
@@ -331,45 +325,34 @@ function MapPageInner() {
   }), [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedYears]);
 
   const handleApplyFilters = useCallback((filters: StagedFilters) => {
-    // Years -> date range
-    if (filters.selectedYears.size > 0) {
+    let start: { year: number; month: number } | null = null;
+    let end: { year: number; month: number } | null = null;
+
+    if (filters.dateRange) {
+      start = filters.dateRange.start;
+      end = filters.dateRange.end;
+    } else if (filters.selectedYears.size > 0) {
       const years = [...filters.selectedYears].sort();
-      setDateRange(
-        { year: years[0], month: 1 },
-        { year: years[years.length - 1], month: 12 },
-      );
-    } else {
-      clearDateRange();
+      start = { year: years[0], month: 1 };
+      end = { year: years[years.length - 1], month: 12 };
     }
 
-    // Severities
-    if (filters.severities.size > 0) {
-      setSeverities(filters.severities);
-    } else {
-      clearSeverities();
-    }
+    setAllFilters({
+      start,
+      end,
+      severities: filters.severities,
+      causes: filters.causes,
+      alcohol: filters.alcohol,
+      distracted: filters.distracted,
+      pedestrian: filters.pedestrian,
+      cyclist: filters.cyclist,
+      drug: filters.drug,
+      driverAge: filters.driverAge,
+    });
 
-    // Causes
-    if (filters.causes.size > 0) {
-      setCauses(filters.causes);
-    } else {
-      clearCauses();
-    }
-
-    // Involvement — only toggle if different from current state
-    if (filters.alcohol !== selectedAlcohol) toggleAlcohol();
-    if (filters.distracted !== selectedDistracted) toggleDistracted();
-    if (filters.pedestrian !== selectedPedestrian) togglePedestrian();
-    if (filters.cyclist !== selectedCyclist) toggleCyclist();
-    if (filters.drug !== selectedDrug) toggleDrug();
-
-    // Driver age
-    setDriverAge(filters.driverAge);
-
-    // Close panels
     setShowMobileFilters(false);
     setActivePanel(null);
-  }, [setDateRange, clearDateRange, setSeverities, clearSeverities, setCauses, clearCauses, toggleAlcohol, toggleDistracted, togglePedestrian, toggleCyclist, toggleDrug, setDriverAge, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug]);
+  }, [setAllFilters]);
 
   function renderPanelContent() {
     switch (activePanel) {

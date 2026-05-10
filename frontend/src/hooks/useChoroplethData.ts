@@ -2,11 +2,14 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import {
   computeMeasureValue,
+  MEASURES,
+  type ContextValues,
   type CountyStats,
   type CountyYearDemo,
   type MeasureKey,
   type MeasureResult,
 } from "../lib/choropleth/measures";
+import type { CalEnviroScreenData, UnemploymentData } from "./useContextData";
 import {
   CA_COUNTIES,
   SEVERITIES,
@@ -164,13 +167,38 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
           return res.json();
         },
       },
+      {
+        queryKey: ["calenviroscreen"],
+        staleTime: Infinity,
+        enabled: MEASURES[measure]?.kind === "context" && measure !== "unemployment_rate",
+        queryFn: async (): Promise<CalEnviroScreenData[]> => {
+          const res = await fetch(`${API_BASE}/api/calenviroscreen`);
+          if (!res.ok) throw new Error(`calenviroscreen ${res.status}`);
+          return res.json();
+        },
+      },
+      {
+        queryKey: ["unemployment", dateKey],
+        staleTime: 5 * 60 * 1000,
+        enabled: measure === "unemployment_rate",
+        queryFn: async (): Promise<UnemploymentData[]> => {
+          const p = new URLSearchParams();
+          appendDateRange(p, filters.dateRange);
+          const qs = p.toString();
+          const res = await fetch(`${API_BASE}/api/unemployment${qs ? `?${qs}` : ""}`);
+          if (!res.ok) throw new Error(`unemployment ${res.status}`);
+          return res.json();
+        },
+      },
     ],
   });
 
-  const [statsQ, demoQ, yearStatsQ] = queries;
+  const [statsQ, demoQ, yearStatsQ, cesQ, unempQ] = queries;
   const stats = statsQ.data;
   const demos = demoQ.data;
   const yearStats = yearStatsQ.data;
+  const cesData = cesQ.data as CalEnviroScreenData[] | undefined;
+  const unempData = unempQ.data as UnemploymentData[] | undefined;
 
   const { byCountyCode, nameToCode } = useMemo(() => {
     if (!stats) return { byCountyCode: {} as Record<number, ChoroplethPoint>, nameToCode: {} as Record<string, number> };
@@ -180,15 +208,50 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       arr.push(d);
       demoByCounty.set(d.county_code, arr);
     }
+
+    // Build context lookup maps for external datasets.
+    const cesByCounty = new Map<number, CalEnviroScreenData>();
+    for (const row of cesData ?? []) {
+      cesByCounty.set(row.county_code, row);
+    }
+
+    // Average unemployment rate per county across available months.
+    const unempByCounty = new Map<number, number>();
+    if (unempData && unempData.length > 0) {
+      const accum = new Map<number, { sum: number; count: number }>();
+      for (const row of unempData) {
+        if (row.unemployment_rate == null) continue;
+        const prev = accum.get(row.county_code) ?? { sum: 0, count: 0 };
+        prev.sum += row.unemployment_rate;
+        prev.count += 1;
+        accum.set(row.county_code, prev);
+      }
+      for (const [code, { sum, count }] of accum) {
+        unempByCounty.set(code, sum / count);
+      }
+    }
+
     const out: Record<number, ChoroplethPoint> = {};
     const ntc: Record<string, number> = {};
     for (const s of stats) {
-      const result = computeMeasureValue(measure, s, demoByCounty.get(s.county_code) ?? []);
+      // Build context values for this county.
+      const ctx: ContextValues = {};
+      const ces = cesByCounty.get(s.county_code);
+      if (ces) {
+        ctx.ces_score = ces.ces_score;
+        ctx.pollution_burden = ces.pollution_burden;
+        ctx.traffic_score = ces.traffic_score;
+      }
+      if (unempByCounty.has(s.county_code)) {
+        ctx.unemployment_rate = unempByCounty.get(s.county_code)!;
+      }
+
+      const result = computeMeasureValue(measure, s, demoByCounty.get(s.county_code) ?? [], { context: ctx });
       out[s.county_code] = { ...result, rawCount: s.crash_count, totalKilled: s.total_killed, totalInjured: s.total_injured };
       ntc[s.county_name] = s.county_code;
     }
     return { byCountyCode: out, nameToCode: ntc };
-  }, [stats, demos, measure]);
+  }, [stats, demos, measure, cesData, unempData]);
 
   const dataSummary = useMemo<DataSummary>(() => {
     const totalCrashes = yearStats?.reduce((s, r) => s + r.crash_count, 0) ?? 0;
@@ -221,13 +284,13 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     return { totalCrashes, missingDemoYears, partialDemoYears, sparseYears };
   }, [filters.dateRange, demos, yearStats]);
 
-  const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error) as (Error & { status?: number }) | null;
+  const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error ?? cesQ.error ?? unempQ.error) as (Error & { status?: number }) | null;
 
   return {
     byCountyCode,
     nameToCode,
-    isLoading: statsQ.isLoading || demoQ.isLoading || yearStatsQ.isLoading,
-    isError: statsQ.isError || demoQ.isError,
+    isLoading: statsQ.isLoading || demoQ.isLoading || yearStatsQ.isLoading || cesQ.isLoading || unempQ.isLoading,
+    isError: statsQ.isError || demoQ.isError || cesQ.isError || unempQ.isError,
     is422: rawError?.status === 422,
     error: rawError,
     demographicsAvailable: !demoQ.isError && (demos?.length ?? 0) > 0,

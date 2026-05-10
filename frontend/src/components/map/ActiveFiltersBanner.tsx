@@ -63,7 +63,7 @@ export default function ActiveFiltersBanner({
   if (chips.length === 0) return null;
 
   return (
-    <div className={`absolute top-14 md:top-2 left-2 right-14 md:left-16 md:right-auto md:max-w-[500px] z-20 transition-opacity duration-200 ${searchOpen ? "opacity-0 pointer-events-none" : ""}`}>
+    <div className={`hidden md:block absolute top-20 left-16 right-auto max-w-[500px] z-20 transition-opacity duration-200 ${searchOpen ? "opacity-0 pointer-events-none" : ""}`}>
       <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-xl px-3 py-2 ambient-shadow">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="material-symbols-outlined text-[14px] text-primary shrink-0">filter_list</span>

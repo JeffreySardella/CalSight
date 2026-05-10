@@ -18,6 +18,10 @@ const MEASURE_LIST: { key: MeasureKey; label: string; description: string; group
   { key: "pct_no_vehicle", label: "No Vehicle %", description: "Percentage of households with no vehicle", group: "Demographics" },
   { key: "pct_bachelors", label: "Bachelor's Degree %", description: "Percentage with bachelor's degree or higher", group: "Demographics" },
   { key: "pct_65_plus", label: "Age 65+ %", description: "Percentage of population age 65 and older", group: "Demographics" },
+  { key: "ces_score", label: "CES Composite Score", description: "CalEnviroScreen overall environmental burden score", group: "Environmental" },
+  { key: "pollution_burden", label: "Pollution Burden", description: "CalEnviroScreen pollution burden score", group: "Environmental" },
+  { key: "traffic_score", label: "Traffic Proximity", description: "CalEnviroScreen traffic proximity and volume score", group: "Environmental" },
+  { key: "unemployment_rate", label: "Unemployment Rate", description: "Average unemployment rate across selected period", group: "Economic" },
 ];
 
 const DEMO_MEASURES: MeasureKey[] = [
@@ -25,15 +29,25 @@ const DEMO_MEASURES: MeasureKey[] = [
   "crashes_per_poverty", "pct_65_plus", "crashes_per_income",
 ];
 
+const CONTEXT_MEASURES: MeasureKey[] = [
+  "ces_score", "pollution_burden", "traffic_score", "unemployment_rate",
+];
+
 const PER_CAPITA_MEASURES: MeasureKey[] = [
   "crashes_per_100k", "fatalities_per_100k", "injuries_per_100k",
 ];
 
 function needsDemoInfo(m: MeasureKey): boolean {
-  return PER_CAPITA_MEASURES.includes(m) || DEMO_MEASURES.includes(m);
+  return PER_CAPITA_MEASURES.includes(m) || DEMO_MEASURES.includes(m) || CONTEXT_MEASURES.includes(m);
 }
 
 function demoInfoText(m: MeasureKey): string {
+  if (m === "unemployment_rate") {
+    return "Unemployment data from EDD. Counties without data show as hatched.";
+  }
+  if (CONTEXT_MEASURES.includes(m)) {
+    return "CalEnviroScreen data averaged to county level. Counties without data show as hatched.";
+  }
   if (DEMO_MEASURES.includes(m)) {
     return "Demographic data available 2005-2023. Counties without data show as hatched.";
   }

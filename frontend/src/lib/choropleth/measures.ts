@@ -16,13 +16,19 @@ export type MeasureKey =
   | "pct_no_vehicle"
   | "pct_bachelors"
   | "crashes_per_poverty"
-  | "pct_65_plus";
+  | "pct_65_plus"
+  | "ces_score"
+  | "pollution_burden"
+  | "traffic_score"
+  | "unemployment_rate";
 
 export type Measure = {
   key: MeasureKey;
   label: string;
-  /** "perCapita" needs demographics; "raw" and "rate" do not. */
-  kind: "perCapita" | "raw" | "rate" | "perIncome" | "demographic" | "crashDemographic";
+  /** "perCapita" needs demographics; "raw" and "rate" do not.
+   *  "context" measures are sourced from external datasets
+   *  (CalEnviroScreen, unemployment) rather than crash/demo queries. */
+  kind: "perCapita" | "raw" | "rate" | "perIncome" | "demographic" | "crashDemographic" | "context";
   formatLabel: (n: number) => string;
 };
 
@@ -99,6 +105,30 @@ export const MEASURES: Record<MeasureKey, Measure> = {
     kind: "demographic",
     formatLabel: (n) => `${n.toFixed(1)}%`,
   },
+  ces_score: {
+    key: "ces_score",
+    label: "CalEnviroScreen score",
+    kind: "context",
+    formatLabel: (n) => n.toFixed(1),
+  },
+  pollution_burden: {
+    key: "pollution_burden",
+    label: "Pollution burden score",
+    kind: "context",
+    formatLabel: (n) => n.toFixed(1),
+  },
+  traffic_score: {
+    key: "traffic_score",
+    label: "Traffic proximity score",
+    kind: "context",
+    formatLabel: (n) => n.toFixed(1),
+  },
+  unemployment_rate: {
+    key: "unemployment_rate",
+    label: "Average unemployment rate",
+    kind: "context",
+    formatLabel: (n) => `${n.toFixed(1)}%`,
+  },
 };
 
 export const DEFAULT_MEASURE: MeasureKey = "crashes_per_100k";
@@ -131,6 +161,11 @@ export type MeasureResult = {
   hasEnoughData: boolean;
 };
 
+/** Pre-computed context values from external datasets (CalEnviroScreen,
+ *  unemployment) that don't come from the crash stats or demographics
+ *  endpoints. Keyed by the context MeasureKey. */
+export type ContextValues = Partial<Record<MeasureKey, number | null>>;
+
 type ComputeOpts = {
   /** Per-year breakdowns for correct multi-year per-capita math.
    *  When provided, each year's crashes are divided by that year's
@@ -139,6 +174,8 @@ type ComputeOpts = {
   perYearCrashes?: Map<number, number>;
   perYearFatalities?: Map<number, number>;
   perYearInjuries?: Map<number, number>;
+  /** External dataset values for "context" kind measures. */
+  context?: ContextValues;
 };
 
 export function computeMeasureValue(
@@ -147,6 +184,14 @@ export function computeMeasureValue(
   demographics: CountyYearDemo[],
   opts: ComputeOpts = {},
 ): MeasureResult {
+  // Context measures are pre-computed from external datasets and passed
+  // through opts.context — no crash stats or demographics needed.
+  if (MEASURES[measure]?.kind === "context") {
+    const v = opts.context?.[measure];
+    if (v == null) return { value: null, hasEnoughData: false };
+    return { value: v, hasEnoughData: true };
+  }
+
   if (measure === "crashes_raw") {
     return { value: stats.crash_count, hasEnoughData: true };
   }

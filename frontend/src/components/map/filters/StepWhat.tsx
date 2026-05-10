@@ -1,4 +1,5 @@
 import { CAUSES, SEVERITIES } from "../../../hooks/useFilterParams";
+import { useCauseCounts, useSeverityCounts, fmtCount } from "../../../hooks/useFilterCounts";
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
 import FilterChip from "./FilterChip";
 
@@ -13,6 +14,8 @@ interface StepWhatProps {
 export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggleSeverity, onClearSeverities }: StepWhatProps) {
   const allCauses = staged.causes.size === 0;
   const allSeverities = staged.severities.size === 0;
+  const { data: causeCounts } = useCauseCounts();
+  const { data: severityCounts } = useSeverityCounts();
 
   return (
     <div className="space-y-6">
@@ -30,6 +33,7 @@ export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggl
               key={cause.value}
               label={cause.label}
               icon={cause.icon}
+              count={causeCounts?.[cause.value] ? fmtCount(causeCounts[cause.value]) : undefined}
               active={!allCauses && staged.causes.has(cause.value)}
               onClick={() => onToggleCause(cause.value)}
             />
@@ -50,6 +54,7 @@ export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggl
             <FilterChip
               key={s}
               label={s}
+              count={severityCounts?.[s] ? fmtCount(severityCounts[s]) : undefined}
               active={!allSeverities && staged.severities.has(s)}
               onClick={() => onToggleSeverity(s)}
             />

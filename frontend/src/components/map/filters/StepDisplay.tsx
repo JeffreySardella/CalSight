@@ -10,6 +10,10 @@ interface StepDisplayProps {
   onSetPalette: (p: PaletteKey) => void;
   countyBoundaries: boolean;
   onToggleBoundaries: () => void;
+  hospitalsOn: boolean;
+  onToggleHospitals: () => void;
+  schoolsOn: boolean;
+  onToggleSchools: () => void;
 }
 
 const PALETTE_OPTIONS: { key: PaletteKey; label: string }[] = [
@@ -46,6 +50,10 @@ export default function StepDisplay({
   onSetPalette,
   countyBoundaries,
   onToggleBoundaries,
+  hospitalsOn,
+  onToggleHospitals,
+  schoolsOn,
+  onToggleSchools,
 }: StepDisplayProps) {
   const isDark = useIsDark();
 
@@ -62,6 +70,8 @@ export default function StepDisplay({
         <Toggle label="Choropleth (county colors)" enabled={choroplethOn} onToggle={onToggleChoropleth} />
         <Toggle label="Crash heatmap" enabled={heatmapOn} onToggle={onToggleHeatmap} />
         <Toggle label="County boundaries" enabled={countyBoundaries} onToggle={onToggleBoundaries} />
+        <Toggle label="Hospitals" enabled={hospitalsOn} onToggle={onToggleHospitals} />
+        <Toggle label="Schools" enabled={schoolsOn} onToggle={onToggleSchools} />
       </div>
 
       <div className="space-y-3">

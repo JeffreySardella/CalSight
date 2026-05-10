@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { YEARS, CAUSES, SEVERITIES, CA_COUNTIES } from "../../../hooks/useFilterParams";
 import { useStagedFilters, type StagedFilters } from "../../../hooks/useStagedFilters";
+import { useLiveCrashCount } from "../../../hooks/useLiveCrashCount";
 import SearchableMultiSelect from "../../ui/SearchableMultiSelect";
 import FilterChip from "./FilterChip";
 import FilterPresets from "./FilterPresets";
@@ -23,7 +24,12 @@ interface SimpleFilterPanelProps {
   onClearCounties: () => void;
   onApply: (filters: StagedFilters) => void;
   onClear: () => void;
-  onSwitchToAdvanced: () => void;
+}
+
+function fmtCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return n.toLocaleString();
 }
 
 export default function SimpleFilterPanel({
@@ -33,7 +39,6 @@ export default function SimpleFilterPanel({
   onClearCounties,
   onApply,
   onClear,
-  onSwitchToAdvanced,
 }: SimpleFilterPanelProps) {
   const {
     staged, toggleYear, setAllYears,
@@ -42,22 +47,23 @@ export default function SimpleFilterPanel({
     clearAll, reset,
   } = useStagedFilters(initial);
 
+  const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
+
   const handlePreset = useCallback((preset: Partial<StagedFilters>) => {
-    const base: StagedFilters = {
-      selectedYears: new Set(),
-      dateRange: null,
-      severities: new Set(),
-      causes: new Set(),
-      alcohol: false,
-      distracted: false,
-      pedestrian: false,
-      cyclist: false,
-      drug: false,
-      driverAge: null,
+    const merged: StagedFilters = {
+      selectedYears: preset.selectedYears ?? new Set(),
+      dateRange: preset.dateRange ?? null,
+      severities: preset.severities ?? new Set(),
+      causes: preset.causes ?? new Set(),
+      alcohol: preset.alcohol ?? false,
+      distracted: preset.distracted ?? false,
+      pedestrian: preset.pedestrian ?? false,
+      cyclist: preset.cyclist ?? false,
+      drug: preset.drug ?? false,
+      driverAge: preset.driverAge ?? null,
     };
-    reset({ ...base, ...preset });
-    onApply({ ...base, ...preset });
-  }, [reset, onApply]);
+    reset(merged);
+  }, [reset]);
 
   const handleApply = useCallback(() => {
     onApply(staged);
@@ -73,7 +79,7 @@ export default function SimpleFilterPanel({
   const allSeverities = staged.severities.size === 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-4">
       {/* County */}
       <div>
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
@@ -142,19 +148,10 @@ export default function SimpleFilterPanel({
       </div>
 
       {/* Presets */}
-      <FilterPresets onApplyPreset={handlePreset} />
+      <FilterPresets staged={staged} onApplyPreset={handlePreset} />
 
-      {/* Advanced toggle */}
-      <button
-        onClick={onSwitchToAdvanced}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-colors text-sm font-semibold"
-      >
-        <span className="material-symbols-outlined text-[16px]">tune</span>
-        More Filters (Weather, Involvement, Display)
-      </button>
-
-      {/* Footer */}
-      <div className="flex items-center gap-3 pt-4 pb-2 border-t border-outline-variant/15 sticky bottom-0 bg-surface-container-lowest">
+      {/* Footer — at bottom of scroll content */}
+      <div className="flex items-center gap-3 pt-4 border-t border-outline-variant/15">
         <button
           onClick={handleClear}
           className="text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
@@ -166,7 +163,7 @@ export default function SimpleFilterPanel({
           onClick={handleApply}
           className="px-6 py-2.5 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-opacity"
         >
-          Apply Filters
+          {countLoading ? "Loading..." : liveCount !== null ? `Show ${fmtCount(liveCount)} Crashes` : "Apply Filters"}
         </button>
       </div>
     </div>

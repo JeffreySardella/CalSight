@@ -237,6 +237,44 @@ def parse_bool_flag(raw: str | None, name: str) -> bool | None:
     )
 
 
+def parse_weather(raw: str | None) -> list[str] | None:
+    if raw is None or raw == "":
+        return None
+    valid = {"clear", "cloudy", "rain", "fog", "snow", "wind", "other"}
+    values = [v.strip() for v in raw.split(",")]
+    return [v for v in values if v in valid] or None
+
+
+def parse_lighting(raw: str | None) -> list[str] | None:
+    if raw is None or raw == "":
+        return None
+    valid = {"daylight", "dark_lit", "dark_unlit", "dusk_dawn", "other"}
+    values = [v.strip() for v in raw.split(",")]
+    return [v for v in values if v in valid] or None
+
+
+def parse_collision_type(raw: str | None) -> list[str] | None:
+    if raw is None or raw == "":
+        return None
+    valid = {"rear_end", "broadside", "sideswipe", "hit_object", "head_on", "other"}
+    values = [v.strip() for v in raw.split(",")]
+    return [v for v in values if v in valid] or None
+
+
+def parse_road_type(raw: str | None) -> bool | None:
+    if raw is None or raw == "":
+        return None
+    if raw == "highway":
+        return True
+    if raw == "local":
+        return False
+    return None
+
+
+def parse_hit_run(raw: str | None) -> bool | None:
+    return parse_bool_flag(raw, "hit_run")
+
+
 def parse_driver_age(raw: str | None) -> tuple[int, int] | None:
     """Parse ?driver_age=16-21 or ?driver_age=65+ into (min, max) tuple."""
     if raw is None or raw == "":
@@ -276,6 +314,11 @@ def build_crash_predicates(
     cyclist: bool | None = None,
     drug: bool | None = None,
     driver_age: tuple[int, int] | None = None,
+    weather: list[str] | None = None,
+    lighting: list[str] | None = None,
+    collision_type: list[str] | None = None,
+    road_type: bool | None = None,
+    hit_run: bool | None = None,
 ) -> list[ColumnElement]:
     """Build SQLAlchemy WHERE predicates for the crashes table.
 
@@ -309,4 +352,17 @@ def build_crash_predicates(
         preds.append(Crash.is_drug_involved.is_(drug))
     if driver_age is not None:
         preds.append(Crash.at_fault_driver_age.between(driver_age[0], driver_age[1]))
+    if weather:
+        preds.append(Crash.canonical_weather.in_(weather))
+    if lighting:
+        preds.append(Crash.canonical_lighting.in_(lighting))
+    if collision_type:
+        preds.append(Crash.canonical_collision_type.in_(collision_type))
+    if road_type is not None:
+        preds.append(Crash.is_highway.is_(road_type))
+    if hit_run is not None:
+        if hit_run:
+            preds.append(Crash.hit_run.isnot(None))
+        else:
+            preds.append(Crash.hit_run.is_(None))
     return preds

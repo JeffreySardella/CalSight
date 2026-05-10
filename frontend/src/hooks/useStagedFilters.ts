@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { DateRangeFilter } from "./useFilterParams";
 
 export interface StagedFilters {
@@ -29,6 +29,14 @@ const EMPTY: StagedFilters = {
 
 export function useStagedFilters(initial: StagedFilters) {
   const [staged, setStaged] = useState<StagedFilters>(initial);
+  const prevInitialRef = useRef(initial);
+
+  useEffect(() => {
+    if (prevInitialRef.current !== initial) {
+      setStaged(initial);
+      prevInitialRef.current = initial;
+    }
+  }, [initial]);
 
   const toggleYear = useCallback((year: number) => {
     setStaged((prev) => {
@@ -73,6 +81,13 @@ export function useStagedFilters(initial: StagedFilters) {
     setStaged((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
+  const setDateRange = useCallback((start: { year: number; month: number } | null, end: { year: number; month: number } | null) => {
+    setStaged((prev) => ({
+      ...prev,
+      dateRange: start || end ? { start, end } : null,
+    }));
+  }, []);
+
   const setDriverAge = useCallback((bracket: string | null) => {
     setStaged((prev) => ({ ...prev, driverAge: bracket }));
   }, []);
@@ -92,8 +107,14 @@ export function useStagedFilters(initial: StagedFilters) {
     || staged.alcohol || staged.distracted || staged.pedestrian
     || staged.cyclist || staged.drug || staged.driverAge !== null;
 
-  const has2016Plus = staged.selectedYears.size === 0
-    || [...staged.selectedYears].some((y) => y >= 2016);
+  const has2016Plus = (() => {
+    if (staged.dateRange) {
+      const endYear = staged.dateRange.end?.year ?? new Date().getFullYear();
+      return endYear >= 2016;
+    }
+    if (staged.selectedYears.size === 0) return true;
+    return [...staged.selectedYears].some((y) => y >= 2016);
+  })();
 
   return {
     staged,
@@ -104,6 +125,7 @@ export function useStagedFilters(initial: StagedFilters) {
     toggleCause,
     clearCauses,
     toggleInvolvement,
+    setDateRange,
     setDriverAge,
     clearAll,
     reset,
