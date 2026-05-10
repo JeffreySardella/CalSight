@@ -186,6 +186,7 @@ export default function FilterWizard({
           <StepViewBy
             measure={measure}
             onSetMeasure={setMeasure}
+            staged={staged}
           />
         )}
         {step === 5 && (

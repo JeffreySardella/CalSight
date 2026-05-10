@@ -1,8 +1,10 @@
 import type { MeasureKey } from "../../../lib/choropleth/measures";
+import type { StagedFilters } from "../../../hooks/useStagedFilters";
 
 interface StepViewByProps {
   measure: MeasureKey;
   onSetMeasure: (m: MeasureKey) => void;
+  staged?: StagedFilters;
 }
 
 const MEASURE_LIST: { key: MeasureKey; label: string; description: string; group?: string }[] = [
@@ -54,7 +56,43 @@ function demoInfoText(m: MeasureKey): string {
   return "Population data available 2005-2023. Earlier years show as hatched.";
 }
 
-export default function StepViewBy({ measure, onSetMeasure }: StepViewByProps) {
+function getSelectedYearRange(staged?: StagedFilters): { min: number; max: number } | null {
+  if (!staged) return null;
+  if (staged.dateRange) {
+    return {
+      min: staged.dateRange.start?.year ?? 2001,
+      max: staged.dateRange.end?.year ?? new Date().getFullYear(),
+    };
+  }
+  if (staged.selectedYears.size > 0) {
+    const years = [...staged.selectedYears];
+    return { min: Math.min(...years), max: Math.max(...years) };
+  }
+  return null;
+}
+
+function isMeasureAvailable(key: MeasureKey, staged?: StagedFilters): { available: boolean; reason?: string } {
+  const range = getSelectedYearRange(staged);
+
+  if (PER_CAPITA_MEASURES.includes(key) || DEMO_MEASURES.includes(key)) {
+    if (range && range.max < 2005) {
+      return { available: false, reason: "Demographics data starts at 2005" };
+    }
+    if (range && range.min > 2023) {
+      return { available: false, reason: "Demographics data ends at 2023" };
+    }
+  }
+
+  if (key === "unemployment_rate") {
+    if (range && range.max < 2005) {
+      return { available: false, reason: "Unemployment data starts at 2005" };
+    }
+  }
+
+  return { available: true };
+}
+
+export default function StepViewBy({ measure, onSetMeasure, staged }: StepViewByProps) {
   return (
     <div className="space-y-4">
       <div>
@@ -68,6 +106,7 @@ export default function StepViewBy({ measure, onSetMeasure }: StepViewByProps) {
         {MEASURE_LIST.map((m, i) => {
           const prevGroup = i > 0 ? MEASURE_LIST[i - 1].group : undefined;
           const showHeader = m.group && m.group !== prevGroup;
+          const { available, reason } = isMeasureAvailable(m.key, staged);
           return (
             <div key={m.key}>
               {showHeader && (
@@ -76,18 +115,23 @@ export default function StepViewBy({ measure, onSetMeasure }: StepViewByProps) {
                 </p>
               )}
               <button
-                onClick={() => onSetMeasure(m.key)}
+                onClick={available ? () => onSetMeasure(m.key) : undefined}
+                disabled={!available}
                 className={`w-full text-left px-4 py-3 rounded-xl transition-all ${
-                  measure === m.key
-                    ? "bg-primary text-on-primary"
-                    : "bg-surface-container-high text-on-surface hover:bg-surface-variant"
+                  !available
+                    ? "bg-surface-container-high/50 text-on-surface-variant/40 cursor-not-allowed"
+                    : measure === m.key
+                      ? "bg-primary text-on-primary"
+                      : "bg-surface-container-high text-on-surface hover:bg-surface-variant"
                 }`}
               >
                 <p className="text-sm font-semibold">{m.label}</p>
                 <p className={`text-[10px] mt-0.5 ${
-                  measure === m.key ? "text-on-primary/80" : "text-on-surface-variant"
+                  !available
+                    ? "text-on-surface-variant/30"
+                    : measure === m.key ? "text-on-primary/80" : "text-on-surface-variant"
                 }`}>
-                  {m.description}
+                  {available ? m.description : reason}
                 </p>
               </button>
             </div>
