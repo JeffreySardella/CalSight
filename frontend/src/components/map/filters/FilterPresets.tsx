@@ -1,4 +1,5 @@
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
+import { usePresetCounts } from "../../../hooks/usePresetCounts";
 
 interface Preset {
   label: string;
@@ -70,7 +71,15 @@ interface FilterPresetsProps {
   onApplyPreset: (filters: Partial<StagedFilters>) => void;
 }
 
+function fmtCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return n.toLocaleString();
+}
+
 export default function FilterPresets({ staged, onApplyPreset }: FilterPresetsProps) {
+  const { data: counts } = usePresetCounts();
+
   return (
     <div className="space-y-3">
       <div>
@@ -97,7 +106,12 @@ export default function FilterPresets({ staged, onApplyPreset }: FilterPresetsPr
               </span>
               <div className="min-w-0">
                 <p className={`text-sm font-semibold ${isActive ? "text-on-primary-container" : "text-on-surface"}`}>{preset.label}</p>
-                <p className={`text-[10px] ${isActive ? "text-on-primary-container/70" : "text-on-surface-variant"}`}>{preset.description}</p>
+                <p className={`text-[10px] ${isActive ? "text-on-primary-container/70" : "text-on-surface-variant"}`}>
+                {preset.description}
+                {counts?.[preset.label] != null && (
+                  <span className="ml-1 font-semibold">({fmtCount(counts[preset.label])})</span>
+                )}
+              </p>
               </div>
               {isActive && (
                 <span className="material-symbols-outlined text-[16px] text-primary ml-auto shrink-0">check</span>
