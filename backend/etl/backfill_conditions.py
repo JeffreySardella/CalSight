@@ -76,6 +76,7 @@ _WEATHER_RULES = [
 # then dark_unlit, then daylight.
 _LIGHTING_RULES = [
     (re.compile(r"dusk|dawn", re.IGNORECASE), "dusk_dawn"),
+    (re.compile(r"dark.*no\s*street|dark.*not\s*func", re.IGNORECASE), "dark_unlit"),
     (re.compile(r"dark.*street|street.*light", re.IGNORECASE), "dark_lit"),
     (re.compile(r"dark", re.IGNORECASE), "dark_unlit"),
     (re.compile(r"day|daylight", re.IGNORECASE), "daylight"),

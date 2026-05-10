@@ -99,6 +99,7 @@ function MapPageInner() {
   const [insightCounty, setInsightCounty] = useState("Fresno");
   const [showStatewide, setShowStatewide] = useState(true);
   const [showFilterPrompt, setShowFilterPrompt] = useState(() => {
+    if (sessionStorage.getItem("calsight-filter-prompt-dismissed")) return false;
     const hasFilters = selectedDateRange !== null
       || selectedSeverities.size > 0
       || selectedCauses.size > 0
@@ -659,8 +660,8 @@ function MapPageInner() {
             ...(selectedDrug ? ["Drug"] : []),
             ...(selectedDriverAge ? [`Age ${selectedDriverAge}`] : []),
           ]}
-          onViewFiltered={() => setShowFilterPrompt(false)}
-          onShowAll={() => { clearFilters(); setShowFilterPrompt(false); }}
+          onViewFiltered={() => { sessionStorage.setItem("calsight-filter-prompt-dismissed", "1"); setShowFilterPrompt(false); }}
+          onShowAll={() => { sessionStorage.setItem("calsight-filter-prompt-dismissed", "1"); clearFilters(); setShowFilterPrompt(false); }}
         />
       )}
     </>
