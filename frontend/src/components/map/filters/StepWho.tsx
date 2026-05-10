@@ -8,6 +8,8 @@ interface StepWhoProps {
   onToggleInvolvement: (key: "alcohol" | "distracted" | "pedestrian" | "cyclist" | "drug") => void;
   onSetDriverAge: (bracket: string | null) => void;
   involvementCounts?: Record<string, number>;
+  driverAgeCounts?: Record<string, number>;
+  loading?: boolean;
 }
 
 function fmtCount(n: number): string {
@@ -24,7 +26,7 @@ const INV_KEYS: Record<string, keyof Pick<StagedFilters, "alcohol" | "distracted
   drug: "drug",
 };
 
-export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSetDriverAge, involvementCounts }: StepWhoProps) {
+export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSetDriverAge, involvementCounts, driverAgeCounts, loading }: StepWhoProps) {
   if (!has2016Plus) {
     return (
       <div className="space-y-4">
@@ -40,6 +42,24 @@ export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSe
             Select at least one year from 2016 or later in Step 1 to unlock these filters.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        {[1, 2].map((i) => (
+          <div key={i} className="space-y-3">
+            <div className="h-4 bg-surface-container-high rounded w-40" />
+            <div className="h-3 bg-surface-container-high rounded w-56" />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: i === 1 ? 5 : 6 }, (_, j) => (
+                <div key={j} className="h-8 bg-surface-container-high rounded-full w-20" />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -80,14 +100,19 @@ export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSe
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="Any Age" active={staged.driverAge === null} onClick={() => onSetDriverAge(null)} />
-          {DRIVER_AGE_BRACKETS.map((b) => (
-            <FilterChip
-              key={b.value}
-              label={b.label}
-              active={staged.driverAge === b.value}
-              onClick={() => onSetDriverAge(staged.driverAge === b.value ? null : b.value)}
-            />
-          ))}
+          {DRIVER_AGE_BRACKETS.map((b) => {
+            const count = driverAgeCounts?.[b.value];
+            return (
+              <FilterChip
+                key={b.value}
+                label={b.label}
+                count={count != null ? fmtCount(count) : undefined}
+                active={staged.driverAge === b.value}
+                disabled={count === 0}
+                onClick={() => onSetDriverAge(staged.driverAge === b.value ? null : b.value)}
+              />
+            );
+          })}
         </div>
       </div>
 

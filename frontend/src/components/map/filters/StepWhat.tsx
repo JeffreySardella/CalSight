@@ -10,6 +10,7 @@ interface StepWhatProps {
   onClearSeverities: () => void;
   causeCounts?: Record<string, number>;
   severityCounts?: Record<string, number>;
+  loading?: boolean;
 }
 
 function fmtCount(n: number): string {
@@ -18,9 +19,27 @@ function fmtCount(n: number): string {
   return n.toLocaleString();
 }
 
-export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggleSeverity, onClearSeverities, causeCounts, severityCounts }: StepWhatProps) {
+export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggleSeverity, onClearSeverities, causeCounts, severityCounts, loading }: StepWhatProps) {
   const allCauses = staged.causes.size === 0;
   const allSeverities = staged.severities.size === 0;
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        {[1, 2].map((i) => (
+          <div key={i} className="space-y-3">
+            <div className="h-4 bg-surface-container-high rounded w-44" />
+            <div className="h-3 bg-surface-container-high rounded w-60" />
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: i === 1 ? 10 : 4 }, (_, j) => (
+                <div key={j} className="h-8 bg-surface-container-high rounded-full w-24" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
