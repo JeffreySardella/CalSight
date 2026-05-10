@@ -50,6 +50,11 @@ _TABLES = [
     "mv_crashes_by_hour",
     "mv_crashes_by_cause",
     "mv_crashes_by_year",
+    "mv_crashes_by_month",
+    "mv_crash_victims_by_demographics",
+    "mv_at_fault_parties_by_demographics",
+    "mv_crash_rates",
+    "mv_crashes_wide",
 ]
 
 

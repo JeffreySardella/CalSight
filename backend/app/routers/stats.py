@@ -137,6 +137,33 @@ mv_rates = Table(
 )
 
 
+mv_wide = Table(
+    "mv_crashes_wide", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("severity", String),
+    Column("canonical_cause", String),
+    Column("canonical_weather", String),
+    Column("canonical_lighting", String),
+    Column("canonical_collision_type", String),
+    Column("is_highway", SmallInteger),
+    Column("crash_count", Integer),
+    Column("total_killed", Integer),
+    Column("total_injured", Integer),
+    Column("alcohol_count", Integer),
+    Column("distracted_count", Integer),
+    Column("pedestrian_count", Integer),
+    Column("cyclist_count", Integer),
+    Column("drug_count", Integer),
+    Column("hit_run_count", Integer),
+    Column("age_16_21_count", Integer),
+    Column("age_22_34_count", Integer),
+    Column("age_35_49_count", Integer),
+    Column("age_50_64_count", Integer),
+    Column("age_65_plus_count", Integer),
+)
+
+
 def _pick_view(group_by: str | None, has_cause_filter: bool):
     if group_by == "hour":
         return mv_hour
@@ -145,6 +172,27 @@ def _pick_view(group_by: str | None, has_cause_filter: bool):
     if group_by == "cause" or has_cause_filter:
         return mv_cause
     return mv_year
+
+
+def _apply_wide_filters(stmt, years, county_codes, severities, causes,
+                         weather_v, lighting_v, collision_type_v, road_type_v):
+    if years:
+        stmt = stmt.where(mv_wide.c.crash_year.in_(years))
+    if county_codes:
+        stmt = stmt.where(mv_wide.c.county_code.in_(county_codes))
+    if severities:
+        stmt = stmt.where(mv_wide.c.severity.in_(severities))
+    if causes:
+        stmt = stmt.where(mv_wide.c.canonical_cause.in_(causes))
+    if weather_v:
+        stmt = stmt.where(mv_wide.c.canonical_weather.in_(weather_v))
+    if lighting_v:
+        stmt = stmt.where(mv_wide.c.canonical_lighting.in_(lighting_v))
+    if collision_type_v:
+        stmt = stmt.where(mv_wide.c.canonical_collision_type.in_(collision_type_v))
+    if road_type_v is not None:
+        stmt = stmt.where(mv_wide.c.is_highway == (1 if road_type_v else 0))
+    return stmt
 
 
 def _apply_filters(stmt, view, years, county_codes, severities, causes):
@@ -269,70 +317,179 @@ def stats(
 
     view = _pick_view(group_by, has_cause_filter=bool(causes))
 
-    # When involvement/age/condition filters are active, or grouping by
-    # condition columns, query the raw crashes table instead of materialized
-    # views (which don't carry those columns).
+    # When involvement/condition filters or condition group_by values are
+    # active, use mv_crashes_wide (~1M rows) instead of the raw crashes
+    # table (11M rows). Condition columns are in the GROUP BY; involvement
+    # flags and driver age brackets are conditional aggregates.
     if has_involvement or has_condition_group:
-        preds = _raw_preds()
+        w = mv_wide
 
-        def _raw_query(stmt):
-            for p in preds:
-                stmt = stmt.where(p)
+        def _wide_query(stmt):
+            stmt = _apply_wide_filters(stmt, years, county_codes, severities, causes,
+                                        weather_v, lighting_v, collision_type_v, road_type_v)
+            if alcohol_v:
+                stmt = stmt.where(w.c.alcohol_count > 0)
+            if distracted_v:
+                stmt = stmt.where(w.c.distracted_count > 0)
+            if pedestrian_v:
+                stmt = stmt.where(w.c.pedestrian_count > 0)
+            if cyclist_v:
+                stmt = stmt.where(w.c.cyclist_count > 0)
+            if drug_v:
+                stmt = stmt.where(w.c.drug_count > 0)
+            if hit_run_v:
+                stmt = stmt.where(w.c.hit_run_count > 0)
+            if driver_age_v:
+                age_col = {
+                    (16, 21): w.c.age_16_21_count,
+                    (22, 34): w.c.age_22_34_count,
+                    (35, 49): w.c.age_35_49_count,
+                    (50, 64): w.c.age_50_64_count,
+                }.get(driver_age_v)
+                if age_col is not None:
+                    stmt = stmt.where(age_col > 0)
+                elif driver_age_v[0] >= 65:
+                    stmt = stmt.where(w.c.age_65_plus_count > 0)
             return stmt
 
+        def _count_col():
+            if alcohol_v:
+                return func.sum(w.c.alcohol_count)
+            if distracted_v:
+                return func.sum(w.c.distracted_count)
+            if pedestrian_v:
+                return func.sum(w.c.pedestrian_count)
+            if cyclist_v:
+                return func.sum(w.c.cyclist_count)
+            if drug_v:
+                return func.sum(w.c.drug_count)
+            if hit_run_v:
+                return func.sum(w.c.hit_run_count)
+            if driver_age_v:
+                col = {
+                    (16, 21): w.c.age_16_21_count,
+                    (22, 34): w.c.age_22_34_count,
+                    (35, 49): w.c.age_35_49_count,
+                    (50, 64): w.c.age_50_64_count,
+                }.get(driver_age_v)
+                if col is not None:
+                    return func.sum(col)
+                if driver_age_v[0] >= 65:
+                    return func.sum(w.c.age_65_plus_count)
+            return func.sum(w.c.crash_count)
+
         if group_by is None:
-            stmt = _raw_query(select(
-                func.count().label("total_crashes"),
-                func.coalesce(func.sum(Crash.number_killed), 0).label("total_killed"),
-                func.coalesce(func.sum(Crash.number_injured), 0).label("total_injured"),
+            stmt = _wide_query(select(
+                func.coalesce(_count_col(), 0).label("total_crashes"),
+                func.coalesce(func.sum(w.c.total_killed), 0).label("total_killed"),
+                func.coalesce(func.sum(w.c.total_injured), 0).label("total_injured"),
             ))
             row = db.execute(stmt).one()
             return GrandTotal(total_crashes=row.total_crashes, total_killed=row.total_killed, total_injured=row.total_injured).model_dump()
 
         if group_by == "county":
-            stmt = _raw_query(
+            stmt = _wide_query(
                 select(
-                    Crash.county_code,
+                    w.c.county_code,
                     County.name.label("county_name"),
-                    func.count().label("crash_count"),
-                    func.coalesce(func.sum(Crash.number_killed), 0).label("total_killed"),
-                    func.coalesce(func.sum(Crash.number_injured), 0).label("total_injured"),
+                    func.sum(w.c.crash_count).label("crash_count"),
+                    func.sum(w.c.total_killed).label("total_killed"),
+                    func.sum(w.c.total_injured).label("total_injured"),
                 )
-                .join(County, County.code == Crash.county_code)
-                .group_by(Crash.county_code, County.name)
-                .order_by(func.count().desc())
+                .join(County, County.code == w.c.county_code)
+                .group_by(w.c.county_code, County.name)
+                .order_by(func.sum(w.c.crash_count).desc())
             )
             rows = db.execute(stmt).all()
             return [CountyRow(county_code=r.county_code, county_name=r.county_name, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
 
         if group_by == "year":
-            stmt = _raw_query(
+            stmt = _wide_query(
                 select(
-                    Crash.crash_year.label("year"),
-                    func.count().label("crash_count"),
-                    func.coalesce(func.sum(Crash.number_killed), 0).label("total_killed"),
-                    func.coalesce(func.sum(Crash.number_injured), 0).label("total_injured"),
+                    w.c.crash_year.label("year"),
+                    func.sum(w.c.crash_count).label("crash_count"),
+                    func.sum(w.c.total_killed).label("total_killed"),
+                    func.sum(w.c.total_injured).label("total_injured"),
                 )
-                .where(Crash.crash_year.isnot(None))
-                .group_by(Crash.crash_year)
-                .order_by(Crash.crash_year)
+                .group_by(w.c.crash_year)
+                .order_by(w.c.crash_year)
             )
             rows = db.execute(stmt).all()
             return [YearRow(year=r.year, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
 
         if group_by == "cause":
-            stmt = _raw_query(
+            stmt = _wide_query(
                 select(
-                    func.coalesce(Crash.canonical_cause, "uncategorized").label("canonical_cause"),
-                    func.count().label("crash_count"),
-                    func.coalesce(func.sum(Crash.number_killed), 0).label("total_killed"),
-                    func.coalesce(func.sum(Crash.number_injured), 0).label("total_injured"),
+                    w.c.canonical_cause,
+                    func.sum(w.c.crash_count).label("crash_count"),
+                    func.sum(w.c.total_killed).label("total_killed"),
+                    func.sum(w.c.total_injured).label("total_injured"),
                 )
-                .group_by(Crash.canonical_cause)
-                .order_by(func.count().desc())
+                .group_by(w.c.canonical_cause)
+                .order_by(func.sum(w.c.crash_count).desc())
             )
             rows = db.execute(stmt).all()
             return [CauseRow(canonical_cause=r.canonical_cause, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
+
+        if group_by == "severity":
+            stmt = _wide_query(
+                select(
+                    w.c.severity,
+                    func.sum(w.c.crash_count).label("crash_count"),
+                    func.sum(w.c.total_killed).label("total_killed"),
+                    func.sum(w.c.total_injured).label("total_injured"),
+                )
+                .group_by(w.c.severity)
+                .order_by(func.sum(w.c.crash_count).desc())
+            )
+            rows = db.execute(stmt).all()
+            return [SeverityRow(severity=r.severity, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
+
+        if group_by == "weather":
+            stmt = _wide_query(
+                select(
+                    w.c.canonical_weather.label("value"),
+                    func.sum(w.c.crash_count).label("crash_count"),
+                )
+                .group_by(w.c.canonical_weather)
+                .order_by(func.sum(w.c.crash_count).desc())
+            )
+            rows = db.execute(stmt).all()
+            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
+
+        if group_by == "lighting":
+            stmt = _wide_query(
+                select(
+                    w.c.canonical_lighting.label("value"),
+                    func.sum(w.c.crash_count).label("crash_count"),
+                )
+                .group_by(w.c.canonical_lighting)
+                .order_by(func.sum(w.c.crash_count).desc())
+            )
+            rows = db.execute(stmt).all()
+            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
+
+        if group_by == "collision_type":
+            stmt = _wide_query(
+                select(
+                    w.c.canonical_collision_type.label("value"),
+                    func.sum(w.c.crash_count).label("crash_count"),
+                )
+                .group_by(w.c.canonical_collision_type)
+                .order_by(func.sum(w.c.crash_count).desc())
+            )
+            rows = db.execute(stmt).all()
+            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
+
+        if group_by == "rate":
+            raise FilterError("involvement", "Involvement filters are not supported with group_by=rate.")
+
+        # hour/month/day_of_week not in mv_wide — fall back to raw table
+        preds = _raw_preds()
+        def _raw_query(stmt):
+            for p in preds:
+                stmt = stmt.where(p)
+            return stmt
 
         if group_by == "hour":
             stmt = _raw_query(
@@ -368,59 +525,6 @@ def stats(
             )
             rows = db.execute(stmt).all()
             return [DayOfWeekRow(day_of_week=r.day_of_week, crash_count=r.crash_count).model_dump() for r in rows]
-
-        if group_by == "severity":
-            stmt = _raw_query(
-                select(
-                    func.coalesce(Crash.severity, "Unknown").label("severity"),
-                    func.count().label("crash_count"),
-                    func.coalesce(func.sum(Crash.number_killed), 0).label("total_killed"),
-                    func.coalesce(func.sum(Crash.number_injured), 0).label("total_injured"),
-                )
-                .group_by(Crash.severity)
-                .order_by(func.count().desc())
-            )
-            rows = db.execute(stmt).all()
-            return [SeverityRow(severity=r.severity, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
-
-        if group_by == "weather":
-            stmt = _raw_query(
-                select(
-                    func.coalesce(Crash.canonical_weather, "unknown").label("value"),
-                    func.count().label("crash_count"),
-                )
-                .group_by(Crash.canonical_weather)
-                .order_by(func.count().desc())
-            )
-            rows = db.execute(stmt).all()
-            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
-
-        if group_by == "lighting":
-            stmt = _raw_query(
-                select(
-                    func.coalesce(Crash.canonical_lighting, "unknown").label("value"),
-                    func.count().label("crash_count"),
-                )
-                .group_by(Crash.canonical_lighting)
-                .order_by(func.count().desc())
-            )
-            rows = db.execute(stmt).all()
-            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
-
-        if group_by == "collision_type":
-            stmt = _raw_query(
-                select(
-                    func.coalesce(Crash.canonical_collision_type, "unknown").label("value"),
-                    func.count().label("crash_count"),
-                )
-                .group_by(Crash.canonical_collision_type)
-                .order_by(func.count().desc())
-            )
-            rows = db.execute(stmt).all()
-            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
-
-        if group_by == "rate":
-            raise FilterError("involvement", "Involvement filters are not supported with group_by=rate.")
 
     # ---- Standard MV-backed paths (no involvement filters) ----
 
