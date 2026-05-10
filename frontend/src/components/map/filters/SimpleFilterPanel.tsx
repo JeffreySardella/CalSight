@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { YEARS, CAUSES, SEVERITIES, CA_COUNTIES } from "../../../hooks/useFilterParams";
 import { useStagedFilters, type StagedFilters } from "../../../hooks/useStagedFilters";
 import { useLiveCrashCount } from "../../../hooks/useLiveCrashCount";
+import { useFacetCounts } from "../../../hooks/useFacetCounts";
 import SearchableMultiSelect from "../../ui/SearchableMultiSelect";
 import FilterChip from "./FilterChip";
 import FilterPresets from "./FilterPresets";
@@ -26,6 +27,12 @@ interface SimpleFilterPanelProps {
   onClear: () => void;
 }
 
+function fmtC(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return n.toLocaleString();
+}
+
 function fmtCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
@@ -48,6 +55,7 @@ export default function SimpleFilterPanel({
   } = useStagedFilters(initial);
 
   const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
+  const facets = useFacetCounts(staged);
 
   const handlePreset = useCallback((preset: Partial<StagedFilters>) => {
     const merged: StagedFilters = {
@@ -103,14 +111,19 @@ export default function SimpleFilterPanel({
         <p className="text-[11px] text-on-surface-variant">Recent years shown. Use Advanced for 2001-2015.</p>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="All Years" active={allYears} onClick={setAllYears} />
-          {RECENT_YEARS.map((year) => (
-            <FilterChip
-              key={year}
-              label={String(year)}
-              active={!allYears && staged.selectedYears.has(year)}
-              onClick={() => toggleYear(year)}
-            />
-          ))}
+          {RECENT_YEARS.map((year) => {
+            const count = facets.years[year];
+            return (
+              <FilterChip
+                key={year}
+                label={String(year)}
+                count={count != null ? fmtC(count) : undefined}
+                active={!allYears && staged.selectedYears.has(year)}
+                disabled={count != null && count === 0}
+                onClick={() => toggleYear(year)}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -119,14 +132,19 @@ export default function SimpleFilterPanel({
         <h3 className="text-sm font-bold text-on-surface">Severity</h3>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="All" active={allSeverities} onClick={clearSeverities} />
-          {SEVERITIES.map((s) => (
-            <FilterChip
-              key={s}
-              label={s}
-              active={!allSeverities && staged.severities.has(s)}
-              onClick={() => toggleSeverity(s)}
-            />
-          ))}
+          {SEVERITIES.map((s) => {
+            const count = facets.severities[s];
+            return (
+              <FilterChip
+                key={s}
+                label={s}
+                count={count != null ? fmtC(count) : undefined}
+                active={!allSeverities && staged.severities.has(s)}
+                disabled={count != null && count === 0}
+                onClick={() => toggleSeverity(s)}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -135,15 +153,20 @@ export default function SimpleFilterPanel({
         <h3 className="text-sm font-bold text-on-surface">Common Causes</h3>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="All" active={allCauses} onClick={clearCauses} />
-          {TOP_CAUSES.map((cause) => (
-            <FilterChip
-              key={cause.value}
-              label={cause.label}
-              icon={cause.icon}
-              active={!allCauses && staged.causes.has(cause.value)}
-              onClick={() => toggleCause(cause.value)}
-            />
-          ))}
+          {TOP_CAUSES.map((cause) => {
+            const count = facets.causes[cause.value];
+            return (
+              <FilterChip
+                key={cause.value}
+                label={cause.label}
+                icon={cause.icon}
+                count={count != null ? fmtC(count) : undefined}
+                active={!allCauses && staged.causes.has(cause.value)}
+                disabled={count != null && count === 0}
+                onClick={() => toggleCause(cause.value)}
+              />
+            );
+          })}
         </div>
       </div>
 

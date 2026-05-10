@@ -7,6 +7,13 @@ interface StepWhoProps {
   has2016Plus: boolean;
   onToggleInvolvement: (key: "alcohol" | "distracted" | "pedestrian" | "cyclist" | "drug") => void;
   onSetDriverAge: (bracket: string | null) => void;
+  involvementCounts?: Record<string, number>;
+}
+
+function fmtCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return n.toLocaleString();
 }
 
 const INV_KEYS: Record<string, keyof Pick<StagedFilters, "alcohol" | "distracted" | "pedestrian" | "cyclist" | "drug">> = {
@@ -17,7 +24,7 @@ const INV_KEYS: Record<string, keyof Pick<StagedFilters, "alcohol" | "distracted
   drug: "drug",
 };
 
-export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSetDriverAge }: StepWhoProps) {
+export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSetDriverAge, involvementCounts }: StepWhoProps) {
   if (!has2016Plus) {
     return (
       <div className="space-y-4">
@@ -47,15 +54,20 @@ export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSe
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {INVOLVEMENTS.map((inv) => (
-            <FilterChip
-              key={inv.value}
-              label={inv.label}
-              icon={inv.icon}
-              active={staged[INV_KEYS[inv.value]]}
-              onClick={() => onToggleInvolvement(INV_KEYS[inv.value])}
-            />
-          ))}
+          {INVOLVEMENTS.map((inv) => {
+            const count = involvementCounts?.[inv.value];
+            return (
+              <FilterChip
+                key={inv.value}
+                label={inv.label}
+                icon={inv.icon}
+                count={count != null ? fmtCount(count) : undefined}
+                active={staged[INV_KEYS[inv.value]]}
+                disabled={count != null && count === 0}
+                onClick={() => onToggleInvolvement(INV_KEYS[inv.value])}
+              />
+            );
+          })}
         </div>
       </div>
 

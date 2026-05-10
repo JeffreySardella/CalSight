@@ -3,6 +3,7 @@ import { CA_COUNTIES } from "../../../hooks/useFilterParams";
 import { useLayersState } from "../../../hooks/useLayersState";
 import { useStagedFilters, type StagedFilters } from "../../../hooks/useStagedFilters";
 import { useLiveCrashCount } from "../../../hooks/useLiveCrashCount";
+import { useFacetCounts } from "../../../hooks/useFacetCounts";
 import SearchableMultiSelect from "../../ui/SearchableMultiSelect";
 import StepWhen from "./StepWhen";
 import StepWhat from "./StepWhat";
@@ -53,6 +54,7 @@ export default function FilterWizard({
   } = useLayersState();
 
   const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
+  const facets = useFacetCounts(staged);
 
   const handleApply = useCallback(() => {
     onApply(staged);
@@ -107,7 +109,7 @@ export default function FilterWizard({
       {/* Step content */}
       <div className="pb-4">
         {step === 0 && (
-          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} />
+          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} yearCounts={facets.years} />
         )}
         {step === 1 && (
           <StepWhat
@@ -116,6 +118,8 @@ export default function FilterWizard({
             onClearCauses={clearCauses}
             onToggleSeverity={toggleSeverity}
             onClearSeverities={clearSeverities}
+            causeCounts={facets.causes}
+            severityCounts={facets.severities}
           />
         )}
         {step === 2 && (
@@ -124,6 +128,7 @@ export default function FilterWizard({
             has2016Plus={has2016Plus}
             onToggleInvolvement={toggleInvolvement}
             onSetDriverAge={setDriverAge}
+            involvementCounts={facets.involvement}
           />
         )}
         {step === 3 && (

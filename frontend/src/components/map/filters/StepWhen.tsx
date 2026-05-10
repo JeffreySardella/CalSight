@@ -16,9 +16,16 @@ interface StepWhenProps {
   onToggleYear: (year: number) => void;
   onSetAllYears: () => void;
   onSetDateRange?: (start: YearMonth | null, end: YearMonth | null) => void;
+  yearCounts?: Record<number, number>;
 }
 
-export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDateRange }: StepWhenProps) {
+function fmtCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return n.toLocaleString();
+}
+
+export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDateRange, yearCounts }: StepWhenProps) {
   const usingRange = !!staged.dateRange;
   const usingYears = staged.selectedYears.size > 0;
   const allSelected = !usingRange && !usingYears;
@@ -57,14 +64,20 @@ export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDat
 
       <div className="flex flex-wrap gap-2">
         <FilterChip label="All Years" active={allSelected} onClick={handleAllYears} />
-        {[...YEARS].reverse().map((year) => (
-          <FilterChip
-            key={year}
-            label={String(year)}
-            active={usingYears && staged.selectedYears.has(year)}
-            onClick={() => handleToggleYear(year)}
-          />
-        ))}
+        {[...YEARS].reverse().map((year) => {
+          const count = yearCounts?.[year];
+          const hasData = count === undefined || count > 0;
+          return (
+            <FilterChip
+              key={year}
+              label={String(year)}
+              count={count != null ? fmtCount(count) : undefined}
+              active={usingYears && staged.selectedYears.has(year)}
+              disabled={!hasData}
+              onClick={() => handleToggleYear(year)}
+            />
+          );
+        })}
       </div>
 
       {usingYears && (

@@ -1,5 +1,4 @@
 import { CAUSES, SEVERITIES } from "../../../hooks/useFilterParams";
-import { useCauseCounts, useSeverityCounts, fmtCount } from "../../../hooks/useFilterCounts";
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
 import FilterChip from "./FilterChip";
 
@@ -9,13 +8,19 @@ interface StepWhatProps {
   onClearCauses: () => void;
   onToggleSeverity: (severity: string) => void;
   onClearSeverities: () => void;
+  causeCounts?: Record<string, number>;
+  severityCounts?: Record<string, number>;
 }
 
-export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggleSeverity, onClearSeverities }: StepWhatProps) {
+function fmtCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return n.toLocaleString();
+}
+
+export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggleSeverity, onClearSeverities, causeCounts, severityCounts }: StepWhatProps) {
   const allCauses = staged.causes.size === 0;
   const allSeverities = staged.severities.size === 0;
-  const { data: causeCounts } = useCauseCounts();
-  const { data: severityCounts } = useSeverityCounts();
 
   return (
     <div className="space-y-6">
@@ -28,16 +33,21 @@ export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggl
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="All Causes" active={allCauses} onClick={onClearCauses} />
-          {CAUSES.map((cause) => (
-            <FilterChip
-              key={cause.value}
-              label={cause.label}
-              icon={cause.icon}
-              count={causeCounts?.[cause.value] ? fmtCount(causeCounts[cause.value]) : undefined}
-              active={!allCauses && staged.causes.has(cause.value)}
-              onClick={() => onToggleCause(cause.value)}
-            />
-          ))}
+          {CAUSES.map((cause) => {
+            const count = causeCounts?.[cause.value];
+            const hasData = count === undefined || count > 0;
+            return (
+              <FilterChip
+                key={cause.value}
+                label={cause.label}
+                icon={cause.icon}
+                count={count != null ? fmtCount(count) : undefined}
+                active={!allCauses && staged.causes.has(cause.value)}
+                disabled={!hasData}
+                onClick={() => onToggleCause(cause.value)}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -50,15 +60,20 @@ export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggl
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip label="All Severities" active={allSeverities} onClick={onClearSeverities} />
-          {SEVERITIES.map((s) => (
-            <FilterChip
-              key={s}
-              label={s}
-              count={severityCounts?.[s] ? fmtCount(severityCounts[s]) : undefined}
-              active={!allSeverities && staged.severities.has(s)}
-              onClick={() => onToggleSeverity(s)}
-            />
-          ))}
+          {SEVERITIES.map((s) => {
+            const count = severityCounts?.[s];
+            const hasData = count === undefined || count > 0;
+            return (
+              <FilterChip
+                key={s}
+                label={s}
+                count={count != null ? fmtCount(count) : undefined}
+                active={!allSeverities && staged.severities.has(s)}
+                disabled={!hasData}
+                onClick={() => onToggleSeverity(s)}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
