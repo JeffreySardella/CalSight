@@ -84,20 +84,17 @@ jobs:
             sleep 5
           done
           if ! curl -sf http://127.0.0.1:8000/api/health > /dev/null; then
-            echo "Backend failed to start — showing logs:"
+            echo "Backend failed to start --- showing logs:"
             docker compose -f docker-compose.prod.yml logs --tail=50 backend
             exit 1
           fi
           echo "Checking tunnel..."
           docker compose -f docker-compose.prod.yml ps tunnel --format '{{.State}}' | grep -q running && echo "Tunnel is running" || { echo "Tunnel not running:"; docker compose -f docker-compose.prod.yml logs --tail=20 tunnel; exit 1; }
 
-      - name: Collect disk usage and logs for notification
+      - name: Collect disk usage for notification
         if: always()
         run: |
           echo "DISK=$(df -h / | awk 'NR==2 {printf "%s used / %s total (%s)", $3, $2, $5}')" >> $GITHUB_ENV
-          echo 'LOGS<<EOF_LOGS' >> $GITHUB_ENV
-          docker compose -f docker-compose.prod.yml logs --tail=20 backend 2>/dev/null || echo "(no logs available)"
-          echo 'EOF_LOGS' >> $GITHUB_ENV
         continue-on-error: true
 
       - name: Notify Discord
@@ -112,43 +109,78 @@ jobs:
           GH_BRANCH: ${{ github.ref_name }}
           GH_ACTOR: ${{ github.actor }}
           DISK: ${{ env.DISK }}
-          LOGS: ${{ env.LOGS }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, urllib.request
-          status     = os.environ["GH_STATUS"]
-          sha        = os.environ["GH_SHA"]
-          msg        = os.environ.get("GH_MSG", "")
-          repo       = os.environ["GH_REPO"]
-          run_id     = os.environ["GH_RUN_ID"]
-          branch     = os.environ["GH_BRANCH"]
-          actor      = os.environ["GH_ACTOR"]
-          short_sha  = sha[:7]
+          import json, os, subprocess, urllib.request, sys
+
+          status = os.environ.get("GH_STATUS", "unknown")
+          sha = os.environ.get("GH_SHA", "")
+          msg = os.environ.get("GH_MSG", "")
+          repo = os.environ.get("GH_REPO", "")
+          run_id = os.environ.get("GH_RUN_ID", "")
+          branch = os.environ.get("GH_BRANCH", "")
+          actor = os.environ.get("GH_ACTOR", "")
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL", "")
+          disk = os.environ.get("DISK", "unknown")
+
+          short_sha = sha[:7] if sha else "unknown"
           commit_url = f"https://github.com/{repo}/commit/{sha}"
-          run_url    = f"https://github.com/{repo}/actions/runs/{run_id}"
-          disk       = os.environ.get("DISK", "unknown")
-          logs       = os.environ.get("LOGS", "")
+          run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
+
+          if not webhook:
+              print("ERROR: DISCORD_WEBHOOK_URL is not set", file=sys.stderr)
+              sys.exit(1)
+
+          try:
+              result = subprocess.run(
+                  ["docker", "compose", "-f", "docker-compose.prod.yml", "logs", "--tail=15", "backend"],
+                  capture_output=True, text=True, timeout=10
+              )
+              logs = (result.stdout or result.stderr or "(no logs)")[:800]
+          except Exception as e:
+              logs = f"(could not fetch logs: {e})"
+
           if status == "success":
-              color  = 3066993
-              title  = ":white_check_mark: CalSight Deployed Successfully"
+              color = 3066993
+              title = ":white_check_mark: CalSight Deployed Successfully"
               fields = [
-                  {"name": "Commit",       "value": f"[{short_sha}]({commit_url}) {msg[:100]}", "inline": False},
-                  {"name": "Branch",       "value": branch, "inline": True},
-                  {"name": "Triggered by", "value": actor,  "inline": True},
+                  {"name": "Commit", "value": f"[{short_sha}]({commit_url}) {msg[:100]}", "inline": False},
+                  {"name": "Branch", "value": branch, "inline": True},
+                  {"name": "Triggered by", "value": actor, "inline": True},
+                  {"name": ":floppy_disk: Disk", "value": disk, "inline": False},
               ]
           else:
-              color  = 15158332
-              title  = ":x: CalSight Deployment FAILED"
+              color = 15158332
+              title = ":x: CalSight Deployment FAILED"
               fields = [
-                  {"name": "Commit",                          "value": f"[{short_sha}]({commit_url}) {msg[:100]}", "inline": False},
-                  {"name": "Branch",                          "value": branch, "inline": True},
-                  {"name": "Triggered by",                    "value": actor,  "inline": True},
-                  {"name": ":floppy_disk: Disk",              "value": disk,   "inline": False},
-                  {"name": ":scroll: Backend logs (last 20)", "value": f"```\n{logs[:900]}\n```", "inline": False},
-                  {"name": ":link: Actions Run",              "value": f"[View Run]({run_url})", "inline": False},
+                  {"name": "Commit", "value": f"[{short_sha}]({commit_url}) {msg[:100]}", "inline": False},
+                  {"name": "Branch", "value": branch, "inline": True},
+                  {"name": "Triggered by", "value": actor, "inline": True},
+                  {"name": ":floppy_disk: Disk", "value": disk, "inline": False},
+                  {"name": ":scroll: Backend logs (last 15)", "value": f"```\n{logs}\n```", "inline": False},
+                  {"name": ":link: Actions Run", "value": f"[View Run]({run_url})", "inline": False},
               ]
-          payload = {"embeds": [{"title": title, "color": color, "fields": fields, "footer": {"text": "CalSight CI/CD"}}]}
-          webhook = os.environ["DISCORD_WEBHOOK_URL"]
-          req = urllib.request.Request(webhook, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
-          urllib.request.urlopen(req)
+
+          payload = {
+              "embeds": [{
+                  "title": title,
+                  "color": color,
+                  "fields": fields,
+                  "footer": {"text": "CalSight CI/CD"}
+              }]
+          }
+
+          data = json.dumps(payload).encode()
+          req = urllib.request.Request(
+              webhook,
+              data=data,
+              headers={"Content-Type": "application/json"}
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=10) as resp:
+                  print(f"Discord notified: {resp.status}")
+          except urllib.error.HTTPError as e:
+              body = e.read().decode()
+              print(f"Discord HTTP error {e.code}: {body}", file=sys.stderr)
+              sys.exit(1)
           PYEOF
