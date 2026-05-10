@@ -75,6 +75,11 @@ function MapPageInner() {
     selectedCyclist,
     selectedDrug,
     selectedDriverAge,
+    selectedWeather,
+    selectedLighting,
+    selectedCollisionType,
+    selectedRoadType,
+    selectedHitRun,
     toggleCounty,
     setCounty,
     clearCounties,
@@ -137,6 +142,11 @@ function MapPageInner() {
     cyclist: selectedCyclist || undefined,
     drug: selectedDrug || undefined,
     driverAge: selectedDriverAge ?? undefined,
+    weather: selectedWeather.size > 0 ? [...selectedWeather] : undefined,
+    lighting: selectedLighting.size > 0 ? [...selectedLighting] : undefined,
+    collisionType: selectedCollisionType.size > 0 ? [...selectedCollisionType] : undefined,
+    roadType: selectedRoadType ?? undefined,
+    hitRun: selectedHitRun || undefined,
   };
 
   const statewideHeatmap = useCrashHeatmap({
@@ -188,8 +198,13 @@ function MapPageInner() {
       cyclist: selectedCyclist || undefined,
       drug: selectedDrug || undefined,
       driverAge: selectedDriverAge ?? undefined,
+      weather: selectedWeather.size > 0 ? [...selectedWeather] : undefined,
+      lighting: selectedLighting.size > 0 ? [...selectedLighting] : undefined,
+      collisionType: selectedCollisionType.size > 0 ? [...selectedCollisionType] : undefined,
+      roadType: selectedRoadType ?? undefined,
+      hitRun: selectedHitRun || undefined,
     }),
-    [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge],
+    [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedWeather, selectedLighting, selectedCollisionType, selectedRoadType, selectedHitRun],
   );
   const choroplethData = useChoroplethData(measure, choroplethFilters);
 
@@ -325,7 +340,12 @@ function MapPageInner() {
     cyclist: selectedCyclist,
     drug: selectedDrug,
     driverAge: selectedDriverAge,
-  }), [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedYears]);
+    weather: new Set(selectedWeather),
+    lighting: new Set(selectedLighting),
+    collisionType: new Set(selectedCollisionType),
+    roadType: selectedRoadType,
+    hitRun: selectedHitRun,
+  }), [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedYears, selectedWeather, selectedLighting, selectedCollisionType, selectedRoadType, selectedHitRun]);
 
   const handleApplyFilters = useCallback((filters: StagedFilters) => {
     let start: { year: number; month: number } | null = null;
@@ -351,6 +371,11 @@ function MapPageInner() {
       cyclist: filters.cyclist,
       drug: filters.drug,
       driverAge: filters.driverAge,
+      weather: filters.weather,
+      lighting: filters.lighting,
+      collisionType: filters.collisionType,
+      roadType: filters.roadType,
+      hitRun: filters.hitRun,
     });
 
     setShowMobileFilters(false);
@@ -468,6 +493,11 @@ function MapPageInner() {
           cyclist={selectedCyclist}
           drug={selectedDrug}
           driverAge={selectedDriverAge}
+          weather={selectedWeather}
+          lighting={selectedLighting}
+          collisionType={selectedCollisionType}
+          roadType={selectedRoadType}
+          hitRun={selectedHitRun}
           totalCrashes={choroplethData.dataSummary.totalCrashes}
           isLoading={choroplethData.isLoading}
           onClear={handleClearAll}

@@ -21,6 +21,11 @@ function buildCountUrl(staged: StagedFilters): string {
   if (staged.cyclist) p.set("cyclist", "true");
   if (staged.drug) p.set("drug", "true");
   if (staged.driverAge) p.set("driver_age", staged.driverAge);
+  if (staged.weather.size > 0) p.set("weather", [...staged.weather].join(","));
+  if (staged.lighting.size > 0) p.set("lighting", [...staged.lighting].join(","));
+  if (staged.collisionType.size > 0) p.set("collision_type", [...staged.collisionType].join(","));
+  if (staged.roadType) p.set("road_type", staged.roadType);
+  if (staged.hitRun) p.set("hit_run", "true");
   return `${API_BASE}/api/stats?${p}`;
 }
 
@@ -69,6 +74,14 @@ export function useLiveCrashCount(staged: StagedFilters) {
     staged.cyclist,
     staged.drug,
     staged.driverAge,
+    staged.weather.size,
+    [...staged.weather].join(","),
+    staged.lighting.size,
+    [...staged.lighting].join(","),
+    staged.collisionType.size,
+    [...staged.collisionType].join(","),
+    staged.roadType,
+    staged.hitRun,
     staged.dateRange?.start?.year,
     staged.dateRange?.start?.month,
     staged.dateRange?.end?.year,

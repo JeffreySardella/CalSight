@@ -69,6 +69,11 @@ export default function SimpleFilterPanel({
       cyclist: preset.cyclist ?? false,
       drug: preset.drug ?? false,
       driverAge: preset.driverAge ?? null,
+      weather: preset.weather ?? new Set(),
+      lighting: preset.lighting ?? new Set(),
+      collisionType: preset.collisionType ?? new Set(),
+      roadType: preset.roadType ?? null,
+      hitRun: preset.hitRun ?? false,
     };
     reset(merged);
   }, [reset]);

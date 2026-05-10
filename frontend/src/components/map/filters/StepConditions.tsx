@@ -1,4 +1,3 @@
-import { useState, useCallback } from "react";
 import FilterChip from "./FilterChip";
 
 const WEATHER = [
@@ -30,39 +29,51 @@ const ROAD_TYPES = [
   { value: "local", label: "Local Road" },
 ];
 
-function toggleInSet(set: Set<string>, value: string): Set<string> {
-  const next = new Set(set);
-  if (next.has(value)) {
-    next.delete(value);
-  } else {
-    next.add(value);
-  }
-  return next;
+interface ConditionCounts {
+  weather?: Record<string, number>;
+  lighting?: Record<string, number>;
+  collisionType?: Record<string, number>;
 }
 
-export default function StepConditions() {
-  const [weather, setWeather] = useState<Set<string>>(new Set());
-  const [lighting, setLighting] = useState<Set<string>>(new Set());
-  const [collisionType, setCollisionType] = useState<Set<string>>(new Set());
-  const [roadType, setRoadType] = useState<string | null>(null);
-  const [hitRun, setHitRun] = useState(false);
+interface StepConditionsProps {
+  weather: Set<string>;
+  lighting: Set<string>;
+  collisionType: Set<string>;
+  roadType: string | null;
+  hitRun: boolean;
+  onToggleWeather: (v: string) => void;
+  onClearWeather: () => void;
+  onToggleLighting: (v: string) => void;
+  onClearLighting: () => void;
+  onToggleCollisionType: (v: string) => void;
+  onClearCollisionType: () => void;
+  onSetRoadType: (v: string | null) => void;
+  onToggleHitRun: () => void;
+  conditionCounts?: ConditionCounts;
+}
 
-  const toggleWeather = useCallback((v: string) => {
-    setWeather((prev) => toggleInSet(prev, v));
-  }, []);
+function fmt(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString();
+}
 
-  const toggleLighting = useCallback((v: string) => {
-    setLighting((prev) => toggleInSet(prev, v));
-  }, []);
-
-  const toggleCollisionType = useCallback((v: string) => {
-    setCollisionType((prev) => toggleInSet(prev, v));
-  }, []);
-
-  const toggleRoadType = useCallback((v: string) => {
-    setRoadType((prev) => (prev === v ? null : v));
-  }, []);
-
+export default function StepConditions({
+  weather,
+  lighting,
+  collisionType,
+  roadType,
+  hitRun,
+  onToggleWeather,
+  onClearWeather,
+  onToggleLighting,
+  onClearLighting,
+  onToggleCollisionType,
+  onClearCollisionType,
+  onSetRoadType,
+  onToggleHitRun,
+  conditionCounts,
+}: StepConditionsProps) {
   const allWeather = weather.size === 0;
   const allLighting = lighting.size === 0;
   const allCollisionTypes = collisionType.size === 0;
@@ -78,15 +89,19 @@ export default function StepConditions() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <FilterChip label="All Weather" active={allWeather} onClick={() => setWeather(new Set())} />
-          {WEATHER.map((w) => (
-            <FilterChip
-              key={w.value}
-              label={w.label}
-              active={!allWeather && weather.has(w.value)}
-              onClick={() => toggleWeather(w.value)}
-            />
-          ))}
+          <FilterChip label="All Weather" active={allWeather} onClick={onClearWeather} />
+          {WEATHER.map((w) => {
+            const count = conditionCounts?.weather?.[w.value];
+            return (
+              <FilterChip
+                key={w.value}
+                label={count != null ? `${w.label} (${fmt(count)})` : w.label}
+                active={!allWeather && weather.has(w.value)}
+                onClick={() => onToggleWeather(w.value)}
+                disabled={count === 0}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -99,15 +114,19 @@ export default function StepConditions() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <FilterChip label="All Lighting" active={allLighting} onClick={() => setLighting(new Set())} />
-          {LIGHTING.map((l) => (
-            <FilterChip
-              key={l.value}
-              label={l.label}
-              active={!allLighting && lighting.has(l.value)}
-              onClick={() => toggleLighting(l.value)}
-            />
-          ))}
+          <FilterChip label="All Lighting" active={allLighting} onClick={onClearLighting} />
+          {LIGHTING.map((l) => {
+            const count = conditionCounts?.lighting?.[l.value];
+            return (
+              <FilterChip
+                key={l.value}
+                label={count != null ? `${l.label} (${fmt(count)})` : l.label}
+                active={!allLighting && lighting.has(l.value)}
+                onClick={() => onToggleLighting(l.value)}
+                disabled={count === 0}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -120,15 +139,19 @@ export default function StepConditions() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <FilterChip label="All Types" active={allCollisionTypes} onClick={() => setCollisionType(new Set())} />
-          {COLLISION_TYPES.map((ct) => (
-            <FilterChip
-              key={ct.value}
-              label={ct.label}
-              active={!allCollisionTypes && collisionType.has(ct.value)}
-              onClick={() => toggleCollisionType(ct.value)}
-            />
-          ))}
+          <FilterChip label="All Types" active={allCollisionTypes} onClick={onClearCollisionType} />
+          {COLLISION_TYPES.map((ct) => {
+            const count = conditionCounts?.collisionType?.[ct.value];
+            return (
+              <FilterChip
+                key={ct.value}
+                label={count != null ? `${ct.label} (${fmt(count)})` : ct.label}
+                active={!allCollisionTypes && collisionType.has(ct.value)}
+                onClick={() => onToggleCollisionType(ct.value)}
+                disabled={count === 0}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -141,13 +164,13 @@ export default function StepConditions() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <FilterChip label="All Roads" active={roadType === null} onClick={() => setRoadType(null)} />
+          <FilterChip label="All Roads" active={roadType === null} onClick={() => onSetRoadType(null)} />
           {ROAD_TYPES.map((rt) => (
             <FilterChip
               key={rt.value}
               label={rt.label}
               active={roadType === rt.value}
-              onClick={() => toggleRoadType(rt.value)}
+              onClick={() => onSetRoadType(roadType === rt.value ? null : rt.value)}
             />
           ))}
         </div>
@@ -166,7 +189,7 @@ export default function StepConditions() {
             label="Hit-and-Run Only"
             icon="warning"
             active={hitRun}
-            onClick={() => setHitRun((prev) => !prev)}
+            onClick={onToggleHitRun}
           />
         </div>
       </div>
