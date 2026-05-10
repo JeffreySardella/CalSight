@@ -17,6 +17,7 @@ interface StepWhenProps {
   onSetAllYears: () => void;
   onSetDateRange?: (start: YearMonth | null, end: YearMonth | null) => void;
   yearCounts?: Record<number, number>;
+  loading?: boolean;
 }
 
 function fmtCount(n: number): string {
@@ -25,7 +26,7 @@ function fmtCount(n: number): string {
   return n.toLocaleString();
 }
 
-export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDateRange, yearCounts }: StepWhenProps) {
+export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDateRange, yearCounts, loading }: StepWhenProps) {
   const usingRange = !!staged.dateRange;
   const usingYears = staged.selectedYears.size > 0;
   const allSelected = !usingRange && !usingYears;
@@ -52,6 +53,20 @@ export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDat
       onSetDateRange(s, e);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="h-4 bg-surface-container-high rounded w-40" />
+        <div className="h-3 bg-surface-container-high rounded w-64" />
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 12 }, (_, j) => (
+            <div key={j} className="h-8 bg-surface-container-high rounded-full w-16" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

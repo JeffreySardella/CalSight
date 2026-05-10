@@ -1,8 +1,12 @@
 import type { MeasureKey } from "../../../lib/choropleth/measures";
+import type { StagedFilters } from "../../../hooks/useStagedFilters";
 
 interface StepViewByProps {
   measure: MeasureKey;
   onSetMeasure: (m: MeasureKey) => void;
+  staged?: StagedFilters;
+  crashCount?: number | null;
+  crashCountLoading?: boolean;
 }
 
 const MEASURE_LIST: { key: MeasureKey; label: string; description: string; group?: string }[] = [
@@ -22,6 +26,11 @@ const MEASURE_LIST: { key: MeasureKey; label: string; description: string; group
   { key: "pollution_burden", label: "Pollution Burden", description: "CalEnviroScreen pollution burden score", group: "Environmental" },
   { key: "traffic_score", label: "Traffic Proximity", description: "CalEnviroScreen traffic proximity and volume score", group: "Environmental" },
   { key: "unemployment_rate", label: "Unemployment Rate", description: "Average unemployment rate across selected period", group: "Economic" },
+];
+
+const CRASH_MEASURES: MeasureKey[] = [
+  "crashes_raw", "crashes_per_100k", "fatalities_per_100k", "injuries_per_100k",
+  "fatality_rate", "crashes_per_income", "crashes_per_poverty",
 ];
 
 const DEMO_MEASURES: MeasureKey[] = [
@@ -54,7 +63,98 @@ function demoInfoText(m: MeasureKey): string {
   return "Population data available 2005-2023. Earlier years show as hatched.";
 }
 
-export default function StepViewBy({ measure, onSetMeasure }: StepViewByProps) {
+function fmt(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString();
+}
+
+function getSelectedYearRange(staged?: StagedFilters): { min: number; max: number } | null {
+  if (!staged) return null;
+  if (staged.dateRange) {
+    return {
+      min: staged.dateRange.start?.year ?? 2001,
+      max: staged.dateRange.end?.year ?? new Date().getFullYear(),
+    };
+  }
+  if (staged.selectedYears.size > 0) {
+    const years = [...staged.selectedYears];
+    return { min: Math.min(...years), max: Math.max(...years) };
+  }
+  return null;
+}
+
+function hasDemoOverlap(range: { min: number; max: number } | null): boolean {
+  if (!range) return true;
+  return range.max >= 2005 && range.min <= 2023;
+}
+
+function isMeasureAvailable(key: MeasureKey, staged?: StagedFilters, crashCount?: number | null): { available: boolean; reason?: string } {
+  const range = getSelectedYearRange(staged);
+
+  if (PER_CAPITA_MEASURES.includes(key) || DEMO_MEASURES.includes(key)) {
+    if (!hasDemoOverlap(range)) {
+      return { available: false, reason: "No demographics data for selected years (available 2005–2023)" };
+    }
+  }
+
+  if (key === "unemployment_rate") {
+    if (range && range.max < 2005) {
+      return { available: false, reason: "Unemployment data starts at 2005" };
+    }
+  }
+
+  if (CRASH_MEASURES.includes(key) && crashCount != null && crashCount === 0) {
+    return { available: false, reason: "No crashes match current filters" };
+  }
+
+  const hasCrashFilters = staged && (
+    staged.severities.size > 0 || staged.causes.size > 0
+    || staged.alcohol || staged.distracted || staged.pedestrian
+    || staged.cyclist || staged.drug || staged.driverAge !== null
+    || staged.weather.size > 0 || staged.lighting.size > 0
+    || staged.collisionType.size > 0 || staged.roadType !== null
+    || staged.hitRun
+  );
+
+  const isPureDemoOrContext = (DEMO_MEASURES.includes(key) || CONTEXT_MEASURES.includes(key))
+    && !CRASH_MEASURES.includes(key);
+
+  if (hasCrashFilters && isPureDemoOrContext) {
+    return { available: false, reason: "Not relevant with crash filters active" };
+  }
+
+  return { available: true };
+}
+
+function getMeasureSubtext(key: MeasureKey, m: { description: string }, available: boolean, reason: string | undefined, crashCount: number | null | undefined, staged?: StagedFilters): string {
+  if (!available) return reason ?? "";
+
+  const range = getSelectedYearRange(staged);
+
+  if (CRASH_MEASURES.includes(key) && crashCount != null) {
+    const base = `${fmt(crashCount)} crashes`;
+    if ((PER_CAPITA_MEASURES.includes(key) || DEMO_MEASURES.includes(key)) && range && !hasDemoOverlap(range)) {
+      return base;
+    }
+    if (PER_CAPITA_MEASURES.includes(key) || DEMO_MEASURES.includes(key)) {
+      return `${base} · 58 counties with demographics`;
+    }
+    return base;
+  }
+
+  if (DEMO_MEASURES.includes(key) && !CRASH_MEASURES.includes(key)) {
+    return "58 counties · Census ACS data";
+  }
+
+  if (CONTEXT_MEASURES.includes(key)) {
+    return key === "unemployment_rate" ? "58 counties · EDD data" : "58 counties · CalEnviroScreen";
+  }
+
+  return m.description;
+}
+
+export default function StepViewBy({ measure, onSetMeasure, staged, crashCount, crashCountLoading }: StepViewByProps) {
   return (
     <div className="space-y-4">
       <div>
@@ -65,34 +165,49 @@ export default function StepViewBy({ measure, onSetMeasure }: StepViewByProps) {
       </div>
 
       <div className="space-y-2">
-        {MEASURE_LIST.map((m, i) => {
-          const prevGroup = i > 0 ? MEASURE_LIST[i - 1].group : undefined;
-          const showHeader = m.group && m.group !== prevGroup;
-          return (
-            <div key={m.key}>
-              {showHeader && (
-                <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mt-3 mb-1">
-                  {m.group}
-                </p>
-              )}
-              <button
-                onClick={() => onSetMeasure(m.key)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-all ${
-                  measure === m.key
-                    ? "bg-primary text-on-primary"
-                    : "bg-surface-container-high text-on-surface hover:bg-surface-variant"
-                }`}
-              >
-                <p className="text-sm font-semibold">{m.label}</p>
-                <p className={`text-[10px] mt-0.5 ${
-                  measure === m.key ? "text-on-primary/80" : "text-on-surface-variant"
-                }`}>
-                  {m.description}
-                </p>
-              </button>
-            </div>
-          );
-        })}
+        {(() => {
+          const visible = MEASURE_LIST.filter((m) => isMeasureAvailable(m.key, staged, crashCount).available);
+          const visibleGroups = new Set(visible.map((m) => m.group));
+          let lastGroup: string | undefined;
+
+          return visible.map((m) => {
+            const showHeader = m.group && m.group !== lastGroup && visibleGroups.has(m.group);
+            if (m.group) lastGroup = m.group;
+            const subtext = getMeasureSubtext(m.key, m, true, undefined, crashCount, staged);
+            return (
+              <div key={m.key}>
+                {showHeader && (
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mt-3 mb-1">
+                    {m.group}
+                  </p>
+                )}
+                <button
+                  onClick={() => onSetMeasure(m.key)}
+                  className={`w-full text-left px-4 py-3 rounded-xl transition-all ${
+                    measure === m.key
+                      ? "bg-primary text-on-primary"
+                      : "bg-surface-container-high text-on-surface hover:bg-surface-variant"
+                  }`}
+                >
+                  <p className="text-sm font-semibold">
+                    {m.label}
+                    {CRASH_MEASURES.includes(m.key) && crashCount != null && !crashCountLoading && (
+                      <span className="text-xs font-normal ml-2 opacity-70">({fmt(crashCount)})</span>
+                    )}
+                    {CRASH_MEASURES.includes(m.key) && crashCountLoading && (
+                      <span className="text-xs font-normal ml-2 opacity-50 animate-pulse">…</span>
+                    )}
+                  </p>
+                  <p className={`text-[10px] mt-0.5 ${
+                    measure === m.key ? "text-on-primary/80" : "text-on-surface-variant"
+                  }`}>
+                    {subtext}
+                  </p>
+                </button>
+              </div>
+            );
+          });
+        })()}
       </div>
 
       {needsDemoInfo(measure) && (

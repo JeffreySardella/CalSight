@@ -30,6 +30,11 @@ export type ChoroplethFilters = {
   cyclist?: boolean;
   drug?: boolean;
   driverAge?: string | null;
+  weather?: string[];
+  lighting?: string[];
+  collisionType?: string[];
+  roadType?: string | null;
+  hitRun?: boolean;
 };
 
 export type ChoroplethPoint = MeasureResult & {
@@ -74,6 +79,11 @@ function normalizeFilters(filters: ChoroplethFilters): ChoroplethFilters {
     cyclist: filters.cyclist,
     drug: filters.drug,
     driverAge: filters.driverAge,
+    weather: filters.weather,
+    lighting: filters.lighting,
+    collisionType: filters.collisionType,
+    roadType: filters.roadType,
+    hitRun: filters.hitRun,
   };
 }
 
@@ -94,6 +104,11 @@ function appendInvolvement(p: URLSearchParams, filters: ChoroplethFilters) {
   if (filters.cyclist) p.set("cyclist", "true");
   if (filters.drug) p.set("drug", "true");
   if (filters.driverAge) p.set("driver_age", filters.driverAge);
+  if (filters.weather?.length) p.set("weather", filters.weather.join(","));
+  if (filters.lighting?.length) p.set("lighting", filters.lighting.join(","));
+  if (filters.collisionType?.length) p.set("collision_type", filters.collisionType.join(","));
+  if (filters.roadType) p.set("road_type", filters.roadType);
+  if (filters.hitRun) p.set("hit_run", "true");
 }
 
 function buildStatsUrl(filters: ChoroplethFilters): string {

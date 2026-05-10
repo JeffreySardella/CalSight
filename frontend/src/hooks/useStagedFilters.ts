@@ -12,6 +12,11 @@ export interface StagedFilters {
   cyclist: boolean;
   drug: boolean;
   driverAge: string | null;
+  weather: Set<string>;
+  lighting: Set<string>;
+  collisionType: Set<string>;
+  roadType: string | null;
+  hitRun: boolean;
 }
 
 const EMPTY: StagedFilters = {
@@ -25,6 +30,11 @@ const EMPTY: StagedFilters = {
   cyclist: false,
   drug: false,
   driverAge: null,
+  weather: new Set(),
+  lighting: new Set(),
+  collisionType: new Set(),
+  roadType: null,
+  hitRun: false,
 };
 
 export function useStagedFilters(initial: StagedFilters) {
@@ -92,6 +102,53 @@ export function useStagedFilters(initial: StagedFilters) {
     setStaged((prev) => ({ ...prev, driverAge: bracket }));
   }, []);
 
+  const toggleWeather = useCallback((v: string) => {
+    setStaged((prev) => {
+      const next = new Set(prev.weather);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return { ...prev, weather: next };
+    });
+  }, []);
+
+  const clearWeather = useCallback(() => {
+    setStaged((prev) => ({ ...prev, weather: new Set() }));
+  }, []);
+
+  const toggleLighting = useCallback((v: string) => {
+    setStaged((prev) => {
+      const next = new Set(prev.lighting);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return { ...prev, lighting: next };
+    });
+  }, []);
+
+  const clearLighting = useCallback(() => {
+    setStaged((prev) => ({ ...prev, lighting: new Set() }));
+  }, []);
+
+  const toggleCollisionType = useCallback((v: string) => {
+    setStaged((prev) => {
+      const next = new Set(prev.collisionType);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return { ...prev, collisionType: next };
+    });
+  }, []);
+
+  const clearCollisionType = useCallback(() => {
+    setStaged((prev) => ({ ...prev, collisionType: new Set() }));
+  }, []);
+
+  const setRoadType = useCallback((v: string | null) => {
+    setStaged((prev) => ({ ...prev, roadType: v }));
+  }, []);
+
+  const toggleHitRun = useCallback(() => {
+    setStaged((prev) => ({ ...prev, hitRun: !prev.hitRun }));
+  }, []);
+
   const clearAll = useCallback(() => {
     setStaged(EMPTY);
   }, []);
@@ -105,7 +162,10 @@ export function useStagedFilters(initial: StagedFilters) {
     || staged.severities.size > 0
     || staged.causes.size > 0
     || staged.alcohol || staged.distracted || staged.pedestrian
-    || staged.cyclist || staged.drug || staged.driverAge !== null;
+    || staged.cyclist || staged.drug || staged.driverAge !== null
+    || staged.weather.size > 0 || staged.lighting.size > 0
+    || staged.collisionType.size > 0 || staged.roadType !== null
+    || staged.hitRun;
 
   const has2016Plus = (() => {
     if (staged.dateRange) {
@@ -127,6 +187,14 @@ export function useStagedFilters(initial: StagedFilters) {
     toggleInvolvement,
     setDateRange,
     setDriverAge,
+    toggleWeather,
+    clearWeather,
+    toggleLighting,
+    clearLighting,
+    toggleCollisionType,
+    clearCollisionType,
+    setRoadType,
+    toggleHitRun,
     clearAll,
     reset,
     hasAnyFilter,

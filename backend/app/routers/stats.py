@@ -11,10 +11,15 @@ from app.filters import (
     build_crash_predicates,
     parse_bool_flag,
     parse_cause,
+    parse_collision_type,
     parse_county_codes,
     parse_date_range,
     parse_driver_age,
+    parse_hit_run,
+    parse_lighting,
+    parse_road_type,
     parse_severity,
+    parse_weather,
     parse_year,
     years_from_date_range,
 )
@@ -169,9 +174,14 @@ def stats(
     cyclist: str | None = Query(None),
     drug: str | None = Query(None),
     driver_age: str | None = Query(None),
+    weather: str | None = Query(None),
+    lighting: str | None = Query(None),
+    collision_type: str | None = Query(None),
+    road_type: str | None = Query(None),
+    hit_run: str | None = Query(None),
     group_by: str | None = Query(
         None,
-        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|rate)$",
+        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|rate|weather|lighting|collision_type)$",
     ),
     db: Session = Depends(get_db),
 ):
@@ -206,8 +216,17 @@ def stats(
     cyclist_v = parse_bool_flag(cyclist, "cyclist")
     drug_v = parse_bool_flag(drug, "drug")
     driver_age_v = parse_driver_age(driver_age)
+    weather_v = parse_weather(weather)
+    lighting_v = parse_lighting(lighting)
+    collision_type_v = parse_collision_type(collision_type)
+    road_type_v = parse_road_type(road_type)
+    hit_run_v = parse_hit_run(hit_run)
 
-    has_involvement = any(v is not None for v in [alcohol_v, distracted_v, pedestrian_v, cyclist_v, drug_v, driver_age_v])
+    has_involvement = any(v is not None for v in [
+        alcohol_v, distracted_v, pedestrian_v, cyclist_v, drug_v, driver_age_v,
+        weather_v, lighting_v, collision_type_v, road_type_v, hit_run_v,
+    ])
+    has_condition_group = group_by in ("weather", "lighting", "collision_type")
 
     date_range = parse_date_range(start, end)
     years = years_from_date_range(date_range) if date_range is not None else parse_year(year)
@@ -227,6 +246,11 @@ def stats(
             cyclist=cyclist_v,
             drug=drug_v,
             driver_age=driver_age_v,
+            weather=weather_v,
+            lighting=lighting_v,
+            collision_type=collision_type_v,
+            road_type=road_type_v,
+            hit_run=hit_run_v,
         )
 
     if has_involvement and group_by in ("gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket"):
@@ -245,9 +269,10 @@ def stats(
 
     view = _pick_view(group_by, has_cause_filter=bool(causes))
 
-    # When involvement/age filters are active, query the raw crashes table
-    # instead of materialized views (which don't carry those columns).
-    if has_involvement:
+    # When involvement/age/condition filters are active, or grouping by
+    # condition columns, query the raw crashes table instead of materialized
+    # views (which don't carry those columns).
+    if has_involvement or has_condition_group:
         preds = _raw_preds()
 
         def _raw_query(stmt):
@@ -357,6 +382,42 @@ def stats(
             )
             rows = db.execute(stmt).all()
             return [SeverityRow(severity=r.severity, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
+
+        if group_by == "weather":
+            stmt = _raw_query(
+                select(
+                    func.coalesce(Crash.canonical_weather, "unknown").label("value"),
+                    func.count().label("crash_count"),
+                )
+                .group_by(Crash.canonical_weather)
+                .order_by(func.count().desc())
+            )
+            rows = db.execute(stmt).all()
+            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
+
+        if group_by == "lighting":
+            stmt = _raw_query(
+                select(
+                    func.coalesce(Crash.canonical_lighting, "unknown").label("value"),
+                    func.count().label("crash_count"),
+                )
+                .group_by(Crash.canonical_lighting)
+                .order_by(func.count().desc())
+            )
+            rows = db.execute(stmt).all()
+            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
+
+        if group_by == "collision_type":
+            stmt = _raw_query(
+                select(
+                    func.coalesce(Crash.canonical_collision_type, "unknown").label("value"),
+                    func.count().label("crash_count"),
+                )
+                .group_by(Crash.canonical_collision_type)
+                .order_by(func.count().desc())
+            )
+            rows = db.execute(stmt).all()
+            return [{"value": r.value, "crash_count": r.crash_count} for r in rows]
 
         if group_by == "rate":
             raise FilterError("involvement", "Involvement filters are not supported with group_by=rate.")

@@ -223,11 +223,17 @@ export function parseBoolFlag(param: string | null): boolean {
   return param === "true";
 }
 
+export function parseSetParam(param: string | null): Set<string> {
+  if (!param) return new Set<string>();
+  return new Set(param.split(",").map((s) => s.trim()).filter(Boolean));
+}
+
 // ── Shared utilities ──
 
 const FILTER_KEYS = [
   "start", "end", "year", "severity", "county", "cause",
   "alcohol", "distracted", "pedestrian", "cyclist", "drug", "driver_age",
+  "weather", "lighting", "collision_type", "road_type", "hit_run",
 ] as const;
 
 export function buildFilterQS(searchParams: URLSearchParams): string {
@@ -262,6 +268,11 @@ export function useFilterParams() {
   const cyclistParam = searchParams.get("cyclist");
   const drugParam = searchParams.get("drug");
   const driverAgeParam = searchParams.get("driver_age");
+  const weatherParam = searchParams.get("weather");
+  const lightingParam = searchParams.get("lighting");
+  const collisionTypeParam = searchParams.get("collision_type");
+  const roadTypeParam = searchParams.get("road_type");
+  const hitRunParam = searchParams.get("hit_run");
   const panel = searchParams.get("panel");
 
   const selectedDateRange = useMemo<DateRangeFilter | null>(() => {
@@ -285,6 +296,11 @@ export function useFilterParams() {
   const selectedCyclist = useMemo(() => parseBoolFlag(cyclistParam), [cyclistParam]);
   const selectedDrug = useMemo(() => parseBoolFlag(drugParam), [drugParam]);
   const selectedDriverAge = useMemo(() => driverAgeParam ?? null, [driverAgeParam]);
+  const selectedWeather = useMemo(() => parseSetParam(weatherParam), [weatherParam]);
+  const selectedLighting = useMemo(() => parseSetParam(lightingParam), [lightingParam]);
+  const selectedCollisionType = useMemo(() => parseSetParam(collisionTypeParam), [collisionTypeParam]);
+  const selectedRoadType = useMemo(() => roadTypeParam ?? null, [roadTypeParam]);
+  const selectedHitRun = useMemo(() => parseBoolFlag(hitRunParam), [hitRunParam]);
 
   // ── Action callbacks ──
 
@@ -454,6 +470,11 @@ export function useFilterParams() {
       params.delete("cyclist");
       params.delete("drug");
       params.delete("driver_age");
+      params.delete("weather");
+      params.delete("lighting");
+      params.delete("collision_type");
+      params.delete("road_type");
+      params.delete("hit_run");
       return params;
     }, { replace: true });
   }, [setSearchParams]);
@@ -469,6 +490,11 @@ export function useFilterParams() {
     cyclist?: boolean;
     drug?: boolean;
     driverAge?: string | null;
+    weather?: Set<string>;
+    lighting?: Set<string>;
+    collisionType?: Set<string>;
+    roadType?: string | null;
+    hitRun?: boolean;
   }) => {
     setSearchParams((prev) => {
       const params = buildNextParams(prev, {
@@ -480,6 +506,11 @@ export function useFilterParams() {
         cyclist: overrides.cyclist ?? false,
         drug: overrides.drug ?? false,
         driverAge: overrides.driverAge ?? null,
+        weather: overrides.weather ?? new Set(),
+        lighting: overrides.lighting ?? new Set(),
+        collisionType: overrides.collisionType ?? new Set(),
+        roadType: overrides.roadType ?? null,
+        hitRun: overrides.hitRun ?? false,
       });
       if (overrides.start) {
         params.set("start", formatYearMonth(overrides.start));
@@ -515,6 +546,11 @@ export function useFilterParams() {
     selectedCyclist,
     selectedDrug,
     selectedDriverAge,
+    selectedWeather,
+    selectedLighting,
+    selectedCollisionType,
+    selectedRoadType,
+    selectedHitRun,
     setDateRange,
     clearDateRange,
     toggleSeverity,
@@ -553,6 +589,11 @@ type ParamOverrides = {
   cyclist?: boolean;
   drug?: boolean;
   driverAge?: string | null;
+  weather?: Set<string>;
+  lighting?: Set<string>;
+  collisionType?: Set<string>;
+  roadType?: string | null;
+  hitRun?: boolean;
 };
 
 function buildNextParams(
@@ -605,6 +646,26 @@ function buildNextParams(
   if ("driverAge" in overrides) {
     if (overrides.driverAge) params.set("driver_age", overrides.driverAge);
     else params.delete("driver_age");
+  }
+  if ("weather" in overrides) {
+    if (overrides.weather && overrides.weather.size > 0) params.set("weather", [...overrides.weather].sort().join(","));
+    else params.delete("weather");
+  }
+  if ("lighting" in overrides) {
+    if (overrides.lighting && overrides.lighting.size > 0) params.set("lighting", [...overrides.lighting].sort().join(","));
+    else params.delete("lighting");
+  }
+  if ("collisionType" in overrides) {
+    if (overrides.collisionType && overrides.collisionType.size > 0) params.set("collision_type", [...overrides.collisionType].sort().join(","));
+    else params.delete("collision_type");
+  }
+  if ("roadType" in overrides) {
+    if (overrides.roadType) params.set("road_type", overrides.roadType);
+    else params.delete("road_type");
+  }
+  if ("hitRun" in overrides) {
+    if (overrides.hitRun) params.set("hit_run", "true");
+    else params.delete("hit_run");
   }
 
   return params;
