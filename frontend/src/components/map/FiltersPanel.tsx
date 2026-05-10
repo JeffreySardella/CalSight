@@ -76,13 +76,11 @@ export default function FiltersPanel({
   onSetDateRange,
   onClearDateRange,
   onToggleSeverity,
-  onSetSeverities,
   onSetAllSeverities,
   onClearSeverities,
   onToggleCounty,
   onClearCounties,
   onToggleCause,
-  onSetCauses,
   onSetAllCauses,
   onClearCauses,
   onToggleAlcohol,
@@ -93,36 +91,8 @@ export default function FiltersPanel({
   onSetDriverAge,
   resetKey = 0,
 }: FiltersPanelProps) {
-  // Stash previous selections so "All" toggle can restore them
-  const [prevCauses, setPrevCauses] = useState<Set<string> | null>(null);
-  const [prevSeverities, setPrevSeverities] = useState<Set<string> | null>(null);
-
-  const allCausesSelected = selectedCauses.size === CAUSES.length;
-  const allSeveritiesSelected = selectedSeverities.size === SEVERITIES.length;
-
-  function makeAllToggle<T>(
-    allSelected: boolean,
-    current: Set<T>,
-    prev: Set<T> | null,
-    setPrev: (s: Set<T> | null) => void,
-    setAll: (() => void) | undefined,
-    clear: (() => void) | undefined,
-    restore: ((s: Set<T>) => void) | undefined,
-  ) {
-    return () => {
-      if (allSelected) {
-        if (prev && prev.size > 0 && restore) {
-          restore(prev);
-        } else if (clear) {
-          clear();
-        }
-        setPrev(null);
-      } else {
-        setPrev(new Set(current));
-        setAll?.();
-      }
-    };
-  }
+  const allCausesSelected = selectedCauses.size === 0 || selectedCauses.size === CAUSES.length;
+  const allSeveritiesSelected = selectedSeverities.size === 0 || selectedSeverities.size === SEVERITIES.length;
 
   // Date range — derive partial values so changing year/month either side
   // independently still produces a valid range.
@@ -207,22 +177,39 @@ export default function FiltersPanel({
       {/* Cause Type */}
       <div className="space-y-3">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          Cause Type
+          Cause <span className="normal-case font-medium">(why it happened)</span>
         </label>
+        <p className="text-[10px] text-on-surface-variant leading-snug -mt-1">
+          The primary factor that caused the crash. Available for all years.
+        </p>
         <div className="flex flex-wrap gap-2">
           {onSetAllCauses && onClearCauses && (
             <button
-              onClick={makeAllToggle(allCausesSelected, selectedCauses, prevCauses, setPrevCauses, onSetAllCauses, onClearCauses, onSetCauses)}
+              onClick={() => {
+                if (allCausesSelected) return;
+                onClearCauses();
+              }}
               className={allCausesSelected ? PILL_ACTIVE : PILL_INACTIVE}
             >
               All
             </button>
           )}
-          {!allCausesSelected && CAUSES.map((cause) => (
+          {CAUSES.map((cause) => (
             <button
               key={cause.value}
-              onClick={() => onToggleCause(cause.value)}
-              className={`flex items-center gap-1.5 ${selectedCauses.has(cause.value) ? PILL_ACTIVE : PILL_INACTIVE}`}
+              onClick={() => {
+                if (allCausesSelected && selectedCauses.size === 0) {
+                  onSetAllCauses?.();
+                  setTimeout(() => onToggleCause(cause.value), 0);
+                } else {
+                  onToggleCause(cause.value);
+                }
+              }}
+              className={`flex items-center gap-1.5 ${
+                allCausesSelected
+                  ? PILL_INACTIVE
+                  : selectedCauses.has(cause.value) ? PILL_ACTIVE : PILL_INACTIVE
+              }`}
             >
               <span className="material-symbols-outlined text-[14px]">
                 {cause.icon}
@@ -238,27 +225,36 @@ export default function FiltersPanel({
         <label className="text-[10px] font-bold uppercase tracking-widest">
           Severity
         </label>
+        <p className="text-[10px] text-on-surface-variant leading-snug -mt-1">
+          How severe was the crash outcome.
+        </p>
         <div className="flex flex-wrap gap-2">
           {onSetAllSeverities && onClearSeverities && (
             <button
-              onClick={makeAllToggle(allSeveritiesSelected, selectedSeverities, prevSeverities, setPrevSeverities, onSetAllSeverities, onClearSeverities, onSetSeverities)}
-              className={
-                allSeveritiesSelected
-                  ? PILL_ACTIVE
-                  : PILL_INACTIVE
-              }
+              onClick={() => {
+                if (allSeveritiesSelected) return;
+                onClearSeverities();
+              }}
+              className={allSeveritiesSelected ? PILL_ACTIVE : PILL_INACTIVE}
             >
               All
             </button>
           )}
-          {!allSeveritiesSelected && SEVERITIES.map((severity) => (
+          {SEVERITIES.map((severity) => (
             <button
               key={severity}
-              onClick={() => onToggleSeverity(severity)}
+              onClick={() => {
+                if (allSeveritiesSelected && selectedSeverities.size === 0) {
+                  onSetAllSeverities?.();
+                  setTimeout(() => onToggleSeverity(severity), 0);
+                } else {
+                  onToggleSeverity(severity);
+                }
+              }}
               className={
-                selectedSeverities.has(severity)
-                  ? PILL_ACTIVE
-                  : PILL_INACTIVE
+                allSeveritiesSelected
+                  ? PILL_INACTIVE
+                  : selectedSeverities.has(severity) ? PILL_ACTIVE : PILL_INACTIVE
               }
             >
               {severity}
@@ -270,8 +266,11 @@ export default function FiltersPanel({
       {/* Involvement Type */}
       <div className="space-y-3">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          Involvement
+          Involvement <span className="normal-case font-medium">(who was involved, 2016+)</span>
         </label>
+        <p className="text-[10px] text-on-surface-variant leading-snug -mt-1">
+          Whether a specific party type was present, regardless of fault. Only available for 2016+ crashes.
+        </p>
         <div className="flex flex-wrap gap-2">
           {INVOLVEMENTS.map((inv) => {
             const isActive =
@@ -306,8 +305,11 @@ export default function FiltersPanel({
       {/* Driver Age */}
       <div className="space-y-3">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-          At-Fault Driver Age
+          At-Fault Driver Age <span className="normal-case font-medium">(2016+)</span>
         </label>
+        <p className="text-[10px] text-on-surface-variant leading-snug -mt-1">
+          Age of the driver determined to be at fault. Select one bracket at a time.
+        </p>
         <div className="flex flex-wrap gap-2">
           {DRIVER_AGE_BRACKETS.map((bracket) => (
             <button

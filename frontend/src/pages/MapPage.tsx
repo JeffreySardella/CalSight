@@ -11,9 +11,8 @@ import { MEASURES } from "../lib/choropleth/measures";
 import KeyboardHelpModal from "../components/map/KeyboardHelpModal";
 import IconRail from "../components/map/IconRail";
 import SidePanel from "../components/map/SidePanel";
-import FiltersPanel, {
-  FiltersPanelFooter,
-} from "../components/map/FiltersPanel";
+import FilterPanelRouter from "../components/map/filters/FilterPanelRouter";
+import type { StagedFilters } from "../hooks/useStagedFilters";
 import LayersPanel, {
   LayersPanelFooter,
 } from "../components/map/LayersPanel";
@@ -30,6 +29,9 @@ import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
 import { useRandomInsight } from "../hooks/useRandomInsight";
+import ActiveFiltersBanner from "../components/map/ActiveFiltersBanner";
+import { usePrefetchFacets } from "../hooks/usePrefetchFacets";
+import FilteredUrlPrompt from "../components/map/FilteredUrlPrompt";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -73,26 +75,16 @@ function MapPageInner() {
     selectedCyclist,
     selectedDrug,
     selectedDriverAge,
-    setDateRange,
-    clearDateRange,
-    toggleSeverity,
     toggleCounty,
     setCounty,
     clearCounties,
-    toggleCause,
-    setCauses,
-    setAllCauses,
     clearCauses,
-    setSeverities,
-    setAllSeverities,
     clearSeverities,
     toggleAlcohol,
-    toggleDistracted,
     togglePedestrian,
-    toggleCyclist,
-    toggleDrug,
     setDriverAge,
     clearFilters,
+    setAllFilters,
     panel: panelParam,
     clearPanel,
   } = useFilterParams();
@@ -101,16 +93,25 @@ function MapPageInner() {
   const [showInsight, setShowInsight] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [mobileSearchExpanded, setMobileSearchExpanded] = useState(false);
-  const [resetKey, setResetKey] = useState(0);
   const [focusedCounty, setFocusedCounty] = useState<string | null>(null);
   const [compareCounty, setCompareCounty] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [insightCounty, setInsightCounty] = useState("Fresno");
   const [showStatewide, setShowStatewide] = useState(true);
+  const [showFilterPrompt, setShowFilterPrompt] = useState(() => {
+    if (sessionStorage.getItem("calsight-filter-prompt-dismissed")) return false;
+    const hasFilters = selectedDateRange !== null
+      || selectedSeverities.size > 0
+      || selectedCauses.size > 0
+      || selectedAlcohol || selectedDistracted || selectedPedestrian
+      || selectedCyclist || selectedDrug || selectedDriverAge !== null;
+    return hasFilters;
+  });
   const mapRef = useRef<LeafletMap | null>(null);
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
+  usePrefetchFacets();
 
   const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
 
@@ -270,7 +271,6 @@ function MapPageInner() {
 
   function handleClearAll() {
     clearFilters();
-    setResetKey((k) => k + 1);
   }
 
   const handleCloseOverlay = useCallback(() => {
@@ -314,42 +314,62 @@ function MapPageInner() {
 
   const meta = activePanel ? PANEL_META[activePanel] : null;
 
-  const filtersPanelProps = {
-    selectedDateRange,
-    selectedSeverities,
-    selectedCounties,
-    selectedCauses,
-    selectedAlcohol,
-    selectedDistracted,
-    selectedPedestrian,
-    selectedCyclist,
-    selectedDrug,
-    selectedDriverAge,
-    onSetDateRange: setDateRange,
-    onClearDateRange: clearDateRange,
-    onToggleSeverity: toggleSeverity,
-    onSetSeverities: setSeverities,
-    onSetAllSeverities: setAllSeverities,
-    onClearSeverities: clearSeverities,
-    onToggleCounty: toggleCounty,
-    onClearCounties: clearCounties,
-    onToggleCause: toggleCause,
-    onSetCauses: setCauses,
-    onSetAllCauses: setAllCauses,
-    onClearCauses: clearCauses,
-    onToggleAlcohol: toggleAlcohol,
-    onToggleDistracted: toggleDistracted,
-    onTogglePedestrian: togglePedestrian,
-    onToggleCyclist: toggleCyclist,
-    onToggleDrug: toggleDrug,
-    onSetDriverAge: setDriverAge,
-    resetKey,
-  };
+  const initialStagedFilters: StagedFilters = useMemo(() => ({
+    selectedYears: new Set(selectedYears),
+    dateRange: selectedDateRange,
+    severities: new Set(selectedSeverities),
+    causes: new Set(selectedCauses),
+    alcohol: selectedAlcohol,
+    distracted: selectedDistracted,
+    pedestrian: selectedPedestrian,
+    cyclist: selectedCyclist,
+    drug: selectedDrug,
+    driverAge: selectedDriverAge,
+  }), [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedYears]);
+
+  const handleApplyFilters = useCallback((filters: StagedFilters) => {
+    let start: { year: number; month: number } | null = null;
+    let end: { year: number; month: number } | null = null;
+
+    if (filters.dateRange) {
+      start = filters.dateRange.start;
+      end = filters.dateRange.end;
+    } else if (filters.selectedYears.size > 0) {
+      const years = [...filters.selectedYears].sort();
+      start = { year: years[0], month: 1 };
+      end = { year: years[years.length - 1], month: 12 };
+    }
+
+    setAllFilters({
+      start,
+      end,
+      severities: filters.severities,
+      causes: filters.causes,
+      alcohol: filters.alcohol,
+      distracted: filters.distracted,
+      pedestrian: filters.pedestrian,
+      cyclist: filters.cyclist,
+      drug: filters.drug,
+      driverAge: filters.driverAge,
+    });
+
+    setShowMobileFilters(false);
+    setActivePanel(null);
+  }, [setAllFilters]);
 
   function renderPanelContent() {
     switch (activePanel) {
       case "filters":
-        return <FiltersPanel {...filtersPanelProps} />;
+        return (
+          <FilterPanelRouter
+            initial={initialStagedFilters}
+            selectedCounties={selectedCounties}
+            onToggleCounty={toggleCounty}
+            onClearCounties={clearCounties}
+            onApply={handleApplyFilters}
+            onClear={handleClearAll}
+          />
+        );
       case "layers":
         return <LayersPanel />;
       case "export":
@@ -361,8 +381,6 @@ function MapPageInner() {
 
   function renderPanelFooter() {
     switch (activePanel) {
-      case "filters":
-        return <FiltersPanelFooter onClear={handleClearAll} />;
       case "layers":
         return <LayersPanelFooter />;
       case "export":
@@ -380,7 +398,7 @@ function MapPageInner() {
         <IconRail activePanel={activePanel} onPanelToggle={handleToggle} />
         <div
           className="transition-all duration-300 overflow-hidden"
-          style={{ width: activePanel && meta ? 300 : 0 }}
+          style={{ width: activePanel && meta ? (activePanel === "filters" ? 400 : 300) : 0 }}
         >
           {activePanel && meta && (
             <SidePanel
@@ -440,17 +458,63 @@ function MapPageInner() {
           />
         )}
 
+        <ActiveFiltersBanner
+          dateRange={selectedDateRange}
+          severities={selectedSeverities}
+          causes={selectedCauses}
+          alcohol={selectedAlcohol}
+          distracted={selectedDistracted}
+          pedestrian={selectedPedestrian}
+          cyclist={selectedCyclist}
+          drug={selectedDrug}
+          driverAge={selectedDriverAge}
+          totalCrashes={choroplethData.dataSummary.totalCrashes}
+          isLoading={choroplethData.isLoading}
+          onClear={handleClearAll}
+          searchOpen={mobileSearchExpanded}
+        />
+
         {!choroplethData.isLoading
           && !choroplethData.isError
           && choroplethData.dataSummary.totalCrashes === 0
           && (
           <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none p-4">
-            <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-xl px-6 py-5 ambient-shadow pointer-events-auto max-w-xs">
+            <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-xl px-6 py-5 ambient-shadow pointer-events-auto max-w-sm space-y-4">
               <EmptyState
                 icon="filter_list_off"
                 title="No matching crashes"
-                description="Adjust your filters to see data on the map."
+                description="Your filters are too restrictive. Try removing some:"
               />
+              <div className="flex flex-wrap gap-2 justify-center">
+                {selectedSeverities.size > 0 && (
+                  <button onClick={clearSeverities} className="text-[11px] font-semibold bg-primary-container text-on-primary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
+                    {[...selectedSeverities].join(", ")} <span className="text-[10px]">×</span>
+                  </button>
+                )}
+                {selectedCauses.size > 0 && (
+                  <button onClick={() => clearCauses()} className="text-[11px] font-semibold bg-primary-container text-on-primary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
+                    {selectedCauses.size} causes <span className="text-[10px]">×</span>
+                  </button>
+                )}
+                {selectedAlcohol && (
+                  <button onClick={toggleAlcohol} className="text-[11px] font-semibold bg-tertiary-container text-on-tertiary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
+                    Alcohol <span className="text-[10px]">×</span>
+                  </button>
+                )}
+                {selectedPedestrian && (
+                  <button onClick={togglePedestrian} className="text-[11px] font-semibold bg-tertiary-container text-on-tertiary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
+                    Pedestrian <span className="text-[10px]">×</span>
+                  </button>
+                )}
+                {selectedDriverAge && (
+                  <button onClick={() => setDriverAge(null)} className="text-[11px] font-semibold bg-tertiary-container text-on-tertiary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
+                    Age {selectedDriverAge} <span className="text-[10px]">×</span>
+                  </button>
+                )}
+              </div>
+              <button onClick={handleClearAll} className="w-full text-sm font-semibold text-primary hover:underline">
+                Clear All Filters
+              </button>
             </div>
           </div>
         )}
@@ -559,8 +623,16 @@ function MapPageInner() {
             key: "filters",
             label: "Filters",
             icon: "filter_list",
+            hideFooter: true,
             content: (
-              <FiltersPanel {...filtersPanelProps} />
+              <FilterPanelRouter
+                initial={initialStagedFilters}
+                selectedCounties={selectedCounties}
+                onToggleCounty={toggleCounty}
+                onClearCounties={clearCounties}
+                onApply={handleApplyFilters}
+                onClear={handleClearAll}
+              />
             ),
           },
           {
@@ -576,6 +648,24 @@ function MapPageInner() {
         isOpen={showHelp}
         onClose={() => setShowHelp(false)}
       />
+
+      {showFilterPrompt && (
+        <FilteredUrlPrompt
+          filters={[
+            ...(selectedDateRange ? [`${selectedDateRange.start?.year ?? "earliest"}–${selectedDateRange.end?.year ?? "latest"}`] : []),
+            ...(selectedSeverities.size > 0 ? [...selectedSeverities] : []),
+            ...(selectedCauses.size > 0 ? [`${selectedCauses.size} cause${selectedCauses.size > 1 ? "s" : ""}`] : []),
+            ...(selectedAlcohol ? ["Alcohol"] : []),
+            ...(selectedDistracted ? ["Distracted"] : []),
+            ...(selectedPedestrian ? ["Pedestrian"] : []),
+            ...(selectedCyclist ? ["Cyclist"] : []),
+            ...(selectedDrug ? ["Drug"] : []),
+            ...(selectedDriverAge ? [`Age ${selectedDriverAge}`] : []),
+          ]}
+          onViewFiltered={() => { sessionStorage.setItem("calsight-filter-prompt-dismissed", "1"); setShowFilterPrompt(false); }}
+          onShowAll={() => { sessionStorage.setItem("calsight-filter-prompt-dismissed", "1"); clearFilters(); setShowFilterPrompt(false); }}
+        />
+      )}
     </>
   );
 }

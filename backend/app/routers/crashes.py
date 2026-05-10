@@ -14,10 +14,15 @@ from app.filters import (
     build_crash_predicates,
     parse_bool_flag,
     parse_cause,
+    parse_collision_type,
     parse_county_codes,
     parse_date_range,
     parse_driver_age,
+    parse_hit_run,
+    parse_lighting,
+    parse_road_type,
     parse_severity,
+    parse_weather,
     parse_year,
 )
 from app.models import Crash
@@ -54,6 +59,11 @@ def list_crashes(
     cyclist: str | None = Query(None),
     drug: str | None = Query(None),
     driver_age: str | None = Query(None),
+    weather: str | None = Query(None),
+    lighting: str | None = Query(None),
+    collision_type: str | None = Query(None),
+    road_type: str | None = Query(None),
+    hit_run: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     include_total: bool = Query(False),
@@ -89,12 +99,19 @@ def list_crashes(
     cyclist_v = parse_bool_flag(cyclist, "cyclist")
     drug_v = parse_bool_flag(drug, "drug")
     driver_age_v = parse_driver_age(driver_age)
+    weather_v = parse_weather(weather)
+    lighting_v = parse_lighting(lighting)
+    collision_type_v = parse_collision_type(collision_type)
+    road_type_v = parse_road_type(road_type)
+    hit_run_v = parse_hit_run(hit_run)
 
     if include_total and not any([
         date_range is not None, years, county_codes, severities, causes,
         alcohol_v is not None, distracted_v is not None,
         pedestrian_v is not None, cyclist_v is not None,
         drug_v is not None, driver_age_v is not None,
+        weather_v, lighting_v, collision_type_v,
+        road_type_v is not None, hit_run_v is not None,
     ]):
         raise FilterError(
             "include_total",
@@ -116,6 +133,11 @@ def list_crashes(
         cyclist=cyclist_v,
         drug=drug_v,
         driver_age=driver_age_v,
+        weather=weather_v,
+        lighting=lighting_v,
+        collision_type=collision_type_v,
+        road_type=road_type_v,
+        hit_run=hit_run_v,
     )
 
     q = db.query(Crash).filter(*preds).order_by(

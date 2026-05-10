@@ -155,9 +155,15 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
     ))
     registry.register(Job(
+        name="backfill_conditions",
+        module="etl.backfill_conditions",
+        depends_on=["backfill"],
+        schedule="daily",
+    ))
+    registry.register(Job(
         name="data_quality",
         module="etl.compute_data_quality",
-        depends_on=["backfill"],
+        depends_on=["backfill", "backfill_conditions"],
         schedule="daily",
     ))
     registry.register(Job(

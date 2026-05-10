@@ -7,6 +7,7 @@ interface Tab {
   label: string;
   icon: string;
   content: React.ReactNode;
+  hideFooter?: boolean;
 }
 
 interface MobileFilterSheetProps {
@@ -102,21 +103,23 @@ export default function MobileFilterSheet({
           {currentTab.content}
         </div>
 
-        {/* Sticky footer */}
-        <div className="px-6 py-5 border-t border-outline-variant/15 flex items-center gap-4" style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))' }}>
-          <button
-            onClick={onClear}
-            className="text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
-          >
-            Reset
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 bg-primary text-on-primary py-4 rounded-xl text-sm font-bold tracking-widest uppercase hover:opacity-90 transition-opacity"
-          >
-            Done
-          </button>
-        </div>
+        {/* Sticky footer — hidden when tab has its own nav (e.g. FilterWizard) */}
+        {!currentTab.hideFooter && (
+          <div className="px-6 py-5 border-t border-outline-variant/15 flex items-center gap-4" style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))' }}>
+            <button
+              onClick={onClear}
+              className="text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              Reset
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 bg-primary text-on-primary py-4 rounded-xl text-sm font-bold tracking-widest uppercase hover:opacity-90 transition-opacity"
+            >
+              Done
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
