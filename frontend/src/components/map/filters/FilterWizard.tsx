@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { CA_COUNTIES } from "../../../hooks/useFilterParams";
 import { useLayersState } from "../../../hooks/useLayersState";
 import { useStagedFilters, type StagedFilters } from "../../../hooks/useStagedFilters";
@@ -59,6 +59,26 @@ export default function FilterWizard({
 
   const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
   const facets = useFacetCounts(staged);
+
+  const prevStepRef = useRef(step);
+  const [waitingForCounts, setWaitingForCounts] = useState(!facets.loaded);
+
+  useEffect(() => {
+    if (step !== prevStepRef.current) {
+      prevStepRef.current = step;
+      if (facets.loading) {
+        setWaitingForCounts(true);
+      }
+    }
+  }, [step, facets.loading]);
+
+  useEffect(() => {
+    if (waitingForCounts && !facets.loading) {
+      setWaitingForCounts(false);
+    }
+  }, [waitingForCounts, facets.loading]);
+
+  const stepLoading = waitingForCounts || !facets.loaded;
 
   const handleApply = useCallback(() => {
     onApply(staged);
@@ -138,7 +158,7 @@ export default function FilterWizard({
       {/* Step content */}
       <div className="pb-4">
         {step === 0 && (
-          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} yearCounts={facets.years} loading={!facets.loaded} />
+          <StepWhen staged={staged} onToggleYear={toggleYear} onSetAllYears={setAllYears} onSetDateRange={setDateRange} yearCounts={facets.years} loading={stepLoading} />
         )}
         {step === 1 && (
           <StepWhat
@@ -149,7 +169,7 @@ export default function FilterWizard({
             onClearSeverities={clearSeverities}
             causeCounts={facets.causes}
             severityCounts={facets.severities}
-            loading={!facets.loaded}
+            loading={stepLoading}
           />
         )}
         {step === 2 && (
@@ -160,7 +180,7 @@ export default function FilterWizard({
             onSetDriverAge={setDriverAge}
             involvementCounts={facets.involvement}
             driverAgeCounts={facets.driverAge}
-            loading={!facets.loaded}
+            loading={stepLoading}
           />
         )}
         {step === 3 && (
@@ -179,7 +199,7 @@ export default function FilterWizard({
             onSetRoadType={setRoadType}
             onToggleHitRun={toggleHitRun}
             conditionCounts={facets.conditions}
-            loading={!facets.loaded}
+            loading={stepLoading}
           />
         )}
         {step === 4 && (
