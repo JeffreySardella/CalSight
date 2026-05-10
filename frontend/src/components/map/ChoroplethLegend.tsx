@@ -131,7 +131,8 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           >
             {allMeasures.map((m) => {
               const isSelected = m.key === measure;
-              const isDisabled = m.kind === "perCapita" && !demographicsAvailable;
+              const needsDemo = m.kind === "perCapita" || m.kind === "perIncome" || m.kind === "demographic" || m.kind === "crashDemographic";
+              const isDisabled = needsDemo && !demographicsAvailable;
               return (
                 <button
                   key={m.key}

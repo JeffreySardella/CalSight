@@ -24,6 +24,7 @@ interface FilterWizardProps {
   onClearCounties: () => void;
   onApply: (filters: StagedFilters) => void;
   onClear: () => void;
+  onSwitchToSimple?: () => void;
 }
 
 export default function FilterWizard({
@@ -33,6 +34,7 @@ export default function FilterWizard({
   onClearCounties,
   onApply,
   onClear,
+  onSwitchToSimple,
 }: FilterWizardProps) {
   const [step, setStep] = useState(0);
   const {
@@ -63,7 +65,20 @@ export default function FilterWizard({
 
   return (
     <div className="space-y-4">
-      {/* County — always visible */}
+      {/* Header with Simple toggle */}
+      <div className="flex items-center justify-between pb-2 border-b border-outline-variant/15">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Advanced Filters</span>
+        {onSwitchToSimple && (
+          <button
+            onClick={onSwitchToSimple}
+            className="text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
+          >
+            Simple Mode
+          </button>
+        )}
+      </div>
+
+      {/* County */}
       <div className="pb-4 border-b border-outline-variant/15">
         <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
           County
@@ -81,7 +96,7 @@ export default function FilterWizard({
       </div>
 
       {/* Step dots */}
-      <div className="flex items-center justify-center gap-2 py-3 flex-wrap">
+      <div className="flex items-center justify-center gap-2 py-2 flex-wrap">
         {STEPS.map((label, i) => (
           <button
             key={label}

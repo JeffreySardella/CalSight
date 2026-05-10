@@ -117,6 +117,14 @@ class Crash(Base):
     # 'unsafe_backing', 'lane_change', 'other', or NULL.
     canonical_cause = Column(String(25))
 
+    # Canonical condition fields — same pattern as canonical_cause.
+    # Collapse messy free-text weather/lighting/road_condition/collision_type
+    # into a fixed vocabulary for fast API filtering.
+    canonical_weather = Column(String(15))
+    canonical_lighting = Column(String(15))
+    canonical_road_condition = Column(String(20))
+    canonical_collision_type = Column(String(20))
+
     # Denormalized from counties.name so dashboard tooltip/export queries
     # don't need to JOIN to counties. County names are effectively immutable
     # in CA — a rerun of backfill_derived re-syncs if that ever changes.
@@ -146,6 +154,10 @@ class Crash(Base):
         Index("ix_crashes_pedestrian", "pedestrian_involved", postgresql_where="pedestrian_involved = true"),
         Index("ix_crashes_cyclist", "cyclist_involved", postgresql_where="cyclist_involved IS NOT NULL"),
         Index("ix_crashes_drug", "is_drug_involved", postgresql_where="is_drug_involved IS NOT NULL"),
+        Index("ix_crashes_canonical_weather", "canonical_weather"),
+        Index("ix_crashes_canonical_lighting", "canonical_lighting"),
+        Index("ix_crashes_canonical_road_condition", "canonical_road_condition"),
+        Index("ix_crashes_canonical_collision_type", "canonical_collision_type"),
     )
 
 
