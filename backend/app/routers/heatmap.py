@@ -14,10 +14,15 @@ from app.filters import (
     build_crash_predicates,
     parse_bool_flag,
     parse_cause,
+    parse_collision_type,
     parse_county_codes,
     parse_date_range,
     parse_driver_age,
+    parse_hit_run,
+    parse_lighting,
+    parse_road_type,
     parse_severity,
+    parse_weather,
     parse_year,
 )
 from app.models import Crash
@@ -64,6 +69,11 @@ def crash_heatmap(
     cyclist: str | None = Query(None),
     drug: str | None = Query(None),
     driver_age: str | None = Query(None),
+    weather: str | None = Query(None),
+    lighting: str | None = Query(None),
+    collision_type: str | None = Query(None),
+    road_type: str | None = Query(None),
+    hit_run: str | None = Query(None),
     resolution: Resolution | None = Query(None),
     mismatch_only: str | None = Query(None),
     include_rivers: str | None = Query(None),
@@ -92,6 +102,11 @@ def crash_heatmap(
     cyclist_v = parse_bool_flag(cyclist, "cyclist")
     drug_v = parse_bool_flag(drug, "drug")
     driver_age_v = parse_driver_age(driver_age)
+    weather_v = parse_weather(weather)
+    lighting_v = parse_lighting(lighting)
+    collision_type_v = parse_collision_type(collision_type)
+    road_type_v = parse_road_type(road_type)
+    hit_run_v = parse_hit_run(hit_run)
 
     if resolution is None:
         resolution = Resolution.raw if county_codes else Resolution.low
@@ -114,6 +129,11 @@ def crash_heatmap(
         cyclist=cyclist_v,
         drug=drug_v,
         driver_age=driver_age_v,
+        weather=weather_v,
+        lighting=lighting_v,
+        collision_type=collision_type_v,
+        road_type=road_type_v,
+        hit_run=hit_run_v,
     )
     preds.append(Crash.latitude.isnot(None))
     preds.append(Crash.longitude.isnot(None))
