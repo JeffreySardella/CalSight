@@ -6,6 +6,7 @@ interface IconRailProps {
 const icons = [
   { panel: "filters", icon: "filter_list", label: "Filters" },
   { panel: "layers", icon: "layers", label: "Layers" },
+  { panel: "export", icon: "file_download", label: "Export" },
 ] as const;
 
 export default function IconRail({ activePanel, onPanelToggle }: IconRailProps) {

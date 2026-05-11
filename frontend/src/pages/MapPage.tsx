@@ -671,6 +671,18 @@ function MapPageInner() {
             icon: "layers",
             content: <LayersPanel />,
           },
+          {
+            key: "export",
+            label: "Export",
+            icon: "file_download",
+            hideFooter: true,
+            content: (
+              <div className="space-y-4">
+                <DataExportPanel />
+                <DataExportPanelFooter />
+              </div>
+            ),
+          },
         ]}
       />
 
