@@ -41,9 +41,19 @@ export function useSchools(enabled: boolean) {
   return useQuery<School[]>({
     queryKey: ["schools"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/schools`);
-      if (!res.ok) throw new Error(`schools ${res.status}`);
-      return res.json();
+      const all: School[] = [];
+      let offset = 0;
+      const limit = 5000;
+      while (true) {
+        const res = await fetch(`${API_BASE}/api/schools?limit=${limit}&offset=${offset}`);
+        if (!res.ok) throw new Error(`schools ${res.status}`);
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : data.items ?? [];
+        all.push(...items);
+        if (items.length < limit) break;
+        offset += limit;
+      }
+      return all;
     },
     enabled,
     staleTime: Infinity,
