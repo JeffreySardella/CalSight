@@ -1,4 +1,5 @@
-import { CircleMarker, Popup } from "react-leaflet";
+import { useMemo } from "react";
+import { CircleMarker, Popup, useMap } from "react-leaflet";
 import type { Hospital, School } from "../../hooks/useMapOverlays";
 
 interface OverlayMarkersProps {
@@ -8,10 +9,39 @@ interface OverlayMarkersProps {
   showSchools: boolean;
 }
 
+function useViewportItems<T extends { latitude: number | null; longitude: number | null }>(
+  items: T[],
+  enabled: boolean,
+  maxItems: number,
+): T[] {
+  const map = useMap();
+  const zoom = map.getZoom();
+  const center = map.getCenter();
+
+  return useMemo(() => {
+    if (!enabled || items.length === 0) return [];
+    const valid = items.filter((i) => i.latitude != null && i.longitude != null);
+    if (valid.length <= maxItems) return valid;
+    try {
+      const bounds = map.getBounds();
+      const visible = valid.filter((item) =>
+        bounds.contains([item.latitude!, item.longitude!])
+      );
+      return visible.slice(0, maxItems);
+    } catch {
+      return valid.slice(0, maxItems);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, enabled, maxItems, zoom, center.lat, center.lng]);
+}
+
 export default function OverlayMarkers({ hospitals, schools, showHospitals, showSchools }: OverlayMarkersProps) {
+  const visibleHospitals = useViewportItems(hospitals, showHospitals, 560);
+  const visibleSchools = useViewportItems(schools, showSchools, 500);
+
   return (
     <>
-      {showHospitals && hospitals.filter(h => h.latitude && h.longitude).map((h) => (
+      {visibleHospitals.map((h) => (
         <CircleMarker
           key={h.facility_id}
           center={[h.latitude!, h.longitude!]}
@@ -27,7 +57,7 @@ export default function OverlayMarkers({ hospitals, schools, showHospitals, show
           </Popup>
         </CircleMarker>
       ))}
-      {showSchools && schools.filter(s => s.latitude && s.longitude).map((s) => (
+      {visibleSchools.map((s) => (
         <CircleMarker
           key={s.cds_code}
           center={[s.latitude!, s.longitude!]}
