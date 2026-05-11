@@ -238,6 +238,14 @@ def test_engine():
     _seed(session)
     session.close()
 
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        for mv in ["mv_crashes_by_year", "mv_crashes_by_cause", "mv_crashes_by_hour",
+                    "mv_crashes_by_month", "mv_crash_rates", "mv_crashes_wide"]:
+            try:
+                conn.execute(text(f"REFRESH MATERIALIZED VIEW {mv}"))
+            except Exception:
+                pass
+
     yield engine
     engine.dispose()
 
