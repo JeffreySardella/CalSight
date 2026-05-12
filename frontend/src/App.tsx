@@ -2,31 +2,37 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./context/ThemeContext";
+import { LiteModeProvider } from "./context/LiteModeContext";
 import { queryClient } from "./lib/queryClient";
 import Layout from "./components/Layout";
-import MapPage from "./pages/MapPage";
-import StatsPage from "./pages/StatsPage";
-import AboutPage from "./pages/AboutPage";
-import AskAiPage from "./pages/AskAiPage";
-// PrivacyPage will be created in a later task
+
+const MapPage = lazy(() => import("./pages/MapPage"));
+const StatsPage = lazy(() => import("./pages/StatsPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const AskAiPage = lazy(() => import("./pages/AskAiPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const AdminEtlPage = lazy(() => import("./pages/AdminEtlPage"));
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route index element={<MapPage />} />
-              <Route path="stats" element={<StatsPage />} />
-              <Route path="about" element={<AboutPage />} />
-              <Route path="ask" element={<AskAiPage />} />
-              <Route path="privacy" element={<Suspense fallback={null}><PrivacyPage /></Suspense>} />
-              <Route path="admin/etl" element={<Suspense fallback={null}><AdminEtlPage /></Suspense>} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <LiteModeProvider>
+          <BrowserRouter>
+          <Suspense fallback={null}>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route index element={<MapPage />} />
+                <Route path="stats" element={<StatsPage />} />
+                <Route path="about" element={<AboutPage />} />
+                <Route path="ask" element={<AskAiPage />} />
+                <Route path="privacy" element={<PrivacyPage />} />
+                <Route path="admin/etl" element={<AdminEtlPage />} />
+              </Route>
+            </Routes>
+          </Suspense>
+          </BrowserRouter>
+        </LiteModeProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

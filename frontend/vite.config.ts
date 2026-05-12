@@ -3,6 +3,25 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        passes: 2,
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-leaflet': ['leaflet', 'react-leaflet', 'react-leaflet-cluster'],
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
+  },
   server: {
     watch: {
       usePolling: true,

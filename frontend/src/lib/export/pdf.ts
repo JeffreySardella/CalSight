@@ -8,9 +8,6 @@
  * doesn't depend on MapPage or StatsPage having pre-loaded the data.
  */
 
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-
 import { API_BASE } from "../../config";
 import { triggerDownload, todayStamp } from "./download";
 import type { FilterScope } from "./filterSummary";
@@ -61,6 +58,11 @@ async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
 
 export async function exportPdf(opts: PdfExportOptions): Promise<void> {
   const { scope, filterQs, signal } = opts;
+
+  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable"),
+  ]);
 
   // Two parallel rollups — grand totals + top counties. We forward the
   // current filter QS so the report reflects what the user is looking at.

@@ -5,6 +5,15 @@ import { geoJSONLayerMock, featureLayerMocks, mockMapInstance } from "../../__mo
 
 vi.mock("leaflet", () => import("../../__mocks__/leaflet"));
 vi.mock("react-leaflet", () => import("../../__mocks__/react-leaflet"));
+vi.mock("topojson-client", () => ({
+  feature: () => ({
+    type: "FeatureCollection",
+    features: [
+      { type: "Feature", properties: { name: "Fresno", county_code: 19 }, geometry: { type: "Polygon", coordinates: [[[0,0],[1,0],[1,1],[0,0]]] } },
+      { type: "Feature", properties: { name: "Alameda", county_code: 1 }, geometry: { type: "Polygon", coordinates: [[[2,2],[3,2],[3,3],[2,2]]] } },
+    ],
+  }),
+}));
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LayersStateProvider } from "../../hooks/useLayersState";
@@ -13,21 +22,6 @@ import { MemoryRouter } from "react-router-dom";
 
 import CountyBoundaries from "./CountyBoundaries";
 
-const FAKE_GEOJSON: GeoJSON.FeatureCollection = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      properties: { name: "Fresno", county_code: 19 },
-      geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
-    },
-    {
-      type: "Feature",
-      properties: { name: "Alameda", county_code: 1 },
-      geometry: { type: "Polygon", coordinates: [[[2, 2], [3, 2], [3, 3], [2, 2]]] },
-    },
-  ],
-};
 
 describe("CountyBoundaries", () => {
   let onFocusCounty: ReturnType<typeof vi.fn<(name: string | null) => void>>;
@@ -45,8 +39,8 @@ describe("CountyBoundaries", () => {
 
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes("ca-counties.geojson")) {
-        return { json: () => Promise.resolve(FAKE_GEOJSON) } as Response;
+      if (url.includes("ca-counties.topo.json")) {
+        return { ok: true, json: () => Promise.resolve({ type: "Topology", objects: { counties: {} }, arcs: [] }) } as Response;
       }
       if (url.includes("/api/stats")) {
         return new Response(JSON.stringify([
@@ -86,7 +80,7 @@ describe("CountyBoundaries", () => {
   it("fetches /ca-counties.geojson on mount", async () => {
     renderComponent();
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith("/ca-counties.geojson");
+      expect(globalThis.fetch).toHaveBeenCalledWith("/ca-counties.topo.json");
     });
   });
 

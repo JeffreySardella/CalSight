@@ -55,7 +55,7 @@ export default function MobileFilterSheet({
 
       {/* Mobile: bottom sheet. Desktop: centered modal */}
       <div
-        className={`absolute bg-surface-container-lowest max-h-[80vh] flex flex-col transition-all duration-300 ease-out
+        className={`absolute bg-surface-container-lowest max-h-[80vh] flex flex-col transition-[transform,opacity] duration-300 ease-out will-change-transform
           bottom-0 left-0 right-0 rounded-t-xl
           md:bottom-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:w-[480px] md:max-w-[90vw] md:ambient-shadow
           ${visible ? "translate-y-0 md:opacity-100 md:scale-100" : "translate-y-full md:opacity-0 md:scale-95 md:translate-y-0"}`}
@@ -84,7 +84,7 @@ export default function MobileFilterSheet({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-colors ${
                 activeTab === tab.key
                   ? "bg-primary text-on-primary"
                   : "bg-surface-container-high text-on-surface-variant hover:bg-surface-variant"

@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Lite Mode: strip GPU-heavy effects ── */
+.lite-mode *,
+.lite-mode *::before,
+.lite-mode *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition-duration: 0.1s !important;
+}
+
 /* ── Theme: Light palette (default) ── */
 /* Colors stored as space-separated RGB channels for Tailwind opacity modifier support */
 :root {
