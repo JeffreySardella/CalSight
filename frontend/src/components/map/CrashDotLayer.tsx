@@ -10,20 +10,12 @@ interface CrashDotLayerProps {
   palette: PaletteKey;
 }
 
-const FATAL_COLORS: Record<PaletteKey, string> = {
-  default: "#dc2626",
-  warm: "#7c3aed",
-  cool: "#dc2626",
-  colorblind: "#e66100",
-};
+const DOT_COLORS = { fatal: "#dc2626", injury: "#f59e0b", pdo: "#6b7280" };
 
-const INJURY_COLOR = "#f59e0b";
-const PDO_COLOR = "#94a3b8";
-
-function getColor(severity: string | null | undefined, palette: PaletteKey): string {
-  if (severity === "Fatal") return FATAL_COLORS[palette];
-  if (severity === "Injury") return INJURY_COLOR;
-  return PDO_COLOR;
+function getColor(severity: string | null | undefined): string {
+  if (severity === "Fatal") return DOT_COLORS.fatal;
+  if (severity === "Injury") return DOT_COLORS.injury;
+  return DOT_COLORS.pdo;
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -41,9 +33,9 @@ function formatCause(cause: string | null | undefined): string {
   return cause.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const MIN_ZOOM = 11;
+const MIN_ZOOM = 14;
 
-export default function CrashDotLayer({ points, enabled, palette }: CrashDotLayerProps) {
+export default function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
   const map = useMap();
   const isDark = useIsDark();
   const [zoom, setZoom] = useState(map.getZoom());
@@ -73,7 +65,7 @@ export default function CrashDotLayer({ points, enabled, palette }: CrashDotLaye
   return (
     <>
       {visible.map((p, i) => {
-        const color = getColor(p.severity, palette);
+        const color = getColor(p.severity);
         return (
           <CircleMarker
             key={`${p.collision_id ?? i}-${p.lat}-${p.lng}`}
@@ -88,15 +80,28 @@ export default function CrashDotLayer({ points, enabled, palette }: CrashDotLaye
             }}
             eventHandlers={{
               click: () => {
-                map.panTo([p.lat, p.lng], { animate: true, duration: 0.3 });
+                if (window.innerWidth >= 768) return;
+                setTimeout(() => {
+                  const popup = document.querySelector(".leaflet-popup");
+                  if (!popup) return;
+                  const rect = popup.getBoundingClientRect();
+                  const mapRect = map.getContainer().getBoundingClientRect();
+                  const popupCenterY = rect.top + rect.height / 2;
+                  const mapCenterY = mapRect.top + mapRect.height / 2;
+                  const dy = popupCenterY - mapCenterY;
+                  const popupCenterX = rect.left + rect.width / 2;
+                  const mapCenterX = mapRect.left + mapRect.width / 2;
+                  const dx = popupCenterX - mapCenterX;
+                  map.panBy([dx, dy], { animate: true, duration: 0.3 });
+                }, 100);
               },
             }}
           >
-            <Popup offset={[0, -4]} maxWidth={300} className="crash-dot-popup">
-              <div style={{ minWidth: 220, fontSize: 13, lineHeight: 1.6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: color, display: "inline-block", border: `2px solid ${borderColor}`, flexShrink: 0 }} />
-                  <strong style={{ fontSize: 16 }}>{p.severity ?? "Unknown"}</strong>
+            <Popup offset={[0, -4]} maxWidth={Math.min(260, window.innerWidth - 40)} autoPan={false}>
+              <div style={{ minWidth: 180, maxWidth: 240, fontSize: 12, lineHeight: 1.5 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: getColor(p.severity), display: "inline-block", border: `2px solid ${borderColor}`, flexShrink: 0 }} />
+                  <strong style={{ fontSize: 14 }}>{p.severity ?? "Unknown"}</strong>
                   {p.hit_run && (
                     <span style={{ fontSize: 10, fontWeight: 700, background: "#fde8e8", color: "#b91c1c", padding: "2px 8px", borderRadius: 10 }}>
                       HIT & RUN
@@ -135,8 +140,8 @@ export default function CrashDotLayer({ points, enabled, palette }: CrashDotLaye
 
                 {(p.number_killed || p.number_injured) ? (
                   <div style={{ display: "flex", gap: 16, marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
-                    {p.number_killed ? <span style={{ color: FATAL_COLORS[palette], fontWeight: 700, fontSize: 13 }}>{p.number_killed} killed</span> : null}
-                    {p.number_injured ? <span style={{ color: INJURY_COLOR, fontWeight: 700, fontSize: 13 }}>{p.number_injured} injured</span> : null}
+                    {p.number_killed ? <span style={{ color: DOT_COLORS.fatal, fontWeight: 700, fontSize: 12 }}>{p.number_killed} killed</span> : null}
+                    {p.number_injured ? <span style={{ color: DOT_COLORS.injury, fontWeight: 700, fontSize: 12 }}>{p.number_injured} injured</span> : null}
                   </div>
                 ) : null}
 
