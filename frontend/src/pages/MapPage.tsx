@@ -96,6 +96,7 @@ function MapPageInner() {
   } = useFilterParams();
 
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleIntroStart = useCallback((_mode: "simple" | "advanced") => {
     const isMobile = window.innerWidth < 768;
     if (isMobile) {
