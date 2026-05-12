@@ -42,26 +42,6 @@ const PANEL_META: Record<string, { title: string; subtitle: string }> = {
 
 const VALID_PANELS = new Set(Object.keys(PANEL_META));
 
-function HeatmapLoadingPill() {
-  const [showSlow, setShowSlow] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setShowSlow(true), 5000);
-    return () => clearTimeout(timer);
-  }, []);
-  return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
-      <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-full ghost-border shadow-lg flex flex-col items-center gap-1">
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-medium text-on-surface-variant">Loading crash data...</span>
-        </div>
-        {showSlow && (
-          <span className="text-[10px] text-on-surface-variant/70">Large county — this may take a moment</span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function MapPageInner() {
   const {
@@ -612,27 +592,26 @@ function MapPageInner() {
             onRefreshNarrative={refreshRandomCard}
           />
         )}
-        {heatmapEnabled && heatmap.isLoading && (
-          <HeatmapLoadingPill />
-        )}
-        {useCountyDetail && (countyHeatmap.isLoading || countyHeatmap.hasMore) && !countyHeatmap.error && (
+        {heatmapEnabled && (heatmap.isLoading || (useCountyDetail && (countyHeatmap.isLoading || countyHeatmap.hasMore) && !countyHeatmap.error)) && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
-            <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-full ghost-border shadow-lg flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-medium text-on-surface-variant">
-                  {countyHeatmap.totalCrashes > 0
-                    ? `${countyHeatmap.points.length.toLocaleString()} / ${countyHeatmap.totalCrashes.toLocaleString()} crashes loaded`
-                    : "Loading crash data..."}
-                </span>
+            <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2.5 rounded-xl ghost-border shadow-lg min-w-[220px]">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                <span className="text-xs font-medium text-on-surface-variant">Loading crash data…</span>
               </div>
-              {countyHeatmap.totalCrashes > 0 && (
-                <div className="w-full h-1 bg-outline/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, (countyHeatmap.points.length / countyHeatmap.totalCrashes) * 100)}%` }}
-                  />
-                </div>
+              <div className="w-full h-1.5 bg-outline/15 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                  style={{ width: useCountyDetail && countyHeatmap.totalCrashes > 0
+                    ? `${Math.min(100, (countyHeatmap.points.length / countyHeatmap.totalCrashes) * 100)}%`
+                    : "0%"
+                  }}
+                />
+              </div>
+              {useCountyDetail && countyHeatmap.totalCrashes > 0 && (
+                <p className="text-[10px] text-on-surface-variant/60 mt-1 text-center">
+                  {countyHeatmap.points.length.toLocaleString()} / {countyHeatmap.totalCrashes.toLocaleString()}
+                </p>
               )}
             </div>
           </div>

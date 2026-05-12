@@ -164,7 +164,13 @@ def crash_heatmap(
         offset = (current_batch - 1) * page_size
 
         rows = (
-            db.query(Crash.latitude, Crash.longitude, Crash.severity)
+            db.query(
+                Crash.latitude, Crash.longitude, Crash.severity,
+                Crash.collision_id, Crash.data_source, Crash.crash_datetime,
+                Crash.canonical_cause, Crash.weather, Crash.lighting,
+                Crash.number_killed, Crash.number_injured,
+                Crash.primary_road, Crash.hit_run,
+            )
             .filter(*preds)
             .order_by(Crash.id)
             .limit(page_size)
@@ -172,7 +178,20 @@ def crash_heatmap(
             .all()
         )
         return HeatmapResponse(
-            points=[HeatmapPoint(lat=r.latitude, lng=r.longitude, weight=1, severity=r.severity) for r in rows],
+            points=[HeatmapPoint(
+                lat=r.latitude, lng=r.longitude, weight=1,
+                severity=r.severity,
+                collision_id=r.collision_id,
+                data_source=r.data_source,
+                crash_datetime=r.crash_datetime.isoformat() if r.crash_datetime else None,
+                canonical_cause=r.canonical_cause,
+                weather=r.weather,
+                lighting=r.lighting,
+                number_killed=r.number_killed,
+                number_injured=r.number_injured,
+                primary_road=r.primary_road,
+                hit_run=r.hit_run,
+            ) for r in rows],
             total_crashes=total_q,
             batch=current_batch if batch else None,
             total_batches=total_batches,

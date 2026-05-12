@@ -7,6 +7,7 @@ import CrashHeatmap from "./CrashHeatmap";
 import CoordMismatchLayer from "./CoordMismatchLayer";
 import CaliforniaMask from "./CaliforniaMask";
 import OverlayMarkers from "./OverlayMarkers";
+import CrashDotLayer from "./CrashDotLayer";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
 import { useHospitals, useSchools } from "../../hooks/useMapOverlays";
@@ -73,6 +74,10 @@ function MapInternals({
       map.createPane("labelPane");
       map.getPane("labelPane")!.style.zIndex = "650";
     }
+    if (!map.getPane("crashDotPane")) {
+      map.createPane("crashDotPane");
+      map.getPane("crashDotPane")!.style.zIndex = "625";
+    }
   }, [map]);
 
   useLayoutEffect(() => {
@@ -106,6 +111,7 @@ function MapInternals({
           compareCounty={countyDrilldown ? (compareCounty ?? null) : null}
         />
       )}
+      <CrashDotLayer points={heatmapPoints} enabled={heatmapActive && heatmapResolution === "raw"} palette={heatmapPalette} />
       {mismatchPoints.length > 0 && <CoordMismatchLayer points={mismatchPoints} palette={heatmapPalette} />}
       <OverlayMarkers
         hospitals={hospitals}
