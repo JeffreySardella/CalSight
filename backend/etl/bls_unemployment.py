@@ -21,7 +21,7 @@ import time
 
 from sqlalchemy import select
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, UnemploymentRate
 from app.settings import settings
 from etl._utils import post_with_retry, track_etl_run

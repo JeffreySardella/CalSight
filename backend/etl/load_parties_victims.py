@@ -25,7 +25,7 @@ import time
 import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CrashParty, CrashVictim
 from etl._utils import track_etl_run
 
