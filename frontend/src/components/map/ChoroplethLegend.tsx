@@ -183,6 +183,14 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: FATAL_DOT_COLORS[palette] }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Fatal</span>
           </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#f59e0b" }} />
+            <span className="text-[10px] text-on-surface-variant font-semibold">Injury</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#94a3b8" }} />
+            <span className="text-[10px] text-on-surface-variant font-semibold">PDO</span>
+          </div>
           {mismatchCount != null && mismatchCount > 0 && (
             <div className="flex items-center gap-1.5">
               <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: MISMATCH_DOT_COLORS[palette] }} />

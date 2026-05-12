@@ -87,8 +87,10 @@ export function useHeatLayer(
     };
     const internals = layer as unknown as HeatInternals;
 
-    // Unbind leaflet.heat's broken _animateZoom — it miscalculates the
-    // canvas CSS transform during mobile pinch-to-zoom.
+    if (internals._canvas) {
+      internals._canvas.style.pointerEvents = "none";
+    }
+
     map.off("zoomanim", internals._animateZoom, layer);
 
     const onZoomStart = () => {
@@ -186,6 +188,10 @@ function useFatalLayer(points: HeatmapPoint[], resolution: HeatmapResolution, pa
       _reset: () => void;
     };
     const internals = layer as unknown as HeatInternals;
+
+    if (internals._canvas) {
+      internals._canvas.style.pointerEvents = "none";
+    }
 
     map.off("zoomanim", internals._animateZoom, layer);
 

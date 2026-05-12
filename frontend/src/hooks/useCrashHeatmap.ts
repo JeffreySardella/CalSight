@@ -9,6 +9,16 @@ export interface HeatmapPoint {
   lng: number;
   weight: number;
   severity?: string | null;
+  collision_id?: number | null;
+  data_source?: string | null;
+  crash_datetime?: string | null;
+  canonical_cause?: string | null;
+  weather?: string | null;
+  lighting?: string | null;
+  number_killed?: number | null;
+  number_injured?: number | null;
+  primary_road?: string | null;
+  hit_run?: string | null;
 }
 
 interface HeatmapParams {
