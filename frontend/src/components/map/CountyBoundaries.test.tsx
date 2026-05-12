@@ -22,21 +22,6 @@ import { MemoryRouter } from "react-router-dom";
 
 import CountyBoundaries from "./CountyBoundaries";
 
-const FAKE_GEOJSON: GeoJSON.FeatureCollection = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      properties: { name: "Fresno", county_code: 19 },
-      geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
-    },
-    {
-      type: "Feature",
-      properties: { name: "Alameda", county_code: 1 },
-      geometry: { type: "Polygon", coordinates: [[[2, 2], [3, 2], [3, 3], [2, 2]]] },
-    },
-  ],
-};
 
 describe("CountyBoundaries", () => {
   let onFocusCounty: ReturnType<typeof vi.fn<(name: string | null) => void>>;
