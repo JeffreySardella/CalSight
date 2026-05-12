@@ -12,8 +12,8 @@ import {
 } from "../../hooks/useFilterParams";
 import SearchableMultiSelect from "../ui/SearchableMultiSelect";
 
-const PILL_ACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-all";
-const PILL_INACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-all";
+const PILL_ACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-colors";
+const PILL_INACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-colors";
 
 const countyOptions = [
   { value: "__all__", label: "All Counties (Statewide)" },

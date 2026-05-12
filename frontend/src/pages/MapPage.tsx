@@ -412,7 +412,7 @@ function MapPageInner() {
       <div className="hidden md:flex h-full z-40">
         <IconRail activePanel={activePanel} onPanelToggle={handleToggle} />
         <div
-          className="transition-all duration-300 overflow-hidden"
+          className="transition-[width] duration-300 overflow-hidden"
           style={{ width: activePanel && meta ? (activePanel === "filters" ? 400 : 300) : 0 }}
         >
           {activePanel && meta && (
@@ -429,7 +429,7 @@ function MapPageInner() {
       </div>
 
       {/* Map canvas + floating overlays */}
-      <section className="flex-1 relative transition-all duration-300">
+      <section className="flex-1 relative transition-[margin] duration-300">
         <MapCanvas
           focusedCounty={focusedCounty}
           compareCounty={compareCounty}

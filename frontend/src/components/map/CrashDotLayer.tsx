@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { CircleMarker, Popup, useMap, useMapEvents } from "react-leaflet";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
@@ -35,7 +35,7 @@ function formatCause(cause: string | null | undefined): string {
 
 const MIN_ZOOM = 14;
 
-export default function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
+export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
   const map = useMap();
   const isDark = useIsDark();
   const [zoom, setZoom] = useState(map.getZoom());
@@ -157,4 +157,4 @@ export default function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
       })}
     </>
   );
-}
+});
