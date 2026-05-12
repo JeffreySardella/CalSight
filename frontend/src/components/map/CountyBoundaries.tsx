@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { memo, useEffect, useMemo, useCallback, useRef } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import { useLayersState } from "../../hooks/useLayersState";
 import { useChoroplethData } from "../../hooks/useChoroplethData";
 import { useFilterParams } from "../../hooks/useFilterParams";
+import { useCountyGeoJson } from "../../hooks/useCountyGeoJson";
 import { quantileBuckets, bucketFor } from "../../lib/choropleth/binning";
 import { getPalette, HATCH_PATTERN_ID, installHatchPattern } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
@@ -35,7 +36,7 @@ function getCountyCode(f: GeoJSON.Feature): number | null {
   return raw == null ? null : Number(raw);
 }
 
-export default function CountyBoundaries({
+export default memo(function CountyBoundaries({
   focusedCounty,
   compareCounty = null,
   heatmapActive = false,
@@ -66,7 +67,7 @@ export default function CountyBoundaries({
   );
   const { byCountyCode } = useChoroplethData(measure, filters);
 
-  const [geojson, setGeojson] = useState<GeoJSON.FeatureCollection | null>(null);
+  const { data: geojson } = useCountyGeoJson();
   const layerRef = useRef<L.GeoJSON | null>(null);
   const tooltipRef = useRef<L.Tooltip | null>(null);
   const compareTooltipRef = useRef<L.Tooltip | null>(null);
@@ -99,15 +100,6 @@ export default function CountyBoundaries({
       pane.style.zIndex = "450";
     }
   }, [map]);
-
-  useEffect(() => {
-    fetch("/ca-counties.geojson")
-      .then((res) => res.json())
-      .then((data: GeoJSON.FeatureCollection) => {
-        data.features.sort((a, b) => getCountyName(a).localeCompare(getCountyName(b)));
-        setGeojson(data);
-      });
-  }, []);
 
   const computeStyle = useCallback(
     (feature: GeoJSON.Feature): L.PathOptions => {
@@ -355,4 +347,4 @@ export default function CountyBoundaries({
   }, [focusedCounty, compareCounty, map]);
 
   return null;
-}
+});

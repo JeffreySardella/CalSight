@@ -1,0 +1,10 @@
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/ca-counties.topo.json
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin

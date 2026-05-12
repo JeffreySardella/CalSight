@@ -31,6 +31,7 @@ import { useCountyInsight } from "../hooks/useCountyInsight";
 import { useRandomInsight } from "../hooks/useRandomInsight";
 import ActiveFiltersBanner from "../components/map/ActiveFiltersBanner";
 import { usePrefetchFacets } from "../hooks/usePrefetchFacets";
+import { useCountyGeoJson } from "../hooks/useCountyGeoJson";
 import FilteredUrlPrompt from "../components/map/FilteredUrlPrompt";
 import IntroOverlay from "../components/map/IntroOverlay";
 
@@ -107,6 +108,7 @@ function MapPageInner() {
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
   usePrefetchFacets();
+  useCountyGeoJson();
 
   const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
 
@@ -412,7 +414,7 @@ function MapPageInner() {
       <div className="hidden md:flex h-full z-40">
         <IconRail activePanel={activePanel} onPanelToggle={handleToggle} />
         <div
-          className="transition-all duration-300 overflow-hidden"
+          className="transition-[width] duration-300 overflow-hidden"
           style={{ width: activePanel && meta ? (activePanel === "filters" ? 400 : 300) : 0 }}
         >
           {activePanel && meta && (
@@ -429,7 +431,7 @@ function MapPageInner() {
       </div>
 
       {/* Map canvas + floating overlays */}
-      <section className="flex-1 relative transition-all duration-300">
+      <section className="flex-1 relative transition-[margin] duration-300">
         <MapCanvas
           focusedCounty={focusedCounty}
           compareCounty={compareCounty}

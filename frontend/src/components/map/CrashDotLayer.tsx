@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { CircleMarker, Popup, useMap, useMapEvents } from "react-leaflet";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
+import { useLiteMode } from "../../context/LiteModeContext";
 
 interface CrashDotLayerProps {
   points: HeatmapPoint[];
@@ -35,11 +36,13 @@ function formatCause(cause: string | null | undefined): string {
 
 const MIN_ZOOM = 14;
 
-export default function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
+export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
   const map = useMap();
   const isDark = useIsDark();
+  const { isLite } = useLiteMode();
   const [zoom, setZoom] = useState(map.getZoom());
   const [center, setCenter] = useState(map.getCenter());
+  const maxDots = isLite ? 400 : 800;
 
   useMapEvents({
     zoomend: () => { setZoom(map.getZoom()); setCenter(map.getCenter()); },
@@ -52,11 +55,11 @@ export default function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
       const bounds = map.getBounds();
       return points
         .filter((p) => p.lat && p.lng && bounds.contains([p.lat, p.lng]))
-        .slice(0, 800);
+        .slice(0, maxDots);
     } catch {
       return [];
     }
-  }, [points, enabled, zoom, center.lat, center.lng, map]);
+  }, [points, enabled, zoom, center.lat, center.lng, map, maxDots]);
 
   if (visible.length === 0) return null;
 
@@ -157,4 +160,4 @@ export default function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
       })}
     </>
   );
-}
+});
