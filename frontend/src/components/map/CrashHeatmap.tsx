@@ -87,8 +87,10 @@ export function useHeatLayer(
     };
     const internals = layer as unknown as HeatInternals;
 
-    // Unbind leaflet.heat's broken _animateZoom — it miscalculates the
-    // canvas CSS transform during mobile pinch-to-zoom.
+    if (internals._canvas) {
+      internals._canvas.style.pointerEvents = "none";
+    }
+
     map.off("zoomanim", internals._animateZoom, layer);
 
     const onZoomStart = () => {
@@ -134,9 +136,9 @@ const FATAL_GRADIENTS: Record<PaletteKey, Record<number, string>> = {
   },
   warm: {
     0: "transparent",
-    0.3: "rgba(124, 58, 237, 0.4)",
-    0.6: "rgba(109, 40, 217, 0.7)",
-    1.0: "rgba(91, 33, 182, 1)",
+    0.3: "rgba(255, 80, 60, 0.4)",
+    0.6: "rgba(220, 40, 30, 0.7)",
+    1.0: "rgba(180, 20, 15, 1)",
   },
   cool: {
     0: "transparent",
@@ -146,9 +148,9 @@ const FATAL_GRADIENTS: Record<PaletteKey, Record<number, string>> = {
   },
   colorblind: {
     0: "transparent",
-    0.3: "rgba(230, 97, 0, 0.4)",
-    0.6: "rgba(210, 80, 0, 0.7)",
-    1.0: "rgba(180, 60, 0, 1)",
+    0.3: "rgba(220, 38, 38, 0.4)",
+    0.6: "rgba(220, 38, 38, 0.7)",
+    1.0: "rgba(185, 28, 28, 1)",
   },
 };
 
@@ -186,6 +188,10 @@ function useFatalLayer(points: HeatmapPoint[], resolution: HeatmapResolution, pa
       _reset: () => void;
     };
     const internals = layer as unknown as HeatInternals;
+
+    if (internals._canvas) {
+      internals._canvas.style.pointerEvents = "none";
+    }
 
     map.off("zoomanim", internals._animateZoom, layer);
 

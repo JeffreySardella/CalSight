@@ -4,12 +4,6 @@ import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 
-const FATAL_DOT_COLORS: Record<PaletteKey, string> = {
-  default: "#dc2626",
-  warm: "#7c3aed",
-  cool: "#dc2626",
-  colorblind: "#e66100",
-};
 
 const MISMATCH_DOT_COLORS: Record<PaletteKey, string> = {
   default: "#f97316",
@@ -174,14 +168,22 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           ))}
         </div>
       ) : (
-        <div className="flex items-center gap-3 mt-1">
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors[colors.length - 1] }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Crash</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: FATAL_DOT_COLORS[palette] }} />
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#dc2626" }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Fatal</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#f59e0b" }} />
+            <span className="text-[10px] text-on-surface-variant font-semibold">Injury</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#6b7280" }} />
+            <span className="text-[10px] text-on-surface-variant font-semibold">PDO</span>
           </div>
           {mismatchCount != null && mismatchCount > 0 && (
             <div className="flex items-center gap-1.5">

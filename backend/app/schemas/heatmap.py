@@ -8,6 +8,16 @@ class HeatmapPoint(BaseModel):
     lng: float
     weight: int
     severity: str | None = None
+    collision_id: int | None = None
+    data_source: str | None = None
+    crash_datetime: str | None = None
+    canonical_cause: str | None = None
+    weather: str | None = None
+    lighting: str | None = None
+    number_killed: int | None = None
+    number_injured: int | None = None
+    primary_road: str | None = None
+    hit_run: str | None = None
 
 
 class HeatmapResponse(BaseModel):

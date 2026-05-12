@@ -17,6 +17,9 @@ vi.mock("./CaliforniaMask", () => ({
 vi.mock("./OverlayMarkers", () => ({
   default: () => null,
 }));
+vi.mock("./CrashDotLayer", () => ({
+  default: () => null,
+}));
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Map as LeafletMap } from "leaflet";
