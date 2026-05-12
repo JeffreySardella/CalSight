@@ -27,7 +27,7 @@ from shapely.geometry import Point, shape
 from shapely.prepared import prep
 from sqlalchemy import text, update
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import Crash
 from etl._utils import track_etl_run
 

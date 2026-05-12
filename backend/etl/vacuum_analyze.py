@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from app.database import engine
+from app.database import etl_engine as engine  # write/DDL role
 
 logging.basicConfig(
     level=logging.INFO,

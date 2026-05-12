@@ -24,7 +24,7 @@ import logging
 
 from sqlalchemy import select
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, RoadMile
 from etl._utils import get_with_retry, track_etl_run
 

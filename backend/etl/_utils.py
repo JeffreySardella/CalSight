@@ -42,7 +42,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, TypeVar
 import httpx
 from sqlalchemy import desc, text
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import EtlRun
 
 if TYPE_CHECKING:

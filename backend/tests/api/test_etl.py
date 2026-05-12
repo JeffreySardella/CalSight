@@ -1,3 +1,8 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
+
 def test_etl_status_returns_sources(client):
     response = client.get("/api/etl/status")
     assert response.status_code == 200
