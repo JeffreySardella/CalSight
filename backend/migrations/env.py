@@ -1,7 +1,8 @@
 """Alembic environment configuration.
 
 This file tells Alembic:
-1. How to connect to the database (DATABASE_URL from environment)
+1. How to connect to the database (uses the ETL URL — alembic needs DDL,
+   so it can't use the read-only API role)
 2. Where to find your models (app.models via Base.metadata)
 
 Alembic compares Base.metadata (what your models say) against the actual
@@ -22,7 +23,10 @@ from app.settings import settings
 import app.models  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Use the ETL URL because alembic runs DDL (CREATE TABLE etc.) and the
+# API URL points at a read-only role in production. Falls back to the
+# API URL locally — see settings.effective_etl_database_url.
+config.set_main_option("sqlalchemy.url", settings.effective_etl_database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

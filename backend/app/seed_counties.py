@@ -1,6 +1,6 @@
 """Seed the counties table with all 58 California counties."""
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County
 
 # California counties: code, name, FIPS, center lat, center lng

@@ -26,7 +26,7 @@ from datetime import datetime
 
 from sqlalchemy import text
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County
 from etl._utils import track_etl_run
 

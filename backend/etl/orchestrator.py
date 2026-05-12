@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import EtlRun
 
 logger = logging.getLogger(__name__)

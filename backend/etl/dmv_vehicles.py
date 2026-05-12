@@ -24,7 +24,7 @@ from collections import defaultdict
 import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, VehicleRegistration
 from etl._utils import track_etl_run
 

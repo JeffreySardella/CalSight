@@ -30,7 +30,7 @@ from datetime import datetime
 from sqlalchemy import extract, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import Crash, EtlRun
 
 logging.basicConfig(

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import sys
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CountyInsightCard, StatewideInsight
 
 
