@@ -31,6 +31,7 @@ import { useCountyInsight } from "../hooks/useCountyInsight";
 import { useRandomInsight } from "../hooks/useRandomInsight";
 import ActiveFiltersBanner from "../components/map/ActiveFiltersBanner";
 import { usePrefetchFacets } from "../hooks/usePrefetchFacets";
+import { useCountyGeoJson } from "../hooks/useCountyGeoJson";
 import FilteredUrlPrompt from "../components/map/FilteredUrlPrompt";
 import IntroOverlay from "../components/map/IntroOverlay";
 
@@ -107,6 +108,7 @@ function MapPageInner() {
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
   usePrefetchFacets();
+  useCountyGeoJson();
 
   const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
 
