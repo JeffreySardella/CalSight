@@ -32,6 +32,7 @@ import { useRandomInsight } from "../hooks/useRandomInsight";
 import ActiveFiltersBanner from "../components/map/ActiveFiltersBanner";
 import { usePrefetchFacets } from "../hooks/usePrefetchFacets";
 import FilteredUrlPrompt from "../components/map/FilteredUrlPrompt";
+import IntroOverlay from "../components/map/IntroOverlay";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -95,6 +96,15 @@ function MapPageInner() {
   } = useFilterParams();
 
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleIntroStart = useCallback((_mode: "simple" | "advanced") => {
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+      setShowMobileFilters(true);
+    } else {
+      setActivePanel("filters");
+    }
+  }, []);
   const [showInsight, setShowInsight] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [mobileSearchExpanded, setMobileSearchExpanded] = useState(false);
@@ -678,6 +688,8 @@ function MapPageInner() {
         isOpen={showHelp}
         onClose={() => setShowHelp(false)}
       />
+
+      <IntroOverlay onStart={handleIntroStart} />
 
       {showFilterPrompt && (
         <FilteredUrlPrompt
