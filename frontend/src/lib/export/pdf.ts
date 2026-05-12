@@ -48,16 +48,19 @@ export interface PdfExportOptions {
   scope: FilterScope;
   /** Pre-built filter query string for the backend rollup fetches. */
   filterQs: string;
+  /** Cancellation signal — abort propagates to the in-flight stats fetches
+   *  so closing the panel mid-generation doesn't leak requests. */
+  signal?: AbortSignal;
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`${url} → ${res.status}`);
   return res.json();
 }
 
 export async function exportPdf(opts: PdfExportOptions): Promise<void> {
-  const { scope, filterQs } = opts;
+  const { scope, filterQs, signal } = opts;
 
   // Two parallel rollups — grand totals + top counties. We forward the
   // current filter QS so the report reflects what the user is looking at.
@@ -65,8 +68,8 @@ export async function exportPdf(opts: PdfExportOptions): Promise<void> {
   const countyQs = filterQs ? `?${filterQs}&group_by=county` : "?group_by=county";
 
   const [total, counties] = await Promise.all([
-    fetchJson<GrandTotal>(`${API_BASE}/api/stats${statsQs}`),
-    fetchJson<CountyRow[]>(`${API_BASE}/api/stats${countyQs}`),
+    fetchJson<GrandTotal>(`${API_BASE}/api/stats${statsQs}`, signal),
+    fetchJson<CountyRow[]>(`${API_BASE}/api/stats${countyQs}`, signal),
   ]);
 
   const doc = new jsPDF({ unit: "pt", format: "letter" });

@@ -56,6 +56,10 @@ export default function DataExportPanel() {
     drug: filters.selectedDrug,
     driverAge: filters.selectedDriverAge,
     hitRun: filters.selectedHitRun,
+    weather: filters.selectedWeather,
+    lighting: filters.selectedLighting,
+    collisionType: filters.selectedCollisionType,
+    roadType: filters.selectedRoadType,
   }), [filters]);
 
   const scope = useMemo(() => computeFilterScope(filterState), [filterState]);
@@ -108,8 +112,14 @@ export default function DataExportPanel() {
           });
           finishExport("csv");
         } else if (fmt === "pdf") {
+          abortRef.current?.abort();
+          abortRef.current = new AbortController();
           startExport("pdf", "Generating report…");
-          await exportPdf({ scope: s, filterQs: qs });
+          await exportPdf({
+            scope: s,
+            filterQs: qs,
+            signal: abortRef.current.signal,
+          });
           finishExport("pdf");
         } else {
           startExport("png", "Capturing map…");
@@ -247,7 +257,7 @@ export default function DataExportPanel() {
           )}
           {phase.kind === "success" && (
             <div className="bg-tertiary-container text-on-tertiary-container rounded-lg p-4 text-[11px] flex items-center gap-2">
-              <span className="material-symbols-outlined text-base">check_circle</span>
+              <span className="material-symbols-outlined text-xl shrink-0">check_circle</span>
               <span>{phase.format.toUpperCase()} downloaded.</span>
             </div>
           )}

@@ -38,7 +38,9 @@ export async function exportPng(opts: PngExportOptions = {}): Promise<void> {
   // on a static export. The heatmap canvas + tile layers stay.
   const dataUrl = await toPng(target, {
     cacheBust: true,
-    pixelRatio: window.devicePixelRatio || 1,
+    // Retina screens can report DPRs of 3+ but html-to-image renders the
+    // heatmap canvas blank above 2 — cap it to keep the export working.
+    pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
     filter: (node) => {
       if (!(node instanceof Element)) return true;
       if (node.classList?.contains("leaflet-control-container")) return false;

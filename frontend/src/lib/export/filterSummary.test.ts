@@ -13,6 +13,10 @@ const empty = {
   drug: false,
   driverAge: null,
   hitRun: false,
+  weather: new Set<string>(),
+  lighting: new Set<string>(),
+  collisionType: new Set<string>(),
+  roadType: null,
 };
 
 describe("computeFilterScope", () => {
@@ -104,6 +108,34 @@ describe("computeFilterScope", () => {
     expect(value).toMatch(/\+2 more$/);
     // First three (sorted) should appear in full.
     expect(value).toContain("DUI");
+  });
+
+  it("treats weather-only as a real filter (regression: CSV gate was wrong)", () => {
+    // hasAnyFilter used to return false here, blocking CSV with
+    // "Apply at least one filter" even though /api/crashes respects weather.
+    const s = computeFilterScope({ ...empty, weather: new Set(["rain"]) });
+    expect(s.hasAnyFilter).toBe(true);
+    expect(s.rows.find((r) => r.label === "Weather")?.value).toBe("Rain");
+  });
+
+  it("humanizes condition slugs in the scope rows", () => {
+    const s = computeFilterScope({
+      ...empty,
+      lighting: new Set(["dark_lit", "dusk_dawn"]),
+      collisionType: new Set(["rear_end"]),
+      roadType: "highway",
+    });
+    expect(s.rows.find((r) => r.label === "Lighting")?.value).toBe("Dark (Street Lights), Dusk / Dawn");
+    expect(s.rows.find((r) => r.label === "Collision type")?.value).toBe("Rear End");
+    expect(s.rows.find((r) => r.label === "Road type")?.value).toBe("Highway");
+  });
+
+  it("omits condition rows when their set is empty", () => {
+    const s = computeFilterScope(empty);
+    expect(s.rows.find((r) => r.label === "Weather")).toBeUndefined();
+    expect(s.rows.find((r) => r.label === "Lighting")).toBeUndefined();
+    expect(s.rows.find((r) => r.label === "Collision type")).toBeUndefined();
+    expect(s.rows.find((r) => r.label === "Road type")).toBeUndefined();
   });
 
   it("handles open-ended date ranges", () => {

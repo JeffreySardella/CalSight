@@ -23,6 +23,35 @@ const CAUSE_SLUG_TO_LABEL: Record<string, string> = Object.fromEntries(
   CAUSES.map((c) => [c.value, c.label]),
 );
 
+// Condition-filter labels. Source of truth is StepConditions.tsx; mirrored
+// here because that file doesn't export them and the export panel needs to
+// show user-readable values.
+const WEATHER_LABELS: Record<string, string> = {
+  clear: "Clear",
+  cloudy: "Cloudy",
+  rain: "Rain",
+  fog: "Fog",
+  snow: "Snow",
+  wind: "Wind",
+};
+const LIGHTING_LABELS: Record<string, string> = {
+  daylight: "Daylight",
+  dark_lit: "Dark (Street Lights)",
+  dark_unlit: "Dark (No Lights)",
+  dusk_dawn: "Dusk / Dawn",
+};
+const COLLISION_TYPE_LABELS: Record<string, string> = {
+  rear_end: "Rear End",
+  broadside: "Broadside",
+  sideswipe: "Sideswipe",
+  hit_object: "Hit Object",
+  head_on: "Head On",
+};
+const ROAD_TYPE_LABELS: Record<string, string> = {
+  highway: "Highway",
+  local: "Local Road",
+};
+
 export type FilterScope = {
   /** Was this dimension narrowed at all? Used to gate the CSV
    *  "must filter first" precondition. */
@@ -47,6 +76,10 @@ export interface FilterState {
   drug: boolean;
   driverAge: string | null;
   hitRun: boolean;
+  weather: Set<string>;
+  lighting: Set<string>;
+  collisionType: Set<string>;
+  roadType: string | null;
 }
 
 const ALL = "All";
@@ -107,6 +140,34 @@ export function computeFilterScope(state: FilterState): FilterScope {
   if (flags.length > 0) {
     rows.push({ label: "Involvement", value: flags.join(", ") });
   }
+  // Condition rows — only shown when the user narrowed them. The total
+  // counts come from the label maps (which mirror StepConditions.tsx), so
+  // fmtList's "size === total" branch correctly collapses to "All" if every
+  // option is selected.
+  if (state.weather.size > 0) {
+    rows.push({
+      label: "Weather",
+      value: fmtList(state.weather, Object.keys(WEATHER_LABELS).length, ALL, { labelMap: WEATHER_LABELS }),
+    });
+  }
+  if (state.lighting.size > 0) {
+    rows.push({
+      label: "Lighting",
+      value: fmtList(state.lighting, Object.keys(LIGHTING_LABELS).length, ALL, { labelMap: LIGHTING_LABELS }),
+    });
+  }
+  if (state.collisionType.size > 0) {
+    rows.push({
+      label: "Collision type",
+      value: fmtList(state.collisionType, Object.keys(COLLISION_TYPE_LABELS).length, ALL, { labelMap: COLLISION_TYPE_LABELS }),
+    });
+  }
+  if (state.roadType) {
+    rows.push({
+      label: "Road type",
+      value: ROAD_TYPE_LABELS[state.roadType] ?? state.roadType,
+    });
+  }
 
   const hasAnyFilter =
     state.dateRange != null ||
@@ -114,7 +175,11 @@ export function computeFilterScope(state: FilterState): FilterScope {
     state.severities.size > 0 ||
     state.causes.size > 0 ||
     state.driverAge != null ||
-    flags.length > 0;
+    flags.length > 0 ||
+    state.weather.size > 0 ||
+    state.lighting.size > 0 ||
+    state.collisionType.size > 0 ||
+    state.roadType != null;
 
   const oneLineParts: string[] = [];
   if (state.counties.size > 0) oneLineParts.push(countyLabel);
