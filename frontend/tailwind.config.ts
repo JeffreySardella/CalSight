@@ -60,9 +60,9 @@ const config: Config = {
         error: "rgb(var(--error) / <alpha-value>)",
       },
       fontFamily: {
-        headline: ["Public Sans", "sans-serif"],
-        body: ["Inter", "sans-serif"],
-        label: ["Inter", "sans-serif"],
+        headline: ["'Public Sans Variable'", "Public Sans", "sans-serif"],
+        body: ["'Inter Variable'", "Inter", "sans-serif"],
+        label: ["'Inter Variable'", "Inter", "sans-serif"],
       },
       // Do NOT override borderRadius — use Tailwind defaults
     },
