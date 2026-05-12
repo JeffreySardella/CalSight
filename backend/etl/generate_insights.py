@@ -45,7 +45,7 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.llm import generate_narrative
 from app.models import County, CountyInsight
 from etl._utils import track_etl_run

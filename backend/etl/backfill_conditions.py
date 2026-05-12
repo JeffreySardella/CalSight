@@ -27,7 +27,7 @@ import re
 
 from sqlalchemy import text
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from etl._utils import track_etl_run
 
 logging.basicConfig(

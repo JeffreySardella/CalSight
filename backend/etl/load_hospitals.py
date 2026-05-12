@@ -17,7 +17,7 @@ import logging
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.database import SessionLocal
+from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, Hospital
 from etl._utils import get_with_retry, track_etl_run
 

@@ -26,7 +26,7 @@ import logging
 
 from sqlalchemy import text
 
-from app.database import engine
+from app.database import etl_engine as engine  # write/DDL role
 from etl._utils import track_etl_run
 
 logging.basicConfig(

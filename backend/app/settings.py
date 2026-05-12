@@ -30,7 +30,25 @@ class Settings(BaseSettings):
     # everyone queries the same loaded 25M-row dataset. If it's missing
     # (or empty) the app falls back to the local Postgres URL so a fresh
     # clone of the repo still boots against `docker compose up db`.
+    #
+    # In production both DATABASE_URL and DATABASE_URL_AZURE point at a
+    # read-only Postgres role — ETL/alembic use ETL_DATABASE_URL[_AZURE]
+    # below, which carries DDL + write permissions. See
+    # backend/sql/create_readonly_role.sql.
     database_url_azure: str = ""
+
+    # ETL connection: full read/write/DDL access. Used by every ETL
+    # loader (via app.database.EtlSessionLocal) and by alembic
+    # migrations. The API never touches this engine — it stays on the
+    # read-only `database_url[_azure]` pair so a compromised dependency
+    # can't run destructive SQL.
+    #
+    # Both fields are optional: if neither is set we fall back to the
+    # API URL. That keeps local dev and integration tests one-URL
+    # simple — the split only matters in production where the API role
+    # is genuinely read-only.
+    etl_database_url: str = ""
+    etl_database_url_azure: str = ""
 
     # -- CORS --
     # Comma-separated origins, e.g. "http://localhost:5173,https://calsight.example.com"
@@ -81,6 +99,21 @@ class Settings(BaseSettings):
         if self.database_url_azure:
             return self.database_url_azure
         return self.database_url
+
+    @property
+    def effective_etl_database_url(self) -> str:
+        """Pick the URL ETL + alembic should use.
+
+        Priority: ETL_DATABASE_URL_AZURE > ETL_DATABASE_URL > the API
+        URL. The fallback to the API URL means local dev / tests work
+        without setting a second variable — the split only matters in
+        prod where the API role is read-only and ETL needs DDL.
+        """
+        if self.etl_database_url_azure:
+            return self.etl_database_url_azure
+        if self.etl_database_url:
+            return self.etl_database_url
+        return self.effective_database_url
 
 
 # Single instance — import this everywhere instead of creating new Settings()
