@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 interface SearchableMultiSelectProps {
   options: { value: string; label: string }[];
@@ -38,11 +38,16 @@ export default function SearchableMultiSelect({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const filtered = options.filter((opt) =>
-    opt.label.toLowerCase().includes(query.toLowerCase()),
+  const lowerQuery = query.toLowerCase();
+  const filtered = useMemo(
+    () => options.filter((opt) => opt.label.toLowerCase().includes(lowerQuery)),
+    [options, lowerQuery],
   );
 
-  const selectedOptions = options.filter((opt) => selected.has(opt.value));
+  const selectedOptions = useMemo(
+    () => options.filter((opt) => selected.has(opt.value)),
+    [options, selected],
+  );
 
   return (
     <div ref={containerRef} className="relative">

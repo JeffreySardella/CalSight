@@ -7,8 +7,8 @@ interface FilterChipProps {
   onClick: () => void;
 }
 
-const ACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-all";
-const INACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-all";
+const ACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-colors";
+const INACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-colors";
 const DISABLED = "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant/40 cursor-not-allowed";
 
 export default function FilterChip({ label, icon, count, active, disabled, onClick }: FilterChipProps) {

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import { useIsDark } from "../../context/ThemeContext";
+import { useCountyGeoJson } from "../../hooks/useCountyGeoJson";
 
 const WORLD_RING: [number, number][] = [
   [-90, -180], [-90, 180], [90, 180], [90, -180], [-90, -180],
@@ -12,17 +13,11 @@ interface CaliforniaMaskProps {
   compareCounty: string | null;
 }
 
-export default function CaliforniaMask({ focusedCounty, compareCounty }: CaliforniaMaskProps) {
+export default memo(function CaliforniaMask({ focusedCounty, compareCounty }: CaliforniaMaskProps) {
   const map = useMap();
   const isDark = useIsDark();
   const layerRef = useRef<L.GeoJSON | null>(null);
-  const [geojson, setGeojson] = useState<GeoJSON.FeatureCollection | null>(null);
-
-  useEffect(() => {
-    fetch("/ca-counties.geojson")
-      .then((res) => res.json())
-      .then(setGeojson);
-  }, []);
+  const { data: geojson } = useCountyGeoJson();
 
   useEffect(() => {
     if (layerRef.current) {
@@ -85,4 +80,4 @@ export default function CaliforniaMask({ focusedCounty, compareCounty }: Califor
   }, [map, geojson, isDark, focusedCounty, compareCounty]);
 
   return null;
-}
+});

@@ -9,7 +9,6 @@
  * caller catches the error and shows a retry message.
  */
 
-import { toPng } from "html-to-image";
 import { triggerDownload, todayStamp } from "./download";
 
 const MAP_CONTAINER_SELECTOR = ".leaflet-container";
@@ -36,6 +35,8 @@ export async function exportPng(opts: PngExportOptions = {}): Promise<void> {
 
   // Filter out the zoom control + attribution because they look out of place
   // on a static export. The heatmap canvas + tile layers stay.
+  const { toPng } = await import("html-to-image");
+
   const dataUrl = await toPng(target, {
     cacheBust: true,
     // Retina screens can report DPRs of 3+ but html-to-image renders the
