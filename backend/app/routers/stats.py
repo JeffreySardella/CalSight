@@ -160,7 +160,7 @@ mv_wide = Table(
 )
 
 _AGE_BRACKET_MAP = {
-    (16, 21): 1, (22, 34): 2, (35, 49): 3, (50, 64): 4,
+    (16, 21): 1, (22, 34): 2, (35, 49): 3, (50, 64): 4, (65, 200): 5,
 }
 
 
@@ -213,8 +213,6 @@ def _apply_wide_filters(stmt, years, county_codes, severities, causes,
         bracket = _AGE_BRACKET_MAP.get(driver_age_v)
         if bracket is not None:
             stmt = stmt.where(w.c.age_bracket == bracket)
-        elif driver_age_v[0] >= 65:
-            stmt = stmt.where(w.c.age_bracket == 5)
     return stmt
 
 
