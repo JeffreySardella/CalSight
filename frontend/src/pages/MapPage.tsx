@@ -32,6 +32,8 @@ import { useRandomInsight } from "../hooks/useRandomInsight";
 import ActiveFiltersBanner from "../components/map/ActiveFiltersBanner";
 import { usePrefetchFacets } from "../hooks/usePrefetchFacets";
 import { useCountyGeoJson } from "../hooks/useCountyGeoJson";
+import { findCountyAtPoint } from "../lib/geo/pointInCounty";
+import UnifiedSearchBar from "../components/map/UnifiedSearchBar";
 import FilteredUrlPrompt from "../components/map/FilteredUrlPrompt";
 import IntroOverlay from "../components/map/IntroOverlay";
 
@@ -88,8 +90,9 @@ function MapPageInner() {
   }, []);
   const [showInsight, setShowInsight] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [mobileSearchExpanded, setMobileSearchExpanded] = useState(false);
   const [focusedCounty, setFocusedCounty] = useState<string | null>(null);
+  const [tempMarker, setTempMarker] = useState<[number, number] | null>(null);
+  const [locating, setLocating] = useState(false);
   const [compareCounty, setCompareCounty] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -108,7 +111,7 @@ function MapPageInner() {
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
   usePrefetchFacets();
-  useCountyGeoJson();
+  const { data: countyGeoJson } = useCountyGeoJson();
 
   const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
 
@@ -251,6 +254,37 @@ function MapPageInner() {
       setTimeout(() => { selectingRef.current = false; }, 300);
     }
   }, [compareMode, focusedCounty, setCounty, toggleCounty]);
+
+  const handleSelectPlace = useCallback((lat: number, lng: number) => {
+    setTempMarker([lat, lng]);
+    mapRef.current?.setView([lat, lng], 14, { animate: true, duration: 0.5 });
+    if (countyGeoJson) {
+      const county = findCountyAtPoint(lat, lng, countyGeoJson);
+      if (county) handleSelectCounty(county);
+    }
+  }, [countyGeoJson, handleSelectCounty]);
+
+  const handleGeolocate = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setTempMarker([latitude, longitude]);
+        mapRef.current?.setView([latitude, longitude], 12, { animate: true, duration: 0.5 });
+        if (countyGeoJson) {
+          const county = findCountyAtPoint(latitude, longitude, countyGeoJson);
+          if (county) handleSelectCounty(county);
+        }
+        setLocating(false);
+      },
+      () => {
+        mapRef.current?.setView([37.2, -119.5], 6, { animate: true, duration: 0.5 });
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+  }, [countyGeoJson, handleSelectCounty]);
 
   const handleDeselect = useCallback(() => {
     setFocusedCounty(null);
@@ -444,36 +478,27 @@ function MapPageInner() {
           heatmapPalette={palette}
           countyDrilldown={useCountyDetail}
           mismatchPoints={otherLayers.coordMismatches ? mismatchHeatmap.points : []}
+          tempMarker={tempMarker}
         />
 
-        {/* Mobile: search + filter icon buttons (right), hide when search expanded */}
-        {!mobileSearchExpanded && (
-          <div className="absolute top-3 right-3 z-20 md:hidden flex items-center gap-2">
-            <button
-              onClick={() => setMobileSearchExpanded(true)}
-              className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
-              aria-label="Search"
-            >
-              <span className="material-symbols-outlined text-[20px]">search</span>
-            </button>
-            <button
-              onClick={() => setShowMobileFilters(true)}
-              className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
-              aria-label="Open filters"
-            >
-              <span className="material-symbols-outlined text-[20px]">tune</span>
-            </button>
-          </div>
-        )}
-        {mobileSearchExpanded && (
-          <MobileSearchPill
-            expanded={true}
-            onExpand={() => setMobileSearchExpanded(true)}
-            onCollapse={() => setMobileSearchExpanded(false)}
-            onSelect={(name) => { handleSelectCounty(name); setMobileSearchExpanded(false); }}
-            map={mapRef.current}
-          />
-        )}
+        {/* Mobile: filter button (right) */}
+        <div className="absolute top-3 right-3 z-20 md:hidden">
+          <button
+            onClick={() => setShowMobileFilters(true)}
+            className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
+            aria-label="Open filters"
+          >
+            <span className="material-symbols-outlined text-[20px]">tune</span>
+          </button>
+        </div>
+
+        <UnifiedSearchBar
+          map={mapRef.current}
+          onSelectCounty={handleSelectCounty}
+          onSelectPlace={handleSelectPlace}
+          onGeolocate={handleGeolocate}
+          locating={locating}
+        />
 
         <ActiveFiltersBanner
           dateRange={selectedDateRange}
@@ -493,7 +518,7 @@ function MapPageInner() {
           totalCrashes={choroplethData.dataSummary.totalCrashes}
           isLoading={choroplethData.isLoading}
           onClear={handleClearAll}
-          searchOpen={mobileSearchExpanded}
+          searchOpen={false}
         />
 
         {!choroplethData.isLoading
@@ -570,7 +595,7 @@ function MapPageInner() {
           heatmapLoading={heatmapEnabled && heatmap.isLoading}
           countyActive={!!focusedCounty}
           countyTotalCrashes={inspectedData?.rawCount ?? null}
-          searchOpen={mobileSearchExpanded}
+          searchOpen={false}
           mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
         />
         {otherLayers.heatmapStatewide && !focusedCounty && !choroplethOn && (
@@ -578,7 +603,7 @@ function MapPageInner() {
             totalCrashes={statewideHeatmap.totalCrashes}
             displayed={statewideHeatmap.points.length}
             isLoading={statewideHeatmap.isLoading}
-            searchOpen={mobileSearchExpanded}
+            searchOpen={false}
           />
         )}
         {!focusedCounty && showStatewide && randomCard && (
@@ -759,127 +784,3 @@ function ChoroplethLegendContainer({
 // Mobile search pill — inline at top center, expands to show results below
 // ---------------------------------------------------------------------------
 
-const MOBILE_COUNTY_NAMES = (CA_COUNTIES as unknown as string[]).slice().sort();
-
-function MobileSearchPill({
-  expanded,
-  onExpand,
-  onCollapse,
-  onSelect,
-  map,
-}: {
-  expanded: boolean;
-  onExpand: () => void;
-  onCollapse: () => void;
-  onSelect: (name: string) => void;
-  map: LeafletMap | null;
-}) {
-  const [query, setQuery] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const results = query.trim()
-    ? MOBILE_COUNTY_NAMES.filter((n) =>
-        n.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 4)
-    : [];
-
-  useEffect(() => {
-    if (expanded && inputRef.current) inputRef.current.focus();
-  }, [expanded]);
-
-  // Collapse when map moves
-  useEffect(() => {
-    if (!map) return;
-    const collapse = () => { onCollapse(); setQuery(""); };
-    map.on("movestart", collapse);
-    return () => { map.off("movestart", collapse); };
-  }, [map, onCollapse]);
-
-  // Close on outside tap
-  useEffect(() => {
-    if (!expanded) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        onCollapse();
-        setQuery("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [expanded, onCollapse]);
-
-  const handleSelect = (name: string) => {
-    onSelect(name);
-    setQuery("");
-  };
-
-  return (
-    <div
-      ref={containerRef}
-      className={expanded
-        ? "absolute top-3 left-3 right-3 z-20 md:hidden"
-        : "md:hidden"
-      }
-    >
-      <div
-        className={`
-          flex items-center gap-2
-          bg-surface-container-lowest/90 backdrop-blur-md
-          ghost-border shadow-lg
-          ${expanded ? "h-10 rounded-2xl px-3" : "h-10 rounded-full px-3 cursor-pointer"}
-        `}
-        onClick={() => !expanded && onExpand()}
-      >
-        <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">
-          search
-        </span>
-        {expanded ? (
-          <>
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") { onCollapse(); setQuery(""); }
-                if (e.key === "Enter" && results.length > 0) handleSelect(results[0]);
-              }}
-              placeholder="Search counties…"
-              className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none border-none min-w-0"
-            />
-            <button
-              onClick={(e) => { e.stopPropagation(); onCollapse(); setQuery(""); }}
-              className="p-0.5 rounded-full"
-            >
-              <span className="material-symbols-outlined text-[16px] text-on-surface-variant">close</span>
-            </button>
-          </>
-        ) : (
-          <span className="text-[11px] text-on-surface-variant font-medium">Counties</span>
-        )}
-      </div>
-
-      {expanded && results.length > 0 && (
-        <div className="mt-1.5 bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-2xl shadow-lg overflow-hidden">
-          {results.map((name) => (
-            <button
-              key={name}
-              onClick={() => handleSelect(name)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-on-surface text-left hover:bg-surface-container transition-colors"
-            >
-              <span className="material-symbols-outlined text-[14px] text-on-surface-variant">location_on</span>
-              <span>{name} County</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {expanded && query.trim() && results.length === 0 && (
-        <div className="mt-1.5 bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-2xl shadow-lg px-3 py-2.5">
-          <p className="text-xs text-on-surface-variant">No match for "{query}"</p>
-        </div>
-      )}
-    </div>
-  );
-}

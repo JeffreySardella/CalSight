@@ -68,6 +68,27 @@ export default function PrivacyPage() {
         </section>
 
         <section>
+          <h2 className="font-headline text-lg font-bold text-on-surface mb-2">Location Features</h2>
+          <p>
+            The &ldquo;My Location&rdquo; button uses your browser&apos;s geolocation API to center the map
+            on your position. Your coordinates are processed entirely in your browser to identify the
+            nearest county &mdash; they are never sent to our servers.
+          </p>
+          <p className="mt-2">
+            Address and place searches are sent to OpenStreetMap&apos;s Nominatim geocoding service.
+            Only your search text is transmitted, not your GPS coordinates or any personal information.
+            See the{" "}
+            <a href="https://osmfoundation.org/wiki/Privacy_Policy" className="text-primary underline" target="_blank" rel="noopener noreferrer">
+              OpenStreetMap privacy policy
+            </a>{" "}
+            for details.
+          </p>
+          <p className="mt-2">
+            Saved favorite locations are stored in your browser&apos;s local storage and are never transmitted.
+          </p>
+        </section>
+
+        <section>
           <h2 className="font-headline text-lg font-bold text-on-surface mb-2">Data Sources</h2>
           <p>
             All crash data displayed on CalSight is sourced from publicly available California state datasets
