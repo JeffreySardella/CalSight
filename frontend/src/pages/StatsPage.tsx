@@ -2,19 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-  LabelList,
-} from "recharts";
-import { useStats, type HourlyDataPoint, type YearlyDataPoint, type CauseDataPoint, type MonthlyDataPoint, type DayOfWeekDataPoint } from "../hooks/useStats";
+import SimpleBarChart from "../components/charts/SimpleBarChart";
+import SimpleDonutChart from "../components/charts/SimpleDonutChart";
+import { useStats } from "../hooks/useStats";
 import { useDataQualityDisclaimer } from "../hooks/useDataQualityDisclaimer";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
@@ -37,65 +27,12 @@ function token(name: string) {
   return `rgb(${getComputedStyle(document.documentElement).getPropertyValue(name).trim()})`;
 }
 
-function HourTooltip({ active, payload }: { active?: boolean; payload?: { payload: HourlyDataPoint }[] }) {
-  if (!active || !payload?.length) return null;
-  const { hour, count } = payload[0].payload;
-  const label = `${String(hour).padStart(2, "0")}:00`;
+function ChartTip({ title, lines }: { title: string; lines: string[] }) {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-      <p className="font-headline font-bold text-on-surface">{label}</p>
-      <p className="text-on-surface-variant mt-0.5">{count.toLocaleString()} incidents</p>
-    </div>
-  );
-}
-
-function YearTooltip({ active, payload }: { active?: boolean; payload?: { payload: YearlyDataPoint }[] }) {
-  if (!active || !payload?.length) return null;
-  const { year, count } = payload[0].payload;
-  return (
-    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-      <p className="font-headline font-bold text-on-surface">{year}</p>
-      <p className="text-on-surface-variant mt-0.5">{count.toLocaleString()} incidents</p>
-    </div>
-  );
-}
-
-function YearCursor({ x, y, width, height }: { x?: number; y?: number; width?: number; height?: number }) {
-  if (x == null || y == null || width == null || height == null) return null;
-  return <rect x={x} y={y - 16} width={width} height={height + 16} fill="rgba(87,95,107,0.06)" rx={2} />;
-}
-
-function CauseTooltip({ active, payload }: { active?: boolean; payload?: { payload: CauseDataPoint & { pct: number } }[] }) {
-  if (!active || !payload?.length) return null;
-  const { label, count, pct } = payload[0].payload;
-  return (
-    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-      <p className="font-headline font-bold text-on-surface">{label}</p>
-      <p className="text-on-surface-variant mt-0.5">{pct}% · {count.toLocaleString()} incidents</p>
-    </div>
-  );
-}
-
-function MonthTooltip({ active, payload }: { active?: boolean; payload?: { payload: MonthlyDataPoint }[] }) {
-  if (!active || !payload?.length) return null;
-  const { label, count, killed, injured } = payload[0].payload;
-  return (
-    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-      <p className="font-headline font-bold text-on-surface">{label}</p>
-      <p className="text-on-surface-variant mt-0.5">{count.toLocaleString()} incidents</p>
-      <p className="text-on-surface-variant">{killed.toLocaleString()} killed · {injured.toLocaleString()} injured</p>
-    </div>
-  );
-}
-
-function DowTooltip({ active, payload }: { active?: boolean; payload?: { payload: DayOfWeekDataPoint }[] }) {
-  if (!active || !payload?.length) return null;
-  const { label, count } = payload[0].payload;
-  return (
-    <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-      <p className="font-headline font-bold text-on-surface">{label}</p>
-      <p className="text-on-surface-variant mt-0.5">{count.toLocaleString()} incidents</p>
-    </div>
+    <>
+      <p className="font-headline font-bold text-on-surface">{title}</p>
+      {lines.map((l, i) => <p key={i} className="text-on-surface-variant mt-0.5">{l}</p>)}
+    </>
   );
 }
 
@@ -423,47 +360,19 @@ export default function StatsPage() {
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
             <ChartImg label="Crash density by hour of day bar chart">
-            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
-              <BarChart data={hourlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
-                <XAxis
-                  dataKey="hour"
-                  ticks={[0, 6, 12, 18, 23]}
-                  minTickGap={0}
-                  tickFormatter={(h) => h === 23 ? "23:59" : `${String(h).padStart(2, "0")}:00`}
-                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip content={<HourTooltip />} cursor={{ fill: "rgba(87,95,107,0.06)" }} />
-                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
-                  {hourlyData.map((_, i) => (
-                    <Cell key={i} fill={i === peakHourIndex ? clrPrimary : clrPrimaryContainer} />
-                  ))}
-                  <LabelList
-                    dataKey="count"
-                    position="top"
-                    content={(props) => {
-                      const { x, y, width, index } = props as { x: number; y: number; width: number; index: number };
-                      if (index !== peakHourIndex) return null;
-                      return (
-                        <text
-                          x={Number(x) + Number(width) / 2}
-                          y={Number(y) - 4}
-                          textAnchor="middle"
-                          fill={clrPrimary}
-                          fontSize={8}
-                          fontWeight={700}
-                          fontFamily="Inter, sans-serif"
-                          letterSpacing={1}
-                        >
-                          PEAK
-                        </text>
-                      );
-                    }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={hourlyData.map((d, i) => ({
+                label: [0, 6, 12, 18, 23].includes(d.hour) ? (d.hour === 23 ? "23:59" : `${String(d.hour).padStart(2, "0")}:00`) : "",
+                value: d.count,
+                color: i === peakHourIndex ? clrPrimary : clrPrimaryContainer,
+                peakLabel: i === peakHourIndex ? "PEAK" : undefined,
+              }))}
+              height={isMobile ? 240 : 192}
+              renderTooltip={(_, idx) => {
+                const d = hourlyData[idx];
+                return <ChartTip title={`${String(d.hour).padStart(2, "0")}:00`} lines={[`${d.count.toLocaleString()} incidents`]} />;
+              }}
+            />
             </ChartImg>
           )}
         </div>
@@ -482,26 +391,11 @@ export default function StatsPage() {
           ) : causesWithPct.length <= 5 ? (
             <>
               <ChartImg label="Primary cause breakdown pie chart">
-              <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
-                <PieChart>
-                  <Pie
-                    data={causesWithPct}
-                    dataKey="pct"
-                    nameKey="label"
-                    innerRadius={48}
-                    outerRadius={72}
-                    paddingAngle={2}
-                    startAngle={90}
-                    endAngle={-270}
-                    strokeWidth={0}
-                  >
-                    {causesWithPct.map((c) => (
-                      <Cell key={c.label} fill={causeColor(c.label)} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CauseTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <SimpleDonutChart
+                data={causesWithPct.map((c) => ({ label: c.label, value: c.pct, color: causeColor(c.label) }))}
+                height={isMobile ? 200 : 160}
+                renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.pct}% · ${causesWithPct.find((c) => c.label === item.label)?.count.toLocaleString() ?? 0} incidents`]} />}
+              />
               </ChartImg>
               <div className="space-y-4 mt-2">
                 {causesWithPct.map((cause) => (
@@ -519,25 +413,19 @@ export default function StatsPage() {
             </>
           ) : (
             <ChartImg label="Primary cause breakdown bar chart">
-            <ResponsiveContainer width="100%" height={Math.max(200, causesWithPct.length * 32)}>
-              <BarChart data={[...causesWithPct].sort((a, b) => b.count - a.count)} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="label"
-                  width={100}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
-                />
-                <Tooltip content={<CauseTooltip />} cursor={{ fill: "rgba(87,95,107,0.06)" }} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={18}>
-                  {[...causesWithPct].sort((a, b) => b.count - a.count).map((c) => (
-                    <Cell key={c.label} fill={causeColor(c.label)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={[...causesWithPct].sort((a, b) => b.count - a.count).map((c) => ({
+                label: c.label,
+                value: c.count,
+                color: causeColor(c.label),
+              }))}
+              height={Math.max(200, causesWithPct.length * 32)}
+              layout="horizontal"
+              renderTooltip={(item) => {
+                const c = causesWithPct.find((x) => x.label === item.label);
+                return <ChartTip title={item.label} lines={[`${c?.pct ?? 0}% · ${item.value.toLocaleString()} incidents`]} />;
+              }}
+            />
             </ChartImg>
           )}
         </div>
@@ -574,47 +462,39 @@ export default function StatsPage() {
             </div>
           ) : (
             <ChartImg label="Incidents by year bar chart">
-            <ResponsiveContainer width="100%" height={isMobile ? 200 : 256}>
-              <BarChart data={yearlyData} barCategoryGap="15%" margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="year"
-                  tickLine={false}
-                  axisLine={false}
-                  interval={0}
-                  tick={(props) => {
-                    const { x, y, payload } = props;
-                    const yr = payload.value as number;
-                    const isPeak = yr === peakYear;
-                    const nearPeak = Math.abs(yr - peakYear) <= 2 && !isPeak;
-                    const isEndpoint = yr === yearlyData[0]?.year || yr === yearlyData[yearlyData.length - 1]?.year;
-                    const showLabel = isPeak || (!nearPeak && (yr % 5 === 0 || isEndpoint));
-                    if (!showLabel) return <text />;
-                    return (
-                      <text
-                        x={x} y={y + 10}
-                        textAnchor="middle"
-                        fill={isPeak ? clrOnSurface : clrOnSurfaceVariant}
-                        fontSize={10}
-                        fontWeight={700}
-                        fontStyle={isPeak ? "italic" : "normal"}
-                        fontFamily="Inter, sans-serif"
-                      >
-                        {isPeak ? `${yr}*` : yr}
-                      </text>
-                    );
-                  }}
-                />
-                <Tooltip
-                  content={<YearTooltip />}
-                  cursor={<YearCursor />}
-                />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {yearlyData.map((entry, i) => (
-                    <Cell key={i} fill={entry.year === peakYear ? clrError : clrPrimaryContainer} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={yearlyData.map((d) => ({
+                label: String(d.year),
+                value: d.count,
+                color: d.year === peakYear ? clrError : clrPrimaryContainer,
+              }))}
+              height={isMobile ? 200 : 256}
+              radius={4}
+              renderTooltip={(_, idx) => {
+                const d = yearlyData[idx];
+                return <ChartTip title={String(d.year)} lines={[`${d.count.toLocaleString()} incidents`]} />;
+              }}
+              labelFormatter={(label) => {
+                const yr = parseInt(label);
+                const isPeak = yr === peakYear;
+                const nearPeak = Math.abs(yr - peakYear) <= 2 && !isPeak;
+                const isEndpoint = yr === yearlyData[0]?.year || yr === yearlyData[yearlyData.length - 1]?.year;
+                const show = isPeak || (!nearPeak && (yr % 5 === 0 || isEndpoint));
+                if (!show) return null;
+                return (
+                  <text
+                    textAnchor="middle"
+                    fill={isPeak ? clrOnSurface : clrOnSurfaceVariant}
+                    fontSize={10}
+                    fontWeight={700}
+                    fontStyle={isPeak ? "italic" : "normal"}
+                    fontFamily="'Inter Variable', Inter, sans-serif"
+                  >
+                    {isPeak ? `${yr}*` : yr}
+                  </text>
+                );
+              }}
+            />
             </ChartImg>
           )}
           {yearlyData.length >= 3 && (
@@ -649,44 +529,19 @@ export default function StatsPage() {
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
             <ChartImg label="Crashes by month bar chart">
-            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
-              <BarChart data={monthlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
-                />
-                <Tooltip content={<MonthTooltip />} cursor={{ fill: "rgba(87,95,107,0.06)" }} />
-                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
-                  {monthlyData.map((_, i) => (
-                    <Cell key={i} fill={i === peakMonthIndex ? clrPrimary : clrPrimaryContainer} />
-                  ))}
-                  <LabelList
-                    dataKey="count"
-                    position="top"
-                    content={(props) => {
-                      const { x, y, width, index } = props as { x: number; y: number; width: number; index: number };
-                      if (index !== peakMonthIndex) return null;
-                      return (
-                        <text
-                          x={Number(x) + Number(width) / 2}
-                          y={Number(y) - 4}
-                          textAnchor="middle"
-                          fill={clrPrimary}
-                          fontSize={8}
-                          fontWeight={700}
-                          fontFamily="Inter, sans-serif"
-                          letterSpacing={1}
-                        >
-                          PEAK
-                        </text>
-                      );
-                    }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={monthlyData.map((d, i) => ({
+                label: d.label,
+                value: d.count,
+                color: i === peakMonthIndex ? clrPrimary : clrPrimaryContainer,
+                peakLabel: i === peakMonthIndex ? "PEAK" : undefined,
+              }))}
+              height={isMobile ? 240 : 192}
+              renderTooltip={(_, idx) => {
+                const d = monthlyData[idx];
+                return <ChartTip title={d.label} lines={[`${d.count.toLocaleString()} incidents`, `${d.killed.toLocaleString()} killed · ${d.injured.toLocaleString()} injured`]} />;
+              }}
+            />
             </ChartImg>
           )}
         </div>
@@ -704,22 +559,15 @@ export default function StatsPage() {
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
             <ChartImg label="Day of week distribution bar chart">
-            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
-              <BarChart data={dayOfWeekData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
-                />
-                <Tooltip content={<DowTooltip />} cursor={{ fill: "rgba(87,95,107,0.06)" }} />
-                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
-                  {dayOfWeekData.map((_, i) => (
-                    <Cell key={i} fill={i === peakDowIndex ? clrPrimary : clrPrimaryContainer} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={dayOfWeekData.map((d, i) => ({
+                label: d.label,
+                value: d.count,
+                color: i === peakDowIndex ? clrPrimary : clrPrimaryContainer,
+              }))}
+              height={isMobile ? 240 : 192}
+              renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.value.toLocaleString()} incidents`]} />}
+            />
             </ChartImg>
           )}
         </div>
@@ -741,26 +589,11 @@ export default function StatsPage() {
           ) : (
             <>
               <ChartImg label="Severity breakdown pie chart">
-              <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
-                <PieChart>
-                  <Pie
-                    data={sevWithPct}
-                    dataKey="pct"
-                    nameKey="label"
-                    innerRadius={48}
-                    outerRadius={72}
-                    paddingAngle={2}
-                    startAngle={90}
-                    endAngle={-270}
-                    strokeWidth={0}
-                  >
-                    {sevWithPct.map((s) => (
-                      <Cell key={s.label} fill={severityColor(s.label)} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CauseTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <SimpleDonutChart
+                data={sevWithPct.map((s) => ({ label: s.label, value: s.pct, color: severityColor(s.label) }))}
+                height={isMobile ? 200 : 160}
+                renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.pct}% · ${sevWithPct.find((s) => s.label === item.label)?.count.toLocaleString() ?? 0} incidents`]} />}
+              />
               </ChartImg>
               <div className="space-y-4 mt-2">
                 {sevWithPct.map((sev) => (
@@ -803,36 +636,20 @@ export default function StatsPage() {
             />
           ) : (
             <ChartImg label="Victims by gender bar chart">
-            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
-              <BarChart data={genderData} barCategoryGap="25%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload as { label: string; count: number };
-                    const total = genderData.reduce((s, g) => s + g.count, 0);
-                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
-                    return (
-                      <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-                        <p className="font-headline font-bold text-on-surface">{d.label}</p>
-                        <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} victims</p>
-                      </div>
-                    );
-                  }}
-                  cursor={{ fill: "rgba(87,95,107,0.06)" }}
-                />
-                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
-                  {genderData.map((_, i) => (
-                    <Cell key={i} fill={[clrPrimary, clrTertiary, clrPrimaryContainer][i] ?? clrPrimaryContainer} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={genderData.map((d, i) => ({
+                label: d.label,
+                value: d.count,
+                color: [clrPrimary, clrTertiary, clrPrimaryContainer][i] ?? clrPrimaryContainer,
+              }))}
+              height={isMobile ? 240 : 192}
+              gap={0.3}
+              renderTooltip={(item) => {
+                const total = genderData.reduce((s, g) => s + g.count, 0);
+                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} victims`]} />;
+              }}
+            />
             </ChartImg>
           )}
         </div>
@@ -861,32 +678,16 @@ export default function StatsPage() {
             />
           ) : (
             <ChartImg label="Victims by age bar chart">
-            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
-              <BarChart data={ageBracketData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload as { label: string; count: number };
-                    const total = ageBracketData.reduce((s, a) => s + a.count, 0);
-                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
-                    return (
-                      <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-                        <p className="font-headline font-bold text-on-surface">{d.label}</p>
-                        <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} victims</p>
-                      </div>
-                    );
-                  }}
-                  cursor={{ fill: "rgba(87,95,107,0.06)" }}
-                />
-                <Bar dataKey="count" radius={[2, 2, 0, 0]} fill={clrPrimaryContainer} />
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={ageBracketData.map((d) => ({ label: d.label, value: d.count }))}
+              height={isMobile ? 240 : 192}
+              defaultColor={clrPrimaryContainer}
+              renderTooltip={(item) => {
+                const total = ageBracketData.reduce((s, a) => s + a.count, 0);
+                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} victims`]} />;
+              }}
+            />
             </ChartImg>
           )}
         </div>
@@ -912,36 +713,20 @@ export default function StatsPage() {
             />
           ) : (
             <ChartImg label="At-fault drivers by gender bar chart">
-            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
-              <BarChart data={atFaultGenderData} barCategoryGap="25%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload as { label: string; count: number };
-                    const total = atFaultGenderData.reduce((s, g) => s + g.count, 0);
-                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
-                    return (
-                      <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-                        <p className="font-headline font-bold text-on-surface">{d.label}</p>
-                        <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} drivers</p>
-                      </div>
-                    );
-                  }}
-                  cursor={{ fill: "rgba(87,95,107,0.06)" }}
-                />
-                <Bar dataKey="count" radius={[2, 2, 0, 0]}>
-                  {atFaultGenderData.map((_, i) => (
-                    <Cell key={i} fill={[clrPrimary, clrTertiary, clrPrimaryContainer][i] ?? clrPrimaryContainer} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={atFaultGenderData.map((d, i) => ({
+                label: d.label,
+                value: d.count,
+                color: [clrPrimary, clrTertiary, clrPrimaryContainer][i] ?? clrPrimaryContainer,
+              }))}
+              height={isMobile ? 240 : 192}
+              gap={0.3}
+              renderTooltip={(item) => {
+                const total = atFaultGenderData.reduce((s, g) => s + g.count, 0);
+                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} drivers`]} />;
+              }}
+            />
             </ChartImg>
           )}
         </div>
@@ -967,32 +752,16 @@ export default function StatsPage() {
             />
           ) : (
             <ChartImg label="At-fault drivers by age bar chart">
-            <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
-              <BarChart data={atFaultAgeBracketData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 10, fill: clrOnSurfaceVariant, fontWeight: 600, fontFamily: "Inter, sans-serif" }}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload as { label: string; count: number };
-                    const total = atFaultAgeBracketData.reduce((s, a) => s + a.count, 0);
-                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
-                    return (
-                      <div className="bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow">
-                        <p className="font-headline font-bold text-on-surface">{d.label}</p>
-                        <p className="text-on-surface-variant mt-0.5">{pct}% · {d.count.toLocaleString()} drivers</p>
-                      </div>
-                    );
-                  }}
-                  cursor={{ fill: "rgba(87,95,107,0.06)" }}
-                />
-                <Bar dataKey="count" radius={[2, 2, 0, 0]} fill={clrPrimaryContainer} />
-              </BarChart>
-            </ResponsiveContainer>
+            <SimpleBarChart
+              data={atFaultAgeBracketData.map((d) => ({ label: d.label, value: d.count }))}
+              height={isMobile ? 240 : 192}
+              defaultColor={clrPrimaryContainer}
+              renderTooltip={(item) => {
+                const total = atFaultAgeBracketData.reduce((s, a) => s + a.count, 0);
+                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} drivers`]} />;
+              }}
+            />
             </ChartImg>
           )}
         </div>
