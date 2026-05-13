@@ -7,7 +7,7 @@ import { useFavoriteLocations } from "../../hooks/useFavoriteLocations";
 interface UnifiedSearchBarProps {
   map: LeafletMap | null;
   onSelectCounty: (name: string) => void;
-  onSelectPlace: (lat: number, lng: number, name: string) => void;
+  onSelectPlace: (lat: number, lng: number) => void;
   onGeolocate: () => void;
   locating?: boolean;
 }
@@ -92,7 +92,7 @@ export default function UnifiedSearchBar({
     if (item.type === "county") {
       onSelectCounty(item.label);
     } else if ((item.type === "place" || item.type === "favorite") && item.lat != null && item.lng != null) {
-      onSelectPlace(item.lat, item.lng, item.label);
+      onSelectPlace(item.lat, item.lng);
     }
     setExpanded(false);
     setQuery("");
