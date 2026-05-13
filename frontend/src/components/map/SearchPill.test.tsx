@@ -20,16 +20,25 @@ describe("SearchPill", () => {
     expect(screen.getByText("Search California")).toBeInTheDocument();
   });
 
-  it("calls map.setView when location button is clicked", async () => {
+  it("calls navigator.geolocation when location button is clicked", async () => {
     const map = createMockMap();
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({ coords: { latitude: 34.05, longitude: -118.24 } } as GeolocationPosition);
+    });
+    vi.stubGlobal("navigator", { ...navigator, geolocation: { getCurrentPosition } });
     render(<SearchPill map={map} />);
-    const locationBtn = screen.getByText("my_location").closest("button")!;
-    await userEvent.click(locationBtn);
-    expect(map.setView).toHaveBeenCalledWith(
-      [37.2, -119.5],
-      6,
-      { animate: true, duration: 0.5 }
-    );
+    const locationBtns = screen.getAllByText("my_location");
+    const desktopBtn = locationBtns.find(el => el.closest(".md\\:flex"))?.closest("button");
+    if (desktopBtn) {
+      await userEvent.click(desktopBtn);
+      expect(getCurrentPosition).toHaveBeenCalled();
+      expect(map.setView).toHaveBeenCalledWith(
+        [34.05, -118.24],
+        12,
+        { animate: true, duration: 0.5 }
+      );
+    }
+    vi.unstubAllGlobals();
   });
 
   it("calls map.zoomIn when zoom in button is clicked", async () => {

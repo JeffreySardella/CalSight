@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { Map as LeafletMap } from "leaflet";
 
 interface SearchPillProps {
@@ -10,7 +10,24 @@ export default function SearchPill({ map, onExpandedChange }: SearchPillProps) {
   const [isMoving, setIsMoving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState("");
+  const [locating, setLocating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleGeolocate = useCallback(() => {
+    if (!map || !navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 12, { animate: true, duration: 0.5 });
+        setLocating(false);
+      },
+      () => {
+        map.setView([37.2, -119.5], 6, { animate: true, duration: 0.5 });
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+  }, [map]);
 
   useEffect(() => {
     if (!map) return;
@@ -78,19 +95,28 @@ export default function SearchPill({ map, onExpandedChange }: SearchPillProps) {
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setIsExpanded(true)}
-            className="flex items-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full shadow-lg transition-all duration-300 hover:opacity-90"
-          >
-            <span className="material-symbols-outlined text-lg">search</span>
-            <span
-              className={`text-sm font-semibold tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ${
-                isMoving ? "max-w-0 opacity-0" : "max-w-[100px] opacity-100"
-              }`}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="flex items-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full shadow-lg transition-colors hover:opacity-90"
             >
-              Search
-            </span>
-          </button>
+              <span className="material-symbols-outlined text-lg">search</span>
+              <span
+                className={`text-sm font-semibold tracking-tight overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ${
+                  isMoving ? "max-w-0 opacity-0" : "max-w-[100px] opacity-100"
+                }`}
+              >
+                Search
+              </span>
+            </button>
+            <button
+              onClick={handleGeolocate}
+              disabled={locating}
+              className={`p-3 bg-surface-container-lowest text-on-surface-variant rounded-full shadow-lg transition-colors hover:text-on-surface ${locating ? "animate-pulse" : ""}`}
+            >
+              <span className="material-symbols-outlined text-lg">my_location</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -106,10 +132,9 @@ export default function SearchPill({ map, onExpandedChange }: SearchPillProps) {
         <div className="w-[1px] h-6 bg-outline-variant/30 mx-2" />
 
         <button
-          onClick={() => {
-            if (map) map.setView([37.2, -119.5], 6, { animate: true, duration: 0.5 });
-          }}
-          className="p-3 text-on-surface-variant hover:text-on-surface transition-colors"
+          onClick={handleGeolocate}
+          disabled={locating}
+          className={`p-3 text-on-surface-variant hover:text-on-surface transition-colors ${locating ? "animate-pulse" : ""}`}
         >
           <span className="material-symbols-outlined">my_location</span>
         </button>
