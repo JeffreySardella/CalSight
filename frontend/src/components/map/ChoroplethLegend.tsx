@@ -92,7 +92,6 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             onClick={() => setMobileExpanded((v) => !v)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMobileExpanded((v) => !v); } }}
             aria-expanded={mobileExpanded}
-            aria-label="Toggle measure selector"
           >
             <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">{activeMeasure.label}</span>
             <span className="material-symbols-outlined text-[14px] text-on-surface-variant transition-transform" style={{ transform: mobileExpanded ? "rotate(180deg)" : undefined }}>

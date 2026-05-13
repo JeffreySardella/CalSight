@@ -118,23 +118,23 @@ export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerPro
                   <tbody>
                     {p.primary_road && (
                       <tr>
-                        <td style={{ color: "#9ca3af", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap", verticalAlign: "top" }}>Road</td>
+                        <td style={{ color: "#6b7280", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap", verticalAlign: "top" }}>Road</td>
                         <td style={{ paddingBottom: 4 }}>{p.primary_road}</td>
                       </tr>
                     )}
                     <tr>
-                      <td style={{ color: "#9ca3af", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap" }}>Cause</td>
+                      <td style={{ color: "#6b7280", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap" }}>Cause</td>
                       <td style={{ paddingBottom: 4 }}>{formatCause(p.canonical_cause)}</td>
                     </tr>
                     {p.weather && (
                       <tr>
-                        <td style={{ color: "#9ca3af", paddingRight: 12, paddingBottom: 4 }}>Weather</td>
+                        <td style={{ color: "#6b7280", paddingRight: 12, paddingBottom: 4 }}>Weather</td>
                         <td style={{ paddingBottom: 4 }}>{p.weather}</td>
                       </tr>
                     )}
                     {p.lighting && (
                       <tr>
-                        <td style={{ color: "#9ca3af", paddingRight: 12, paddingBottom: 4 }}>Lighting</td>
+                        <td style={{ color: "#6b7280", paddingRight: 12, paddingBottom: 4 }}>Lighting</td>
                         <td style={{ paddingBottom: 4 }}>{p.lighting}</td>
                       </tr>
                     )}
@@ -144,12 +144,12 @@ export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerPro
                 {(p.number_killed || p.number_injured) ? (
                   <div style={{ display: "flex", gap: 16, marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
                     {p.number_killed ? <span style={{ color: DOT_COLORS.fatal, fontWeight: 700, fontSize: 12 }}>{p.number_killed} killed</span> : null}
-                    {p.number_injured ? <span style={{ color: DOT_COLORS.injury, fontWeight: 700, fontSize: 12 }}>{p.number_injured} injured</span> : null}
+                    {p.number_injured ? <span style={{ color: "#92600a", fontWeight: 700, fontSize: 12 }}>{p.number_injured} injured</span> : null}
                   </div>
                 ) : null}
 
                 {p.collision_id && (
-                  <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 8 }}>
+                  <div style={{ fontSize: 10, color: "#6b7280", marginTop: 8 }}>
                     Collision #{p.collision_id} · {p.data_source?.toUpperCase()}
                   </div>
                 )}
