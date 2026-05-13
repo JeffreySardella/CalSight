@@ -261,6 +261,28 @@
   }
 }
 
+/* ── Reduced motion (user toggle or OS preference) ── */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ── High contrast mode ── */
+.high-contrast {
+  --on-surface-variant: var(--on-surface);
+  --outline-variant: var(--outline);
+}
+.high-contrast .ghost-border {
+  border-color: rgb(var(--outline)) !important;
+}
+.high-contrast .ambient-shadow {
+  box-shadow: 0 0 0 1px rgb(var(--outline)) !important;
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
