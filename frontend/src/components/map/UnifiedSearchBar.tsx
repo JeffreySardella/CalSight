@@ -180,14 +180,16 @@ export default function UnifiedSearchBar({
               {item.type === "favorite" ? (
                 <button
                   onClick={(e) => handleRemoveFavorite(item, e)}
-                  className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0"
+                  className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center"
+                  aria-label={`Remove ${item.label} from favorites`}
                 >
                   <span className="material-symbols-outlined text-[14px] text-on-surface-variant">close</span>
                 </button>
               ) : item.type === "place" && item.lat != null ? (
                 <button
                   onClick={(e) => handleSaveFavorite(item, e)}
-                  className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0"
+                  className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center"
+                  aria-label={`Save ${item.label} to favorites`}
                 >
                   <span className="material-symbols-outlined text-[14px] text-on-surface-variant">star</span>
                 </button>
@@ -242,7 +244,8 @@ export default function UnifiedSearchBar({
                 onChange={(e) => setMobileQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search counties, places..."
-                className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none ring-0 focus:outline-none focus:ring-0 border-none"
+                aria-label="Search counties and places"
+                className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none ring-0 border-none"
               />
               <button
                 onClick={() => { setMobileExpanded(false); setMobileQuery(""); close(); }}
@@ -298,7 +301,8 @@ export default function UnifiedSearchBar({
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search counties, places, addresses..."
-                className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none border-none focus:outline-none focus:ring-0"
+                aria-label="Search counties, places, and addresses"
+                className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none border-none"
               />
               {nominatimLoading && (
                 <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />

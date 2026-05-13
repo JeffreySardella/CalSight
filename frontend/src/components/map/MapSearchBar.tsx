@@ -117,10 +117,11 @@ export default function MapSearchBar({ map, onSelectCounty }: MapSearchBarProps)
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search counties…"
+              aria-label="Search counties"
               className="
                 flex-1 bg-transparent text-sm text-on-surface
                 placeholder:text-on-surface-variant/60
-                outline-none border-none focus:outline-none focus:ring-0
+                outline-none border-none
               "
             />
             <button

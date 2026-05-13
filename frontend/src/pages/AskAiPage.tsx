@@ -133,7 +133,7 @@ export default function AskAiPage() {
       </div>
 
       {/* SCROLLABLE MESSAGE AREA */}
-      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4" role="log" aria-label="AI conversation">
+      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4" role="log" aria-live="polite" aria-label="AI conversation">
         {!hasMessages ? (
           <>
             <section className="mb-8">
@@ -202,7 +202,7 @@ export default function AskAiPage() {
             {isLoading && <ThinkingIndicator status={error} />}
             {error && !isLoading && (
               <div className="flex justify-start mb-4">
-                <div className="bg-error-container text-on-error-container rounded-xl px-4 py-3 text-sm max-w-[85%] flex items-center gap-3">
+                <div role="alert" className="bg-error-container text-on-error-container rounded-xl px-4 py-3 text-sm max-w-[85%] flex items-center gap-3">
                   <span>{error}</span>
                   <button
                     type="button"
@@ -230,7 +230,7 @@ export default function AskAiPage() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            className="w-full bg-transparent border-none focus:ring-0 resize-none overflow-hidden px-2 md:px-3 py-2 md:py-2.5 text-on-surface placeholder:text-outline font-body text-sm"
+            className="w-full bg-transparent border-none resize-none overflow-hidden px-2 md:px-3 py-2 md:py-2.5 text-on-surface placeholder:text-outline font-body text-sm"
             placeholder="Ask about crash data..."
             aria-label="Ask a question about California crash data"
             disabled={isLoading}
