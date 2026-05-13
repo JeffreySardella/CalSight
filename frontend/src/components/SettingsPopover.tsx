@@ -51,9 +51,9 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
       className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-surface-container-low/80 backdrop-blur-xl ghost-border ambient-shadow p-4 z-50 space-y-4"
     >
       <div>
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-3">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-3">
           Display
-        </label>
+        </span>
         <div className="flex gap-1 rounded-lg bg-surface-container p-1">
           {THEME_OPTIONS.map(({ value, label, icon }) => (
             <button
@@ -76,9 +76,9 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
             Lite Mode
-          </label>
+          </span>
           {isLite && (
             <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary-container px-2 py-0.5 rounded-full">
               Active

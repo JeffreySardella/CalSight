@@ -91,6 +91,8 @@ export default function MapSearchBar({ map, onSelectCounty }: MapSearchBarProps)
       >
       {/* Search pill / expanded bar */}
       <div
+        role={expanded ? undefined : "button"}
+        tabIndex={expanded ? undefined : 0}
         className={`
           flex items-center gap-2
           bg-surface-container-lowest/95 backdrop-blur-md
@@ -99,6 +101,8 @@ export default function MapSearchBar({ map, onSelectCounty }: MapSearchBarProps)
           ${expanded ? "rounded-2xl px-4 py-2.5" : "rounded-full px-4 py-2.5 cursor-pointer"}
         `}
         onClick={() => !expanded && setExpanded(true)}
+        onKeyDown={(e) => { if (!expanded && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setExpanded(true); } }}
+        aria-label={expanded ? undefined : "Open search"}
       >
         <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">
           search

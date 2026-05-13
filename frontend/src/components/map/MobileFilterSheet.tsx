@@ -47,10 +47,14 @@ export default function MobileFilterSheet({
     <div className="fixed inset-0 z-[100]">
       {/* Dimmed backdrop */}
       <div
+        role="button"
+        tabIndex={-1}
         className={`absolute inset-0 bg-on-surface/20 backdrop-blur-sm transition-opacity duration-300 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
         onClick={onClose}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
+        aria-label="Close filters"
       />
 
       {/* Mobile: bottom sheet. Desktop: centered modal */}

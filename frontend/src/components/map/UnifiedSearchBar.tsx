@@ -279,10 +279,14 @@ export default function UnifiedSearchBar({
         className={`hidden md:block absolute top-3 z-20 transition-[width] duration-300 left-1/2 -translate-x-1/2 ${expanded ? "w-96" : "w-auto"}`}
       >
         <div
+          role={expanded ? undefined : "button"}
+          tabIndex={expanded ? undefined : 0}
           className={`flex items-center gap-2 bg-surface-container-lowest/95 backdrop-blur-md ghost-border shadow-lg transition-colors duration-300 ${
             expanded ? "rounded-2xl px-4 py-2.5" : "rounded-full px-4 py-2.5 cursor-pointer"
           }`}
           onClick={() => !expanded && setExpanded(true)}
+          onKeyDown={(e) => { if (!expanded && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setExpanded(true); } }}
+          aria-label={expanded ? undefined : "Open search"}
         >
           <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">search</span>
           {expanded ? (
