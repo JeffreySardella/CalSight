@@ -95,9 +95,9 @@ export default function SimpleFilterPanel({
     <div className="space-y-6 pb-4">
       {/* County */}
       <div>
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
           County
-        </label>
+        </span>
         <SearchableMultiSelect
           options={countyOptions}
           selected={selectedCounties.size === 0 ? ALL_COUNTIES_SET : selectedCounties}

@@ -139,7 +139,7 @@ export default function StatsPage() {
         "DUI": "#a368a0", "Speeding": "#c27862", "Lane Change": "#6b8fa3",
         "Right of Way": "#7ba088", "Improper Turn": "#b89a6b", "Tailgating": "#8e7cc3",
         "Signal Violation": "#c28a8a", "Pedestrian": "#6baab5", "Unsafe Backing": "#a0a06b",
-        "Other": "#8b8b9a", "Uncategorized": "#5c7b5c",
+        "Other": "#8b8b9a", "Uncategorized": "#6b8f6b",
       }
     : {
         "DUI": "#7e3794", "Speeding": "#b45309", "Lane Change": "#4a7a8c",
@@ -149,7 +149,7 @@ export default function StatsPage() {
       };
 
   const severityColorMap: Record<string, string> = isDark
-    ? { "Fatal": "#c25560", "Injury": "#b0a050", "Property Damage Only": "#6b8fa3" }
+    ? { "Fatal": "#d4606b", "Injury": "#b0a050", "Property Damage Only": "#6b8fa3" }
     : { "Fatal": "#991b1b", "Injury": "#6d7e1e", "Property Damage Only": "#4a7a8c" };
 
   const causeColor = (label: string) => causeColorMap[label] ?? clrOnSurfaceVariant;
