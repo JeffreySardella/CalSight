@@ -255,7 +255,7 @@ function MapPageInner() {
     }
   }, [compareMode, focusedCounty, setCounty, toggleCounty]);
 
-  const handleSelectPlace = useCallback((lat: number, lng: number, _name: string) => {
+  const handleSelectPlace = useCallback((lat: number, lng: number) => {
     setTempMarker([lat, lng]);
     mapRef.current?.setView([lat, lng], 14, { animate: true, duration: 0.5 });
     if (countyGeoJson) {
