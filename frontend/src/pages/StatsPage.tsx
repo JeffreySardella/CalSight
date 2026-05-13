@@ -20,6 +20,10 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
 
+function ChartImg({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div role="img" aria-label={label}>{children}</div>;
+}
+
 function DataQualityNote({ text }: { text: string }) {
   return (
     <div className="flex items-start gap-1.5 bg-surface-container-high rounded-md px-2.5 py-1.5 mb-3 text-[10px] text-on-surface-variant leading-snug">
@@ -272,6 +276,9 @@ export default function StatsPage() {
   return (
     <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
       <h1 className="sr-only">Statistics Dashboard</h1>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {loading ? "Loading statistics..." : error ? "Error loading statistics." : "Statistics loaded."}
+      </div>
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full md:w-auto">
@@ -415,6 +422,7 @@ export default function StatsPage() {
           ) : !hourlyData.length ? (
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
+            <ChartImg label="Crash density by hour of day bar chart">
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={hourlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
                 <XAxis
@@ -456,6 +464,7 @@ export default function StatsPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
         </div>
 
@@ -472,6 +481,7 @@ export default function StatsPage() {
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-40" />
           ) : causesWithPct.length <= 5 ? (
             <>
+              <ChartImg label="Primary cause breakdown pie chart">
               <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
                 <PieChart>
                   <Pie
@@ -492,6 +502,7 @@ export default function StatsPage() {
                   <Tooltip content={<CauseTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
+              </ChartImg>
               <div className="space-y-4 mt-2">
                 {causesWithPct.map((cause) => (
                   <div key={cause.label} className="flex items-center gap-3">
@@ -507,6 +518,7 @@ export default function StatsPage() {
               </div>
             </>
           ) : (
+            <ChartImg label="Primary cause breakdown bar chart">
             <ResponsiveContainer width="100%" height={Math.max(200, causesWithPct.length * 32)}>
               <BarChart data={[...causesWithPct].sort((a, b) => b.count - a.count)} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
                 <XAxis type="number" hide />
@@ -526,6 +538,7 @@ export default function StatsPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
         </div>
 
@@ -560,6 +573,7 @@ export default function StatsPage() {
               ))}
             </div>
           ) : (
+            <ChartImg label="Incidents by year bar chart">
             <ResponsiveContainer width="100%" height={isMobile ? 200 : 256}>
               <BarChart data={yearlyData} barCategoryGap="15%" margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
                 <XAxis
@@ -601,6 +615,7 @@ export default function StatsPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
           {yearlyData.length >= 3 && (
             <p className="mt-6 text-[10px] text-on-surface-variant italic leading-relaxed">
@@ -633,6 +648,7 @@ export default function StatsPage() {
           ) : !monthlyData.length ? (
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
+            <ChartImg label="Crashes by month bar chart">
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={monthlyData} barCategoryGap="10%" margin={{ top: 8, right: 20, left: 10, bottom: 0 }}>
                 <XAxis
@@ -671,6 +687,7 @@ export default function StatsPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
         </div>
 
@@ -686,6 +703,7 @@ export default function StatsPage() {
           ) : !dayOfWeekData.length ? (
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
+            <ChartImg label="Day of week distribution bar chart">
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={dayOfWeekData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
                 <XAxis
@@ -702,6 +720,7 @@ export default function StatsPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
         </div>
       </section>
@@ -721,6 +740,7 @@ export default function StatsPage() {
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-40" />
           ) : (
             <>
+              <ChartImg label="Severity breakdown pie chart">
               <ResponsiveContainer width="100%" height={isMobile ? 200 : 160}>
                 <PieChart>
                   <Pie
@@ -741,6 +761,7 @@ export default function StatsPage() {
                   <Tooltip content={<CauseTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
+              </ChartImg>
               <div className="space-y-4 mt-2">
                 {sevWithPct.map((sev) => (
                   <div key={sev.label} className="flex items-center gap-3">
@@ -781,6 +802,7 @@ export default function StatsPage() {
               className="h-48"
             />
           ) : (
+            <ChartImg label="Victims by gender bar chart">
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={genderData} barCategoryGap="25%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
                 <XAxis
@@ -811,6 +833,7 @@ export default function StatsPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
         </div>
 
@@ -837,6 +860,7 @@ export default function StatsPage() {
               className="h-48"
             />
           ) : (
+            <ChartImg label="Victims by age bar chart">
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={ageBracketData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
                 <XAxis
@@ -863,6 +887,7 @@ export default function StatsPage() {
                 <Bar dataKey="count" radius={[2, 2, 0, 0]} fill={clrPrimaryContainer} />
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
         </div>
 
@@ -886,6 +911,7 @@ export default function StatsPage() {
               className="h-48"
             />
           ) : (
+            <ChartImg label="At-fault drivers by gender bar chart">
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={atFaultGenderData} barCategoryGap="25%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
                 <XAxis
@@ -916,6 +942,7 @@ export default function StatsPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
         </div>
 
@@ -939,6 +966,7 @@ export default function StatsPage() {
               className="h-48"
             />
           ) : (
+            <ChartImg label="At-fault drivers by age bar chart">
             <ResponsiveContainer width="100%" height={isMobile ? 240 : 192}>
               <BarChart data={atFaultAgeBracketData} barCategoryGap="15%" margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
                 <XAxis
@@ -965,6 +993,7 @@ export default function StatsPage() {
                 <Bar dataKey="count" radius={[2, 2, 0, 0]} fill={clrPrimaryContainer} />
               </BarChart>
             </ResponsiveContainer>
+            </ChartImg>
           )}
         </div>
       </section>
