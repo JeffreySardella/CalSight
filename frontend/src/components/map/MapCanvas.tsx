@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CountyBoundaries from "./CountyBoundaries";
@@ -35,6 +35,7 @@ interface MapCanvasProps {
   heatmapPalette: PaletteKey;
   countyDrilldown?: boolean;
   mismatchPoints?: HeatmapPoint[];
+  tempMarker?: [number, number] | null;
 }
 
 const HEATMAP_MAX_ZOOM: Record<string, number> = {
@@ -56,6 +57,7 @@ function MapInternals({
   heatmapPalette,
   countyDrilldown,
   mismatchPoints = [],
+  tempMarker,
 }: MapCanvasProps) {
   const map = useMap();
   const { otherLayers } = useLayersState();
@@ -119,6 +121,7 @@ function MapInternals({
         showHospitals={otherLayers.hospitals}
         showSchools={otherLayers.schools}
       />
+      {tempMarker && <Marker position={tempMarker} />}
     </>
   );
 }
@@ -135,6 +138,7 @@ export default function MapCanvas({
   heatmapPalette,
   countyDrilldown,
   mismatchPoints = [],
+  tempMarker,
 }: MapCanvasProps) {
   const isDark = useIsDark();
   // CartoDB tile variants — swap between light_* and dark_* so counties
@@ -185,6 +189,7 @@ export default function MapCanvas({
         heatmapPalette={heatmapPalette}
         countyDrilldown={countyDrilldown}
         mismatchPoints={mismatchPoints}
+        tempMarker={tempMarker}
       />
 
       <TileLayer
