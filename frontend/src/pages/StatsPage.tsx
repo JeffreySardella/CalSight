@@ -460,7 +460,7 @@ export default function StatsPage() {
                 const d = yearlyData[idx];
                 return <ChartTip title={String(d.year)} lines={[`${d.count.toLocaleString()} incidents`]} />;
               }}
-              labelFormatter={(label, _idx, _isPeak) => {
+              labelFormatter={(label) => {
                 const yr = parseInt(label);
                 const isPeak = yr === peakYear;
                 const nearPeak = Math.abs(yr - peakYear) <= 2 && !isPeak;
