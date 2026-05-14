@@ -151,7 +151,7 @@ def build_default_registry() -> JobRegistry:
     registry.register(Job(
         name="backfill",
         module="etl.backfill_derived",
-        depends_on=["crashes_ccrs", "parties", "victims"],
+        depends_on=["crashes_ccrs", "parties"],
         schedule="daily",
     ))
     registry.register(Job(
