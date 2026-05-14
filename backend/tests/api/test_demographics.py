@@ -26,4 +26,4 @@ def test_demographics_year_filter(client):
 
 def test_demographics_cache_header(client):
     response = client.get("/api/demographics")
-    assert response.headers.get("cache-control") == "public, max-age=300"
+    assert response.headers.get("cache-control") == "public, max-age=86400, stale-while-revalidate=604800"

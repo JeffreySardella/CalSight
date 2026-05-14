@@ -84,7 +84,7 @@ def test_heatmap_no_matching_crashes(client):
 
 def test_heatmap_cache_header(client):
     response = client.get("/api/crashes/heatmap")
-    assert response.headers.get("cache-control") == "public, max-age=300"
+    assert response.headers.get("cache-control") == "public, max-age=3600, stale-while-revalidate=86400"
 
 
 def test_heatmap_rejects_unknown_county(client):

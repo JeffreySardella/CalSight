@@ -108,7 +108,7 @@ def test_crashes_join_key_is_collision_plus_source(client):
 
 def test_crashes_cache_header(client):
     response = client.get("/api/crashes")
-    assert response.headers.get("cache-control") == "public, max-age=300"
+    assert response.headers.get("cache-control") == "public, max-age=3600, stale-while-revalidate=86400"
 
 
 def test_crashes_include_total_without_filter_returns_422(client):
