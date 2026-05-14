@@ -51,10 +51,10 @@ export default function SearchPill({ map, onExpandedChange }: SearchPillProps) {
     <>
       {/* Mobile: compact pill / expanded search bar */}
       <div
-        className={`absolute z-10 md:hidden transition-all duration-300 ${
+        className={`absolute z-[45] md:hidden transition-all duration-300 ${
           isExpanded
             ? "bottom-4 left-4 right-4"
-            : "bottom-4 left-4"
+            : "bottom-28 left-4"
         } ${
           isMoving && !isExpanded ? "opacity-60 scale-90" : "opacity-100 scale-100"
         }`}
@@ -95,7 +95,7 @@ export default function SearchPill({ map, onExpandedChange }: SearchPillProps) {
       </div>
 
       {/* Desktop: full pill, centered bottom */}
-      <div className="hidden md:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-10 items-center gap-1 p-1 bg-white dark:bg-neutral-800 rounded-full shadow-lg">
+      <div className="hidden md:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-[35] items-center gap-1 p-1 bg-white dark:bg-neutral-800 rounded-full shadow-lg">
         <button className="flex items-center gap-2 px-6 py-3 bg-primary text-on-primary rounded-full transition-all hover:opacity-90">
           <span className="material-symbols-outlined text-lg">search</span>
           <span className="text-sm font-semibold tracking-tight">

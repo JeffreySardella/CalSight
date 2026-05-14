@@ -830,19 +830,19 @@ class EtlRun(Base):
     __tablename__ = "etl_runs"
 
     id = Column(Integer, primary_key=True)
-    source = Column(String(20), nullable=False)
-    status = Column(String(20), nullable=False)
+    source = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False)
     started_at = Column(DateTime, nullable=False)
     finished_at = Column(DateTime)
     rows_loaded = Column(Integer)
     error_message = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
 
-    validation_status = Column(String(20))
+    validation_status = Column(String(50))
     rows_before = Column(Integer)
     rows_after = Column(Integer)
     diff_summary = Column(Text)
-    triggered_by = Column(String(20))
+    triggered_by = Column(String(50))
     last_source_modified = Column(DateTime)
     source_row_count = Column(Integer)
 
