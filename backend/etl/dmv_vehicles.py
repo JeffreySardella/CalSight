@@ -217,7 +217,7 @@ def build_zip_to_county_mapping() -> dict[str, int]:
     return zip_to_county
 
 
-@track_etl_run("vehicle_registrations")
+@track_etl_run("vehicles")
 def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
     """Main entry point."""
     zip_to_county = build_zip_to_county_mapping()

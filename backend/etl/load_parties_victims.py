@@ -27,7 +27,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CrashParty, CrashVictim
-from etl._utils import track_etl_run
+from etl._utils import etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -234,6 +234,7 @@ def load_table(
                         )
                         db.execute(stmt)
                         db.commit()
+                        db.expire_all()
                         year_rows += len(batch)
                     except Exception as exc:
                         logger.error(
@@ -260,7 +261,6 @@ def load_table(
         db.close()
 
 
-@track_etl_run("parties_victims")
 def run(
     start_year: int = DEFAULT_START_YEAR,
     end_year: int = DEFAULT_END_YEAR,
@@ -268,33 +268,36 @@ def run(
     force: bool = False,
 ):
     """Main entry point."""
-    if table is None or table == "parties":
-        load_table(
-            table_type="parties",
-            resource_ids=PARTIES_RESOURCE_IDS,
-            model_class=CrashParty,
-            transform_fn=transform_party,
-            upsert_cols=_PARTY_UPSERT_COLS,
-            constraint_name="uq_parties_party_source",
-            id_field="party_id",
-            start_year=start_year,
-            end_year=end_year,
-            force=force,
-        )
+    source_name = table if table in ("parties", "victims") else "parties_victims"
 
-    if table is None or table == "victims":
-        load_table(
-            table_type="victims",
-            resource_ids=VICTIMS_RESOURCE_IDS,
-            model_class=CrashVictim,
-            transform_fn=transform_victim,
-            upsert_cols=_VICTIM_UPSERT_COLS,
-            constraint_name="uq_victims_victim_source",
-            id_field="victim_id",
-            start_year=start_year,
-            end_year=end_year,
-            force=force,
-        )
+    with etl_run(source_name):
+        if table is None or table == "parties":
+            load_table(
+                table_type="parties",
+                resource_ids=PARTIES_RESOURCE_IDS,
+                model_class=CrashParty,
+                transform_fn=transform_party,
+                upsert_cols=_PARTY_UPSERT_COLS,
+                constraint_name="uq_parties_party_source",
+                id_field="party_id",
+                start_year=start_year,
+                end_year=end_year,
+                force=force,
+            )
+
+        if table is None or table == "victims":
+            load_table(
+                table_type="victims",
+                resource_ids=VICTIMS_RESOURCE_IDS,
+                model_class=CrashVictim,
+                transform_fn=transform_victim,
+                upsert_cols=_VICTIM_UPSERT_COLS,
+                constraint_name="uq_victims_victim_source",
+                id_field="victim_id",
+                start_year=start_year,
+                end_year=end_year,
+                force=force,
+            )
 
 
 if __name__ == "__main__":
