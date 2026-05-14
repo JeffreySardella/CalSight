@@ -8,6 +8,7 @@ export function createMockMap() {
     intersects: vi.fn(() => true),
   }));
   return {
+    options: { zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true },
     panBy: vi.fn(),
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
