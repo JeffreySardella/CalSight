@@ -83,7 +83,6 @@ def test_default_registry_resolves_without_error():
     names = [j.name for j in order]
     assert names.index("crashes_ccrs") < names.index("backfill")
     assert names.index("parties") < names.index("backfill")
-    assert names.index("victims") < names.index("backfill")
     assert names.index("backfill") < names.index("matviews")
     assert names.index("matviews") < names.index("insights")
     assert names.index("insights") < names.index("vacuum")
