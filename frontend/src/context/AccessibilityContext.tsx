@@ -1,15 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 export type MotionPref = "system" | "on" | "off";
-export type TextSize = "sm" | "md" | "lg";
 
 interface AccessibilityContextValue {
   motion: MotionPref;
   setMotion: (m: MotionPref) => void;
   highContrast: boolean;
   setHighContrast: (v: boolean) => void;
-  textSize: TextSize;
-  setTextSize: (s: TextSize) => void;
   effectiveReducedMotion: boolean;
 }
 
@@ -17,9 +14,6 @@ const AccessibilityContext = createContext<AccessibilityContextValue | undefined
 
 const MOTION_KEY = "calsight-reduced-motion";
 const CONTRAST_KEY = "calsight-high-contrast";
-const TEXT_SIZE_KEY = "calsight-text-size";
-
-const TEXT_SIZE_PX: Record<TextSize, number> = { sm: 14, md: 16, lg: 18 };
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
@@ -35,12 +29,6 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
   const [highContrast, setHighContrastState] = useState<boolean>(() => {
     return localStorage.getItem(CONTRAST_KEY) === "true";
-  });
-
-  const [textSize, setTextSizeState] = useState<TextSize>(() => {
-    const stored = localStorage.getItem(TEXT_SIZE_KEY);
-    if (stored === "sm" || stored === "md" || stored === "lg") return stored;
-    return "md";
   });
 
   const [systemReducedMotion, setSystemReducedMotion] = useState(prefersReducedMotion);
@@ -64,11 +52,6 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     document.documentElement.classList.toggle("high-contrast", highContrast);
   }, [highContrast]);
 
-  useEffect(() => {
-    document.documentElement.style.fontSize = `${TEXT_SIZE_PX[textSize]}px`;
-    return () => { document.documentElement.style.fontSize = ""; };
-  }, [textSize]);
-
   function setMotion(next: MotionPref) {
     localStorage.setItem(MOTION_KEY, next);
     setMotionState(next);
@@ -79,16 +62,10 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     setHighContrastState(next);
   }
 
-  function setTextSize(next: TextSize) {
-    localStorage.setItem(TEXT_SIZE_KEY, next);
-    setTextSizeState(next);
-  }
-
   return (
     <AccessibilityContext.Provider value={{
       motion, setMotion,
       highContrast, setHighContrast,
-      textSize, setTextSize,
       effectiveReducedMotion,
     }}>
       {children}

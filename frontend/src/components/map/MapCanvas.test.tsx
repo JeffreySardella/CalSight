@@ -26,6 +26,7 @@ import type { Map as LeafletMap } from "leaflet";
 import MapCanvas from "./MapCanvas";
 import { mockMapInstance } from "../../__mocks__/leaflet";
 import { ThemeProvider } from "../../context/ThemeContext";
+import { AccessibilityProvider } from "../../context/AccessibilityContext";
 import { LayersStateProvider } from "../../hooks/useLayersState";
 
 const defaultHeatmapProps = {
@@ -42,7 +43,9 @@ function renderWithTheme(ui: React.ReactElement) {
   return render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <LayersStateProvider>{ui}</LayersStateProvider>
+        <AccessibilityProvider>
+          <LayersStateProvider>{ui}</LayersStateProvider>
+        </AccessibilityProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

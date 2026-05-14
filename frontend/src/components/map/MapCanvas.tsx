@@ -13,6 +13,18 @@ import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersSta
 import { useHospitals, useSchools } from "../../hooks/useMapOverlays";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
+import { useAccessibility } from "../../context/AccessibilityContext";
+
+function ReducedMotionSync() {
+  const map = useMap();
+  const { effectiveReducedMotion } = useAccessibility();
+  useEffect(() => {
+    map.options.zoomAnimation = !effectiveReducedMotion;
+    map.options.fadeAnimation = !effectiveReducedMotion;
+    map.options.markerZoomAnimation = !effectiveReducedMotion;
+  }, [map, effectiveReducedMotion]);
+  return null;
+}
 
 const CA_CENTER: [number, number] = [37.2, -119.5];
 const isMobile = window.innerWidth < 768;
@@ -170,6 +182,7 @@ export default function MapCanvas({
       zoomAnimation={true}
       zoomAnimationThreshold={4}
     >
+      <ReducedMotionSync />
       <TileLayer
         key={baseTileUrl}
         url={baseTileUrl}

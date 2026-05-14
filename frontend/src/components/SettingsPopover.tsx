@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTheme, type Theme } from "../context/ThemeContext";
 import { useLiteMode, type LiteModeSetting } from "../context/LiteModeContext";
-import { useAccessibility, type MotionPref, type TextSize } from "../context/AccessibilityContext";
+import { useAccessibility, type MotionPref } from "../context/AccessibilityContext";
 
 const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
   { value: "light", label: "Light", icon: "light_mode" },
@@ -9,7 +9,7 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
   { value: "system", label: "System", icon: "monitor" },
 ];
 
-const LITE_OPTIONS: { value: LiteModeSetting; label: string }[] = [
+const PERF_OPTIONS: { value: LiteModeSetting; label: string }[] = [
   { value: "auto", label: "Auto" },
   { value: "on", label: "On" },
   { value: "off", label: "Off" },
@@ -19,12 +19,6 @@ const MOTION_OPTIONS: { value: MotionPref; label: string }[] = [
   { value: "system", label: "System" },
   { value: "on", label: "Reduce" },
   { value: "off", label: "Off" },
-];
-
-const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
-  { value: "sm", label: "S" },
-  { value: "md", label: "M" },
-  { value: "lg", label: "L" },
 ];
 
 const CHIP_ACTIVE = "bg-primary-container text-on-primary-container";
@@ -38,7 +32,7 @@ interface SettingsPopoverProps {
 export default function SettingsPopover({ onClose, containerRef }: SettingsPopoverProps) {
   const { theme, setTheme } = useTheme();
   const { setting: liteSetting, setSetting: setLiteSetting, isLite } = useLiteMode();
-  const { motion, setMotion, highContrast, setHighContrast, textSize, setTextSize, effectiveReducedMotion } = useAccessibility();
+  const { motion, setMotion, highContrast, setHighContrast, effectiveReducedMotion } = useAccessibility();
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,14 +57,17 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
   }, [onClose]);
 
   return (
+    <>
+    {/* Mobile: backdrop */}
+    <div role="button" tabIndex={-1} className="fixed inset-0 z-[49] bg-on-surface/20 md:hidden" onClick={onClose} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }} aria-label="Close settings" />
     <div
       ref={popoverRef}
-      className="absolute right-0 top-full mt-2 w-72 rounded-xl bg-surface-container-low/80 backdrop-blur-xl ghost-border ambient-shadow p-4 z-50 space-y-4 max-h-[80vh] overflow-y-auto no-scrollbar"
+      className="fixed bottom-0 left-0 right-0 z-50 w-full rounded-t-2xl bg-surface-container-low backdrop-blur-xl ghost-border ambient-shadow p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] space-y-4 max-h-[85vh] overflow-y-auto no-scrollbar md:absolute md:bottom-auto md:left-auto md:right-0 md:top-full md:mt-2 md:w-72 md:rounded-xl md:rounded-t-xl md:pb-4"
     >
-      {/* Display theme */}
+      {/* Theme */}
       <div>
         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-3">
-          Display
+          Theme
         </span>
         <div className="flex gap-1 rounded-lg bg-surface-container p-1">
           {THEME_OPTIONS.map(({ value, label, icon }) => (
@@ -88,11 +85,11 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
         </div>
       </div>
 
-      {/* Lite Mode */}
+      {/* Performance */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-            Lite Mode
+            Performance
           </span>
           {isLite && (
             <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary-container px-2 py-0.5 rounded-full">
@@ -101,7 +98,7 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
           )}
         </div>
         <div className="flex gap-1 rounded-lg bg-surface-container p-1">
-          {LITE_OPTIONS.map(({ value, label }) => (
+          {PERF_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => setLiteSetting(value)}
@@ -114,40 +111,11 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
           ))}
         </div>
         <p className="text-[9px] text-on-surface-variant mt-2 leading-relaxed">
-          Reduces blur effects and animations for smoother performance on slower devices. Auto detects your connection speed.
+          Reduces blur and animations for slower devices. Auto detects your hardware.
         </p>
       </div>
 
       <div className="border-t border-outline-variant/20" />
-
-      {/* Accessibility heading */}
-      <div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[14px]">accessibility_new</span>
-          Accessibility
-        </span>
-      </div>
-
-      {/* Text Size */}
-      <div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-3">
-          Text Size
-        </span>
-        <div className="flex gap-1 rounded-lg bg-surface-container p-1">
-          {TEXT_SIZE_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setTextSize(value)}
-              className={`flex-1 flex items-center justify-center rounded-md px-2 py-1.5 font-medium transition-colors ${
-                textSize === value ? CHIP_ACTIVE : CHIP_INACTIVE
-              }`}
-              style={{ fontSize: value === "sm" ? 11 : value === "lg" ? 15 : 13 }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* High Contrast */}
       <div>
@@ -169,7 +137,7 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
           </button>
         </div>
         <p className="text-[9px] text-on-surface-variant mt-1.5 leading-relaxed">
-          Increases text contrast and adds visible borders for better readability.
+          Darkens secondary text and strengthens borders.
         </p>
       </div>
 
@@ -177,11 +145,11 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
       <div>
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-            Motion
+            Reduce Motion
           </span>
           {effectiveReducedMotion && (
             <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary-container px-2 py-0.5 rounded-full">
-              Reduced
+              Active
             </span>
           )}
         </div>
@@ -199,7 +167,7 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
           ))}
         </div>
         <p className="text-[9px] text-on-surface-variant mt-2 leading-relaxed">
-          Disables animations and transitions. System respects your OS preference.
+          Stops animations and map zoom transitions. System follows your OS setting.
         </p>
       </div>
 
@@ -229,5 +197,6 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
         </div>
       </div>
     </div>
+    </>
   );
 }
