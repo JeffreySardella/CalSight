@@ -53,7 +53,7 @@ def get_random_statewide_insight(
     db: Session = Depends(get_db),
 ):
     """Return one random statewide insight card."""
-    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     q = db.query(StatewideInsight)
     if year is not None:
         q = q.filter(StatewideInsight.year == year)
@@ -71,7 +71,7 @@ def get_random_county_insight_card(
     db: Session = Depends(get_db),
 ):
     """Return one random insight card for a county."""
-    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     slug_map = get_slug_map(db)
     code = get_code(county, slug_map)
     if code is None:
@@ -98,7 +98,7 @@ def get_insight(
     LLM hasn't run or failed for this county — the frontend hides the blurb
     section gracefully in that case.
     """
-    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
 
     # Resolve slug → county_code
     slug_map = get_slug_map(db)
