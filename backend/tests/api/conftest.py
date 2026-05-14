@@ -30,6 +30,7 @@ from app.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (  # noqa: E402
     CalenviroScreen,
+    City,
     County,
     Crash,
     CrashParty,
@@ -124,6 +125,20 @@ def _seed(session: Session) -> None:
         Demographic(county_code=30, year=2023, population=3186000,
                     median_age=38.9, median_income=102000, poverty_rate=9.8,
                     population_density=4028.0),
+    ])
+
+    # Cities for the seeded counties — small subset to verify lookup/filter.
+    session.add_all([
+        City(county_code=1, name="Oakland", name_normalized="oakland",
+             place_type="city", place_fips="53000"),
+        City(county_code=19, name="Los Angeles", name_normalized="los angeles",
+             place_type="city", place_fips="44000"),
+        City(county_code=19, name="Long Beach", name_normalized="long beach",
+             place_type="city", place_fips="43000"),
+        City(county_code=30, name="Anaheim", name_normalized="anaheim",
+             place_type="city", place_fips="02000"),
+        City(county_code=38, name="San Francisco", name_normalized="san francisco",
+             place_type="city", place_fips="67000"),
     ])
 
     session.add_all([
