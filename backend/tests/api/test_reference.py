@@ -33,6 +33,40 @@ def test_counties_cache_header(client):
     assert response.headers.get("cache-control") == "public, max-age=3600"
 
 
+# --- cities ---
+
+def test_cities_returns_all_seeded(client):
+    response = client.get("/api/cities?limit=2000")
+    assert response.status_code == 200
+    body = response.json()
+    names = sorted(c["name"] for c in body)
+    assert names == ["Anaheim", "Long Beach", "Los Angeles", "Oakland", "San Francisco"]
+
+
+def test_cities_county_filter(client):
+    response = client.get("/api/cities?county=los-angeles")
+    body = response.json()
+    assert all(c["county_code"] == 19 for c in body)
+    assert {c["name"] for c in body} == {"Los Angeles", "Long Beach"}
+
+
+def test_cities_search_prefix(client):
+    response = client.get("/api/cities?search=long")
+    body = response.json()
+    assert [c["name"] for c in body] == ["Long Beach"]
+
+
+def test_cities_search_case_insensitive(client):
+    response = client.get("/api/cities?search=LOS")
+    body = response.json()
+    assert any(c["name"] == "Los Angeles" for c in body)
+
+
+def test_cities_cache_header(client):
+    response = client.get("/api/cities")
+    assert response.headers.get("cache-control") == "public, max-age=3600"
+
+
 # --- hospitals ---
 
 def test_hospitals_lists_all(client):

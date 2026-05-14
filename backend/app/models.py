@@ -32,6 +32,38 @@ class County(Base):
     geojson = Column(Text)
 
 
+class City(Base):
+    """California city / CDP lookup.
+
+    Seeded from the Census 2020 place-by-county file (~482 incorporated
+    places + ~1133 Census Designated Places). One row per (place, county)
+    so cities that legally span multiple counties have a row per county
+    — that matches how (county_code, city_name) appears on a crash record.
+    """
+
+    __tablename__ = "cities"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    name = Column(String(100), nullable=False)
+    # Lowercased, ASCII-folded form for ETL matching against the freeform
+    # crashes.city_name. Indexed so the load_crashes lookup is a fast hash join.
+    name_normalized = Column(String(100), nullable=False)
+    # "city", "town", or "CDP". CDPs are unincorporated; cities/towns are incorporated.
+    place_type = Column(String(20), nullable=False)
+    # 5-char Census Place FIPS — useful if anyone needs to join back to Census data.
+    place_fips = Column(String(7))
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("county_code", "name", name="uq_cities_county_name"),
+        Index("ix_cities_county_normalized", "county_code", "name_normalized"),
+        Index("ix_cities_name_normalized", "name_normalized"),
+    )
+
+
 class Crash(Base):
     """
     One row per crash from CCRS data.
@@ -48,6 +80,10 @@ class Crash(Base):
         SmallInteger, ForeignKey("counties.code"), nullable=False
     )
     city_name = Column(String(100))
+    # Normalized city reference; NULL for unincorporated areas, unknown
+    # cities, or pre-normalization rows. ETL resolves this from city_name
+    # via the cities lookup table at load time.
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)
     latitude = Column(Float)
     longitude = Column(Float)
 
@@ -158,6 +194,7 @@ class Crash(Base):
         Index("ix_crashes_canonical_lighting", "canonical_lighting"),
         Index("ix_crashes_canonical_road_condition", "canonical_road_condition"),
         Index("ix_crashes_canonical_collision_type", "canonical_collision_type"),
+        Index("ix_crashes_city_id", "city_id", postgresql_where="city_id IS NOT NULL"),
     )
 
 

@@ -4,11 +4,13 @@ calenviroscreen, traffic-volumes, speed-limits."""
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
+from app.cities_match import normalize_name
 from app.county_slug_map import get_slug_map
 from app.database import get_db
 from app.filters import parse_county_codes
 from app.models import (
     CalenviroScreen,
+    City,
     County,
     Hospital,
     RoadMile,
@@ -19,6 +21,7 @@ from app.models import (
 from app.schemas.common import PaginatedResponse
 from app.schemas.reference import (
     CalenviroScreenOut,
+    CityOut,
     CountyOut,
     HospitalOut,
     RoadMileOut,
@@ -49,6 +52,37 @@ def list_counties(
         for row in out:
             row.geojson = None
     return out
+
+
+@router.get("/cities", response_model=list[CityOut])
+def list_cities(
+    response: Response,
+    county: str | None = Query(None, description="County slug filter, e.g. 'los-angeles'."),
+    search: str | None = Query(None, description="Case-insensitive prefix match on the normalized name."),
+    place_type: str | None = Query(None, description="Filter to 'city', 'town', or 'CDP'."),
+    limit: int = Query(100, ge=1, le=2000),
+    db: Session = Depends(get_db),
+):
+    """List California cities and CDPs for SearchPill autocomplete.
+
+    Example: `/api/cities?county=los-angeles&search=long`
+    """
+    response.headers["Cache-Control"] = _ONE_HOUR
+    q = db.query(City)
+    if county:
+        codes = parse_county_codes(county, get_slug_map(db))
+        if codes:
+            q = q.filter(City.county_code.in_(codes))
+    if place_type:
+        q = q.filter(City.place_type == place_type)
+    if search:
+        # Match the same normalization the ETL uses so "St. Helena" finds
+        # "st helena", "OAKLAND" finds "oakland", etc.
+        prefix = normalize_name(search)
+        if prefix:
+            q = q.filter(City.name_normalized.like(f"{prefix}%"))
+    rows = q.order_by(City.name).limit(limit).all()
+    return [CityOut.model_validate(r) for r in rows]
 
 
 @router.get("/hospitals", response_model=list[HospitalOut])
