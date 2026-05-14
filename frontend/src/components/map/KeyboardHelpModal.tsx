@@ -46,8 +46,12 @@ export default function KeyboardHelpModal({ isOpen, onClose }: KeyboardHelpModal
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
       <div
+        role="button"
+        tabIndex={-1}
         className="absolute inset-0 bg-on-surface/30 backdrop-blur-sm"
         onClick={onClose}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
+        aria-label="Close keyboard shortcuts"
       />
 
       <div

@@ -65,7 +65,8 @@ export default function SearchableMultiSelect({
                 {canDismiss && (
                   <button
                     onClick={() => onToggle(opt.value)}
-                    className="hover:text-on-surface transition-colors"
+                    className="hover:text-on-surface transition-colors p-0.5 min-w-[24px] min-h-[24px] flex items-center justify-center"
+                    aria-label={`Remove ${opt.label}`}
                   >
                     <span className="material-symbols-outlined text-[14px]">close</span>
                   </button>
@@ -87,6 +88,7 @@ export default function SearchableMultiSelect({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
+          aria-label={placeholder}
           className="w-full bg-surface-container-high border-none rounded-lg py-3 pl-10 pr-4 text-sm text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20"
         />
       </div>

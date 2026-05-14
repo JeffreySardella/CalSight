@@ -86,20 +86,24 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
       ) : (
         <>
           <div
+            role="button"
+            tabIndex={0}
             className="md:hidden flex items-center justify-between mb-1 cursor-pointer"
             onClick={() => setMobileExpanded((v) => !v)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMobileExpanded((v) => !v); } }}
+            aria-expanded={mobileExpanded}
           >
             <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">{activeMeasure.label}</span>
             <span className="material-symbols-outlined text-[14px] text-on-surface-variant transition-transform" style={{ transform: mobileExpanded ? "rotate(180deg)" : undefined }}>
               expand_less
             </span>
           </div>
-          <label
+          <span
             className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2"
             id="choropleth-measure-label"
           >
             Measure
-          </label>
+          </span>
         </>
       )}
       <div ref={containerRef} className={`relative mb-3 ${countyActive ? "hidden" : mobileExpanded ? "" : "hidden md:block"}`}>

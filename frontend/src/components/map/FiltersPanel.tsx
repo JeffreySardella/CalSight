@@ -111,9 +111,9 @@ export default function FiltersPanel({
     <div className="space-y-8 pb-32">
       {/* County */}
       <div className="space-y-2">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           County
-        </label>
+        </span>
         <SearchableMultiSelect
           options={countyOptions}
           selected={selectedCounties.size === 0 ? ALL_COUNTIES_SET : selectedCounties}
@@ -133,9 +133,9 @@ export default function FiltersPanel({
       {/* Date range */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] font-bold uppercase tracking-widest">
+          <span className="text-[10px] font-bold uppercase tracking-widest">
             Date Range
-          </label>
+          </span>
           {dateRangeActive && (
             <button
               type="button"
@@ -176,9 +176,9 @@ export default function FiltersPanel({
 
       {/* Cause Type */}
       <div className="space-y-3">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Cause <span className="normal-case font-medium">(why it happened)</span>
-        </label>
+        </span>
         <p className="text-[10px] text-on-surface-variant leading-snug -mt-1">
           The primary factor that caused the crash. Available for all years.
         </p>
@@ -222,9 +222,9 @@ export default function FiltersPanel({
 
       {/* Severity */}
       <div className="space-y-3">
-        <label className="text-[10px] font-bold uppercase tracking-widest">
+        <span className="text-[10px] font-bold uppercase tracking-widest">
           Severity
-        </label>
+        </span>
         <p className="text-[10px] text-on-surface-variant leading-snug -mt-1">
           How severe was the crash outcome.
         </p>
@@ -265,9 +265,9 @@ export default function FiltersPanel({
 
       {/* Involvement Type */}
       <div className="space-y-3">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Involvement <span className="normal-case font-medium">(who was involved, 2016+)</span>
-        </label>
+        </span>
         <p className="text-[10px] text-on-surface-variant leading-snug -mt-1">
           Whether a specific party type was present, regardless of fault. Only available for 2016+ crashes.
         </p>
@@ -304,9 +304,9 @@ export default function FiltersPanel({
 
       {/* Driver Age */}
       <div className="space-y-3">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           At-Fault Driver Age <span className="normal-case font-medium">(2016+)</span>
-        </label>
+        </span>
         <p className="text-[10px] text-on-surface-variant leading-snug -mt-1">
           Age of the driver determined to be at fault. Select one bracket at a time.
         </p>

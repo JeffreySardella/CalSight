@@ -28,7 +28,7 @@ export default function InlineChart({ chart }: Props) {
       {title && (
         <p className="text-[10px] md:text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">{title}</p>
       )}
-      <div className="min-w-[300px]">
+      <div className="min-w-[300px]" role="img" aria-label={title || "Data chart"}>
         {type === "line" ? (
           <SimpleLineChart
             data={data}
