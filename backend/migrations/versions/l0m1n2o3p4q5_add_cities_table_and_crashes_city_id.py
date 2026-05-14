@@ -1,7 +1,7 @@
 """add cities table and crashes.city_id
 
-Revision ID: k9l0m1n2o3p4
-Revises: j8k9l0m1n2o3
+Revision ID: l0m1n2o3p4q5
+Revises: k9l0m1n2o3p4
 Create Date: 2026-05-13 00:00:00.000000
 """
 from typing import Sequence, Union
@@ -10,8 +10,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "k9l0m1n2o3p4"
-down_revision: Union[str, None] = "j8k9l0m1n2o3"
+revision: str = "l0m1n2o3p4q5"
+down_revision: Union[str, None] = "k9l0m1n2o3p4"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
