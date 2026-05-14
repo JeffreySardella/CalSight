@@ -156,7 +156,7 @@ def aggregate_by_county(
     return results
 
 
-@track_etl_run("traffic_volumes")
+@track_etl_run("aadt")
 def run():
     """Main entry point: fetch, aggregate, upsert."""
     db = SessionLocal()
