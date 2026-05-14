@@ -133,7 +133,9 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
 
         if result.returncode != 0:
             record.status = "error"
-            record.error_message = result.stderr[-2000:] if result.stderr else "Non-zero exit code"
+            desc = _describe_exit_code(result.returncode)
+            stderr_tail = result.stderr[-1800:] if result.stderr else ""
+            record.error_message = f"{desc}\n{stderr_tail}".strip() if stderr_tail else desc
             record.validation_status = "skipped"
         else:
             record.status = "success"
@@ -170,6 +172,42 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
     return record
 
 
+def _cleanup_zombie_runs() -> int:
+    """Mark stale 'running' records as errors — these are from killed processes."""
+    db = SessionLocal()
+    try:
+        zombies = (
+            db.query(EtlRun)
+            .filter(
+                EtlRun.status == "running",
+                EtlRun.started_at < datetime.utcnow() - __import__("datetime").timedelta(hours=1),
+            )
+            .all()
+        )
+        for z in zombies:
+            z.status = "error"
+            z.error_message = "Zombie cleanup: process was killed or never finished"
+            z.finished_at = datetime.utcnow()
+        db.commit()
+        if zombies:
+            logger.info("Cleaned up %d zombie etl_runs", len(zombies))
+        return len(zombies)
+    finally:
+        db.close()
+
+
+def _describe_exit_code(returncode: int) -> str:
+    """Return a human-readable description of a process exit code."""
+    if returncode == 137:
+        return "Process killed (OOM or SIGKILL, exit 137)"
+    if returncode == 139:
+        return "Segmentation fault (exit 139)"
+    if returncode > 128:
+        sig = returncode - 128
+        return f"Killed by signal {sig} (exit {returncode})"
+    return f"Non-zero exit code {returncode}"
+
+
 def run_pipeline(
     registry: JobRegistry,
     triggered_by: str = "manual",
@@ -177,6 +215,7 @@ def run_pipeline(
     skip_static: bool = True,
     force_refresh: bool = False,
 ) -> list[EtlRun]:
+    _cleanup_zombie_runs()
     order = resolve_execution_order(registry)
 
     if only:
