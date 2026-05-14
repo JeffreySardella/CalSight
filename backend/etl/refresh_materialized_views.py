@@ -92,4 +92,4 @@ def run() -> None:
 
 if __name__ == "__main__":
     # Wrap with etl_run tracking when called from the command line
-    track_etl_run("materialized_views")(run)()
+    track_etl_run("matviews")(run)()

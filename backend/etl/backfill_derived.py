@@ -806,7 +806,7 @@ def backfill_severity(db):
     logger.info("Severity: %d property damage only", r.rowcount)
 
 
-@track_etl_run("backfill_derived")
+@track_etl_run("backfill")
 def run():
     """Run all the backfills in order. Land area first since density needs it."""
     db = SessionLocal()
