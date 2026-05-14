@@ -1,0 +1,9692 @@
+[
+  {
+    "name": "Alameda",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "00562"
+  },
+  {
+    "name": "Albany",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "00674"
+  },
+  {
+    "name": "Ashland",
+    "county_fips": "06001",
+    "place_type": "CDP",
+    "place_fips": "02980"
+  },
+  {
+    "name": "Berkeley",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "06000"
+  },
+  {
+    "name": "Castro Valley",
+    "county_fips": "06001",
+    "place_type": "CDP",
+    "place_fips": "11964"
+  },
+  {
+    "name": "Cherryland",
+    "county_fips": "06001",
+    "place_type": "CDP",
+    "place_fips": "12902"
+  },
+  {
+    "name": "Dublin",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "20018"
+  },
+  {
+    "name": "Emeryville",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "22594"
+  },
+  {
+    "name": "Fairview",
+    "county_fips": "06001",
+    "place_type": "CDP",
+    "place_fips": "23350"
+  },
+  {
+    "name": "Fremont",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "26000"
+  },
+  {
+    "name": "Hayward",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "33000"
+  },
+  {
+    "name": "Livermore",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "41992"
+  },
+  {
+    "name": "Newark",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "50916"
+  },
+  {
+    "name": "Oakland",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "53000"
+  },
+  {
+    "name": "Piedmont",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "56938"
+  },
+  {
+    "name": "Pleasanton",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "57792"
+  },
+  {
+    "name": "San Leandro",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "68084"
+  },
+  {
+    "name": "San Lorenzo",
+    "county_fips": "06001",
+    "place_type": "CDP",
+    "place_fips": "68112"
+  },
+  {
+    "name": "Sunol",
+    "county_fips": "06001",
+    "place_type": "CDP",
+    "place_fips": "77042"
+  },
+  {
+    "name": "Union City",
+    "county_fips": "06001",
+    "place_type": "city",
+    "place_fips": "81204"
+  },
+  {
+    "name": "Alpine Village",
+    "county_fips": "06003",
+    "place_type": "CDP",
+    "place_fips": "01228"
+  },
+  {
+    "name": "Bear Valley",
+    "county_fips": "06003",
+    "place_type": "CDP",
+    "place_fips": "04716"
+  },
+  {
+    "name": "Kirkwood",
+    "county_fips": "06003",
+    "place_type": "CDP",
+    "place_fips": "38646"
+  },
+  {
+    "name": "Markleeville",
+    "county_fips": "06003",
+    "place_type": "CDP",
+    "place_fips": "45988"
+  },
+  {
+    "name": "Mesa Vista",
+    "county_fips": "06003",
+    "place_type": "CDP",
+    "place_fips": "47086"
+  },
+  {
+    "name": "Amador City",
+    "county_fips": "06005",
+    "place_type": "city",
+    "place_fips": "01514"
+  },
+  {
+    "name": "Amador Pines",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "01518"
+  },
+  {
+    "name": "Buckhorn",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "08680"
+  },
+  {
+    "name": "Buena Vista",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "08828"
+  },
+  {
+    "name": "Camanche North Shore",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "10042"
+  },
+  {
+    "name": "Camanche Village",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "10044"
+  },
+  {
+    "name": "Drytown",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "19976"
+  },
+  {
+    "name": "Fiddletown",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "23980"
+  },
+  {
+    "name": "Ione",
+    "county_fips": "06005",
+    "place_type": "city",
+    "place_fips": "36672"
+  },
+  {
+    "name": "Jackson",
+    "county_fips": "06005",
+    "place_type": "city",
+    "place_fips": "36980"
+  },
+  {
+    "name": "Kirkwood",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "38646"
+  },
+  {
+    "name": "Lockwood",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "42142"
+  },
+  {
+    "name": "Martell",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "46100"
+  },
+  {
+    "name": "Pine Grove",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "57148"
+  },
+  {
+    "name": "Pioneer",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "57330"
+  },
+  {
+    "name": "Plymouth",
+    "county_fips": "06005",
+    "place_type": "city",
+    "place_fips": "57834"
+  },
+  {
+    "name": "Red Corral",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "59896"
+  },
+  {
+    "name": "River Pines",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "61124"
+  },
+  {
+    "name": "Sutter Creek",
+    "county_fips": "06005",
+    "place_type": "city",
+    "place_fips": "77392"
+  },
+  {
+    "name": "Volcano",
+    "county_fips": "06005",
+    "place_type": "CDP",
+    "place_fips": "83094"
+  },
+  {
+    "name": "Bangor",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "03792"
+  },
+  {
+    "name": "Berry Creek",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "06070"
+  },
+  {
+    "name": "Biggs",
+    "county_fips": "06007",
+    "place_type": "city",
+    "place_fips": "06560"
+  },
+  {
+    "name": "Butte Creek Canyon",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "09310"
+  },
+  {
+    "name": "Butte Meadows",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "09318"
+  },
+  {
+    "name": "Butte Valley",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "09324"
+  },
+  {
+    "name": "Cherokee",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "12818"
+  },
+  {
+    "name": "Chico",
+    "county_fips": "06007",
+    "place_type": "city",
+    "place_fips": "13014"
+  },
+  {
+    "name": "Clipper Mills",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "14148"
+  },
+  {
+    "name": "Cohasset",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "14442"
+  },
+  {
+    "name": "Concow",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "16035"
+  },
+  {
+    "name": "Durham",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "20270"
+  },
+  {
+    "name": "Forbestown",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "24750"
+  },
+  {
+    "name": "Forest Ranch",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "24918"
+  },
+  {
+    "name": "Gridley",
+    "county_fips": "06007",
+    "place_type": "city",
+    "place_fips": "31260"
+  },
+  {
+    "name": "Honcut",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "34428"
+  },
+  {
+    "name": "Kelly Ridge",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "38024"
+  },
+  {
+    "name": "Magalia",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "45120"
+  },
+  {
+    "name": "Nord",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "51574"
+  },
+  {
+    "name": "Oroville",
+    "county_fips": "06007",
+    "place_type": "city",
+    "place_fips": "54386"
+  },
+  {
+    "name": "Oroville East",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "54388"
+  },
+  {
+    "name": "Palermo",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "55086"
+  },
+  {
+    "name": "Paradise",
+    "county_fips": "06007",
+    "place_type": "town",
+    "place_fips": "55520"
+  },
+  {
+    "name": "Rackerby",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "59115"
+  },
+  {
+    "name": "Richvale",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "60662"
+  },
+  {
+    "name": "Robinson Mill",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "62200"
+  },
+  {
+    "name": "South Oroville",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "73178"
+  },
+  {
+    "name": "Stirling City",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "74186"
+  },
+  {
+    "name": "Thermalito",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "78470"
+  },
+  {
+    "name": "Yankee Hill",
+    "county_fips": "06007",
+    "place_type": "CDP",
+    "place_fips": "86678"
+  },
+  {
+    "name": "Angels",
+    "county_fips": "06009",
+    "place_type": "city",
+    "place_fips": "02112"
+  },
+  {
+    "name": "Arnold",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "02770"
+  },
+  {
+    "name": "Avery",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "03316"
+  },
+  {
+    "name": "Copperopolis",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "16210"
+  },
+  {
+    "name": "Dorrington",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "19570"
+  },
+  {
+    "name": "Forest Meadows",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "24897"
+  },
+  {
+    "name": "Mokelumne Hill",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "48480"
+  },
+  {
+    "name": "Mountain Ranch",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "49628"
+  },
+  {
+    "name": "Murphys",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "50034"
+  },
+  {
+    "name": "Rail Road Flat",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "59220"
+  },
+  {
+    "name": "Rancho Calaveras",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "59426"
+  },
+  {
+    "name": "San Andreas",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "64420"
+  },
+  {
+    "name": "Vallecito",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "81652"
+  },
+  {
+    "name": "Valley Springs",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "81890"
+  },
+  {
+    "name": "Wallace",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "83304"
+  },
+  {
+    "name": "West Point",
+    "county_fips": "06009",
+    "place_type": "CDP",
+    "place_fips": "84732"
+  },
+  {
+    "name": "Arbuckle",
+    "county_fips": "06011",
+    "place_type": "CDP",
+    "place_fips": "02420"
+  },
+  {
+    "name": "College City",
+    "county_fips": "06011",
+    "place_type": "CDP",
+    "place_fips": "14554"
+  },
+  {
+    "name": "Colusa",
+    "county_fips": "06011",
+    "place_type": "city",
+    "place_fips": "14946"
+  },
+  {
+    "name": "Grimes",
+    "county_fips": "06011",
+    "place_type": "CDP",
+    "place_fips": "31288"
+  },
+  {
+    "name": "Lodoga",
+    "county_fips": "06011",
+    "place_type": "CDP",
+    "place_fips": "42230"
+  },
+  {
+    "name": "Maxwell",
+    "county_fips": "06011",
+    "place_type": "CDP",
+    "place_fips": "46338"
+  },
+  {
+    "name": "Princeton",
+    "county_fips": "06011",
+    "place_type": "CDP",
+    "place_fips": "58758"
+  },
+  {
+    "name": "Stonyford",
+    "county_fips": "06011",
+    "place_type": "CDP",
+    "place_fips": "75154"
+  },
+  {
+    "name": "Williams",
+    "county_fips": "06011",
+    "place_type": "city",
+    "place_fips": "85586"
+  },
+  {
+    "name": "Acalanes Ridge",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "00135"
+  },
+  {
+    "name": "Alamo",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "00618"
+  },
+  {
+    "name": "Alhambra Valley",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "00898"
+  },
+  {
+    "name": "Antioch",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "02252"
+  },
+  {
+    "name": "Bay Point",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "04415"
+  },
+  {
+    "name": "Bayview",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "04470"
+  },
+  {
+    "name": "Bethel Island",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "06210"
+  },
+  {
+    "name": "Blackhawk",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "06928"
+  },
+  {
+    "name": "Brentwood",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "08142"
+  },
+  {
+    "name": "Byron",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "09346"
+  },
+  {
+    "name": "Camino Tassajara",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "10301"
+  },
+  {
+    "name": "Castle Hill",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "11915"
+  },
+  {
+    "name": "Clayton",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "13882"
+  },
+  {
+    "name": "Clyde",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "14232"
+  },
+  {
+    "name": "Concord",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "16000"
+  },
+  {
+    "name": "Contra Costa Centre",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "16090"
+  },
+  {
+    "name": "Crockett",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "17274"
+  },
+  {
+    "name": "Danville",
+    "county_fips": "06013",
+    "place_type": "town",
+    "place_fips": "17988"
+  },
+  {
+    "name": "Diablo",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "19150"
+  },
+  {
+    "name": "Discovery Bay",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "19339"
+  },
+  {
+    "name": "East Richmond Heights",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "21061"
+  },
+  {
+    "name": "El Cerrito",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "21796"
+  },
+  {
+    "name": "El Sobrante",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "22454"
+  },
+  {
+    "name": "Hercules",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "33308"
+  },
+  {
+    "name": "Kensington",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "38086"
+  },
+  {
+    "name": "Knightsen",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "38772"
+  },
+  {
+    "name": "Lafayette",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "39122"
+  },
+  {
+    "name": "Martinez",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "46114"
+  },
+  {
+    "name": "Montalvin Manor",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "48718"
+  },
+  {
+    "name": "Moraga",
+    "county_fips": "06013",
+    "place_type": "town",
+    "place_fips": "49187"
+  },
+  {
+    "name": "Mountain View",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "49651"
+  },
+  {
+    "name": "Norris Canyon",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "51622"
+  },
+  {
+    "name": "North Gate",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "51890"
+  },
+  {
+    "name": "North Richmond",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "52162"
+  },
+  {
+    "name": "Oakley",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "53070"
+  },
+  {
+    "name": "Orinda",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "54232"
+  },
+  {
+    "name": "Pacheco",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "54764"
+  },
+  {
+    "name": "Pinole",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "57288"
+  },
+  {
+    "name": "Pittsburg",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "57456"
+  },
+  {
+    "name": "Pleasant Hill",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "57764"
+  },
+  {
+    "name": "Port Costa",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "58226"
+  },
+  {
+    "name": "Reliez Valley",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "60279"
+  },
+  {
+    "name": "Richmond",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "60620"
+  },
+  {
+    "name": "Rodeo",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "62490"
+  },
+  {
+    "name": "Rollingwood",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "62700"
+  },
+  {
+    "name": "San Miguel",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "68263"
+  },
+  {
+    "name": "San Pablo",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "68294"
+  },
+  {
+    "name": "San Ramon",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "68378"
+  },
+  {
+    "name": "Saranap",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "70266"
+  },
+  {
+    "name": "Shell Ridge",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "71362"
+  },
+  {
+    "name": "Tara Hills",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "77924"
+  },
+  {
+    "name": "Vine Hill",
+    "county_fips": "06013",
+    "place_type": "CDP",
+    "place_fips": "82842"
+  },
+  {
+    "name": "Walnut Creek",
+    "county_fips": "06013",
+    "place_type": "city",
+    "place_fips": "83346"
+  },
+  {
+    "name": "Bertsch-Oceanview",
+    "county_fips": "06015",
+    "place_type": "CDP",
+    "place_fips": "06150"
+  },
+  {
+    "name": "Crescent City",
+    "county_fips": "06015",
+    "place_type": "city",
+    "place_fips": "17022"
+  },
+  {
+    "name": "Fort Dick",
+    "county_fips": "06015",
+    "place_type": "CDP",
+    "place_fips": "25086"
+  },
+  {
+    "name": "Gasquet",
+    "county_fips": "06015",
+    "place_type": "CDP",
+    "place_fips": "29154"
+  },
+  {
+    "name": "Hiouchi",
+    "county_fips": "06015",
+    "place_type": "CDP",
+    "place_fips": "33935"
+  },
+  {
+    "name": "Klamath",
+    "county_fips": "06015",
+    "place_type": "CDP",
+    "place_fips": "38702"
+  },
+  {
+    "name": "Smith River",
+    "county_fips": "06015",
+    "place_type": "CDP",
+    "place_fips": "72380"
+  },
+  {
+    "name": "Auburn Lake Trails",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "03205"
+  },
+  {
+    "name": "Cameron Park",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "10256"
+  },
+  {
+    "name": "Camino",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "10270"
+  },
+  {
+    "name": "Cold Springs",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "14450"
+  },
+  {
+    "name": "Coloma",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "14764"
+  },
+  {
+    "name": "Diamond Springs",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "19220"
+  },
+  {
+    "name": "El Dorado Hills",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "21880"
+  },
+  {
+    "name": "Georgetown",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "29350"
+  },
+  {
+    "name": "Grizzly Flats",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "31302"
+  },
+  {
+    "name": "Meyers",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "47206"
+  },
+  {
+    "name": "Placerville",
+    "county_fips": "06017",
+    "place_type": "city",
+    "place_fips": "57540"
+  },
+  {
+    "name": "Pollock Pines",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "58030"
+  },
+  {
+    "name": "Shingle Springs",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "71554"
+  },
+  {
+    "name": "South Lake Tahoe",
+    "county_fips": "06017",
+    "place_type": "city",
+    "place_fips": "73108"
+  },
+  {
+    "name": "Tahoma",
+    "county_fips": "06017",
+    "place_type": "CDP",
+    "place_fips": "77728"
+  },
+  {
+    "name": "Auberry",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "03190"
+  },
+  {
+    "name": "Big Creek",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "06518"
+  },
+  {
+    "name": "Biola",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "06728"
+  },
+  {
+    "name": "Bowles",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "07750"
+  },
+  {
+    "name": "Calwa",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "10032"
+  },
+  {
+    "name": "Cantua Creek",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "10816"
+  },
+  {
+    "name": "Caruthers",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "11614"
+  },
+  {
+    "name": "Centerville",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "12412"
+  },
+  {
+    "name": "Clovis",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "14218"
+  },
+  {
+    "name": "Coalinga",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "14274"
+  },
+  {
+    "name": "Del Rey",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "18674"
+  },
+  {
+    "name": "Easton",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "20928"
+  },
+  {
+    "name": "Firebaugh",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "24134"
+  },
+  {
+    "name": "Fort Washington",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "25300"
+  },
+  {
+    "name": "Fowler",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "25436"
+  },
+  {
+    "name": "Fresno",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "27000"
+  },
+  {
+    "name": "Friant",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "27014"
+  },
+  {
+    "name": "Huron",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "36084"
+  },
+  {
+    "name": "Kerman",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "38226"
+  },
+  {
+    "name": "Kingsburg",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "38562"
+  },
+  {
+    "name": "Lanare",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "40116"
+  },
+  {
+    "name": "Laton",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "40746"
+  },
+  {
+    "name": "Malaga",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "45232"
+  },
+  {
+    "name": "Mayfair",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "46400"
+  },
+  {
+    "name": "Mendota",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "46828"
+  },
+  {
+    "name": "Millerton",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "47592"
+  },
+  {
+    "name": "Minkler",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "47822"
+  },
+  {
+    "name": "Monmouth",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "48592"
+  },
+  {
+    "name": "Old Fig Garden",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "53505"
+  },
+  {
+    "name": "Orange Cove",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "54008"
+  },
+  {
+    "name": "Parlier",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "55856"
+  },
+  {
+    "name": "Raisin City",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "59290"
+  },
+  {
+    "name": "Reedley",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "60242"
+  },
+  {
+    "name": "Riverdale",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "61096"
+  },
+  {
+    "name": "San Joaquin",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "67126"
+  },
+  {
+    "name": "Sanger",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "67056"
+  },
+  {
+    "name": "Selma",
+    "county_fips": "06019",
+    "place_type": "city",
+    "place_fips": "70882"
+  },
+  {
+    "name": "Shaver Lake",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "71246"
+  },
+  {
+    "name": "Squaw Valley",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "73794"
+  },
+  {
+    "name": "Sunnyside",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "75994"
+  },
+  {
+    "name": "Tarpey Village",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "77960"
+  },
+  {
+    "name": "Three Rocks",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "78652"
+  },
+  {
+    "name": "Tranquillity",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "80266"
+  },
+  {
+    "name": "West Park",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "84680"
+  },
+  {
+    "name": "Westside",
+    "county_fips": "06019",
+    "place_type": "CDP",
+    "place_fips": "84863"
+  },
+  {
+    "name": "Artois",
+    "county_fips": "06021",
+    "place_type": "CDP",
+    "place_fips": "02910"
+  },
+  {
+    "name": "Elk Creek",
+    "county_fips": "06021",
+    "place_type": "CDP",
+    "place_fips": "22006"
+  },
+  {
+    "name": "Hamilton City",
+    "county_fips": "06021",
+    "place_type": "CDP",
+    "place_fips": "31890"
+  },
+  {
+    "name": "Orland",
+    "county_fips": "06021",
+    "place_type": "city",
+    "place_fips": "54274"
+  },
+  {
+    "name": "Willows",
+    "county_fips": "06021",
+    "place_type": "city",
+    "place_fips": "85684"
+  },
+  {
+    "name": "Alderpoint",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "00786"
+  },
+  {
+    "name": "Arcata",
+    "county_fips": "06023",
+    "place_type": "city",
+    "place_fips": "02476"
+  },
+  {
+    "name": "Bayview",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "04478"
+  },
+  {
+    "name": "Benbow",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "05262"
+  },
+  {
+    "name": "Big Lagoon",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "06567"
+  },
+  {
+    "name": "Blue Lake",
+    "county_fips": "06023",
+    "place_type": "city",
+    "place_fips": "07162"
+  },
+  {
+    "name": "Cutten",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "17722"
+  },
+  {
+    "name": "Eureka",
+    "county_fips": "06023",
+    "place_type": "city",
+    "place_fips": "23042"
+  },
+  {
+    "name": "Fairhaven",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "23196"
+  },
+  {
+    "name": "Ferndale",
+    "county_fips": "06023",
+    "place_type": "city",
+    "place_fips": "23910"
+  },
+  {
+    "name": "Fieldbrook",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "24008"
+  },
+  {
+    "name": "Fields Landing",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "24022"
+  },
+  {
+    "name": "Fortuna",
+    "county_fips": "06023",
+    "place_type": "city",
+    "place_fips": "25296"
+  },
+  {
+    "name": "Garberville",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "28154"
+  },
+  {
+    "name": "Hoopa",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "34540"
+  },
+  {
+    "name": "Humboldt Hill",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "34928"
+  },
+  {
+    "name": "Hydesville",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "36126"
+  },
+  {
+    "name": "Indianola",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "36420"
+  },
+  {
+    "name": "Kep'el",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "38177"
+  },
+  {
+    "name": "Loleta",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "42328"
+  },
+  {
+    "name": "Manila",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "45414"
+  },
+  {
+    "name": "McKinleyville",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "44910"
+  },
+  {
+    "name": "Miranda",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "48060"
+  },
+  {
+    "name": "Myers Flat",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "50146"
+  },
+  {
+    "name": "Myrtletown",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "50188"
+  },
+  {
+    "name": "Orick",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "54218"
+  },
+  {
+    "name": "Phillipsville",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "56854"
+  },
+  {
+    "name": "Pine Hills",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "57204"
+  },
+  {
+    "name": "Redcrest",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "59906"
+  },
+  {
+    "name": "Redway",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "60088"
+  },
+  {
+    "name": "Rio Dell",
+    "county_fips": "06023",
+    "place_type": "city",
+    "place_fips": "60900"
+  },
+  {
+    "name": "Samoa",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "64392"
+  },
+  {
+    "name": "Scotia",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "70518"
+  },
+  {
+    "name": "Shelter Cove",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "71372"
+  },
+  {
+    "name": "Trinidad",
+    "county_fips": "06023",
+    "place_type": "city",
+    "place_fips": "80448"
+  },
+  {
+    "name": "Wautec",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "83730"
+  },
+  {
+    "name": "Weitchpec",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "83906"
+  },
+  {
+    "name": "Weott",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "84004"
+  },
+  {
+    "name": "Westhaven-Moonstone",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "84385"
+  },
+  {
+    "name": "Willow Creek",
+    "county_fips": "06023",
+    "place_type": "CDP",
+    "place_fips": "85642"
+  },
+  {
+    "name": "Bombay Beach",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "07372"
+  },
+  {
+    "name": "Brawley",
+    "county_fips": "06025",
+    "place_type": "city",
+    "place_fips": "08058"
+  },
+  {
+    "name": "Calexico",
+    "county_fips": "06025",
+    "place_type": "city",
+    "place_fips": "09710"
+  },
+  {
+    "name": "Calipatria",
+    "county_fips": "06025",
+    "place_type": "city",
+    "place_fips": "09878"
+  },
+  {
+    "name": "Desert Shores",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "19024"
+  },
+  {
+    "name": "El Centro",
+    "county_fips": "06025",
+    "place_type": "city",
+    "place_fips": "21782"
+  },
+  {
+    "name": "El Centro Naval Air Facility",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "21788"
+  },
+  {
+    "name": "Heber",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "33084"
+  },
+  {
+    "name": "Holtville",
+    "county_fips": "06025",
+    "place_type": "city",
+    "place_fips": "34246"
+  },
+  {
+    "name": "Imperial",
+    "county_fips": "06025",
+    "place_type": "city",
+    "place_fips": "36280"
+  },
+  {
+    "name": "Niland",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "51392"
+  },
+  {
+    "name": "Ocotillo",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "53378"
+  },
+  {
+    "name": "Palo Verde",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "55422"
+  },
+  {
+    "name": "Salton City",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "64294"
+  },
+  {
+    "name": "Salton Sea Beach",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "64308"
+  },
+  {
+    "name": "Seeley",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "70798"
+  },
+  {
+    "name": "Westmorland",
+    "county_fips": "06025",
+    "place_type": "city",
+    "place_fips": "84606"
+  },
+  {
+    "name": "Winterhaven",
+    "county_fips": "06025",
+    "place_type": "CDP",
+    "place_fips": "86020"
+  },
+  {
+    "name": "Big Pine",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "06616"
+  },
+  {
+    "name": "Bishop",
+    "county_fips": "06027",
+    "place_type": "city",
+    "place_fips": "06798"
+  },
+  {
+    "name": "Cartago",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "11600"
+  },
+  {
+    "name": "Charleston View",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "12730"
+  },
+  {
+    "name": "Darwin",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "18030"
+  },
+  {
+    "name": "Dixon Lane-MeadowCreek",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "19406"
+  },
+  {
+    "name": "Furnace Creek",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "28021"
+  },
+  {
+    "name": "Homewood Canyon",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "34405"
+  },
+  {
+    "name": "Independence",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "36350"
+  },
+  {
+    "name": "Keeler",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "37918"
+  },
+  {
+    "name": "Lone Pine",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "42580"
+  },
+  {
+    "name": "Mesa",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "47013"
+  },
+  {
+    "name": "Olancha",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "53490"
+  },
+  {
+    "name": "Pearsonville",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "56294"
+  },
+  {
+    "name": "Round Valley",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "63148"
+  },
+  {
+    "name": "Shoshone",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "71680"
+  },
+  {
+    "name": "Tecopa",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "78050"
+  },
+  {
+    "name": "Trona",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "80515"
+  },
+  {
+    "name": "Valley Wells",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "81925"
+  },
+  {
+    "name": "West Bishop",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "84120"
+  },
+  {
+    "name": "Wilkerson",
+    "county_fips": "06027",
+    "place_type": "CDP",
+    "place_fips": "85551"
+  },
+  {
+    "name": "Alta Sierra",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "01358"
+  },
+  {
+    "name": "Arvin",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "02924"
+  },
+  {
+    "name": "Bakersfield",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "03526"
+  },
+  {
+    "name": "Bakersfield Country Club",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "03546"
+  },
+  {
+    "name": "Bear Valley Springs",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "04734"
+  },
+  {
+    "name": "Benton Park",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "05356"
+  },
+  {
+    "name": "Bodfish",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "07274"
+  },
+  {
+    "name": "Boron",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "07568"
+  },
+  {
+    "name": "Buttonwillow",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "09332"
+  },
+  {
+    "name": "California City",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "09780"
+  },
+  {
+    "name": "Casa Loma",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "11696"
+  },
+  {
+    "name": "Cherokee Strip",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "12860"
+  },
+  {
+    "name": "China Lake Acres",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "13157"
+  },
+  {
+    "name": "Choctaw Valley",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "13278"
+  },
+  {
+    "name": "Cottonwood",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "16623"
+  },
+  {
+    "name": "Delano",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "18394"
+  },
+  {
+    "name": "Derby Acres",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "18926"
+  },
+  {
+    "name": "Di Giorgio",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "19248"
+  },
+  {
+    "name": "Dustin Acres",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "20284"
+  },
+  {
+    "name": "East Bakersfield",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "20515"
+  },
+  {
+    "name": "East Niles",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "20903"
+  },
+  {
+    "name": "Edison",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "21544"
+  },
+  {
+    "name": "Edmundson Acres",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "21558"
+  },
+  {
+    "name": "Edwards AFB",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "21600"
+  },
+  {
+    "name": "El Adobe",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "21691"
+  },
+  {
+    "name": "Fairfax",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "23158"
+  },
+  {
+    "name": "Fellows",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "23812"
+  },
+  {
+    "name": "Ford City",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "24764"
+  },
+  {
+    "name": "Frazier Park",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "25534"
+  },
+  {
+    "name": "Fuller Acres",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "27190"
+  },
+  {
+    "name": "Glennville",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "30126"
+  },
+  {
+    "name": "Golden Hills",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "30282"
+  },
+  {
+    "name": "Goodmanville",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "30412"
+  },
+  {
+    "name": "Greenacres",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "30938"
+  },
+  {
+    "name": "Greenfield",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "30987"
+  },
+  {
+    "name": "Hillcrest",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "33689"
+  },
+  {
+    "name": "Inyokern",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "36658"
+  },
+  {
+    "name": "Johannesburg",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "37400"
+  },
+  {
+    "name": "Keene",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "37946"
+  },
+  {
+    "name": "Kernville",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "38310"
+  },
+  {
+    "name": "La Cresta",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "39052"
+  },
+  {
+    "name": "Lake Isabella",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "39570"
+  },
+  {
+    "name": "Lake of the Woods",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "39696"
+  },
+  {
+    "name": "Lakeside",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "39759"
+  },
+  {
+    "name": "Lamont",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "40088"
+  },
+  {
+    "name": "Lebec",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "40956"
+  },
+  {
+    "name": "Lost Hills",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "44280"
+  },
+  {
+    "name": "Maricopa",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "45736"
+  },
+  {
+    "name": "McFarland",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "44826"
+  },
+  {
+    "name": "McKittrick",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "44924"
+  },
+  {
+    "name": "Mettler",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "47164"
+  },
+  {
+    "name": "Mexican Colony",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "47192"
+  },
+  {
+    "name": "Mojave",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "48452"
+  },
+  {
+    "name": "Mountain Meadows",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "49592"
+  },
+  {
+    "name": "Mountain Mesa",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "49600"
+  },
+  {
+    "name": "North Edwards",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "51812"
+  },
+  {
+    "name": "Oildale",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "53448"
+  },
+  {
+    "name": "Old River",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "53574"
+  },
+  {
+    "name": "Old Stine",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "53603"
+  },
+  {
+    "name": "Olde Stockdale",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "53503"
+  },
+  {
+    "name": "Onyx",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "53910"
+  },
+  {
+    "name": "Pine Mountain Club",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "57240"
+  },
+  {
+    "name": "Potomac Park",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "58471"
+  },
+  {
+    "name": "Pumpkin Center",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "58940"
+  },
+  {
+    "name": "Randsburg",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "59668"
+  },
+  {
+    "name": "Rexland Acres",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "60370"
+  },
+  {
+    "name": "Ridgecrest",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "60704"
+  },
+  {
+    "name": "Ridgecrest Heights",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "60705"
+  },
+  {
+    "name": "Rivergrove",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "61108"
+  },
+  {
+    "name": "Rosamond",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "62826"
+  },
+  {
+    "name": "Rosedale",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "62854"
+  },
+  {
+    "name": "Shafter",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "71106"
+  },
+  {
+    "name": "Smith Corner",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "72338"
+  },
+  {
+    "name": "South Taft",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "73388"
+  },
+  {
+    "name": "Squirrel Mountain Valley",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "73815"
+  },
+  {
+    "name": "Stallion Springs",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "73868"
+  },
+  {
+    "name": "Stebbins",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "74021"
+  },
+  {
+    "name": "Taft",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "77574"
+  },
+  {
+    "name": "Taft Heights",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "77588"
+  },
+  {
+    "name": "Tarina",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "77934"
+  },
+  {
+    "name": "Tehachapi",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "78092"
+  },
+  {
+    "name": "Tupman",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "80784"
+  },
+  {
+    "name": "Valley Acres",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "81722"
+  },
+  {
+    "name": "Wasco",
+    "county_fips": "06029",
+    "place_type": "city",
+    "place_fips": "83542"
+  },
+  {
+    "name": "Weedpatch",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "83863"
+  },
+  {
+    "name": "Weldon",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "83948"
+  },
+  {
+    "name": "Wofford Heights",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "86174"
+  },
+  {
+    "name": "Woody",
+    "county_fips": "06029",
+    "place_type": "CDP",
+    "place_fips": "86496"
+  },
+  {
+    "name": "Armona",
+    "county_fips": "06031",
+    "place_type": "CDP",
+    "place_fips": "02700"
+  },
+  {
+    "name": "Avenal",
+    "county_fips": "06031",
+    "place_type": "city",
+    "place_fips": "03302"
+  },
+  {
+    "name": "Corcoran",
+    "county_fips": "06031",
+    "place_type": "city",
+    "place_fips": "16224"
+  },
+  {
+    "name": "Grangeville",
+    "county_fips": "06031",
+    "place_type": "CDP",
+    "place_fips": "30686"
+  },
+  {
+    "name": "Hanford",
+    "county_fips": "06031",
+    "place_type": "city",
+    "place_fips": "31960"
+  },
+  {
+    "name": "Hardwick",
+    "county_fips": "06031",
+    "place_type": "CDP",
+    "place_fips": "32156"
+  },
+  {
+    "name": "Home Garden",
+    "county_fips": "06031",
+    "place_type": "CDP",
+    "place_fips": "34281"
+  },
+  {
+    "name": "Kettleman City",
+    "county_fips": "06031",
+    "place_type": "CDP",
+    "place_fips": "38394"
+  },
+  {
+    "name": "Lemoore",
+    "county_fips": "06031",
+    "place_type": "city",
+    "place_fips": "41152"
+  },
+  {
+    "name": "Lemoore Station",
+    "county_fips": "06031",
+    "place_type": "CDP",
+    "place_fips": "41166"
+  },
+  {
+    "name": "Stratford",
+    "county_fips": "06031",
+    "place_type": "CDP",
+    "place_fips": "75252"
+  },
+  {
+    "name": "Clearlake",
+    "county_fips": "06033",
+    "place_type": "city",
+    "place_fips": "13945"
+  },
+  {
+    "name": "Clearlake Oaks",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "13966"
+  },
+  {
+    "name": "Clearlake Riviera",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "13985"
+  },
+  {
+    "name": "Cobb",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "14302"
+  },
+  {
+    "name": "Hidden Valley Lake",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "33549"
+  },
+  {
+    "name": "Kelseyville",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "38044"
+  },
+  {
+    "name": "Lakeport",
+    "county_fips": "06033",
+    "place_type": "city",
+    "place_fips": "39710"
+  },
+  {
+    "name": "Lower Lake",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "44350"
+  },
+  {
+    "name": "Lucerne",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "44406"
+  },
+  {
+    "name": "Middletown",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "47332"
+  },
+  {
+    "name": "Nice",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "51294"
+  },
+  {
+    "name": "North Lakeport",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "51990"
+  },
+  {
+    "name": "Soda Bay",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "72478"
+  },
+  {
+    "name": "Spring Valley",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "73690"
+  },
+  {
+    "name": "Upper Lake",
+    "county_fips": "06033",
+    "place_type": "CDP",
+    "place_fips": "81358"
+  },
+  {
+    "name": "Bieber",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "06336"
+  },
+  {
+    "name": "Clear Creek",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "13910"
+  },
+  {
+    "name": "Doyle",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "19878"
+  },
+  {
+    "name": "Herlong",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "33336"
+  },
+  {
+    "name": "Janesville",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "37134"
+  },
+  {
+    "name": "Johnstonville",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "37484"
+  },
+  {
+    "name": "Litchfield",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "41782"
+  },
+  {
+    "name": "Little Valley",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "41908"
+  },
+  {
+    "name": "Madeline",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "45008"
+  },
+  {
+    "name": "Milford",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "47472"
+  },
+  {
+    "name": "Nubieber",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "52610"
+  },
+  {
+    "name": "Patton Village",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "56140"
+  },
+  {
+    "name": "Spaulding",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "73554"
+  },
+  {
+    "name": "Stones Landing",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "75122"
+  },
+  {
+    "name": "Susanville",
+    "county_fips": "06035",
+    "place_type": "city",
+    "place_fips": "77364"
+  },
+  {
+    "name": "Westwood",
+    "county_fips": "06035",
+    "place_type": "CDP",
+    "place_fips": "84928"
+  },
+  {
+    "name": "Acton",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "00212"
+  },
+  {
+    "name": "Agoura Hills",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "00394"
+  },
+  {
+    "name": "Agua Dulce",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "00450"
+  },
+  {
+    "name": "Alhambra",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "00884"
+  },
+  {
+    "name": "Alondra Park",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "01150"
+  },
+  {
+    "name": "Altadena",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "01290"
+  },
+  {
+    "name": "Arcadia",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "02462"
+  },
+  {
+    "name": "Artesia",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "02896"
+  },
+  {
+    "name": "Avalon",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "03274"
+  },
+  {
+    "name": "Avocado Heights",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "03344"
+  },
+  {
+    "name": "Azusa",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "03386"
+  },
+  {
+    "name": "Baldwin Park",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "03666"
+  },
+  {
+    "name": "Bell",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "04870"
+  },
+  {
+    "name": "Bell Gardens",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "04996"
+  },
+  {
+    "name": "Bellflower",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "04982"
+  },
+  {
+    "name": "Beverly Hills",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "06308"
+  },
+  {
+    "name": "Bradbury",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "07946"
+  },
+  {
+    "name": "Burbank",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "08954"
+  },
+  {
+    "name": "Calabasas",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "09598"
+  },
+  {
+    "name": "Carson",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "11530"
+  },
+  {
+    "name": "Castaic",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "11796"
+  },
+  {
+    "name": "Cerritos",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "12552"
+  },
+  {
+    "name": "Charter Oak",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "12734"
+  },
+  {
+    "name": "Citrus",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "13560"
+  },
+  {
+    "name": "Claremont",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "13756"
+  },
+  {
+    "name": "Commerce",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "14974"
+  },
+  {
+    "name": "Compton",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "15044"
+  },
+  {
+    "name": "Covina",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "16742"
+  },
+  {
+    "name": "Cudahy",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "17498"
+  },
+  {
+    "name": "Culver City",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "17568"
+  },
+  {
+    "name": "Del Aire",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "18352"
+  },
+  {
+    "name": "Desert View Highlands",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "19052"
+  },
+  {
+    "name": "Diamond Bar",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "19192"
+  },
+  {
+    "name": "Downey",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "19766"
+  },
+  {
+    "name": "Duarte",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "19990"
+  },
+  {
+    "name": "East Los Angeles",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "20802"
+  },
+  {
+    "name": "East Pasadena",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "20984"
+  },
+  {
+    "name": "East Rancho Dominguez",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "21034"
+  },
+  {
+    "name": "East San Gabriel",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "21096"
+  },
+  {
+    "name": "East Whittier",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "21292"
+  },
+  {
+    "name": "El Monte",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "22230"
+  },
+  {
+    "name": "El Segundo",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "22412"
+  },
+  {
+    "name": "Elizabeth Lake",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "21964"
+  },
+  {
+    "name": "Florence-Graham",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "24477"
+  },
+  {
+    "name": "Gardena",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "28168"
+  },
+  {
+    "name": "Glendale",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "30000"
+  },
+  {
+    "name": "Glendora",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "30014"
+  },
+  {
+    "name": "Green Valley",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "31092"
+  },
+  {
+    "name": "Hacienda Heights",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "31596"
+  },
+  {
+    "name": "Hasley Canyon",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "32385"
+  },
+  {
+    "name": "Hawaiian Gardens",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "32506"
+  },
+  {
+    "name": "Hawthorne",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "32548"
+  },
+  {
+    "name": "Hermosa Beach",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "33364"
+  },
+  {
+    "name": "Hidden Hills",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "33518"
+  },
+  {
+    "name": "Huntington Park",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "36056"
+  },
+  {
+    "name": "Industry",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "36490"
+  },
+  {
+    "name": "Inglewood",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "36546"
+  },
+  {
+    "name": "Irwindale",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "36826"
+  },
+  {
+    "name": "La Ca\u00c3\u00b1ada Flintridge",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "39003"
+  },
+  {
+    "name": "La Crescenta-Montrose",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "39045"
+  },
+  {
+    "name": "La Habra Heights",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "39304"
+  },
+  {
+    "name": "La Mirada",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "40032"
+  },
+  {
+    "name": "La Puente",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "40340"
+  },
+  {
+    "name": "La Verne",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "40830"
+  },
+  {
+    "name": "Ladera Heights",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "39108"
+  },
+  {
+    "name": "Lake Hughes",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "39556"
+  },
+  {
+    "name": "Lake Los Angeles",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "39612"
+  },
+  {
+    "name": "Lakewood",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "39892"
+  },
+  {
+    "name": "Lancaster",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "40130"
+  },
+  {
+    "name": "Lawndale",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "40886"
+  },
+  {
+    "name": "Lennox",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "41180"
+  },
+  {
+    "name": "Leona Valley",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "41208"
+  },
+  {
+    "name": "Littlerock",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "41880"
+  },
+  {
+    "name": "Lomita",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "42468"
+  },
+  {
+    "name": "Long Beach",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "43000"
+  },
+  {
+    "name": "Los Angeles",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "44000"
+  },
+  {
+    "name": "Lynwood",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "44574"
+  },
+  {
+    "name": "Malibu",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "45246"
+  },
+  {
+    "name": "Manhattan Beach",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "45400"
+  },
+  {
+    "name": "Marina del Rey",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "45806"
+  },
+  {
+    "name": "Mayflower Village",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "46436"
+  },
+  {
+    "name": "Maywood",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "46492"
+  },
+  {
+    "name": "Monrovia",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "48648"
+  },
+  {
+    "name": "Montebello",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "48816"
+  },
+  {
+    "name": "Monterey Park",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "48914"
+  },
+  {
+    "name": "North El Monte",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "51820"
+  },
+  {
+    "name": "Norwalk",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "52526"
+  },
+  {
+    "name": "Palmdale",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "55156"
+  },
+  {
+    "name": "Palos Verdes Estates",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "55380"
+  },
+  {
+    "name": "Paramount",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "55618"
+  },
+  {
+    "name": "Pasadena",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "56000"
+  },
+  {
+    "name": "Pepperdine University",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "56598"
+  },
+  {
+    "name": "Pico Rivera",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "56924"
+  },
+  {
+    "name": "Pomona",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "58072"
+  },
+  {
+    "name": "Quartz Hill",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "59052"
+  },
+  {
+    "name": "Rancho Palos Verdes",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "59514"
+  },
+  {
+    "name": "Redondo Beach",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "60018"
+  },
+  {
+    "name": "Rolling Hills",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "62602"
+  },
+  {
+    "name": "Rolling Hills Estates",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "62644"
+  },
+  {
+    "name": "Rose Hills",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "62860"
+  },
+  {
+    "name": "Rosemead",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "62896"
+  },
+  {
+    "name": "Rowland Heights",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "63218"
+  },
+  {
+    "name": "San Dimas",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "66070"
+  },
+  {
+    "name": "San Fernando",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "66140"
+  },
+  {
+    "name": "San Gabriel",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "67042"
+  },
+  {
+    "name": "San Marino",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "68224"
+  },
+  {
+    "name": "San Pasqual",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "68308"
+  },
+  {
+    "name": "Santa Clarita",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "69088"
+  },
+  {
+    "name": "Santa Fe Springs",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "69154"
+  },
+  {
+    "name": "Santa Monica",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "70000"
+  },
+  {
+    "name": "Sierra Madre",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "71806"
+  },
+  {
+    "name": "Signal Hill",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "71876"
+  },
+  {
+    "name": "South El Monte",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "72996"
+  },
+  {
+    "name": "South Gate",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "73080"
+  },
+  {
+    "name": "South Monrovia Island",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "73167"
+  },
+  {
+    "name": "South Pasadena",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "73220"
+  },
+  {
+    "name": "South San Gabriel",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "73276"
+  },
+  {
+    "name": "South San Jose Hills",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "73290"
+  },
+  {
+    "name": "South Whittier",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "73430"
+  },
+  {
+    "name": "Stevenson Ranch",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "74130"
+  },
+  {
+    "name": "Sun Village",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "77308"
+  },
+  {
+    "name": "Temple City",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "78148"
+  },
+  {
+    "name": "Topanga",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "78960"
+  },
+  {
+    "name": "Torrance",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "80000"
+  },
+  {
+    "name": "Val Verde",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "81967"
+  },
+  {
+    "name": "Valinda",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "81638"
+  },
+  {
+    "name": "Vernon",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "82422"
+  },
+  {
+    "name": "View Park-Windsor Hills",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "82667"
+  },
+  {
+    "name": "Vincent",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "82815"
+  },
+  {
+    "name": "Walnut",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "83332"
+  },
+  {
+    "name": "Walnut Park",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "83402"
+  },
+  {
+    "name": "West Athens",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "84116"
+  },
+  {
+    "name": "West Carson",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "84144"
+  },
+  {
+    "name": "West Covina",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "84200"
+  },
+  {
+    "name": "West Hollywood",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "84410"
+  },
+  {
+    "name": "West Puente Valley",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "84774"
+  },
+  {
+    "name": "West Rancho Dominguez",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "84780"
+  },
+  {
+    "name": "West Whittier-Los Nietos",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "84921"
+  },
+  {
+    "name": "Westlake Village",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "84438"
+  },
+  {
+    "name": "Westmont",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "84592"
+  },
+  {
+    "name": "Whittier",
+    "county_fips": "06037",
+    "place_type": "city",
+    "place_fips": "85292"
+  },
+  {
+    "name": "Willowbrook",
+    "county_fips": "06037",
+    "place_type": "CDP",
+    "place_fips": "85614"
+  },
+  {
+    "name": "Ahwahnee",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "00478"
+  },
+  {
+    "name": "Bass Lake",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "04198"
+  },
+  {
+    "name": "Bonadelle Ranchos",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "07378"
+  },
+  {
+    "name": "Chowchilla",
+    "county_fips": "06039",
+    "place_type": "city",
+    "place_fips": "13294"
+  },
+  {
+    "name": "Coarsegold",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "14288"
+  },
+  {
+    "name": "Fairmead",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "23210"
+  },
+  {
+    "name": "La Vina",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "40872"
+  },
+  {
+    "name": "Madera",
+    "county_fips": "06039",
+    "place_type": "city",
+    "place_fips": "45022"
+  },
+  {
+    "name": "Madera Acres",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "45050"
+  },
+  {
+    "name": "Madera Ranchos",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "45054"
+  },
+  {
+    "name": "Nipinnawasee",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "51470"
+  },
+  {
+    "name": "North Fork",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "51868"
+  },
+  {
+    "name": "Oakhurst",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "52764"
+  },
+  {
+    "name": "Parksdale",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "55751"
+  },
+  {
+    "name": "Parkwood",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "55842"
+  },
+  {
+    "name": "Rolling Hills",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "62625"
+  },
+  {
+    "name": "Yosemite Lakes",
+    "county_fips": "06039",
+    "place_type": "CDP",
+    "place_fips": "86878"
+  },
+  {
+    "name": "Alto",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "01416"
+  },
+  {
+    "name": "Belvedere",
+    "county_fips": "06041",
+    "place_type": "city",
+    "place_fips": "05164"
+  },
+  {
+    "name": "Black Point-Green Point",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "06982"
+  },
+  {
+    "name": "Bolinas",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "07316"
+  },
+  {
+    "name": "Corte Madera",
+    "county_fips": "06041",
+    "place_type": "town",
+    "place_fips": "16462"
+  },
+  {
+    "name": "Dillon Beach",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "19262"
+  },
+  {
+    "name": "Fairfax",
+    "county_fips": "06041",
+    "place_type": "town",
+    "place_fips": "23168"
+  },
+  {
+    "name": "Inverness",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "36616"
+  },
+  {
+    "name": "Kentfield",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "38114"
+  },
+  {
+    "name": "Lagunitas-Forest Knolls",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "39283"
+  },
+  {
+    "name": "Larkspur",
+    "county_fips": "06041",
+    "place_type": "city",
+    "place_fips": "40438"
+  },
+  {
+    "name": "Lucas Valley-Marinwood",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "44399"
+  },
+  {
+    "name": "Marin City",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "45820"
+  },
+  {
+    "name": "Mill Valley",
+    "county_fips": "06041",
+    "place_type": "city",
+    "place_fips": "47710"
+  },
+  {
+    "name": "Muir Beach",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "49950"
+  },
+  {
+    "name": "Nicasio",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "51280"
+  },
+  {
+    "name": "Novato",
+    "county_fips": "06041",
+    "place_type": "city",
+    "place_fips": "52582"
+  },
+  {
+    "name": "Point Reyes Station",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "57960"
+  },
+  {
+    "name": "Ross",
+    "county_fips": "06041",
+    "place_type": "town",
+    "place_fips": "62980"
+  },
+  {
+    "name": "San Anselmo",
+    "county_fips": "06041",
+    "place_type": "town",
+    "place_fips": "64434"
+  },
+  {
+    "name": "San Geronimo",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "67070"
+  },
+  {
+    "name": "San Rafael",
+    "county_fips": "06041",
+    "place_type": "city",
+    "place_fips": "68364"
+  },
+  {
+    "name": "Santa Venetia",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "70154"
+  },
+  {
+    "name": "Sausalito",
+    "county_fips": "06041",
+    "place_type": "city",
+    "place_fips": "70364"
+  },
+  {
+    "name": "Sleepy Hollow",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "72184"
+  },
+  {
+    "name": "Stinson Beach",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "74172"
+  },
+  {
+    "name": "Strawberry",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "75315"
+  },
+  {
+    "name": "Tamalpais-Homestead Valley",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "77805"
+  },
+  {
+    "name": "Tiburon",
+    "county_fips": "06041",
+    "place_type": "town",
+    "place_fips": "78666"
+  },
+  {
+    "name": "Tomales",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "78890"
+  },
+  {
+    "name": "Woodacre",
+    "county_fips": "06041",
+    "place_type": "CDP",
+    "place_fips": "86216"
+  },
+  {
+    "name": "Bear Valley",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "04730"
+  },
+  {
+    "name": "Bootjack",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "07525"
+  },
+  {
+    "name": "Buck Meadows",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "08716"
+  },
+  {
+    "name": "Catheys Valley",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "12062"
+  },
+  {
+    "name": "Coulterville",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "16644"
+  },
+  {
+    "name": "Crane Creek",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "16886"
+  },
+  {
+    "name": "El Portal",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "22328"
+  },
+  {
+    "name": "Fish Camp",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "24218"
+  },
+  {
+    "name": "Greeley Hill",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "30900"
+  },
+  {
+    "name": "Hornitos",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "34708"
+  },
+  {
+    "name": "Lake Don Pedro",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "39484"
+  },
+  {
+    "name": "Mariposa",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "45932"
+  },
+  {
+    "name": "Midpines",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "47374"
+  },
+  {
+    "name": "Mt. Bullion",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "49726"
+  },
+  {
+    "name": "Wawona",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "83766"
+  },
+  {
+    "name": "Yosemite Valley",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "86912"
+  },
+  {
+    "name": "Yosemite West",
+    "county_fips": "06043",
+    "place_type": "CDP",
+    "place_fips": "86916"
+  },
+  {
+    "name": "Albion",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "00716"
+  },
+  {
+    "name": "Anchor Bay",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "02028"
+  },
+  {
+    "name": "Boonville",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "07512"
+  },
+  {
+    "name": "Brooktrails",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "08530"
+  },
+  {
+    "name": "Calpella",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "09990"
+  },
+  {
+    "name": "Caspar",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "11768"
+  },
+  {
+    "name": "Cleone",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "14008"
+  },
+  {
+    "name": "Comptche",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "15030"
+  },
+  {
+    "name": "Covelo",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "16728"
+  },
+  {
+    "name": "Fort Bragg",
+    "county_fips": "06045",
+    "place_type": "city",
+    "place_fips": "25058"
+  },
+  {
+    "name": "Hopland",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "34652"
+  },
+  {
+    "name": "Laytonville",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "40928"
+  },
+  {
+    "name": "Leggett",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "41026"
+  },
+  {
+    "name": "Little River",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "41866"
+  },
+  {
+    "name": "Manchester",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "45386"
+  },
+  {
+    "name": "Mendocino",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "46814"
+  },
+  {
+    "name": "Philo",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "56868"
+  },
+  {
+    "name": "Point Arena",
+    "county_fips": "06045",
+    "place_type": "city",
+    "place_fips": "57876"
+  },
+  {
+    "name": "Potter Valley",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "58506"
+  },
+  {
+    "name": "Redwood Valley",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "60214"
+  },
+  {
+    "name": "Talmage",
+    "county_fips": "06045",
+    "place_type": "CDP",
+    "place_fips": "77784"
+  },
+  {
+    "name": "Ukiah",
+    "county_fips": "06045",
+    "place_type": "city",
+    "place_fips": "81134"
+  },
+  {
+    "name": "Willits",
+    "county_fips": "06045",
+    "place_type": "city",
+    "place_fips": "85600"
+  },
+  {
+    "name": "Atwater",
+    "county_fips": "06047",
+    "place_type": "city",
+    "place_fips": "03162"
+  },
+  {
+    "name": "Ballico",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "03708"
+  },
+  {
+    "name": "Bear Creek",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "04632"
+  },
+  {
+    "name": "Cressey",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "17078"
+  },
+  {
+    "name": "Delhi",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "18464"
+  },
+  {
+    "name": "Dos Palos",
+    "county_fips": "06047",
+    "place_type": "city",
+    "place_fips": "19612"
+  },
+  {
+    "name": "Dos Palos Y",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "19654"
+  },
+  {
+    "name": "El Nido",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "22286"
+  },
+  {
+    "name": "Franklin",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "25488"
+  },
+  {
+    "name": "Gustine",
+    "county_fips": "06047",
+    "place_type": "city",
+    "place_fips": "31568"
+  },
+  {
+    "name": "Hilmar-Irwin",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "33861"
+  },
+  {
+    "name": "Le Grand",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "41040"
+  },
+  {
+    "name": "Livingston",
+    "county_fips": "06047",
+    "place_type": "city",
+    "place_fips": "42006"
+  },
+  {
+    "name": "Los Banos",
+    "county_fips": "06047",
+    "place_type": "city",
+    "place_fips": "44028"
+  },
+  {
+    "name": "McSwain",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "45006"
+  },
+  {
+    "name": "Merced",
+    "county_fips": "06047",
+    "place_type": "city",
+    "place_fips": "46898"
+  },
+  {
+    "name": "Planada",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "57582"
+  },
+  {
+    "name": "Santa Nella",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "70028"
+  },
+  {
+    "name": "Snelling",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "72408"
+  },
+  {
+    "name": "South Dos Palos",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "72954"
+  },
+  {
+    "name": "Stevinson",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "74144"
+  },
+  {
+    "name": "Tuttle",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "80882"
+  },
+  {
+    "name": "University of California-Merced",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "81312"
+  },
+  {
+    "name": "Volta",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "83108"
+  },
+  {
+    "name": "Winton",
+    "county_fips": "06047",
+    "place_type": "CDP",
+    "place_fips": "86076"
+  },
+  {
+    "name": "Adin",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "00310"
+  },
+  {
+    "name": "Alturas",
+    "county_fips": "06049",
+    "place_type": "city",
+    "place_fips": "01444"
+  },
+  {
+    "name": "California Pines",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "09834"
+  },
+  {
+    "name": "Canby",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "10732"
+  },
+  {
+    "name": "Cedarville",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "12328"
+  },
+  {
+    "name": "Daphnedale Park",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "17995"
+  },
+  {
+    "name": "Eagleville",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "20424"
+  },
+  {
+    "name": "Fort Bidwell",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "25030"
+  },
+  {
+    "name": "Lake City",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "39472"
+  },
+  {
+    "name": "Likely",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "41390"
+  },
+  {
+    "name": "Lookout",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "43126"
+  },
+  {
+    "name": "New Pine Creek",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "51168"
+  },
+  {
+    "name": "Newell",
+    "county_fips": "06049",
+    "place_type": "CDP",
+    "place_fips": "51042"
+  },
+  {
+    "name": "Aspen Springs",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "03026"
+  },
+  {
+    "name": "Benton",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "05346"
+  },
+  {
+    "name": "Bridgeport",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "08240"
+  },
+  {
+    "name": "Chalfant",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "12594"
+  },
+  {
+    "name": "Coleville",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "14484"
+  },
+  {
+    "name": "Crowley Lake",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "17372"
+  },
+  {
+    "name": "June Lake",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "37624"
+  },
+  {
+    "name": "Lee Vining",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "40998"
+  },
+  {
+    "name": "Mammoth Lakes",
+    "county_fips": "06051",
+    "place_type": "town",
+    "place_fips": "45358"
+  },
+  {
+    "name": "McGee Creek",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "44830"
+  },
+  {
+    "name": "Mono City",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "48602"
+  },
+  {
+    "name": "Paradise",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "55528"
+  },
+  {
+    "name": "Sunny Slopes",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "76040"
+  },
+  {
+    "name": "Swall Meadows",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "77430"
+  },
+  {
+    "name": "Topaz",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "79030"
+  },
+  {
+    "name": "Twin Lakes",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "81048"
+  },
+  {
+    "name": "Virginia Lakes",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "82929"
+  },
+  {
+    "name": "Walker",
+    "county_fips": "06051",
+    "place_type": "CDP",
+    "place_fips": "83262"
+  },
+  {
+    "name": "Aromas",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "02812"
+  },
+  {
+    "name": "Boronda",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "07578"
+  },
+  {
+    "name": "Bradley",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "07974"
+  },
+  {
+    "name": "Carmel Valley Village",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "11324"
+  },
+  {
+    "name": "Carmel-by-the-Sea",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "11250"
+  },
+  {
+    "name": "Castroville",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "11978"
+  },
+  {
+    "name": "Chualar",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "13364"
+  },
+  {
+    "name": "Del Monte Forest",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "18590"
+  },
+  {
+    "name": "Del Rey Oaks",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "18688"
+  },
+  {
+    "name": "Elkhorn",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "22034"
+  },
+  {
+    "name": "Fort Hunter Liggett",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "25093"
+  },
+  {
+    "name": "Gonzales",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "30392"
+  },
+  {
+    "name": "Greenfield",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "30994"
+  },
+  {
+    "name": "King City",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "38520"
+  },
+  {
+    "name": "Las Lomas",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "40592"
+  },
+  {
+    "name": "Lockwood",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "42146"
+  },
+  {
+    "name": "Marina",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "45778"
+  },
+  {
+    "name": "Monterey",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "48872"
+  },
+  {
+    "name": "Moss Landing",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "49488"
+  },
+  {
+    "name": "Pacific Grove",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "54848"
+  },
+  {
+    "name": "Pajaro",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "55044"
+  },
+  {
+    "name": "Pine Canyon",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "57070"
+  },
+  {
+    "name": "Prunedale",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "58870"
+  },
+  {
+    "name": "Salinas",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "64224"
+  },
+  {
+    "name": "San Ardo",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "64476"
+  },
+  {
+    "name": "San Lucas",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "68140"
+  },
+  {
+    "name": "Sand City",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "65112"
+  },
+  {
+    "name": "Seaside",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "70742"
+  },
+  {
+    "name": "Soledad",
+    "county_fips": "06053",
+    "place_type": "city",
+    "place_fips": "72520"
+  },
+  {
+    "name": "Spreckels",
+    "county_fips": "06053",
+    "place_type": "CDP",
+    "place_fips": "73612"
+  },
+  {
+    "name": "American Canyon",
+    "county_fips": "06055",
+    "place_type": "city",
+    "place_fips": "01640"
+  },
+  {
+    "name": "Angwin",
+    "county_fips": "06055",
+    "place_type": "CDP",
+    "place_fips": "02168"
+  },
+  {
+    "name": "Calistoga",
+    "county_fips": "06055",
+    "place_type": "city",
+    "place_fips": "09892"
+  },
+  {
+    "name": "Deer Park",
+    "county_fips": "06055",
+    "place_type": "CDP",
+    "place_fips": "18324"
+  },
+  {
+    "name": "Moskowite Corner",
+    "county_fips": "06055",
+    "place_type": "CDP",
+    "place_fips": "49432"
+  },
+  {
+    "name": "Napa",
+    "county_fips": "06055",
+    "place_type": "city",
+    "place_fips": "50258"
+  },
+  {
+    "name": "Oakville",
+    "county_fips": "06055",
+    "place_type": "CDP",
+    "place_fips": "53196"
+  },
+  {
+    "name": "Rutherford",
+    "county_fips": "06055",
+    "place_type": "CDP",
+    "place_fips": "63400"
+  },
+  {
+    "name": "Silverado Resort",
+    "county_fips": "06055",
+    "place_type": "CDP",
+    "place_fips": "71927"
+  },
+  {
+    "name": "St. Helena",
+    "county_fips": "06055",
+    "place_type": "city",
+    "place_fips": "64140"
+  },
+  {
+    "name": "Yountville",
+    "county_fips": "06055",
+    "place_type": "city",
+    "place_fips": "86930"
+  },
+  {
+    "name": "Alta Sierra",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "01360"
+  },
+  {
+    "name": "Floriston",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "24526"
+  },
+  {
+    "name": "Graniteville",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "30714"
+  },
+  {
+    "name": "Grass Valley",
+    "county_fips": "06057",
+    "place_type": "city",
+    "place_fips": "30798"
+  },
+  {
+    "name": "Kingvale",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "38604"
+  },
+  {
+    "name": "Lake of the Pines",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "39690"
+  },
+  {
+    "name": "Lake Wildwood",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "39885"
+  },
+  {
+    "name": "Nevada City",
+    "county_fips": "06057",
+    "place_type": "city",
+    "place_fips": "50874"
+  },
+  {
+    "name": "North San Juan",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "52246"
+  },
+  {
+    "name": "Penn Valley",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "56518"
+  },
+  {
+    "name": "Rough and Ready",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "63106"
+  },
+  {
+    "name": "Soda Springs",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "72492"
+  },
+  {
+    "name": "Truckee",
+    "county_fips": "06057",
+    "place_type": "town",
+    "place_fips": "80588"
+  },
+  {
+    "name": "Washington",
+    "county_fips": "06057",
+    "place_type": "CDP",
+    "place_fips": "83570"
+  },
+  {
+    "name": "Aliso Viejo",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "00947"
+  },
+  {
+    "name": "Anaheim",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "02000"
+  },
+  {
+    "name": "Brea",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "08100"
+  },
+  {
+    "name": "Buena Park",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "08786"
+  },
+  {
+    "name": "Costa Mesa",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "16532"
+  },
+  {
+    "name": "Coto de Caza",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "16580"
+  },
+  {
+    "name": "Cypress",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "17750"
+  },
+  {
+    "name": "Dana Point",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "17946"
+  },
+  {
+    "name": "Fountain Valley",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "25380"
+  },
+  {
+    "name": "Fullerton",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "28000"
+  },
+  {
+    "name": "Garden Grove",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "29000"
+  },
+  {
+    "name": "Huntington Beach",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "36000"
+  },
+  {
+    "name": "Irvine",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "36770"
+  },
+  {
+    "name": "La Habra",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "39290"
+  },
+  {
+    "name": "La Palma",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "40256"
+  },
+  {
+    "name": "Ladera Ranch",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "39114"
+  },
+  {
+    "name": "Laguna Beach",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "39178"
+  },
+  {
+    "name": "Laguna Hills",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "39220"
+  },
+  {
+    "name": "Laguna Niguel",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "39248"
+  },
+  {
+    "name": "Laguna Woods",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "39259"
+  },
+  {
+    "name": "Lake Forest",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "39496"
+  },
+  {
+    "name": "Las Flores",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "40526"
+  },
+  {
+    "name": "Los Alamitos",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "43224"
+  },
+  {
+    "name": "Midway City",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "47430"
+  },
+  {
+    "name": "Mission Viejo",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "48256"
+  },
+  {
+    "name": "Modjeska",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "48410"
+  },
+  {
+    "name": "Newport Beach",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "51182"
+  },
+  {
+    "name": "North Tustin",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "52379"
+  },
+  {
+    "name": "Orange",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "53980"
+  },
+  {
+    "name": "Placentia",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "57526"
+  },
+  {
+    "name": "Rancho Mission Viejo",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "59503"
+  },
+  {
+    "name": "Rancho Santa Margarita",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "59587"
+  },
+  {
+    "name": "Rossmoor",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "63050"
+  },
+  {
+    "name": "San Clemente",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "65084"
+  },
+  {
+    "name": "San Juan Capistrano",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "68028"
+  },
+  {
+    "name": "Santa Ana",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "69000"
+  },
+  {
+    "name": "Seal Beach",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "70686"
+  },
+  {
+    "name": "Silverado",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "71918"
+  },
+  {
+    "name": "Stanton",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "73962"
+  },
+  {
+    "name": "Trabuco Canyon",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "80210"
+  },
+  {
+    "name": "Tustin",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "80854"
+  },
+  {
+    "name": "Villa Park",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "82744"
+  },
+  {
+    "name": "Westminster",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "84550"
+  },
+  {
+    "name": "Williams Canyon",
+    "county_fips": "06059",
+    "place_type": "CDP",
+    "place_fips": "85587"
+  },
+  {
+    "name": "Yorba Linda",
+    "county_fips": "06059",
+    "place_type": "city",
+    "place_fips": "86832"
+  },
+  {
+    "name": "Alta",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "01276"
+  },
+  {
+    "name": "Auburn",
+    "county_fips": "06061",
+    "place_type": "city",
+    "place_fips": "03204"
+  },
+  {
+    "name": "Carnelian Bay",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "11418"
+  },
+  {
+    "name": "Cedar Flat",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "12216"
+  },
+  {
+    "name": "Colfax",
+    "county_fips": "06061",
+    "place_type": "city",
+    "place_fips": "14498"
+  },
+  {
+    "name": "Dollar Point",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "19455"
+  },
+  {
+    "name": "Dutch Flat",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "20298"
+  },
+  {
+    "name": "Foresthill",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "24834"
+  },
+  {
+    "name": "Granite Bay",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "30693"
+  },
+  {
+    "name": "Kings Beach",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "38548"
+  },
+  {
+    "name": "Kingvale",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "38604"
+  },
+  {
+    "name": "Lincoln",
+    "county_fips": "06061",
+    "place_type": "city",
+    "place_fips": "41474"
+  },
+  {
+    "name": "Loomis",
+    "county_fips": "06061",
+    "place_type": "town",
+    "place_fips": "43140"
+  },
+  {
+    "name": "Meadow Vista",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "46632"
+  },
+  {
+    "name": "Newcastle",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "51000"
+  },
+  {
+    "name": "North Auburn",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "51637"
+  },
+  {
+    "name": "Penryn",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "56546"
+  },
+  {
+    "name": "Rocklin",
+    "county_fips": "06061",
+    "place_type": "city",
+    "place_fips": "62364"
+  },
+  {
+    "name": "Roseville",
+    "county_fips": "06061",
+    "place_type": "city",
+    "place_fips": "62938"
+  },
+  {
+    "name": "Sheridan",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "71414"
+  },
+  {
+    "name": "Sunnyside-Tahoe City",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "76015"
+  },
+  {
+    "name": "Tahoe Vista",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "77700"
+  },
+  {
+    "name": "Tahoma",
+    "county_fips": "06061",
+    "place_type": "CDP",
+    "place_fips": "77728"
+  },
+  {
+    "name": "Almanor",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "01094"
+  },
+  {
+    "name": "Beckwourth",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "04772"
+  },
+  {
+    "name": "Belden",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "04856"
+  },
+  {
+    "name": "Blairsden",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "06994"
+  },
+  {
+    "name": "Bucks Lake",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "08744"
+  },
+  {
+    "name": "C-Road",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "17267"
+  },
+  {
+    "name": "Canyondam",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "10914"
+  },
+  {
+    "name": "Caribou",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "11166"
+  },
+  {
+    "name": "Chester",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "12930"
+  },
+  {
+    "name": "Chilcoot-Vinton",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "13077"
+  },
+  {
+    "name": "Clio",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "14106"
+  },
+  {
+    "name": "Crescent Mills",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "17050"
+  },
+  {
+    "name": "Cromberg",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "17288"
+  },
+  {
+    "name": "Delleker",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "18485"
+  },
+  {
+    "name": "East Quincy",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "21026"
+  },
+  {
+    "name": "East Shore",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "21138"
+  },
+  {
+    "name": "Gold Mountain",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "30339"
+  },
+  {
+    "name": "Graeagle",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "30560"
+  },
+  {
+    "name": "Greenhorn",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "31029"
+  },
+  {
+    "name": "Greenville",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "31162"
+  },
+  {
+    "name": "Hamilton Branch",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "31883"
+  },
+  {
+    "name": "Indian Falls",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "36364"
+  },
+  {
+    "name": "Iron Horse",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "36735"
+  },
+  {
+    "name": "Johnsville",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "37512"
+  },
+  {
+    "name": "Keddie",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "37904"
+  },
+  {
+    "name": "La Porte",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "40312"
+  },
+  {
+    "name": "Lake Almanor Country Club",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "39411"
+  },
+  {
+    "name": "Lake Almanor Peninsula",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "39420"
+  },
+  {
+    "name": "Lake Almanor West",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "39425"
+  },
+  {
+    "name": "Lake Davis",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "39483"
+  },
+  {
+    "name": "Little Grass Valley",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "41789"
+  },
+  {
+    "name": "Mabie",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "44672"
+  },
+  {
+    "name": "Meadow Valley",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "46618"
+  },
+  {
+    "name": "Mohawk Vista",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "48448"
+  },
+  {
+    "name": "Paxton",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "56182"
+  },
+  {
+    "name": "Plumas Eureka",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "57828"
+  },
+  {
+    "name": "Portola",
+    "county_fips": "06063",
+    "place_type": "city",
+    "place_fips": "58352"
+  },
+  {
+    "name": "Prattville",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "58618"
+  },
+  {
+    "name": "Quincy",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "59080"
+  },
+  {
+    "name": "Spring Garden",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "73654"
+  },
+  {
+    "name": "Taylorsville",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "78008"
+  },
+  {
+    "name": "Tobin",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "78792"
+  },
+  {
+    "name": "Twain",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "80952"
+  },
+  {
+    "name": "Valley Ranch",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "81869"
+  },
+  {
+    "name": "Warner Valley",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "83494"
+  },
+  {
+    "name": "Whitehawk",
+    "county_fips": "06063",
+    "place_type": "CDP",
+    "place_fips": "85086"
+  },
+  {
+    "name": "Aguanga",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "00464"
+  },
+  {
+    "name": "Anza",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "02294"
+  },
+  {
+    "name": "Banning",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "03820"
+  },
+  {
+    "name": "Beaumont",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "04758"
+  },
+  {
+    "name": "Bermuda Dunes",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "06028"
+  },
+  {
+    "name": "Blythe",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "07218"
+  },
+  {
+    "name": "Cabazon",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "09360"
+  },
+  {
+    "name": "Calimesa",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "09864"
+  },
+  {
+    "name": "Canyon Lake",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "10928"
+  },
+  {
+    "name": "Cathedral City",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "12048"
+  },
+  {
+    "name": "Cherry Valley",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "12916"
+  },
+  {
+    "name": "Coachella",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "14260"
+  },
+  {
+    "name": "Corona",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "16350"
+  },
+  {
+    "name": "Coronita",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "16420"
+  },
+  {
+    "name": "Desert Center",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "18982"
+  },
+  {
+    "name": "Desert Edge",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "18986"
+  },
+  {
+    "name": "Desert Hot Springs",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "18996"
+  },
+  {
+    "name": "Desert Palms",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "19022"
+  },
+  {
+    "name": "East Hemet",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "20697"
+  },
+  {
+    "name": "Eastvale",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "21230"
+  },
+  {
+    "name": "El Cerrito",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "21810"
+  },
+  {
+    "name": "El Sobrante",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "22457"
+  },
+  {
+    "name": "French Valley",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "26067"
+  },
+  {
+    "name": "Garnet",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "29112"
+  },
+  {
+    "name": "Good Hope",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "30410"
+  },
+  {
+    "name": "Green Acres",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "30944"
+  },
+  {
+    "name": "Hemet",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "33182"
+  },
+  {
+    "name": "Highgrove",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "33574"
+  },
+  {
+    "name": "Home Gardens",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "34302"
+  },
+  {
+    "name": "Homeland",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "34316"
+  },
+  {
+    "name": "Idyllwild-Pine Cove",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "36203"
+  },
+  {
+    "name": "Indian Wells",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "36434"
+  },
+  {
+    "name": "Indio",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "36448"
+  },
+  {
+    "name": "Indio Hills",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "36452"
+  },
+  {
+    "name": "Jurupa Valley",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "37692"
+  },
+  {
+    "name": "La Quinta",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "40354"
+  },
+  {
+    "name": "Lake Elsinore",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "39486"
+  },
+  {
+    "name": "Lake Mathews",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "39645"
+  },
+  {
+    "name": "Lake Riverside",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "39715"
+  },
+  {
+    "name": "Lakeland Village",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "39598"
+  },
+  {
+    "name": "Lakeview",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "39836"
+  },
+  {
+    "name": "March ARB",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "45680"
+  },
+  {
+    "name": "Mead Valley",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "46646"
+  },
+  {
+    "name": "Meadowbrook",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "46520"
+  },
+  {
+    "name": "Mecca",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "46660"
+  },
+  {
+    "name": "Menifee",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "46842"
+  },
+  {
+    "name": "Mesa Verde",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "47066"
+  },
+  {
+    "name": "Moreno Valley",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "49270"
+  },
+  {
+    "name": "Mountain Center",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "49544"
+  },
+  {
+    "name": "Murrieta",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "50076"
+  },
+  {
+    "name": "Norco",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "51560"
+  },
+  {
+    "name": "North Shore",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "52302"
+  },
+  {
+    "name": "Nuevo",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "52624"
+  },
+  {
+    "name": "Oasis",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "53224"
+  },
+  {
+    "name": "Palm Desert",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "55184"
+  },
+  {
+    "name": "Palm Springs",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "55254"
+  },
+  {
+    "name": "Perris",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "56700"
+  },
+  {
+    "name": "Rancho Mirage",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "59500"
+  },
+  {
+    "name": "Ripley",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "61012"
+  },
+  {
+    "name": "Riverside",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "62000"
+  },
+  {
+    "name": "Romoland",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "62756"
+  },
+  {
+    "name": "Sage",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "64056"
+  },
+  {
+    "name": "San Jacinto",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "67112"
+  },
+  {
+    "name": "Sky Valley",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "72156"
+  },
+  {
+    "name": "Temecula",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "78120"
+  },
+  {
+    "name": "Temescal Valley",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "78138"
+  },
+  {
+    "name": "Thermal",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "78456"
+  },
+  {
+    "name": "Thousand Palms",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "78596"
+  },
+  {
+    "name": "Valle Vista",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "81708"
+  },
+  {
+    "name": "Vista Santa Rosa",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "83085"
+  },
+  {
+    "name": "Warm Springs",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "83460"
+  },
+  {
+    "name": "Whitewater",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "85208"
+  },
+  {
+    "name": "Wildomar",
+    "county_fips": "06065",
+    "place_type": "city",
+    "place_fips": "85446"
+  },
+  {
+    "name": "Winchester",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "85894"
+  },
+  {
+    "name": "Woodcrest",
+    "county_fips": "06065",
+    "place_type": "CDP",
+    "place_fips": "86244"
+  },
+  {
+    "name": "Antelope",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "02210"
+  },
+  {
+    "name": "Arden-Arcade",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "02553"
+  },
+  {
+    "name": "Carmichael",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "11390"
+  },
+  {
+    "name": "Citrus Heights",
+    "county_fips": "06067",
+    "place_type": "city",
+    "place_fips": "13588"
+  },
+  {
+    "name": "Clay",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "13854"
+  },
+  {
+    "name": "Courtland",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "16714"
+  },
+  {
+    "name": "Elk Grove",
+    "county_fips": "06067",
+    "place_type": "city",
+    "place_fips": "22020"
+  },
+  {
+    "name": "Elverta",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "22524"
+  },
+  {
+    "name": "Fair Oaks",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "23294"
+  },
+  {
+    "name": "Florin",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "24498"
+  },
+  {
+    "name": "Folsom",
+    "county_fips": "06067",
+    "place_type": "city",
+    "place_fips": "24638"
+  },
+  {
+    "name": "Foothill Farms",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "24722"
+  },
+  {
+    "name": "Franklin",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "25506"
+  },
+  {
+    "name": "Freeport",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "25590"
+  },
+  {
+    "name": "Fruitridge Pocket",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "27130"
+  },
+  {
+    "name": "Galt",
+    "county_fips": "06067",
+    "place_type": "city",
+    "place_fips": "28112"
+  },
+  {
+    "name": "Gold River",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "30345"
+  },
+  {
+    "name": "Herald",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "33294"
+  },
+  {
+    "name": "Hood",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "34484"
+  },
+  {
+    "name": "Isleton",
+    "county_fips": "06067",
+    "place_type": "city",
+    "place_fips": "36882"
+  },
+  {
+    "name": "La Riviera",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "40410"
+  },
+  {
+    "name": "Lemon Hill",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "41142"
+  },
+  {
+    "name": "Mather",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "46226"
+  },
+  {
+    "name": "McClellan Park",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "44760"
+  },
+  {
+    "name": "North Highlands",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "51924"
+  },
+  {
+    "name": "Orangevale",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "54092"
+  },
+  {
+    "name": "Parkway",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "55800"
+  },
+  {
+    "name": "Rancho Cordova",
+    "county_fips": "06067",
+    "place_type": "city",
+    "place_fips": "59444"
+  },
+  {
+    "name": "Rancho Murieta",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "59506"
+  },
+  {
+    "name": "Rio Linda",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "60942"
+  },
+  {
+    "name": "Rosemont",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "62910"
+  },
+  {
+    "name": "Sacramento",
+    "county_fips": "06067",
+    "place_type": "city",
+    "place_fips": "64000"
+  },
+  {
+    "name": "Vineyard",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "82852"
+  },
+  {
+    "name": "Walnut Grove",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "83374"
+  },
+  {
+    "name": "Wilton",
+    "county_fips": "06067",
+    "place_type": "CDP",
+    "place_fips": "85880"
+  },
+  {
+    "name": "Aromas",
+    "county_fips": "06069",
+    "place_type": "CDP",
+    "place_fips": "02812"
+  },
+  {
+    "name": "Hollister",
+    "county_fips": "06069",
+    "place_type": "city",
+    "place_fips": "34120"
+  },
+  {
+    "name": "Ridgemark",
+    "county_fips": "06069",
+    "place_type": "CDP",
+    "place_fips": "60706"
+  },
+  {
+    "name": "San Juan Bautista",
+    "county_fips": "06069",
+    "place_type": "city",
+    "place_fips": "68014"
+  },
+  {
+    "name": "Tres Pinos",
+    "county_fips": "06069",
+    "place_type": "CDP",
+    "place_fips": "80364"
+  },
+  {
+    "name": "Adelanto",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "00296"
+  },
+  {
+    "name": "Apple Valley",
+    "county_fips": "06071",
+    "place_type": "town",
+    "place_fips": "02364"
+  },
+  {
+    "name": "Baker",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "03512"
+  },
+  {
+    "name": "Barstow",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "04030"
+  },
+  {
+    "name": "Big Bear City",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "06406"
+  },
+  {
+    "name": "Big Bear Lake",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "06434"
+  },
+  {
+    "name": "Big River",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "06635"
+  },
+  {
+    "name": "Bloomington",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "07064"
+  },
+  {
+    "name": "Bluewater",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "07172"
+  },
+  {
+    "name": "Chino",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "13210"
+  },
+  {
+    "name": "Chino Hills",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "13214"
+  },
+  {
+    "name": "Colton",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "14890"
+  },
+  {
+    "name": "Crestline",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "17162"
+  },
+  {
+    "name": "Fontana",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "24680"
+  },
+  {
+    "name": "Fort Irwin",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "25114"
+  },
+  {
+    "name": "Grand Terrace",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "30658"
+  },
+  {
+    "name": "Hesperia",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "33434"
+  },
+  {
+    "name": "Highland",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "33588"
+  },
+  {
+    "name": "Homestead Valley",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "34392"
+  },
+  {
+    "name": "Joshua Tree",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "37554"
+  },
+  {
+    "name": "Lake Arrowhead",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "39444"
+  },
+  {
+    "name": "Lenwood",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "41194"
+  },
+  {
+    "name": "Loma Linda",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "42370"
+  },
+  {
+    "name": "Lucerne Valley",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "44420"
+  },
+  {
+    "name": "Lytle Creek",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "44644"
+  },
+  {
+    "name": "Mentone",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "46884"
+  },
+  {
+    "name": "Montclair",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "48788"
+  },
+  {
+    "name": "Morongo Valley",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "49348"
+  },
+  {
+    "name": "Mountain View Acres",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "49684"
+  },
+  {
+    "name": "Muscoy",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "50132"
+  },
+  {
+    "name": "Needles",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "50734"
+  },
+  {
+    "name": "Oak Glen",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "52715"
+  },
+  {
+    "name": "Oak Hills",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "52760"
+  },
+  {
+    "name": "Ontario",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "53896"
+  },
+  {
+    "name": "Phelan",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "56826"
+  },
+  {
+    "name": "Pi\u00c3\u00b1on Hills",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "57302"
+  },
+  {
+    "name": "Rancho Cucamonga",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "59451"
+  },
+  {
+    "name": "Redlands",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "59962"
+  },
+  {
+    "name": "Rialto",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "60466"
+  },
+  {
+    "name": "Running Springs",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "63316"
+  },
+  {
+    "name": "San Antonio Heights",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "64462"
+  },
+  {
+    "name": "San Bernardino",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "65000"
+  },
+  {
+    "name": "Searles Valley",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "70728"
+  },
+  {
+    "name": "Silver Lakes",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "71964"
+  },
+  {
+    "name": "Spring Valley Lake",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "73700"
+  },
+  {
+    "name": "Twentynine Palms",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "80994"
+  },
+  {
+    "name": "Upland",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "81344"
+  },
+  {
+    "name": "Victorville",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "82590"
+  },
+  {
+    "name": "Wrightwood",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "86594"
+  },
+  {
+    "name": "Yermo",
+    "county_fips": "06071",
+    "place_type": "CDP",
+    "place_fips": "86720"
+  },
+  {
+    "name": "Yucaipa",
+    "county_fips": "06071",
+    "place_type": "city",
+    "place_fips": "87042"
+  },
+  {
+    "name": "Yucca Valley",
+    "county_fips": "06071",
+    "place_type": "town",
+    "place_fips": "87056"
+  },
+  {
+    "name": "Alpine",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "01192"
+  },
+  {
+    "name": "Bonita",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "07414"
+  },
+  {
+    "name": "Bonsall",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "07498"
+  },
+  {
+    "name": "Borrego Springs",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "07596"
+  },
+  {
+    "name": "Bostonia",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "07624"
+  },
+  {
+    "name": "Boulevard",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "07694"
+  },
+  {
+    "name": "Camp Pendleton Mainside",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "10554"
+  },
+  {
+    "name": "Camp Pendleton South",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "10561"
+  },
+  {
+    "name": "Campo",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "10508"
+  },
+  {
+    "name": "Carlsbad",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "11194"
+  },
+  {
+    "name": "Casa de Oro-Mount Helix",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "11691"
+  },
+  {
+    "name": "Chula Vista",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "13392"
+  },
+  {
+    "name": "Coronado",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "16378"
+  },
+  {
+    "name": "Crest",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "17106"
+  },
+  {
+    "name": "Del Dios",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "18422"
+  },
+  {
+    "name": "Del Mar",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "18506"
+  },
+  {
+    "name": "Descanso",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "18940"
+  },
+  {
+    "name": "El Cajon",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "21712"
+  },
+  {
+    "name": "Elfin Forest",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "21916"
+  },
+  {
+    "name": "Encinitas",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "22678"
+  },
+  {
+    "name": "Escondido",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "22804"
+  },
+  {
+    "name": "Eucalyptus Hills",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "23000"
+  },
+  {
+    "name": "Fairbanks Ranch",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "23150"
+  },
+  {
+    "name": "Fallbrook",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "23462"
+  },
+  {
+    "name": "Granite Hills",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "30703"
+  },
+  {
+    "name": "Harbison Canyon",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "32044"
+  },
+  {
+    "name": "Harmony Grove",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "32212"
+  },
+  {
+    "name": "Hidden Meadows",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "33532"
+  },
+  {
+    "name": "Imperial Beach",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "36294"
+  },
+  {
+    "name": "Jacumba",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "37022"
+  },
+  {
+    "name": "Jamul",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "37120"
+  },
+  {
+    "name": "Julian",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "37582"
+  },
+  {
+    "name": "La Mesa",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "40004"
+  },
+  {
+    "name": "La Presa",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "40326"
+  },
+  {
+    "name": "Lake San Marcos",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "39724"
+  },
+  {
+    "name": "Lakeside",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "39766"
+  },
+  {
+    "name": "Lemon Grove",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "41124"
+  },
+  {
+    "name": "Mount Laguna",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "49810"
+  },
+  {
+    "name": "National City",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "50398"
+  },
+  {
+    "name": "Oceanside",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "53322"
+  },
+  {
+    "name": "Pala",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "55058"
+  },
+  {
+    "name": "Pine Valley",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "57260"
+  },
+  {
+    "name": "Potrero",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "58478"
+  },
+  {
+    "name": "Poway",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "58520"
+  },
+  {
+    "name": "Rainbow",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "59248"
+  },
+  {
+    "name": "Ramona",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "59346"
+  },
+  {
+    "name": "Rancho San Diego",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "59550"
+  },
+  {
+    "name": "Rancho Santa Fe",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "59584"
+  },
+  {
+    "name": "San Diego",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "66000"
+  },
+  {
+    "name": "San Diego Country Estates",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "66004"
+  },
+  {
+    "name": "San Marcos",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "68196"
+  },
+  {
+    "name": "Santee",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "70224"
+  },
+  {
+    "name": "Solana Beach",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "72506"
+  },
+  {
+    "name": "Spring Valley",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "73696"
+  },
+  {
+    "name": "Valley Center",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "81736"
+  },
+  {
+    "name": "Vista",
+    "county_fips": "06073",
+    "place_type": "city",
+    "place_fips": "82996"
+  },
+  {
+    "name": "Winter Gardens",
+    "county_fips": "06073",
+    "place_type": "CDP",
+    "place_fips": "85992"
+  },
+  {
+    "name": "San Francisco",
+    "county_fips": "06075",
+    "place_type": "city",
+    "place_fips": "67000"
+  },
+  {
+    "name": "Acampo",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "00156"
+  },
+  {
+    "name": "August",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "03209"
+  },
+  {
+    "name": "Collierville",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "14708"
+  },
+  {
+    "name": "Country Club",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "16651"
+  },
+  {
+    "name": "Dogtown",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "19440"
+  },
+  {
+    "name": "Escalon",
+    "county_fips": "06077",
+    "place_type": "city",
+    "place_fips": "22790"
+  },
+  {
+    "name": "Farmington",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "23630"
+  },
+  {
+    "name": "French Camp",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "26028"
+  },
+  {
+    "name": "Garden Acres",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "28182"
+  },
+  {
+    "name": "Kennedy",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "38065"
+  },
+  {
+    "name": "Lathrop",
+    "county_fips": "06077",
+    "place_type": "city",
+    "place_fips": "40704"
+  },
+  {
+    "name": "Lincoln Village",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "41558"
+  },
+  {
+    "name": "Linden",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "41670"
+  },
+  {
+    "name": "Lockeford",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "42104"
+  },
+  {
+    "name": "Lodi",
+    "county_fips": "06077",
+    "place_type": "city",
+    "place_fips": "42202"
+  },
+  {
+    "name": "Manteca",
+    "county_fips": "06077",
+    "place_type": "city",
+    "place_fips": "45484"
+  },
+  {
+    "name": "Morada",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "49180"
+  },
+  {
+    "name": "Mountain House",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "49582"
+  },
+  {
+    "name": "Peters",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "56798"
+  },
+  {
+    "name": "Ripon",
+    "county_fips": "06077",
+    "place_type": "city",
+    "place_fips": "61026"
+  },
+  {
+    "name": "Stockton",
+    "county_fips": "06077",
+    "place_type": "city",
+    "place_fips": "75000"
+  },
+  {
+    "name": "Taft Mosswood",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "77595"
+  },
+  {
+    "name": "Terminous",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "78232"
+  },
+  {
+    "name": "Thornton",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "78568"
+  },
+  {
+    "name": "Tracy",
+    "county_fips": "06077",
+    "place_type": "city",
+    "place_fips": "80238"
+  },
+  {
+    "name": "Victor",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "82562"
+  },
+  {
+    "name": "Waterloo",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "83626"
+  },
+  {
+    "name": "Woodbridge",
+    "county_fips": "06077",
+    "place_type": "CDP",
+    "place_fips": "86230"
+  },
+  {
+    "name": "Arroyo Grande",
+    "county_fips": "06079",
+    "place_type": "city",
+    "place_fips": "02868"
+  },
+  {
+    "name": "Atascadero",
+    "county_fips": "06079",
+    "place_type": "city",
+    "place_fips": "03064"
+  },
+  {
+    "name": "Avila Beach",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "03330"
+  },
+  {
+    "name": "Blacklake",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "06935"
+  },
+  {
+    "name": "California Polytechnic State University",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "09835"
+  },
+  {
+    "name": "Callender",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "09948"
+  },
+  {
+    "name": "Cambria",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "10074"
+  },
+  {
+    "name": "Cayucos",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "12132"
+  },
+  {
+    "name": "Creston",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "17232"
+  },
+  {
+    "name": "Edna",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "21565"
+  },
+  {
+    "name": "El Paso de Robles (Paso Robles)",
+    "county_fips": "06079",
+    "place_type": "city",
+    "place_fips": "22300"
+  },
+  {
+    "name": "Garden Farms",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "28210"
+  },
+  {
+    "name": "Grover Beach",
+    "county_fips": "06079",
+    "place_type": "city",
+    "place_fips": "31393"
+  },
+  {
+    "name": "Lake Nacimiento",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "39670"
+  },
+  {
+    "name": "Los Berros",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "44042"
+  },
+  {
+    "name": "Los Osos",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "44182"
+  },
+  {
+    "name": "Los Ranchos",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "44242"
+  },
+  {
+    "name": "Morro Bay",
+    "county_fips": "06079",
+    "place_type": "city",
+    "place_fips": "49362"
+  },
+  {
+    "name": "Nipomo",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "51476"
+  },
+  {
+    "name": "Oak Shores",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "53160"
+  },
+  {
+    "name": "Oceano",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "53294"
+  },
+  {
+    "name": "Pismo Beach",
+    "county_fips": "06079",
+    "place_type": "city",
+    "place_fips": "57414"
+  },
+  {
+    "name": "San Luis Obispo",
+    "county_fips": "06079",
+    "place_type": "city",
+    "place_fips": "68154"
+  },
+  {
+    "name": "San Miguel",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "68266"
+  },
+  {
+    "name": "San Simeon",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "68434"
+  },
+  {
+    "name": "Santa Margarita",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "69182"
+  },
+  {
+    "name": "Shandon",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "71134"
+  },
+  {
+    "name": "Templeton",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "78162"
+  },
+  {
+    "name": "Whitley Gardens",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "85222"
+  },
+  {
+    "name": "Woodlands",
+    "county_fips": "06079",
+    "place_type": "CDP",
+    "place_fips": "86380"
+  },
+  {
+    "name": "Atherton",
+    "county_fips": "06081",
+    "place_type": "town",
+    "place_fips": "03092"
+  },
+  {
+    "name": "Baywood Park",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "04549"
+  },
+  {
+    "name": "Belmont",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "05108"
+  },
+  {
+    "name": "Brisbane",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "08310"
+  },
+  {
+    "name": "Broadmoor",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "08338"
+  },
+  {
+    "name": "Burlingame",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "09066"
+  },
+  {
+    "name": "Colma",
+    "county_fips": "06081",
+    "place_type": "town",
+    "place_fips": "14736"
+  },
+  {
+    "name": "Daly City",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "17918"
+  },
+  {
+    "name": "East Palo Alto",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "20956"
+  },
+  {
+    "name": "El Granada",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "21936"
+  },
+  {
+    "name": "Emerald Lake Hills",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "22587"
+  },
+  {
+    "name": "Foster City",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "25338"
+  },
+  {
+    "name": "Half Moon Bay",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "31708"
+  },
+  {
+    "name": "Highlands",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "33632"
+  },
+  {
+    "name": "Hillsborough",
+    "county_fips": "06081",
+    "place_type": "town",
+    "place_fips": "33798"
+  },
+  {
+    "name": "La Honda",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "39318"
+  },
+  {
+    "name": "Ladera",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "39094"
+  },
+  {
+    "name": "Loma Mar",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "42384"
+  },
+  {
+    "name": "Menlo Park",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "46870"
+  },
+  {
+    "name": "Millbrae",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "47486"
+  },
+  {
+    "name": "Montara",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "48760"
+  },
+  {
+    "name": "Moss Beach",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "49446"
+  },
+  {
+    "name": "North Fair Oaks",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "51840"
+  },
+  {
+    "name": "Pacifica",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "54806"
+  },
+  {
+    "name": "Pescadero",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "56756"
+  },
+  {
+    "name": "Portola Valley",
+    "county_fips": "06081",
+    "place_type": "town",
+    "place_fips": "58380"
+  },
+  {
+    "name": "Redwood City",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "60102"
+  },
+  {
+    "name": "San Bruno",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "65028"
+  },
+  {
+    "name": "San Carlos",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "65070"
+  },
+  {
+    "name": "San Mateo",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "68252"
+  },
+  {
+    "name": "South San Francisco",
+    "county_fips": "06081",
+    "place_type": "city",
+    "place_fips": "73262"
+  },
+  {
+    "name": "West Menlo Park",
+    "county_fips": "06081",
+    "place_type": "CDP",
+    "place_fips": "84536"
+  },
+  {
+    "name": "Woodside",
+    "county_fips": "06081",
+    "place_type": "town",
+    "place_fips": "86440"
+  },
+  {
+    "name": "Ballard",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "03694"
+  },
+  {
+    "name": "Buellton",
+    "county_fips": "06083",
+    "place_type": "city",
+    "place_fips": "08758"
+  },
+  {
+    "name": "Carpinteria",
+    "county_fips": "06083",
+    "place_type": "city",
+    "place_fips": "11446"
+  },
+  {
+    "name": "Casmalia",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "11754"
+  },
+  {
+    "name": "Cuyama",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "17727"
+  },
+  {
+    "name": "Eastern Goleta Valley",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "20574"
+  },
+  {
+    "name": "Garey",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "29070"
+  },
+  {
+    "name": "Goleta",
+    "county_fips": "06083",
+    "place_type": "city",
+    "place_fips": "30378"
+  },
+  {
+    "name": "Guadalupe",
+    "county_fips": "06083",
+    "place_type": "city",
+    "place_fips": "31414"
+  },
+  {
+    "name": "Isla Vista",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "36868"
+  },
+  {
+    "name": "Lompoc",
+    "county_fips": "06083",
+    "place_type": "city",
+    "place_fips": "42524"
+  },
+  {
+    "name": "Los Alamos",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "43252"
+  },
+  {
+    "name": "Los Olivos",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "44168"
+  },
+  {
+    "name": "Mission Canyon",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "48147"
+  },
+  {
+    "name": "Mission Hills",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "48186"
+  },
+  {
+    "name": "Montecito",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "48844"
+  },
+  {
+    "name": "New Cuyama",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "51028"
+  },
+  {
+    "name": "Orcutt",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "54120"
+  },
+  {
+    "name": "Santa Barbara",
+    "county_fips": "06083",
+    "place_type": "city",
+    "place_fips": "69070"
+  },
+  {
+    "name": "Santa Maria",
+    "county_fips": "06083",
+    "place_type": "city",
+    "place_fips": "69196"
+  },
+  {
+    "name": "Santa Ynez",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "70182"
+  },
+  {
+    "name": "Sisquoc",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "72086"
+  },
+  {
+    "name": "Solvang",
+    "county_fips": "06083",
+    "place_type": "city",
+    "place_fips": "72576"
+  },
+  {
+    "name": "Summerland",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "75714"
+  },
+  {
+    "name": "Toro Canyon",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "79529"
+  },
+  {
+    "name": "University of California-Santa Barbara",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "81316"
+  },
+  {
+    "name": "Vandenberg AFB",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "82072"
+  },
+  {
+    "name": "Vandenberg Village",
+    "county_fips": "06083",
+    "place_type": "CDP",
+    "place_fips": "82086"
+  },
+  {
+    "name": "Alum Rock",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "01458"
+  },
+  {
+    "name": "Burbank",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "08968"
+  },
+  {
+    "name": "Cambrian Park",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "10088"
+  },
+  {
+    "name": "Campbell",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "10345"
+  },
+  {
+    "name": "Cupertino",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "17610"
+  },
+  {
+    "name": "East Foothills",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "20598"
+  },
+  {
+    "name": "Fruitdale",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "27080"
+  },
+  {
+    "name": "Gilroy",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "29504"
+  },
+  {
+    "name": "Lexington Hills",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "41282"
+  },
+  {
+    "name": "Los Altos",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "43280"
+  },
+  {
+    "name": "Los Altos Hills",
+    "county_fips": "06085",
+    "place_type": "town",
+    "place_fips": "43294"
+  },
+  {
+    "name": "Los Gatos",
+    "county_fips": "06085",
+    "place_type": "town",
+    "place_fips": "44112"
+  },
+  {
+    "name": "Loyola",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "44378"
+  },
+  {
+    "name": "Milpitas",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "47766"
+  },
+  {
+    "name": "Monte Sereno",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "48956"
+  },
+  {
+    "name": "Morgan Hill",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "49278"
+  },
+  {
+    "name": "Mountain View",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "49670"
+  },
+  {
+    "name": "Palo Alto",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "55282"
+  },
+  {
+    "name": "San Jose",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "68000"
+  },
+  {
+    "name": "San Martin",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "68238"
+  },
+  {
+    "name": "Santa Clara",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "69084"
+  },
+  {
+    "name": "Saratoga",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "70280"
+  },
+  {
+    "name": "Stanford",
+    "county_fips": "06085",
+    "place_type": "CDP",
+    "place_fips": "73906"
+  },
+  {
+    "name": "Sunnyvale",
+    "county_fips": "06085",
+    "place_type": "city",
+    "place_fips": "77000"
+  },
+  {
+    "name": "Amesti",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "01651"
+  },
+  {
+    "name": "Aptos",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "02378"
+  },
+  {
+    "name": "Aptos Hills-Larkin Valley",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "02382"
+  },
+  {
+    "name": "Ben Lomond",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "05332"
+  },
+  {
+    "name": "Bonny Doon",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "07470"
+  },
+  {
+    "name": "Boulder Creek",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "07652"
+  },
+  {
+    "name": "Brookdale",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "08478"
+  },
+  {
+    "name": "Capitola",
+    "county_fips": "06087",
+    "place_type": "city",
+    "place_fips": "11040"
+  },
+  {
+    "name": "Corralitos",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "16434"
+  },
+  {
+    "name": "Davenport",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "18086"
+  },
+  {
+    "name": "Day Valley",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "18153"
+  },
+  {
+    "name": "Felton",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "23826"
+  },
+  {
+    "name": "Freedom",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "25576"
+  },
+  {
+    "name": "Interlaken",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "36613"
+  },
+  {
+    "name": "La Selva Beach",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "40508"
+  },
+  {
+    "name": "Live Oak",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "41922"
+  },
+  {
+    "name": "Lompico",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "42510"
+  },
+  {
+    "name": "Mount Hermon",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "49796"
+  },
+  {
+    "name": "Pajaro Dunes",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "55048"
+  },
+  {
+    "name": "Paradise Park",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "55604"
+  },
+  {
+    "name": "Pasatiempo",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "56028"
+  },
+  {
+    "name": "Pleasure Point",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "57825"
+  },
+  {
+    "name": "Rio del Mar",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "60928"
+  },
+  {
+    "name": "Santa Cruz",
+    "county_fips": "06087",
+    "place_type": "city",
+    "place_fips": "69112"
+  },
+  {
+    "name": "Scotts Valley",
+    "county_fips": "06087",
+    "place_type": "city",
+    "place_fips": "70588"
+  },
+  {
+    "name": "Seacliff",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "70644"
+  },
+  {
+    "name": "Soquel",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "72688"
+  },
+  {
+    "name": "Twin Lakes",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "81050"
+  },
+  {
+    "name": "Watsonville",
+    "county_fips": "06087",
+    "place_type": "city",
+    "place_fips": "83668"
+  },
+  {
+    "name": "Zayante",
+    "county_fips": "06087",
+    "place_type": "CDP",
+    "place_fips": "87090"
+  },
+  {
+    "name": "Anderson",
+    "county_fips": "06089",
+    "place_type": "city",
+    "place_fips": "02042"
+  },
+  {
+    "name": "Bella Vista",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "04926"
+  },
+  {
+    "name": "Big Bend",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "06475"
+  },
+  {
+    "name": "Burney",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "09122"
+  },
+  {
+    "name": "Cassel",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "11782"
+  },
+  {
+    "name": "Castella",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "11824"
+  },
+  {
+    "name": "Centerville",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "12415"
+  },
+  {
+    "name": "Cottonwood",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "16630"
+  },
+  {
+    "name": "Fall River Mills",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "23532"
+  },
+  {
+    "name": "French Gulch",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "26056"
+  },
+  {
+    "name": "Happy Valley",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "32036"
+  },
+  {
+    "name": "Hat Creek",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "32408"
+  },
+  {
+    "name": "Igo",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "36252"
+  },
+  {
+    "name": "Johnson Park",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "37442"
+  },
+  {
+    "name": "Jones Valley",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "37533"
+  },
+  {
+    "name": "Keswick",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "38352"
+  },
+  {
+    "name": "Lakehead",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "39514"
+  },
+  {
+    "name": "McArthur",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "44700"
+  },
+  {
+    "name": "Millville",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "47724"
+  },
+  {
+    "name": "Montgomery Creek",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "48998"
+  },
+  {
+    "name": "Mountain Gate",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "49558"
+  },
+  {
+    "name": "Oak Run",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "53140"
+  },
+  {
+    "name": "Old Station",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "53602"
+  },
+  {
+    "name": "Ono",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "53882"
+  },
+  {
+    "name": "Palo Cedro",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "55296"
+  },
+  {
+    "name": "Platina",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "57666"
+  },
+  {
+    "name": "Redding",
+    "county_fips": "06089",
+    "place_type": "city",
+    "place_fips": "59920"
+  },
+  {
+    "name": "Round Mountain",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "63134"
+  },
+  {
+    "name": "Shasta",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "71218"
+  },
+  {
+    "name": "Shasta Lake",
+    "county_fips": "06089",
+    "place_type": "city",
+    "place_fips": "71225"
+  },
+  {
+    "name": "Shingletown",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "71568"
+  },
+  {
+    "name": "Whitmore",
+    "county_fips": "06089",
+    "place_type": "CDP",
+    "place_fips": "85250"
+  },
+  {
+    "name": "Alleghany",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "00982"
+  },
+  {
+    "name": "Calpine",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "10004"
+  },
+  {
+    "name": "Downieville",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "19794"
+  },
+  {
+    "name": "Goodyears Bar",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "30420"
+  },
+  {
+    "name": "Loyalton",
+    "county_fips": "06091",
+    "place_type": "city",
+    "place_fips": "44364"
+  },
+  {
+    "name": "Pike",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "57036"
+  },
+  {
+    "name": "Sattley",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "70336"
+  },
+  {
+    "name": "Sierra Brooks",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "71774"
+  },
+  {
+    "name": "Sierra City",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "71778"
+  },
+  {
+    "name": "Sierraville",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "71848"
+  },
+  {
+    "name": "Verdi",
+    "county_fips": "06091",
+    "place_type": "CDP",
+    "place_fips": "82334"
+  },
+  {
+    "name": "Carrick",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "11481"
+  },
+  {
+    "name": "Dorris",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "19584"
+  },
+  {
+    "name": "Dunsmuir",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "20242"
+  },
+  {
+    "name": "Edgewood",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "21530"
+  },
+  {
+    "name": "Etna",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "22972"
+  },
+  {
+    "name": "Fort Jones",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "25128"
+  },
+  {
+    "name": "Gazelle",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "29252"
+  },
+  {
+    "name": "Greenview",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "31134"
+  },
+  {
+    "name": "Grenada",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "31246"
+  },
+  {
+    "name": "Happy Camp",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "32030"
+  },
+  {
+    "name": "Hornbrook",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "34694"
+  },
+  {
+    "name": "Lake Shastina",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "39728"
+  },
+  {
+    "name": "Macdoel",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "44812"
+  },
+  {
+    "name": "McCloud",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "44784"
+  },
+  {
+    "name": "Montague",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "48690"
+  },
+  {
+    "name": "Mount Hebron",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "49768"
+  },
+  {
+    "name": "Mount Shasta",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "49852"
+  },
+  {
+    "name": "Tennant",
+    "county_fips": "06093",
+    "place_type": "CDP",
+    "place_fips": "78176"
+  },
+  {
+    "name": "Tulelake",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "80686"
+  },
+  {
+    "name": "Weed",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "83850"
+  },
+  {
+    "name": "Yreka",
+    "county_fips": "06093",
+    "place_type": "city",
+    "place_fips": "86944"
+  },
+  {
+    "name": "Allendale",
+    "county_fips": "06095",
+    "place_type": "CDP",
+    "place_fips": "00996"
+  },
+  {
+    "name": "Benicia",
+    "county_fips": "06095",
+    "place_type": "city",
+    "place_fips": "05290"
+  },
+  {
+    "name": "Dixon",
+    "county_fips": "06095",
+    "place_type": "city",
+    "place_fips": "19402"
+  },
+  {
+    "name": "Elmira",
+    "county_fips": "06095",
+    "place_type": "CDP",
+    "place_fips": "22146"
+  },
+  {
+    "name": "Fairfield",
+    "county_fips": "06095",
+    "place_type": "city",
+    "place_fips": "23182"
+  },
+  {
+    "name": "Green Valley",
+    "county_fips": "06095",
+    "place_type": "CDP",
+    "place_fips": "31099"
+  },
+  {
+    "name": "Hartley",
+    "county_fips": "06095",
+    "place_type": "CDP",
+    "place_fips": "32340"
+  },
+  {
+    "name": "Rio Vista",
+    "county_fips": "06095",
+    "place_type": "city",
+    "place_fips": "60984"
+  },
+  {
+    "name": "Suisun City",
+    "county_fips": "06095",
+    "place_type": "city",
+    "place_fips": "75630"
+  },
+  {
+    "name": "Vacaville",
+    "county_fips": "06095",
+    "place_type": "city",
+    "place_fips": "81554"
+  },
+  {
+    "name": "Vallejo",
+    "county_fips": "06095",
+    "place_type": "city",
+    "place_fips": "81666"
+  },
+  {
+    "name": "Bloomfield",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "07036"
+  },
+  {
+    "name": "Bodega",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "07246"
+  },
+  {
+    "name": "Bodega Bay",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "07260"
+  },
+  {
+    "name": "Boyes Hot Springs",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "07848"
+  },
+  {
+    "name": "Carmet",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "11376"
+  },
+  {
+    "name": "Cazadero",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "12146"
+  },
+  {
+    "name": "Cloverdale",
+    "county_fips": "06097",
+    "place_type": "city",
+    "place_fips": "14190"
+  },
+  {
+    "name": "Cotati",
+    "county_fips": "06097",
+    "place_type": "city",
+    "place_fips": "16560"
+  },
+  {
+    "name": "El Verano",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "22510"
+  },
+  {
+    "name": "Eldridge",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "21894"
+  },
+  {
+    "name": "Fetters Hot Springs-Agua Caliente",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "23973"
+  },
+  {
+    "name": "Forestville",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "24960"
+  },
+  {
+    "name": "Fulton",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "28014"
+  },
+  {
+    "name": "Geyserville",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "29420"
+  },
+  {
+    "name": "Glen Ellen",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "30028"
+  },
+  {
+    "name": "Graton",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "30812"
+  },
+  {
+    "name": "Guerneville",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "31470"
+  },
+  {
+    "name": "Healdsburg",
+    "county_fips": "06097",
+    "place_type": "city",
+    "place_fips": "33056"
+  },
+  {
+    "name": "Jenner",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "37274"
+  },
+  {
+    "name": "Kenwood",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "38156"
+  },
+  {
+    "name": "Larkfield-Wikiup",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "40426"
+  },
+  {
+    "name": "Monte Rio",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "48928"
+  },
+  {
+    "name": "Occidental",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "53266"
+  },
+  {
+    "name": "Penngrove",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "56476"
+  },
+  {
+    "name": "Petaluma",
+    "county_fips": "06097",
+    "place_type": "city",
+    "place_fips": "56784"
+  },
+  {
+    "name": "Petaluma Center",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "56786"
+  },
+  {
+    "name": "Rohnert Park",
+    "county_fips": "06097",
+    "place_type": "city",
+    "place_fips": "62546"
+  },
+  {
+    "name": "Salmon Creek",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "64252"
+  },
+  {
+    "name": "Santa Rosa",
+    "county_fips": "06097",
+    "place_type": "city",
+    "place_fips": "70098"
+  },
+  {
+    "name": "Sea Ranch",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "70712"
+  },
+  {
+    "name": "Sebastopol",
+    "county_fips": "06097",
+    "place_type": "city",
+    "place_fips": "70770"
+  },
+  {
+    "name": "Sereno del Mar",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "71000"
+  },
+  {
+    "name": "Sonoma",
+    "county_fips": "06097",
+    "place_type": "city",
+    "place_fips": "72646"
+  },
+  {
+    "name": "Sonoma State University",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "72654"
+  },
+  {
+    "name": "Temelec",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "78126"
+  },
+  {
+    "name": "Timber Cove",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "78715"
+  },
+  {
+    "name": "Valley Ford",
+    "county_fips": "06097",
+    "place_type": "CDP",
+    "place_fips": "81778"
+  },
+  {
+    "name": "Windsor",
+    "county_fips": "06097",
+    "place_type": "town",
+    "place_fips": "85922"
+  },
+  {
+    "name": "Airport",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "00535"
+  },
+  {
+    "name": "Bret Harte",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "08172"
+  },
+  {
+    "name": "Bystrom",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "09353"
+  },
+  {
+    "name": "Ceres",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "12524"
+  },
+  {
+    "name": "Cowan",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "16762"
+  },
+  {
+    "name": "Crows Landing",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "17428"
+  },
+  {
+    "name": "Del Rio",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "18695"
+  },
+  {
+    "name": "Denair",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "18856"
+  },
+  {
+    "name": "Diablo Grande",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "19155"
+  },
+  {
+    "name": "East Oakdale",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "20907"
+  },
+  {
+    "name": "Empire",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "22622"
+  },
+  {
+    "name": "Grayson",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "30882"
+  },
+  {
+    "name": "Hickman",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "33504"
+  },
+  {
+    "name": "Hughson",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "34904"
+  },
+  {
+    "name": "Keyes",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "38422"
+  },
+  {
+    "name": "Knights Ferry",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "38786"
+  },
+  {
+    "name": "La Grange",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "39164"
+  },
+  {
+    "name": "Modesto",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "48354"
+  },
+  {
+    "name": "Monterey Park Tract",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "48916"
+  },
+  {
+    "name": "Newman",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "51140"
+  },
+  {
+    "name": "Oakdale",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "52694"
+  },
+  {
+    "name": "Orange Blossom",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "53987"
+  },
+  {
+    "name": "Parklawn",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "55728"
+  },
+  {
+    "name": "Patterson",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "56112"
+  },
+  {
+    "name": "Riverbank",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "61068"
+  },
+  {
+    "name": "Riverdale Park",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "61106"
+  },
+  {
+    "name": "Rouse",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "63168"
+  },
+  {
+    "name": "Salida",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "64210"
+  },
+  {
+    "name": "Turlock",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "80812"
+  },
+  {
+    "name": "Valley Home",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "81792"
+  },
+  {
+    "name": "Waterford",
+    "county_fips": "06099",
+    "place_type": "city",
+    "place_fips": "83612"
+  },
+  {
+    "name": "West Modesto",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "84578"
+  },
+  {
+    "name": "Westley",
+    "county_fips": "06099",
+    "place_type": "CDP",
+    "place_fips": "84480"
+  },
+  {
+    "name": "East Nicolaus",
+    "county_fips": "06101",
+    "place_type": "CDP",
+    "place_fips": "20900"
+  },
+  {
+    "name": "Live Oak",
+    "county_fips": "06101",
+    "place_type": "city",
+    "place_fips": "41936"
+  },
+  {
+    "name": "Meridian",
+    "county_fips": "06101",
+    "place_type": "CDP",
+    "place_fips": "46926"
+  },
+  {
+    "name": "Nicolaus",
+    "county_fips": "06101",
+    "place_type": "CDP",
+    "place_fips": "51336"
+  },
+  {
+    "name": "Rio Oso",
+    "county_fips": "06101",
+    "place_type": "CDP",
+    "place_fips": "60970"
+  },
+  {
+    "name": "Robbins",
+    "county_fips": "06101",
+    "place_type": "CDP",
+    "place_fips": "62168"
+  },
+  {
+    "name": "Sutter",
+    "county_fips": "06101",
+    "place_type": "CDP",
+    "place_fips": "77378"
+  },
+  {
+    "name": "Trowbridge",
+    "county_fips": "06101",
+    "place_type": "CDP",
+    "place_fips": "80560"
+  },
+  {
+    "name": "Yuba City",
+    "county_fips": "06101",
+    "place_type": "city",
+    "place_fips": "86972"
+  },
+  {
+    "name": "Bend",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "05276"
+  },
+  {
+    "name": "Corning",
+    "county_fips": "06103",
+    "place_type": "city",
+    "place_fips": "16322"
+  },
+  {
+    "name": "Dales",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "17876"
+  },
+  {
+    "name": "Flournoy",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "24568"
+  },
+  {
+    "name": "Gerber",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "29392"
+  },
+  {
+    "name": "Lake California",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "39460"
+  },
+  {
+    "name": "Las Flores",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "40536"
+  },
+  {
+    "name": "Los Molinos",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "44140"
+  },
+  {
+    "name": "Manton",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "45512"
+  },
+  {
+    "name": "Mineral",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "47794"
+  },
+  {
+    "name": "Paskenta",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "56042"
+  },
+  {
+    "name": "Paynes Creek",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "56196"
+  },
+  {
+    "name": "Proberta",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "58814"
+  },
+  {
+    "name": "Rancho Tehama Reserve",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "59604"
+  },
+  {
+    "name": "Red Bluff",
+    "county_fips": "06103",
+    "place_type": "city",
+    "place_fips": "59892"
+  },
+  {
+    "name": "Richfield",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "60592"
+  },
+  {
+    "name": "Tehama",
+    "county_fips": "06103",
+    "place_type": "city",
+    "place_fips": "78106"
+  },
+  {
+    "name": "Vina",
+    "county_fips": "06103",
+    "place_type": "CDP",
+    "place_fips": "82786"
+  },
+  {
+    "name": "Burnt Ranch",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "09150"
+  },
+  {
+    "name": "Coffee Creek",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "14406"
+  },
+  {
+    "name": "Douglas City",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "19724"
+  },
+  {
+    "name": "Hayfork",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "32562"
+  },
+  {
+    "name": "Hyampom",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "36098"
+  },
+  {
+    "name": "Junction City",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "37596"
+  },
+  {
+    "name": "Lewiston",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "41278"
+  },
+  {
+    "name": "Mad River",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "45092"
+  },
+  {
+    "name": "Post Mountain",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "58456"
+  },
+  {
+    "name": "Ruth",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "63386"
+  },
+  {
+    "name": "Salyer",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "64378"
+  },
+  {
+    "name": "Trinity Center",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "80476"
+  },
+  {
+    "name": "Trinity Village",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "80483"
+  },
+  {
+    "name": "Weaverville",
+    "county_fips": "06105",
+    "place_type": "CDP",
+    "place_fips": "83794"
+  },
+  {
+    "name": "Allensworth",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "01010"
+  },
+  {
+    "name": "Alpaugh",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "01164"
+  },
+  {
+    "name": "California Hot Springs",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "09822"
+  },
+  {
+    "name": "Camp Nelson",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "10494"
+  },
+  {
+    "name": "Cedar Slope",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "12314"
+  },
+  {
+    "name": "Cutler",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "17708"
+  },
+  {
+    "name": "Delft Colony",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "18450"
+  },
+  {
+    "name": "Dinuba",
+    "county_fips": "06107",
+    "place_type": "city",
+    "place_fips": "19318"
+  },
+  {
+    "name": "Ducor",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "20032"
+  },
+  {
+    "name": "Earlimart",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "20438"
+  },
+  {
+    "name": "East Orosi",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "20942"
+  },
+  {
+    "name": "East Porterville",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "21012"
+  },
+  {
+    "name": "East Tulare Villa",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "21210"
+  },
+  {
+    "name": "El Monte Mobile Village",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "22235"
+  },
+  {
+    "name": "El Rancho",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "22360"
+  },
+  {
+    "name": "Exeter",
+    "county_fips": "06107",
+    "place_type": "city",
+    "place_fips": "23126"
+  },
+  {
+    "name": "Farmersville",
+    "county_fips": "06107",
+    "place_type": "city",
+    "place_fips": "23616"
+  },
+  {
+    "name": "Goshen",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "30476"
+  },
+  {
+    "name": "Hartland",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "32324"
+  },
+  {
+    "name": "Hypericum",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "36135"
+  },
+  {
+    "name": "Idlewild",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "36168"
+  },
+  {
+    "name": "Ivanhoe",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "36910"
+  },
+  {
+    "name": "Jovista",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "37568"
+  },
+  {
+    "name": "Kennedy Meadows",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "38076"
+  },
+  {
+    "name": "Lemon Cove",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "41110"
+  },
+  {
+    "name": "Lindcove",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "41656"
+  },
+  {
+    "name": "Lindsay",
+    "county_fips": "06107",
+    "place_type": "city",
+    "place_fips": "41712"
+  },
+  {
+    "name": "Linnell Camp",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "41740"
+  },
+  {
+    "name": "London",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "42566"
+  },
+  {
+    "name": "Matheny",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "46223"
+  },
+  {
+    "name": "McClenney Tract",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "44770"
+  },
+  {
+    "name": "Monson",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "48676"
+  },
+  {
+    "name": "Orosi",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "54372"
+  },
+  {
+    "name": "Panorama Heights",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "55506"
+  },
+  {
+    "name": "Patterson Tract",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "56120"
+  },
+  {
+    "name": "Pierpoint",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "57011"
+  },
+  {
+    "name": "Pine Flat",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "57134"
+  },
+  {
+    "name": "Pixley",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "57512"
+  },
+  {
+    "name": "Plainview",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "57568"
+  },
+  {
+    "name": "Ponderosa",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "58134"
+  },
+  {
+    "name": "Poplar-Cotton Center",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "58191"
+  },
+  {
+    "name": "Porterville",
+    "county_fips": "06107",
+    "place_type": "city",
+    "place_fips": "58240"
+  },
+  {
+    "name": "Posey",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "58422"
+  },
+  {
+    "name": "Poso Park",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "58436"
+  },
+  {
+    "name": "Richgrove",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "60606"
+  },
+  {
+    "name": "Rodriguez Camp",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "62496"
+  },
+  {
+    "name": "Sequoia Crest",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "70966"
+  },
+  {
+    "name": "Seville",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "71078"
+  },
+  {
+    "name": "Silver City",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "71932"
+  },
+  {
+    "name": "Springville",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "73710"
+  },
+  {
+    "name": "Strathmore",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "75280"
+  },
+  {
+    "name": "Sugarloaf Saw Mill",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "75592"
+  },
+  {
+    "name": "Sugarloaf Village",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "75596"
+  },
+  {
+    "name": "Sultana",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "75672"
+  },
+  {
+    "name": "Terra Bella",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "78288"
+  },
+  {
+    "name": "Teviston",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "78336"
+  },
+  {
+    "name": "Three Rivers",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "78638"
+  },
+  {
+    "name": "Tipton",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "78750"
+  },
+  {
+    "name": "Tonyville",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "78932"
+  },
+  {
+    "name": "Tooleville",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "78949"
+  },
+  {
+    "name": "Traver",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "80280"
+  },
+  {
+    "name": "Tulare",
+    "county_fips": "06107",
+    "place_type": "city",
+    "place_fips": "80644"
+  },
+  {
+    "name": "Visalia",
+    "county_fips": "06107",
+    "place_type": "city",
+    "place_fips": "82954"
+  },
+  {
+    "name": "Waukena",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "83724"
+  },
+  {
+    "name": "West Goshen",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "84345"
+  },
+  {
+    "name": "Wilsonia",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "85866"
+  },
+  {
+    "name": "Woodlake",
+    "county_fips": "06107",
+    "place_type": "city",
+    "place_fips": "86300"
+  },
+  {
+    "name": "Woodville",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "86482"
+  },
+  {
+    "name": "Woodville Farm Labor Camp",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "86489"
+  },
+  {
+    "name": "Yettem",
+    "county_fips": "06107",
+    "place_type": "CDP",
+    "place_fips": "86734"
+  },
+  {
+    "name": "Cedar Ridge",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "12300"
+  },
+  {
+    "name": "Chinese Camp",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "13182"
+  },
+  {
+    "name": "Cold Springs",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "14454"
+  },
+  {
+    "name": "Columbia",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "14904"
+  },
+  {
+    "name": "East Sonora",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "21188"
+  },
+  {
+    "name": "Groveland",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "31372"
+  },
+  {
+    "name": "Jamestown",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "37106"
+  },
+  {
+    "name": "Long Barn",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "42622"
+  },
+  {
+    "name": "Mi-Wuk Village",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "48298"
+  },
+  {
+    "name": "Mono Vista",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "48641"
+  },
+  {
+    "name": "Phoenix Lake",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "56870"
+  },
+  {
+    "name": "Pine Mountain Lake",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "57244"
+  },
+  {
+    "name": "Sierra Village",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "71834"
+  },
+  {
+    "name": "Sonora",
+    "county_fips": "06109",
+    "place_type": "city",
+    "place_fips": "72674"
+  },
+  {
+    "name": "Soulsbyville",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "72772"
+  },
+  {
+    "name": "Strawberry",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "75322"
+  },
+  {
+    "name": "Tuolumne City",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "80763"
+  },
+  {
+    "name": "Tuttletown",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "80896"
+  },
+  {
+    "name": "Twain Harte",
+    "county_fips": "06109",
+    "place_type": "CDP",
+    "place_fips": "80966"
+  },
+  {
+    "name": "Bell Canyon",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "04938"
+  },
+  {
+    "name": "Camarillo",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "10046"
+  },
+  {
+    "name": "Casa Conejo",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "11656"
+  },
+  {
+    "name": "Channel Islands Beach",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "12669"
+  },
+  {
+    "name": "El Rio",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "22370"
+  },
+  {
+    "name": "Fillmore",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "24092"
+  },
+  {
+    "name": "Lake Sherwood",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "39735"
+  },
+  {
+    "name": "Meiners Oaks",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "46702"
+  },
+  {
+    "name": "Mira Monte",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "48046"
+  },
+  {
+    "name": "Moorpark",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "49138"
+  },
+  {
+    "name": "Oak Park",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "53116"
+  },
+  {
+    "name": "Oak View",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "53182"
+  },
+  {
+    "name": "Ojai",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "53476"
+  },
+  {
+    "name": "Oxnard",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "54652"
+  },
+  {
+    "name": "Piru",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "57372"
+  },
+  {
+    "name": "Port Hueneme",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "58296"
+  },
+  {
+    "name": "San Buenaventura (Ventura)",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "65042"
+  },
+  {
+    "name": "Santa Paula",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "70042"
+  },
+  {
+    "name": "Santa Rosa Valley",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "70130"
+  },
+  {
+    "name": "Santa Susana",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "70140"
+  },
+  {
+    "name": "Saticoy",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "70322"
+  },
+  {
+    "name": "Simi Valley",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "72016"
+  },
+  {
+    "name": "Somis",
+    "county_fips": "06111",
+    "place_type": "CDP",
+    "place_fips": "72632"
+  },
+  {
+    "name": "Thousand Oaks",
+    "county_fips": "06111",
+    "place_type": "city",
+    "place_fips": "78582"
+  },
+  {
+    "name": "Brooks",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "08506"
+  },
+  {
+    "name": "Clarksburg",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "13784"
+  },
+  {
+    "name": "Davis",
+    "county_fips": "06113",
+    "place_type": "city",
+    "place_fips": "18100"
+  },
+  {
+    "name": "Dunnigan",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "20228"
+  },
+  {
+    "name": "El Macero",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "22104"
+  },
+  {
+    "name": "Esparto",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "22846"
+  },
+  {
+    "name": "Guinda",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "31540"
+  },
+  {
+    "name": "Knights Landing",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "38800"
+  },
+  {
+    "name": "Madison",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "45064"
+  },
+  {
+    "name": "Monument Hills",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "49045"
+  },
+  {
+    "name": "Rumsey",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "63302"
+  },
+  {
+    "name": "Tancred",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "77860"
+  },
+  {
+    "name": "University of California-Davis",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "81302"
+  },
+  {
+    "name": "West Sacramento",
+    "county_fips": "06113",
+    "place_type": "city",
+    "place_fips": "84816"
+  },
+  {
+    "name": "Winters",
+    "county_fips": "06113",
+    "place_type": "city",
+    "place_fips": "86034"
+  },
+  {
+    "name": "Woodland",
+    "county_fips": "06113",
+    "place_type": "city",
+    "place_fips": "86328"
+  },
+  {
+    "name": "Yolo",
+    "county_fips": "06113",
+    "place_type": "CDP",
+    "place_fips": "86804"
+  },
+  {
+    "name": "Beale AFB",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "04576"
+  },
+  {
+    "name": "Camptonville",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "10676"
+  },
+  {
+    "name": "Challenge-Brownsville",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "12612"
+  },
+  {
+    "name": "Dobbins",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "19416"
+  },
+  {
+    "name": "Linda",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "41572"
+  },
+  {
+    "name": "Loma Rica",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "42412"
+  },
+  {
+    "name": "Marysville",
+    "county_fips": "06115",
+    "place_type": "city",
+    "place_fips": "46170"
+  },
+  {
+    "name": "Olivehurst",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "53714"
+  },
+  {
+    "name": "Plumas Lake",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "57829"
+  },
+  {
+    "name": "Smartsville",
+    "county_fips": "06115",
+    "place_type": "CDP",
+    "place_fips": "72282"
+  },
+  {
+    "name": "Wheatland",
+    "county_fips": "06115",
+    "place_type": "city",
+    "place_fips": "85012"
+  }
+]

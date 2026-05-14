@@ -29,6 +29,16 @@ class CountyOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CityOut(BaseModel):
+    id: int
+    name: str
+    county_code: int
+    place_type: str
+    place_fips: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class HospitalOut(BaseModel):
     facility_id: str
     facility_name: str

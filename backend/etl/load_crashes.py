@@ -30,8 +30,9 @@ from datetime import datetime
 from sqlalchemy import extract, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.cities_match import normalize_name
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
-from app.models import Crash, EtlRun
+from app.models import City, Crash, EtlRun
 
 logging.basicConfig(
     level=logging.INFO,
@@ -84,7 +85,7 @@ def get_loaded_years(session) -> dict[int, int]:
 # Columns to update when a collision_id already exists.
 # Excludes 'collision_id' (the conflict key) and 'id' / 'created_at' (auto-generated).
 _UPSERT_COLUMNS = [
-    "crash_datetime", "day_of_week", "county_code", "city_name",
+    "crash_datetime", "day_of_week", "county_code", "city_name", "city_id",
     "latitude", "longitude", "collision_type", "primary_factor",
     "motor_vehicle_involved_with", "number_killed", "number_injured",
     "weather", "road_condition", "lighting", "is_highway", "is_freeway",
@@ -93,7 +94,41 @@ _UPSERT_COLUMNS = [
 ]
 
 
-def upsert_crashes(session, rows: list[dict]) -> int:
+def build_city_lookup(db) -> dict[tuple[int, str], int]:
+    """{(county_code, name_normalized) -> city_id} built once per ETL run.
+
+    Used by normalize_city_id() to translate the freeform crashes.city_name
+    into a foreign key. ~1600 rows, so memory is negligible and hash lookups
+    are O(1) per crash.
+    """
+    return {
+        (c.county_code, c.name_normalized): c.id
+        for c in db.query(City.id, City.county_code, City.name_normalized).all()
+    }
+
+
+def normalize_city_id(
+    row: dict, lookup: dict[tuple[int, str], int]
+) -> None:
+    """Resolve row['city_id'] from (county_code, city_name) in-place.
+
+    Sets None when no match is found — that's the documented behavior for
+    unincorporated areas and unknown cities. The raw city_name is preserved
+    on the row so analysts can still see what was reported.
+    """
+    county_code = row.get("county_code")
+    city_name = row.get("city_name")
+    if county_code is None or not city_name:
+        row["city_id"] = None
+        return
+    row["city_id"] = lookup.get((county_code, normalize_name(city_name)))
+
+
+def upsert_crashes(
+    session,
+    rows: list[dict],
+    city_lookup: dict[tuple[int, str], int] | None = None,
+) -> int:
     """Bulk-upsert crash rows using PostgreSQL INSERT ... ON CONFLICT.
 
     Instead of one SELECT + one INSERT/UPDATE per row (2 round-trips each),
@@ -115,6 +150,12 @@ def upsert_crashes(session, rows: list[dict]) -> int:
     """
     if not rows:
         return 0
+
+    # Normalize city_name → city_id before upsert. Done per row so the
+    # bulk INSERT below carries the resolved FK.
+    if city_lookup is not None:
+        for r in rows:
+            normalize_city_id(r, city_lookup)
 
     # Filter out rows missing required fields — a single null county_code
     # or null crash_datetime would fail the entire batch in bulk insert.
@@ -171,6 +212,11 @@ def run(
     """
     db = SessionLocal()
     tmp_dir = None
+
+    # Pre-build the (county, normalized name) -> city_id map once per run so
+    # the per-batch upserts can resolve city_id without re-querying.
+    city_lookup = build_city_lookup(db)
+    logger.info("Loaded %d cities for normalization lookup", len(city_lookup))
 
     # Check which years already have data so we can skip them
     loaded = get_loaded_years(db)
@@ -242,7 +288,7 @@ def run(
             for batch_start in range(0, len(all_switrs_rows), BATCH_SIZE):
                 batch = all_switrs_rows[batch_start: batch_start + BATCH_SIZE]
                 try:
-                    count = upsert_crashes(db, batch)
+                    count = upsert_crashes(db, batch, city_lookup=city_lookup)
                     db.commit()
                     total_rows += count
                     logger.info(
@@ -267,7 +313,7 @@ def run(
 
                     for batch, offset, total in fetch_crashes_for_year(year):
                         try:
-                            count = upsert_crashes(db, batch)
+                            count = upsert_crashes(db, batch, city_lookup=city_lookup)
                             db.commit()
                             year_rows += count
                             total_rows += count
