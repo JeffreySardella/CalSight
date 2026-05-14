@@ -20,7 +20,7 @@ def list_demographics(
     db: Session = Depends(get_db),
 ):
     """ACS demographics per county × year. All ~27 columns per row."""
-    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
     q = db.query(Demographic)
     if county:
         codes = parse_county_codes(county, get_slug_map(db))

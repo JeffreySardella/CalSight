@@ -86,7 +86,7 @@ def list_crashes(
     filter (year, county, severity, cause, alcohol, distracted) to keep the
     query bounded. For aggregate totals across all crashes, use `/api/stats`.
     """
-    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
 
     date_range = parse_date_range(start, end)
     years = parse_year(year) if date_range is None else None

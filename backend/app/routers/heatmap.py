@@ -89,7 +89,7 @@ def crash_heatmap(
       - medium (0.01 deg, ~0.7 mi) — grid-aggregated
       - high (0.001 deg, ~350 ft) — grid-aggregated
     """
-    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
 
     date_range = parse_date_range(start, end)
     years = parse_year(year) if date_range is None else None

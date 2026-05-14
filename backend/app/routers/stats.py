@@ -277,7 +277,7 @@ def stats(
     year. For month-precise filtering, use `/api/crashes` or
     `/api/crashes/heatmap`.
     """
-    response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
 
     alcohol_v = parse_bool_flag(alcohol, "alcohol")
     distracted_v = parse_bool_flag(distracted, "distracted")
