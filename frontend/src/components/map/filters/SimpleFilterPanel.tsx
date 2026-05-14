@@ -95,9 +95,9 @@ export default function SimpleFilterPanel({
     <div className="space-y-6 pb-4">
       {/* County */}
       <div>
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
           County
-        </label>
+        </span>
         <SearchableMultiSelect
           options={countyOptions}
           selected={selectedCounties.size === 0 ? ALL_COUNTIES_SET : selectedCounties}
@@ -191,7 +191,7 @@ export default function SimpleFilterPanel({
           onClick={handleApply}
           className="px-6 py-2.5 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-opacity"
         >
-          {countLoading ? "Loading..." : liveCount !== null ? `Show ${fmtCount(liveCount)} Crashes` : "Apply Filters"}
+          <span aria-live="polite">{countLoading ? "Loading..." : liveCount !== null ? `Show ${fmtCount(liveCount)} Crashes` : "Apply Filters"}</span>
         </button>
       </div>
     </div>

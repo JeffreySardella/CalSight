@@ -82,7 +82,7 @@ export default function ActiveFiltersBanner({
       <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-xl px-3 py-2 ambient-shadow">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="material-symbols-outlined text-[14px] text-primary shrink-0">filter_list</span>
-          <span className={`text-[11px] font-bold text-on-surface ${isLoading ? "animate-pulse" : ""}`}>
+          <span aria-live="polite" className={`text-[11px] font-bold text-on-surface ${isLoading ? "animate-pulse" : ""}`}>
             {isLoading ? "Updating..." : `${fmt(totalCrashes)} crashes`}
           </span>
           <span className="text-[10px] text-on-surface-variant">|</span>

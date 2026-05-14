@@ -61,9 +61,9 @@ export default function LayersPanel() {
     <div className="space-y-8 pb-32 px-0">
       {/* County Colors */}
       <div className="space-y-4">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           County Colors
-        </label>
+        </span>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${choroplethOn ? "text-on-surface" : "text-on-surface-variant"}`}>
@@ -102,9 +102,9 @@ export default function LayersPanel() {
 
       {/* Crash Heatmap */}
       <div className="space-y-4">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Crash Heatmap
-        </label>
+        </span>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${otherLayers.heatmapStatewide ? "text-on-surface" : "text-on-surface-variant"}`}>
@@ -200,9 +200,9 @@ export default function LayersPanel() {
 
       {/* Measure */}
       <div className="space-y-4">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Measure
-        </label>
+        </span>
         <div className="space-y-2">
           {Object.values(MEASURES).map((m) => {
             const active = measure === m.key;
@@ -229,9 +229,9 @@ export default function LayersPanel() {
 
       {/* Color Palette */}
       <div className="space-y-4">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Color Palette
-        </label>
+        </span>
         <div className="grid grid-cols-2 gap-3">
           {(Object.keys(PALETTES) as PaletteKey[]).map((key) => (
             <button

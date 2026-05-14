@@ -193,8 +193,13 @@ export default function AiInsightCard({
       <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden max-h-[60vh] md:max-h-none flex flex-col">
         {/* Collapsed bar — always visible */}
         <div
+          role="button"
+          tabIndex={0}
           className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
           onClick={() => setExpanded((v) => !v)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded((v) => !v); } }}
+          aria-expanded={expanded}
+          aria-label={expanded ? "Collapse insight card" : "Expand insight card"}
         >
           <div className="min-w-0">
             <h2 className="font-headline text-base font-bold text-on-surface tracking-tight truncate">

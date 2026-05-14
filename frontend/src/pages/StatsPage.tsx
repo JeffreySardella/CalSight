@@ -10,6 +10,10 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
 
+function ChartImg({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div role="img" aria-label={label}>{children}</div>;
+}
+
 function DataQualityNote({ text }: { text: string }) {
   return (
     <div className="flex items-start gap-1.5 bg-surface-container-high rounded-md px-2.5 py-1.5 mb-3 text-[10px] text-on-surface-variant leading-snug">
@@ -76,7 +80,7 @@ export default function StatsPage() {
         "DUI": "#a368a0", "Speeding": "#c27862", "Lane Change": "#6b8fa3",
         "Right of Way": "#7ba088", "Improper Turn": "#b89a6b", "Tailgating": "#8e7cc3",
         "Signal Violation": "#c28a8a", "Pedestrian": "#6baab5", "Unsafe Backing": "#a0a06b",
-        "Other": "#8b8b9a", "Uncategorized": "#5c7b5c",
+        "Other": "#8b8b9a", "Uncategorized": "#6b8f6b",
       }
     : {
         "DUI": "#7e3794", "Speeding": "#b45309", "Lane Change": "#4a7a8c",
@@ -86,7 +90,7 @@ export default function StatsPage() {
       };
 
   const severityColorMap: Record<string, string> = isDark
-    ? { "Fatal": "#c25560", "Injury": "#b0a050", "Property Damage Only": "#6b8fa3" }
+    ? { "Fatal": "#d4606b", "Injury": "#b0a050", "Property Damage Only": "#6b8fa3" }
     : { "Fatal": "#991b1b", "Injury": "#6d7e1e", "Property Damage Only": "#4a7a8c" };
 
   const causeColor = (label: string) => causeColorMap[label] ?? clrOnSurfaceVariant;
@@ -209,6 +213,9 @@ export default function StatsPage() {
   return (
     <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
       <h1 className="sr-only">Statistics Dashboard</h1>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {loading ? "Loading statistics..." : error ? "Error loading statistics." : "Statistics loaded."}
+      </div>
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full md:w-auto">
@@ -352,6 +359,7 @@ export default function StatsPage() {
           ) : !hourlyData.length ? (
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
+            <ChartImg label="Crash density by hour of day bar chart">
             <SimpleBarChart
               data={hourlyData.map((d, i) => ({
                 label: [0, 6, 12, 18, 23].includes(d.hour) ? (d.hour === 23 ? "23:59" : `${String(d.hour).padStart(2, "0")}:00`) : "",
@@ -365,6 +373,7 @@ export default function StatsPage() {
                 return <ChartTip title={`${String(d.hour).padStart(2, "0")}:00`} lines={[`${d.count.toLocaleString()} incidents`]} />;
               }}
             />
+            </ChartImg>
           )}
         </div>
 
@@ -381,11 +390,13 @@ export default function StatsPage() {
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-40" />
           ) : causesWithPct.length <= 5 ? (
             <>
+              <ChartImg label="Primary cause breakdown pie chart">
               <SimpleDonutChart
                 data={causesWithPct.map((c) => ({ label: c.label, value: c.pct, color: causeColor(c.label) }))}
                 height={isMobile ? 200 : 160}
                 renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.pct}% · ${causesWithPct.find((c) => c.label === item.label)?.count.toLocaleString() ?? 0} incidents`]} />}
               />
+              </ChartImg>
               <div className="space-y-4 mt-2">
                 {causesWithPct.map((cause) => (
                   <div key={cause.label} className="flex items-center gap-3">
@@ -401,6 +412,7 @@ export default function StatsPage() {
               </div>
             </>
           ) : (
+            <ChartImg label="Primary cause breakdown bar chart">
             <SimpleBarChart
               data={[...causesWithPct].sort((a, b) => b.count - a.count).map((c) => ({
                 label: c.label,
@@ -414,6 +426,7 @@ export default function StatsPage() {
                 return <ChartTip title={item.label} lines={[`${c?.pct ?? 0}% · ${item.value.toLocaleString()} incidents`]} />;
               }}
             />
+            </ChartImg>
           )}
         </div>
 
@@ -448,6 +461,7 @@ export default function StatsPage() {
               ))}
             </div>
           ) : (
+            <ChartImg label="Incidents by year bar chart">
             <SimpleBarChart
               data={yearlyData.map((d) => ({
                 label: String(d.year),
@@ -481,6 +495,7 @@ export default function StatsPage() {
                 );
               }}
             />
+            </ChartImg>
           )}
           {yearlyData.length >= 3 && (
             <p className="mt-6 text-[10px] text-on-surface-variant italic leading-relaxed">
@@ -513,6 +528,7 @@ export default function StatsPage() {
           ) : !monthlyData.length ? (
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
+            <ChartImg label="Crashes by month bar chart">
             <SimpleBarChart
               data={monthlyData.map((d, i) => ({
                 label: d.label,
@@ -526,6 +542,7 @@ export default function StatsPage() {
                 return <ChartTip title={d.label} lines={[`${d.count.toLocaleString()} incidents`, `${d.killed.toLocaleString()} killed · ${d.injured.toLocaleString()} injured`]} />;
               }}
             />
+            </ChartImg>
           )}
         </div>
 
@@ -541,6 +558,7 @@ export default function StatsPage() {
           ) : !dayOfWeekData.length ? (
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
           ) : (
+            <ChartImg label="Day of week distribution bar chart">
             <SimpleBarChart
               data={dayOfWeekData.map((d, i) => ({
                 label: d.label,
@@ -550,6 +568,7 @@ export default function StatsPage() {
               height={isMobile ? 240 : 192}
               renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.value.toLocaleString()} incidents`]} />}
             />
+            </ChartImg>
           )}
         </div>
       </section>
@@ -569,11 +588,13 @@ export default function StatsPage() {
             <EmptyState icon="search_off" description="No data for the selected filters." className="h-40" />
           ) : (
             <>
+              <ChartImg label="Severity breakdown pie chart">
               <SimpleDonutChart
                 data={sevWithPct.map((s) => ({ label: s.label, value: s.pct, color: severityColor(s.label) }))}
                 height={isMobile ? 200 : 160}
                 renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.pct}% · ${sevWithPct.find((s) => s.label === item.label)?.count.toLocaleString() ?? 0} incidents`]} />}
               />
+              </ChartImg>
               <div className="space-y-4 mt-2">
                 {sevWithPct.map((sev) => (
                   <div key={sev.label} className="flex items-center gap-3">
@@ -614,6 +635,7 @@ export default function StatsPage() {
               className="h-48"
             />
           ) : (
+            <ChartImg label="Victims by gender bar chart">
             <SimpleBarChart
               data={genderData.map((d, i) => ({
                 label: d.label,
@@ -628,6 +650,7 @@ export default function StatsPage() {
                 return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} victims`]} />;
               }}
             />
+            </ChartImg>
           )}
         </div>
 
@@ -654,6 +677,7 @@ export default function StatsPage() {
               className="h-48"
             />
           ) : (
+            <ChartImg label="Victims by age bar chart">
             <SimpleBarChart
               data={ageBracketData.map((d) => ({ label: d.label, value: d.count }))}
               height={isMobile ? 240 : 192}
@@ -664,6 +688,7 @@ export default function StatsPage() {
                 return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} victims`]} />;
               }}
             />
+            </ChartImg>
           )}
         </div>
 
@@ -687,6 +712,7 @@ export default function StatsPage() {
               className="h-48"
             />
           ) : (
+            <ChartImg label="At-fault drivers by gender bar chart">
             <SimpleBarChart
               data={atFaultGenderData.map((d, i) => ({
                 label: d.label,
@@ -701,6 +727,7 @@ export default function StatsPage() {
                 return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} drivers`]} />;
               }}
             />
+            </ChartImg>
           )}
         </div>
 
@@ -724,6 +751,7 @@ export default function StatsPage() {
               className="h-48"
             />
           ) : (
+            <ChartImg label="At-fault drivers by age bar chart">
             <SimpleBarChart
               data={atFaultAgeBracketData.map((d) => ({ label: d.label, value: d.count }))}
               height={isMobile ? 240 : 192}
@@ -734,6 +762,7 @@ export default function StatsPage() {
                 return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} drivers`]} />;
               }}
             />
+            </ChartImg>
           )}
         </div>
       </section>

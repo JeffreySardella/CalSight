@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./context/ThemeContext";
 import { LiteModeProvider } from "./context/LiteModeContext";
+import { AccessibilityProvider } from "./context/AccessibilityContext";
 import { queryClient } from "./lib/queryClient";
 import Layout from "./components/Layout";
 
@@ -18,6 +19,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LiteModeProvider>
+          <AccessibilityProvider>
           <BrowserRouter>
           <Suspense fallback={null}>
             <Routes>
@@ -32,6 +34,7 @@ export default function App() {
             </Routes>
           </Suspense>
           </BrowserRouter>
+          </AccessibilityProvider>
         </LiteModeProvider>
       </ThemeProvider>
     </QueryClientProvider>
