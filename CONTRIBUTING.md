@@ -37,7 +37,7 @@ docker compose --profile local-db up
 # Frontend
 cd frontend && npm test
 
-# Backend (requires database connection)
+# Backend (requires Tailscale connection to shared DB on VM 109)
 cd backend && pytest
 
 # Linting
