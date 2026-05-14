@@ -232,7 +232,7 @@ export default function UnifiedSearchBar({
   return (
     <>
       {/* ── Mobile: bottom pill ── */}
-      <div className={`absolute z-10 md:hidden ${mobileExpanded ? "bottom-4 left-4 right-4" : "bottom-4 left-4"}`}>
+      <div className={`absolute z-[45] md:hidden ${mobileExpanded ? "bottom-4 left-4 right-4" : "bottom-28 left-4"}`}>
         {mobileExpanded ? (
           <div ref={containerRef}>
             <div className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest rounded-full shadow-lg ghost-border">
@@ -324,7 +324,7 @@ export default function UnifiedSearchBar({
       </div>
 
       {/* ── Desktop: bottom controls (location + zoom) ── */}
-      <div className="hidden md:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-10 items-center gap-1 p-1 bg-white dark:bg-neutral-800 rounded-full shadow-lg">
+      <div className="hidden md:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-[35] items-center gap-1 p-1 bg-white dark:bg-neutral-800 rounded-full shadow-lg">
         <button
           onClick={onGeolocate}
           disabled={locating}
