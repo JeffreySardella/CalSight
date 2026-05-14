@@ -28,7 +28,7 @@ export default function UnifiedSearchBar({
   const containerRef = useRef<HTMLDivElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
-  const { favorites, addFavorite, removeFavorite } = useFavoriteLocations();
+  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavoriteLocations();
 
   const trimmed = query.trim().toLowerCase();
   const countyMatches = trimmed
@@ -183,16 +183,24 @@ export default function UnifiedSearchBar({
                   className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center"
                   aria-label={`Remove ${item.label} from favorites`}
                 >
-                  <span className="material-symbols-outlined text-[14px] text-on-surface-variant">close</span>
+                  <span className="material-symbols-outlined text-[14px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                 </button>
               ) : item.type === "place" && item.lat != null ? (
-                <button
-                  onClick={(e) => handleSaveFavorite(item, e)}
-                  className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center"
-                  aria-label={`Save ${item.label} to favorites`}
-                >
-                  <span className="material-symbols-outlined text-[14px] text-on-surface-variant">star</span>
-                </button>
+                (() => {
+                  const saved = isFavorite(item.lat!, item.lng!);
+                  return (
+                    <button
+                      onClick={(e) => saved ? handleRemoveFavorite(item, e) : handleSaveFavorite(item, e)}
+                      className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center"
+                      aria-label={saved ? `Remove ${item.label} from favorites` : `Save ${item.label} to favorites`}
+                    >
+                      <span
+                        className={`material-symbols-outlined text-[14px] ${saved ? "text-primary" : "text-on-surface-variant"}`}
+                        style={saved ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                      >star</span>
+                    </button>
+                  );
+                })()
               ) : null}
             </button>
           </div>
