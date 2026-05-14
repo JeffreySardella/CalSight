@@ -28,8 +28,7 @@ Response
 
 Cache
 -----
-``Cache-Control: public, max-age=300`` — matches the pattern used by
-``/api/stats`` and ``/api/demographics``.
+``Cache-Control: public, max-age=3600, stale-while-revalidate=86400``
 """
 
 from __future__ import annotations
