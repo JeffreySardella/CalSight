@@ -90,6 +90,7 @@ function MapPageInner() {
   }, []);
   const [showInsight, setShowInsight] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [focusedCounty, setFocusedCounty] = useState<string | null>(null);
   const [tempMarker, setTempMarker] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
@@ -498,6 +499,7 @@ function MapPageInner() {
           onSelectPlace={handleSelectPlace}
           onGeolocate={handleGeolocate}
           locating={locating}
+          onSearchOpen={setMobileSearchOpen}
         />
 
         <ActiveFiltersBanner
@@ -518,7 +520,7 @@ function MapPageInner() {
           totalCrashes={choroplethData.dataSummary.totalCrashes}
           isLoading={choroplethData.isLoading}
           onClear={handleClearAll}
-          searchOpen={false}
+          searchOpen={mobileSearchOpen}
         />
 
         {!choroplethData.isLoading
@@ -595,7 +597,7 @@ function MapPageInner() {
           heatmapLoading={heatmapEnabled && heatmap.isLoading}
           countyActive={!!focusedCounty}
           countyTotalCrashes={inspectedData?.rawCount ?? null}
-          searchOpen={false}
+          searchOpen={mobileSearchOpen}
           mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
         />
         {otherLayers.heatmapStatewide && !focusedCounty && !choroplethOn && (
@@ -603,7 +605,7 @@ function MapPageInner() {
             totalCrashes={statewideHeatmap.totalCrashes}
             displayed={statewideHeatmap.points.length}
             isLoading={statewideHeatmap.isLoading}
-            searchOpen={false}
+            searchOpen={mobileSearchOpen}
           />
         )}
         {!focusedCounty && showStatewide && randomCard && (
