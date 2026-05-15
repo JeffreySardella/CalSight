@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import EtlRun
+from app.settings import settings
 from etl.jobs import build_default_registry
 from etl.orchestrator import resolve_execution_order
 
@@ -112,7 +113,14 @@ def etl_runs(
     }
 
 
-@router.post("/etl/run")
+def _verify_etl_key(x_etl_api_key: str = Header(None)):
+    if not settings.etl_api_key:
+        raise HTTPException(status_code=503, detail="ETL API key not configured")
+    if not x_etl_api_key or x_etl_api_key != settings.etl_api_key:
+        raise HTTPException(status_code=403, detail="Invalid ETL API key")
+
+
+@router.post("/etl/run", dependencies=[Depends(_verify_etl_key)])
 def trigger_etl_run(
     background_tasks: BackgroundTasks,
     only: Optional[str] = Query(None, description="Comma-separated job names"),

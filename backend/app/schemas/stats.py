@@ -1,6 +1,6 @@
 """Response models for /api/stats — shape varies by group_by."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GrandTotal(BaseModel):
@@ -110,7 +110,7 @@ class RateRow(BaseModel):
 
 
 class BatchStatsRequest(BaseModel):
-    groups: list[str]
+    groups: list[str] = Field(..., max_length=15)
     year: str | None = None
     start: str | None = None
     end: str | None = None

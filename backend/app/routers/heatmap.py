@@ -3,7 +3,9 @@
 import logging
 from enum import Enum
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func, literal_column, or_
 from sqlalchemy.orm import Session
 
@@ -54,8 +56,13 @@ _DECIMALS = {
 }
 
 
+_limiter = Limiter(key_func=get_remote_address)
+
+
 @router.get("/crashes/heatmap", response_model=HeatmapResponse)
+@_limiter.limit("30/minute")
 def crash_heatmap(
+    request: Request,
     response: Response,
     year: str | None = Query(None),
     start: str | None = Query(None),
@@ -78,7 +85,7 @@ def crash_heatmap(
     mismatch_only: str | None = Query(None),
     include_rivers: str | None = Query(None),
     batch: int | None = Query(None, ge=1),
-    batch_size: int | None = Query(None, ge=1000, le=2_000_000),
+    batch_size: int | None = Query(None, ge=1000, le=200_000),
     db: Session = Depends(get_db),
 ):
     """Crash locations for heatmap rendering.
