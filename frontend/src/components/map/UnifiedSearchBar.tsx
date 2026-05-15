@@ -341,7 +341,7 @@ export default function UnifiedSearchBar({
       </div>
 
       {/* ── Desktop: bottom controls (location + zoom) ── */}
-      <div className="hidden md:flex absolute bottom-6 right-4 z-[35] flex-col items-center gap-1 p-1 bg-white dark:bg-neutral-800 rounded-full shadow-lg">
+      <div className="hidden md:flex absolute bottom-6 right-4 z-[35] flex-col items-center gap-1 p-1 bg-surface-container-lowest rounded-full shadow-lg">
         <button
           onClick={onGeolocate}
           disabled={locating}
