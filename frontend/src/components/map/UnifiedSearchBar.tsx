@@ -10,6 +10,7 @@ interface UnifiedSearchBarProps {
   onSelectPlace: (lat: number, lng: number) => void;
   onGeolocate: () => void;
   locating?: boolean;
+  onSearchOpen?: (open: boolean) => void;
 }
 
 const COUNTY_NAMES = (CA_COUNTIES as unknown as string[]).sort();
@@ -20,6 +21,7 @@ export default function UnifiedSearchBar({
   onSelectPlace,
   onGeolocate,
   locating = false,
+  onSearchOpen,
 }: UnifiedSearchBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState("");
@@ -215,7 +217,8 @@ export default function UnifiedSearchBar({
   };
 
   // --- Mobile expanded search ---
-  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileExpanded, _setMobileExpanded] = useState(false);
+  const setMobileExpanded = (v: boolean) => { _setMobileExpanded(v); onSearchOpen?.(v); };
   const [mobileQuery, setMobileQuery] = useState("");
 
   useEffect(() => {
@@ -239,9 +242,30 @@ export default function UnifiedSearchBar({
 
   return (
     <>
-      {/* ── Mobile: bottom pill ── */}
-      <div className={`absolute z-[45] md:hidden ${mobileExpanded ? "bottom-4 left-4 right-4" : "bottom-28 left-4"}`}>
-        {mobileExpanded ? (
+      {/* ── Mobile: top-right buttons (next to filter) ── */}
+      {!mobileExpanded && (
+        <div className="absolute top-3 right-16 z-20 md:hidden flex items-center gap-2">
+          <button
+            onClick={() => setMobileExpanded(true)}
+            className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
+            aria-label="Search"
+          >
+            <span className="material-symbols-outlined text-[20px]">search</span>
+          </button>
+          <button
+            onClick={onGeolocate}
+            disabled={locating}
+            className={`flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface-variant ${locating ? "animate-pulse" : ""}`}
+            aria-label="My location"
+          >
+            <span className="material-symbols-outlined text-[20px]">my_location</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── Mobile: expanded search overlay ── */}
+      {mobileExpanded && (
+        <div className="absolute top-32 left-4 right-4 z-[45] md:hidden">
           <div ref={containerRef}>
             <div className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest rounded-full shadow-lg ghost-border">
               <span className="material-symbols-outlined text-lg text-on-surface-variant">search</span>
@@ -264,25 +288,8 @@ export default function UnifiedSearchBar({
             </div>
             {renderResults(true)}
           </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMobileExpanded(true)}
-              className="flex items-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full shadow-lg transition-colors hover:opacity-90"
-            >
-              <span className="material-symbols-outlined text-lg">search</span>
-              <span className="text-sm font-semibold tracking-tight">Search</span>
-            </button>
-            <button
-              onClick={onGeolocate}
-              disabled={locating}
-              className={`p-3 bg-surface-container-lowest text-on-surface-variant rounded-full shadow-lg transition-colors hover:text-on-surface ${locating ? "animate-pulse" : ""}`}
-            >
-              <span className="material-symbols-outlined text-lg">my_location</span>
-            </button>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Desktop: top center search bar + bottom controls ── */}
       <div
@@ -332,7 +339,7 @@ export default function UnifiedSearchBar({
       </div>
 
       {/* ── Desktop: bottom controls (location + zoom) ── */}
-      <div className="hidden md:flex absolute bottom-8 left-1/2 -translate-x-1/2 z-[35] items-center gap-1 p-1 bg-white dark:bg-neutral-800 rounded-full shadow-lg">
+      <div className="hidden md:flex absolute bottom-6 right-4 z-[35] flex-col items-center gap-1 p-1 bg-white dark:bg-neutral-800 rounded-full shadow-lg">
         <button
           onClick={onGeolocate}
           disabled={locating}
@@ -340,7 +347,7 @@ export default function UnifiedSearchBar({
         >
           <span className="material-symbols-outlined">my_location</span>
         </button>
-        <div className="w-[1px] h-6 bg-outline-variant/30" />
+        <div className="h-[1px] w-6 bg-outline-variant/30" />
         <button
           onClick={() => map?.zoomIn(1, { animate: true })}
           className="p-3 text-on-surface-variant hover:text-on-surface transition-colors"
