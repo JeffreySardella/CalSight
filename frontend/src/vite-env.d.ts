@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 declare module "@fontsource-variable/public-sans";
 declare module "@fontsource-variable/inter";
