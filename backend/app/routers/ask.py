@@ -223,6 +223,16 @@ def _run_with_tools(
         else:
             return choice.message.content or "", provider
 
+    # Final round called tools — send one more LLM call to process results
+    if messages and messages[-1].get("role") == "tool":
+        response, provider = generate_with_fallback(
+            messages=messages,
+            tools=TOOL_DEFINITIONS,
+            tool_choice="none",
+            max_tokens=1200,
+        )
+        return response.choices[0].message.content or "", provider
+
     return response.choices[0].message.content or "", provider
 
 

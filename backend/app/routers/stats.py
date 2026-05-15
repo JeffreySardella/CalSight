@@ -1,6 +1,8 @@
 """Aggregate crash stats, dispatched to the right materialized view."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import Column, Float, Integer, MetaData, SmallInteger, String, Table, func, select
 from sqlalchemy.orm import Session
 
@@ -889,8 +891,13 @@ ALLOWED_GROUPS = {
     "rate", "county",
 }
 
+_limiter = Limiter(key_func=get_remote_address)
+
+
 @router.post("/stats/batch")
+@_limiter.limit("30/minute")
 def stats_batch(
+    request: Request,
     body: BatchStatsRequest,
     response: Response,
     db: Session = Depends(get_db),
