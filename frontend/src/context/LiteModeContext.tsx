@@ -16,7 +16,7 @@ function detectSlowDevice(): boolean {
   if (typeof navigator === "undefined") return false;
   const conn = (navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
   if (conn?.saveData) return true;
-  if (conn?.effectiveType === "2g" || conn?.effectiveType === "slow-2g") return true;
+  if (conn?.effectiveType === "2g" || conn?.effectiveType === "slow-2g" || conn?.effectiveType === "3g") return true;
   if (typeof navigator.hardwareConcurrency === "number" && navigator.hardwareConcurrency <= 2) return true;
   const mem = (navigator as unknown as { deviceMemory?: number }).deviceMemory;
   if (typeof mem === "number" && mem <= 2) return true;

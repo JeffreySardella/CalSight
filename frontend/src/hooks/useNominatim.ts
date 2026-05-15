@@ -16,7 +16,7 @@ export interface NominatimResult {
 }
 
 const CA_VIEWBOX = "-124.5,42.0,-114.1,32.5";
-const DEBOUNCE_MS = 350;
+const DEBOUNCE_MS = 1000;
 
 export function useNominatim(query: string, enabled: boolean) {
   const [results, setResults] = useState<NominatimResult[]>([]);

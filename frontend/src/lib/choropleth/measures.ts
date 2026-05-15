@@ -250,6 +250,7 @@ export function computeMeasureValue(
     if (vals.length === 0) return { value: null, hasEnoughData: false };
     const avgPoverty = vals.reduce((s, d) => s + d.poverty_rate!, 0) / vals.length;
     const avgPop = vals.reduce((s, d) => s + d.population!, 0) / vals.length;
+    if (avgPoverty <= 0 || avgPop <= 0) return { value: null, hasEnoughData: false };
     return { value: (stats.crash_count / avgPoverty / avgPop) * 100_000, hasEnoughData: true };
   }
 

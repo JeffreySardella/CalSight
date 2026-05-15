@@ -91,7 +91,7 @@ def crash_heatmap(
     """Crash locations for heatmap rendering.
 
     Resolution controls output:
-      - raw — individual crash lat/lng (county required, limit 10K)
+      - raw — individual crash lat/lng (county required, limit 150K per batch)
       - low  (0.1 deg, ~7 mi)  — grid-aggregated
       - medium (0.01 deg, ~0.7 mi) — grid-aggregated
       - high (0.001 deg, ~350 ft) — grid-aggregated

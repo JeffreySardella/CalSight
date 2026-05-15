@@ -175,7 +175,7 @@ def build_default_registry() -> JobRegistry:
     registry.register(Job(
         name="matviews",
         module="etl.refresh_materialized_views",
-        depends_on=["backfill", "data_quality"],
+        depends_on=["backfill", "data_quality", "demographics", "licensed_drivers", "vehicles", "road_miles", "aadt"],
         schedule="daily",
     ))
     registry.register(Job(

@@ -90,8 +90,8 @@ export default function StatsPage() {
       };
 
   const severityColorMap: Record<string, string> = isDark
-    ? { "Fatal": "#d4606b", "Injury": "#b0a050", "Property Damage Only": "#6b8fa3" }
-    : { "Fatal": "#991b1b", "Injury": "#6d7e1e", "Property Damage Only": "#4a7a8c" };
+    ? { "Fatal": "#ef4444", "Injury": "#fbbf24", "Property Damage Only": "#9ca3af" }
+    : { "Fatal": "#dc2626", "Injury": "#f59e0b", "Property Damage Only": "#6b7280" };
 
   const causeColor = (label: string) => causeColorMap[label] ?? clrOnSurfaceVariant;
   const severityColor = (label: string) => severityColorMap[label] ?? clrOnSurfaceVariant;
