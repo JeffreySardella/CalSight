@@ -265,9 +265,9 @@ export default function UnifiedSearchBar({
 
       {/* ── Mobile: expanded search overlay ── */}
       {mobileExpanded && (
-        <div className="fixed inset-0 z-[45] bg-surface/95 backdrop-blur-sm md:hidden flex flex-col">
-          <div ref={containerRef} className="flex flex-col h-full">
-            <div className="flex items-center gap-2 px-4 py-3 bg-surface-container-lowest shadow-lg border-b border-outline-variant/15">
+        <div className="absolute top-3 left-4 right-4 z-[45] md:hidden">
+          <div ref={containerRef}>
+            <div className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest rounded-full shadow-lg ghost-border">
               <span className="material-symbols-outlined text-lg text-on-surface-variant">search</span>
               <input
                 ref={mobileInputRef}
@@ -277,7 +277,7 @@ export default function UnifiedSearchBar({
                 onKeyDown={handleKeyDown}
                 placeholder="Search counties, places..."
                 aria-label="Search counties and places"
-                className="flex-1 bg-transparent text-base text-on-surface placeholder:text-on-surface-variant/60 outline-none ring-0 border-none"
+                className="flex-1 bg-transparent text-[16px] text-on-surface placeholder:text-on-surface-variant/60 outline-none ring-0 border-none"
               />
               <button
                 onClick={() => { setMobileExpanded(false); setMobileQuery(""); close(); }}
@@ -286,9 +286,7 @@ export default function UnifiedSearchBar({
                 <span className="material-symbols-outlined text-[18px] text-on-surface-variant">close</span>
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              {renderResults(true)}
-            </div>
+            {renderResults(true)}
           </div>
         </div>
       )}
