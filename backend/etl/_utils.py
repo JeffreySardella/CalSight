@@ -395,7 +395,7 @@ def _check_arcgis_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
         return FreshnessResult(True, None, None, f"freshness check error: {exc}")
 
 
-_ALLOWED_FRESHNESS_TABLES = {"demographics", "county_weather", "bls_unemployment"}
+_ALLOWED_FRESHNESS_TABLES = {"demographics", "county_weather", "unemployment_rates"}
 
 
 def _check_federal_freshness(job: Job, last_run: EtlRun, db_session) -> FreshnessResult:
