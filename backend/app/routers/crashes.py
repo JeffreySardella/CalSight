@@ -2,7 +2,9 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -43,9 +45,13 @@ logger = logging.getLogger(__name__)
 # Future bulk/export endpoints (see #57) should use their own longer budget.
 COUNT_STATEMENT_TIMEOUT_MS = 5000
 
+_limiter = Limiter(key_func=get_remote_address)
+
 
 @router.get("/crashes", response_model=PaginatedResponse[CrashOut])
+@_limiter.limit("60/minute")
 def list_crashes(
+    request: Request,
     response: Response,
     year: str | None = Query(None),
     start: str | None = Query(None),

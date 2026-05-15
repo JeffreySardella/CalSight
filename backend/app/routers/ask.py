@@ -44,6 +44,13 @@ class HistoryMessage(BaseModel):
     role: str
     content: str
 
+    @field_validator("role")
+    @classmethod
+    def restrict_role(cls, v: str) -> str:
+        if v not in ("user", "assistant"):
+            raise ValueError("role must be 'user' or 'assistant'")
+        return v
+
 
 class AskRequest(BaseModel):
     question: str
@@ -206,7 +213,7 @@ def _run_with_tools(
                         result = {"error": f"Unknown tool: {fn_name}"}
                 except Exception as e:
                     logger.warning("Tool %s failed: %s", fn_name, e)
-                    result = {"error": str(e)}
+                    result = {"error": "Tool execution failed. Please try again or rephrase your question."}
 
                 messages.append({
                     "role": "tool",
@@ -215,6 +222,16 @@ def _run_with_tools(
                 })
         else:
             return choice.message.content or "", provider
+
+    # Final round called tools — send one more LLM call to process results
+    if messages and messages[-1].get("role") == "tool":
+        response, provider = generate_with_fallback(
+            messages=messages,
+            tools=TOOL_DEFINITIONS,
+            tool_choice="none",
+            max_tokens=1200,
+        )
+        return response.choices[0].message.content or "", provider
 
     return response.choices[0].message.content or "", provider
 

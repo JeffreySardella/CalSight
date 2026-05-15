@@ -64,7 +64,8 @@ class Settings(BaseSettings):
     bls_api_key: str = ""
 
     # -- App --
-    debug: bool = True
+    debug: bool = False
+    etl_api_key: str = ""
 
     # -- LLM (AI insight card generation) --
     # Supports: groq | openrouter | together | cerebras | ollama

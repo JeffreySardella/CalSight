@@ -277,6 +277,7 @@ export default function UnifiedSearchBar({
                 onKeyDown={handleKeyDown}
                 placeholder="Search counties, places..."
                 aria-label="Search counties and places"
+                maxLength={200}
                 className="flex-1 bg-transparent text-[16px] text-on-surface placeholder:text-on-surface-variant/60 outline-none ring-0 border-none"
               />
               <button
@@ -317,6 +318,7 @@ export default function UnifiedSearchBar({
                 onKeyDown={handleKeyDown}
                 placeholder="Search counties, places, addresses..."
                 aria-label="Search counties, places, and addresses"
+                maxLength={200}
                 className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none border-none"
               />
               {nominatimLoading && (
