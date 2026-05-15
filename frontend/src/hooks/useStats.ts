@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { SEVERITIES, CAUSES, formatYearMonth, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
 
@@ -115,34 +115,12 @@ function normalizeFilters(f: StatsFilters): StatsFilters {
   };
 }
 
-function appendDateRange(p: URLSearchParams, dr: DateRangeFilter | null) {
-  if (!dr) return;
-  if (dr.start) p.set("start", formatYearMonth(dr.start));
-  if (dr.end) p.set("end", formatYearMonth(dr.end));
-}
-
-function buildUrl(groupBy: string, filters: StatsFilters): string {
-  const p = new URLSearchParams();
-  p.set("group_by", groupBy);
-  appendDateRange(p, filters.dateRange);
-  if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
-  if (filters.causes.length) p.set("cause", filters.causes.join(","));
-  if (filters.counties.length) p.set("county", filters.counties.join(","));
-  return `${API_BASE}/api/stats?${p}`;
-}
-
-function buildVictimUrl(groupBy: string, filters: StatsFilters): string {
-  const p = new URLSearchParams();
-  p.set("group_by", groupBy);
-  appendDateRange(p, filters.dateRange);
-  if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
-  if (filters.counties.length) p.set("county", filters.counties.join(","));
-  return `${API_BASE}/api/stats?${p}`;
-}
-
 function buildDemoUrl(filters: StatsFilters): string {
   const p = new URLSearchParams();
-  appendDateRange(p, filters.dateRange);
+  if (filters.dateRange) {
+    if (filters.dateRange.start) p.set("start", formatYearMonth(filters.dateRange.start));
+    if (filters.dateRange.end) p.set("end", formatYearMonth(filters.dateRange.end));
+  }
   if (filters.counties.length) p.set("county", filters.counties.join(","));
   const qs = p.toString();
   return `${API_BASE}/api/demographics${qs ? `?${qs}` : ""}`;
@@ -191,159 +169,104 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     : "";
   const cacheKey = { d: dateKey, s: filters.severities, c: filters.causes, co: filters.counties };
 
-  const queries = useQueries({
-    queries: [
-      {
-        queryKey: ["stats", "year", cacheKey],
-        queryFn: () => fetchJson<YearRow[]>(buildUrl("year", filters)),
-      },
-      {
-        queryKey: ["stats", "hour", cacheKey],
-        queryFn: () => fetchJson<HourRow[]>(buildUrl("hour", filters)),
-      },
-      {
-        queryKey: ["stats", "cause", cacheKey],
-        queryFn: () => fetchJson<CauseRow[]>(buildUrl("cause", filters)),
-      },
-      {
-        queryKey: ["stats", "demographics", { d: dateKey, co: filters.counties }],
-        queryFn: () => fetchJson<DemoRow[]>(buildDemoUrl(filters)),
-      },
-      {
-        queryKey: ["stats", "severity", cacheKey],
-        queryFn: () => fetchJson<SeverityRow[]>(buildUrl("severity", filters)),
-      },
-      {
-        queryKey: ["stats", "gender", { d: dateKey, s: filters.severities, co: filters.counties }],
-        queryFn: () => fetchJson<GenderRow[]>(buildVictimUrl("gender", filters)),
-      },
-      {
-        queryKey: ["stats", "age_bracket", { d: dateKey, s: filters.severities, co: filters.counties }],
-        queryFn: () => fetchJson<AgeBracketRow[]>(buildVictimUrl("age_bracket", filters)),
-      },
-      {
-        queryKey: ["stats", "at_fault_gender", { d: dateKey, s: filters.severities, co: filters.counties }],
-        queryFn: () => fetchJson<AtFaultGenderRow[]>(buildVictimUrl("at_fault_gender", filters)),
-      },
-      {
-        queryKey: ["stats", "at_fault_age_bracket", { d: dateKey, s: filters.severities, co: filters.counties }],
-        queryFn: () => fetchJson<AtFaultAgeBracketRow[]>(buildVictimUrl("at_fault_age_bracket", filters)),
-      },
-      {
-        queryKey: ["stats", "month", cacheKey],
-        queryFn: () => fetchJson<MonthRow[]>(buildUrl("month", filters)),
-      },
-      {
-        queryKey: ["stats", "day_of_week", cacheKey],
-        queryFn: () => fetchJson<DayOfWeekRow[]>(buildUrl("day_of_week", filters)),
-      },
-      {
-        queryKey: ["stats", "rate", { d: dateKey, co: filters.counties, s: filters.severities }],
-        queryFn: () => fetchJson<RateRow[]>(buildUrl("rate", filters)),
-      },
-    ],
+  const batchUrl = `${API_BASE}/api/stats/batch`;
+
+  const batchBody = useMemo(() => {
+    const b: Record<string, string> = {};
+    if (filters.dateRange?.start) b.start = formatYearMonth(filters.dateRange.start);
+    if (filters.dateRange?.end) b.end = formatYearMonth(filters.dateRange.end);
+    if (filters.severities.length) b.severity = filters.severities.map(severityToSlug).join(",");
+    if (filters.causes.length) b.cause = filters.causes.join(",");
+    if (filters.counties.length) b.county = filters.counties.join(",");
+    return b;
+  }, [filters]);
+
+  const BATCH_GROUPS = [
+    "year", "hour", "cause", "severity",
+    "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket",
+    "month", "day_of_week", "rate",
+  ];
+
+  type BatchResponse = Record<string, unknown[]>;
+
+  const batchQuery = useQuery({
+    queryKey: ["stats", "batch", cacheKey],
+    queryFn: async (): Promise<BatchResponse> => {
+      const res = await fetch(batchUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groups: BATCH_GROUPS, ...batchBody }),
+      });
+      if (!res.ok) throw new Error(`stats batch ${res.status}`);
+      return res.json();
+    },
   });
 
-  const [yearQ, hourQ, causeQ, demoQ, severityQ, genderQ, ageQ, atFaultGenderQ, atFaultAgeQ, monthQ, dowQ, rateQ] = queries;
-  const loading = yearQ.isLoading || hourQ.isLoading || causeQ.isLoading;
-  const rawError = yearQ.error ?? hourQ.error ?? causeQ.error;
+  const demoQuery = useQuery({
+    queryKey: ["stats", "demographics", { d: dateKey, co: filters.counties }],
+    queryFn: () => fetchJson<DemoRow[]>(buildDemoUrl(filters)),
+  });
+
+  const loading = batchQuery.isLoading;
+  const rawError = batchQuery.error;
 
   const data = useMemo<StatsData | null>(() => {
-    if (!yearQ.data || !hourQ.data || !causeQ.data) return null;
+    if (!batchQuery.data) return null;
+    const b = batchQuery.data;
 
-    const yearlyData: YearlyDataPoint[] = yearQ.data.map((r) => ({
-      year: r.year,
-      count: r.crash_count,
-      killed: r.total_killed,
-      injured: r.total_injured,
+    const yearlyData: YearlyDataPoint[] = ((b.year ?? []) as YearRow[]).map((r) => ({
+      year: r.year, count: r.crash_count, killed: r.total_killed, injured: r.total_injured,
     }));
-
-    const hourlyData: HourlyDataPoint[] = hourQ.data.map((r) => ({
-      hour: r.hour,
-      count: r.crash_count,
+    const hourlyData: HourlyDataPoint[] = ((b.hour ?? []) as HourRow[]).map((r) => ({
+      hour: r.hour, count: r.crash_count,
     }));
-
-    const causesData: CauseDataPoint[] = causeQ.data.map((r) => ({
-      label: CAUSE_LABEL[r.canonical_cause] ?? r.canonical_cause,
-      count: r.crash_count,
+    const causesData: CauseDataPoint[] = ((b.cause ?? []) as CauseRow[]).map((r) => ({
+      label: CAUSE_LABEL[r.canonical_cause] ?? r.canonical_cause, count: r.crash_count,
     }));
-
-    const severityData: SeverityDataPoint[] = (severityQ.data ?? []).map((r) => ({
-      label: r.severity,
-      count: r.crash_count,
+    const severityData: SeverityDataPoint[] = ((b.severity ?? []) as SeverityRow[]).map((r) => ({
+      label: r.severity, count: r.crash_count,
     }));
-
-    const genderData: GenderDataPoint[] = (genderQ.data ?? [])
+    const genderData: GenderDataPoint[] = ((b.gender ?? []) as GenderRow[])
       .filter((r) => r.gender && r.gender !== "unknown")
-      .map((r) => ({
-        label: r.gender.charAt(0).toUpperCase() + r.gender.slice(1),
-        count: r.victim_count,
-      }));
-
-    const ageBracketData: AgeBracketDataPoint[] = (ageQ.data ?? [])
-      .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket) - AGE_ORDER.indexOf(b.age_bracket))
+      .map((r) => ({ label: r.gender.charAt(0).toUpperCase() + r.gender.slice(1), count: r.victim_count }));
+    const ageBracketData: AgeBracketDataPoint[] = ((b.age_bracket ?? []) as AgeBracketRow[])
+      .sort((a, b2) => AGE_ORDER.indexOf(a.age_bracket) - AGE_ORDER.indexOf(b2.age_bracket))
       .filter((r) => r.age_bracket !== "unknown")
-      .map((r) => ({
-        label: AGE_LABEL[r.age_bracket] ?? r.age_bracket,
-        count: r.victim_count,
-      }));
-
-    const atFaultGenderData: AtFaultGenderDataPoint[] = (atFaultGenderQ.data ?? [])
+      .map((r) => ({ label: AGE_LABEL[r.age_bracket] ?? r.age_bracket, count: r.victim_count }));
+    const atFaultGenderData: AtFaultGenderDataPoint[] = ((b.at_fault_gender ?? []) as AtFaultGenderRow[])
       .filter((r) => r.gender && r.gender !== "unknown")
-      .map((r) => ({
-        label: r.gender.charAt(0).toUpperCase() + r.gender.slice(1),
-        count: r.party_count,
-      }));
-
-    const atFaultAgeBracketData: AtFaultAgeBracketDataPoint[] = (atFaultAgeQ.data ?? [])
-      .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket) - AGE_ORDER.indexOf(b.age_bracket))
+      .map((r) => ({ label: r.gender.charAt(0).toUpperCase() + r.gender.slice(1), count: r.party_count }));
+    const atFaultAgeBracketData: AtFaultAgeBracketDataPoint[] = ((b.at_fault_age_bracket ?? []) as AtFaultAgeBracketRow[])
+      .sort((a, b2) => AGE_ORDER.indexOf(a.age_bracket) - AGE_ORDER.indexOf(b2.age_bracket))
       .filter((r) => r.age_bracket !== "unknown")
-      .map((r) => ({
-        label: AGE_LABEL[r.age_bracket] ?? r.age_bracket,
-        count: r.party_count,
-      }));
-
-    const monthlyData: MonthlyDataPoint[] = (monthQ.data ?? []).map((r) => ({
-      month: r.month,
-      label: MONTH_LABEL[r.month - 1] ?? String(r.month),
-      count: r.crash_count,
-      killed: r.total_killed,
-      injured: r.total_injured,
+      .map((r) => ({ label: AGE_LABEL[r.age_bracket] ?? r.age_bracket, count: r.party_count }));
+    const monthlyData: MonthlyDataPoint[] = ((b.month ?? []) as MonthRow[]).map((r) => ({
+      month: r.month, label: MONTH_LABEL[r.month - 1] ?? String(r.month),
+      count: r.crash_count, killed: r.total_killed, injured: r.total_injured,
+    }));
+    const dayOfWeekData: DayOfWeekDataPoint[] = ((b.day_of_week ?? []) as DayOfWeekRow[]).map((r) => ({
+      day: r.day_of_week, label: DOW_LABEL[r.day_of_week] ?? String(r.day_of_week), count: r.crash_count,
+    }));
+    const rateData: RateDataPoint[] = ((b.rate ?? []) as RateRow[]).map((r) => ({
+      county_code: r.county_code, county_name: r.county_name ?? "Unknown", year: r.year,
+      severity: r.severity, total_crashes: r.total_crashes, total_killed: r.total_killed,
+      total_injured: r.total_injured, per_100k_population: r.per_100k_population,
+      per_10k_licensed_drivers: r.per_10k_licensed_drivers, per_100_road_miles: r.per_100_road_miles,
+      per_100k_aadt: r.per_100k_aadt, per_10k_vehicles: r.per_10k_vehicles,
     }));
 
-    const dayOfWeekData: DayOfWeekDataPoint[] = (dowQ.data ?? []).map((r) => ({
-      day: r.day_of_week,
-      label: DOW_LABEL[r.day_of_week] ?? String(r.day_of_week),
-      count: r.crash_count,
-    }));
-
-    const rateData: RateDataPoint[] = (rateQ.data ?? []).map((r) => ({
-      county_code: r.county_code,
-      county_name: r.county_name ?? "Unknown",
-      year: r.year,
-      severity: r.severity,
-      total_crashes: r.total_crashes,
-      total_killed: r.total_killed,
-      total_injured: r.total_injured,
-      per_100k_population: r.per_100k_population,
-      per_10k_licensed_drivers: r.per_10k_licensed_drivers,
-      per_100_road_miles: r.per_100_road_miles,
-      per_100k_aadt: r.per_100k_aadt,
-      per_10k_vehicles: r.per_10k_vehicles,
-    }));
-
-    const population = demoQ.data
-      ? demoQ.data.reduce((s, r) => s + (r.population ?? 0), 0)
+    const population = demoQuery.data
+      ? demoQuery.data.reduce((s, r) => s + (r.population ?? 0), 0)
       : null;
-    const heroMetrics = computeHeroMetrics(yearQ.data, population);
+    const heroMetrics = computeHeroMetrics((b.year ?? []) as YearRow[], population);
 
     return { hourlyData, yearlyData, causesData, severityData, genderData, ageBracketData, atFaultGenderData, atFaultAgeBracketData, monthlyData, dayOfWeekData, rateData, heroMetrics };
-  }, [yearQ.data, hourQ.data, causeQ.data, demoQ.data, severityQ.data, genderQ.data, ageQ.data, atFaultGenderQ.data, atFaultAgeQ.data, monthQ.data, dowQ.data, rateQ.data]);
+  }, [batchQuery.data, demoQuery.data]);
 
   return {
     data,
     loading,
     error: rawError ? String(rawError) : null,
-    refetch: () => queries.forEach((q) => q.refetch()),
+    refetch: () => { batchQuery.refetch(); demoQuery.refetch(); },
   };
 }

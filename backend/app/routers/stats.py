@@ -28,6 +28,7 @@ from app.schemas.stats import (
     AgeBracketRow,
     AtFaultAgeBracketRow,
     AtFaultGenderRow,
+    BatchStatsRequest,
     CauseRow,
     CountyRow,
     DayOfWeekRow,
@@ -228,80 +229,35 @@ def _apply_filters(stmt, view, years, county_codes, severities, causes):
     return stmt
 
 
-@router.get("/stats")
-def stats(
-    response: Response,
-    year: str | None = Query(None),
-    start: str | None = Query(None),
-    end: str | None = Query(None),
-    county: str | None = Query(None),
-    severity: str | None = Query(None),
-    cause: str | None = Query(None),
-    alcohol: str | None = Query(None),
-    distracted: str | None = Query(None),
-    pedestrian: str | None = Query(None),
-    cyclist: str | None = Query(None),
-    drug: str | None = Query(None),
-    driver_age: str | None = Query(None),
-    weather: str | None = Query(None),
-    lighting: str | None = Query(None),
-    collision_type: str | None = Query(None),
-    road_type: str | None = Query(None),
-    hit_run: str | None = Query(None),
-    group_by: str | None = Query(
-        None,
-        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|rate|weather|lighting|collision_type)$",
-    ),
-    db: Session = Depends(get_db),
-):
-    """Aggregated stats from materialized views.
+def _run_group_query(
+    group_by: str | None,
+    years: list[int] | None,
+    county_codes: list[int] | None,
+    severities: list[str] | None,
+    causes: list[str] | None,
+    db: Session,
+    *,
+    alcohol_v=None,
+    distracted_v=None,
+    pedestrian_v=None,
+    cyclist_v=None,
+    drug_v=None,
+    driver_age_v=None,
+    weather_v=None,
+    lighting_v=None,
+    collision_type_v=None,
+    road_type_v=None,
+    hit_run_v=None,
+) -> list[dict] | dict:
+    """Execute the appropriate query for the given group_by value and filters.
 
-    `group_by` dispatches to one of four views (see `docs/db-schema.md`):
-      - `hour` -> mv_crashes_by_hour (counts only, no killed/injured)
-      - `cause` OR any cause filter -> mv_crashes_by_cause
-      - `gender` / `age_bracket` -> mv_crash_victims_by_demographics
-        (counts VICTIMS, not crashes — see GenderRow docstring)
-      - `at_fault_gender` / `at_fault_age_bracket` ->
-        mv_at_fault_parties_by_demographics (counts AT-FAULT PARTIES —
-        typically drivers — not victims and not crashes)
-      - everything else -> mv_crashes_by_year
-
-    `alcohol` / `distracted` are not supported here (crash views don't carry
-    those columns). Use `/api/crashes` with those filters for drill-down.
-    `cause` filter is incompatible with `group_by=gender|age_bracket|
-    at_fault_gender|at_fault_age_bracket` because the demographic views
-    don't carry canonical_cause.
-
-    `start`/`end` (YYYY-MM) are accepted but rounded outward to year
-    boundaries here, since the underlying materialized views aggregate by
-    year. For month-precise filtering, use `/api/crashes` or
-    `/api/crashes/heatmap`.
+    This contains all query dispatch logic extracted from the stats() endpoint.
     """
-    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
-
-    alcohol_v = parse_bool_flag(alcohol, "alcohol")
-    distracted_v = parse_bool_flag(distracted, "distracted")
-    pedestrian_v = parse_bool_flag(pedestrian, "pedestrian")
-    cyclist_v = parse_bool_flag(cyclist, "cyclist")
-    drug_v = parse_bool_flag(drug, "drug")
-    driver_age_v = parse_driver_age(driver_age)
-    weather_v = parse_weather(weather)
-    lighting_v = parse_lighting(lighting)
-    collision_type_v = parse_collision_type(collision_type)
-    road_type_v = parse_road_type(road_type)
-    hit_run_v = parse_hit_run(hit_run)
-
     has_involvement = any(v is not None for v in [
         alcohol_v, distracted_v, pedestrian_v, cyclist_v, drug_v, driver_age_v,
         weather_v, lighting_v, collision_type_v, road_type_v, hit_run_v,
     ])
     has_condition_group = group_by in ("weather", "lighting", "collision_type")
-
-    date_range = parse_date_range(start, end)
-    years = years_from_date_range(date_range) if date_range is not None else parse_year(year)
-    county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
-    severities = parse_severity(severity)
-    causes = parse_cause(cause)
 
     def _raw_preds():
         return build_crash_predicates(
@@ -840,3 +796,136 @@ def stats(
 
     # Unreachable — pattern validator catches bad values.
     raise HTTPException(status_code=500, detail="Unreachable group_by branch")
+
+
+@router.get("/stats")
+def stats(
+    response: Response,
+    year: str | None = Query(None),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
+    county: str | None = Query(None),
+    severity: str | None = Query(None),
+    cause: str | None = Query(None),
+    alcohol: str | None = Query(None),
+    distracted: str | None = Query(None),
+    pedestrian: str | None = Query(None),
+    cyclist: str | None = Query(None),
+    drug: str | None = Query(None),
+    driver_age: str | None = Query(None),
+    weather: str | None = Query(None),
+    lighting: str | None = Query(None),
+    collision_type: str | None = Query(None),
+    road_type: str | None = Query(None),
+    hit_run: str | None = Query(None),
+    group_by: str | None = Query(
+        None,
+        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|rate|weather|lighting|collision_type)$",
+    ),
+    db: Session = Depends(get_db),
+):
+    """Aggregated stats from materialized views.
+
+    `group_by` dispatches to one of four views (see `docs/db-schema.md`):
+      - `hour` -> mv_crashes_by_hour (counts only, no killed/injured)
+      - `cause` OR any cause filter -> mv_crashes_by_cause
+      - `gender` / `age_bracket` -> mv_crash_victims_by_demographics
+        (counts VICTIMS, not crashes — see GenderRow docstring)
+      - `at_fault_gender` / `at_fault_age_bracket` ->
+        mv_at_fault_parties_by_demographics (counts AT-FAULT PARTIES —
+        typically drivers — not victims and not crashes)
+      - everything else -> mv_crashes_by_year
+
+    `alcohol` / `distracted` are not supported here (crash views don't carry
+    those columns). Use `/api/crashes` with those filters for drill-down.
+    `cause` filter is incompatible with `group_by=gender|age_bracket|
+    at_fault_gender|at_fault_age_bracket` because the demographic views
+    don't carry canonical_cause.
+
+    `start`/`end` (YYYY-MM) are accepted but rounded outward to year
+    boundaries here, since the underlying materialized views aggregate by
+    year. For month-precise filtering, use `/api/crashes` or
+    `/api/crashes/heatmap`.
+    """
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+
+    alcohol_v = parse_bool_flag(alcohol, "alcohol")
+    distracted_v = parse_bool_flag(distracted, "distracted")
+    pedestrian_v = parse_bool_flag(pedestrian, "pedestrian")
+    cyclist_v = parse_bool_flag(cyclist, "cyclist")
+    drug_v = parse_bool_flag(drug, "drug")
+    driver_age_v = parse_driver_age(driver_age)
+    weather_v = parse_weather(weather)
+    lighting_v = parse_lighting(lighting)
+    collision_type_v = parse_collision_type(collision_type)
+    road_type_v = parse_road_type(road_type)
+    hit_run_v = parse_hit_run(hit_run)
+
+    date_range = parse_date_range(start, end)
+    years = years_from_date_range(date_range) if date_range is not None else parse_year(year)
+    county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
+    severities = parse_severity(severity)
+    causes = parse_cause(cause)
+
+    return _run_group_query(
+        group_by, years, county_codes, severities, causes, db,
+        alcohol_v=alcohol_v,
+        distracted_v=distracted_v,
+        pedestrian_v=pedestrian_v,
+        cyclist_v=cyclist_v,
+        drug_v=drug_v,
+        driver_age_v=driver_age_v,
+        weather_v=weather_v,
+        lighting_v=lighting_v,
+        collision_type_v=collision_type_v,
+        road_type_v=road_type_v,
+        hit_run_v=hit_run_v,
+    )
+
+
+ALLOWED_GROUPS = {
+    "year", "hour", "cause", "severity", "month", "day_of_week",
+    "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket",
+    "rate", "county",
+}
+
+@router.post("/stats/batch")
+def stats_batch(
+    body: BatchStatsRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Run multiple group_by queries in one request."""
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+
+    invalid = set(body.groups) - ALLOWED_GROUPS
+    if invalid:
+        raise FilterError("groups", f"Invalid group_by values: {', '.join(sorted(invalid))}")
+
+    date_range = parse_date_range(body.start, body.end)
+    years = years_from_date_range(date_range) if date_range else parse_year(body.year)
+    county_codes = parse_county_codes(body.county, get_slug_map(db)) if body.county else None
+    severities = parse_severity(body.severity)
+    causes = parse_cause(body.cause)
+
+    kwargs = dict(
+        alcohol_v=parse_bool_flag(body.alcohol, "alcohol"),
+        distracted_v=parse_bool_flag(body.distracted, "distracted"),
+        pedestrian_v=parse_bool_flag(body.pedestrian, "pedestrian"),
+        cyclist_v=parse_bool_flag(body.cyclist, "cyclist"),
+        drug_v=parse_bool_flag(body.drug, "drug"),
+        driver_age_v=parse_driver_age(body.driver_age),
+        weather_v=parse_weather(body.weather),
+        lighting_v=parse_lighting(body.lighting),
+        collision_type_v=parse_collision_type(body.collision_type),
+        road_type_v=parse_road_type(body.road_type),
+        hit_run_v=parse_hit_run(body.hit_run),
+    )
+
+    results = {}
+    for group in body.groups:
+        results[group] = _run_group_query(
+            group, years, county_codes, severities, causes, db, **kwargs,
+        )
+
+    return results

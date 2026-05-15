@@ -107,3 +107,24 @@ class RateRow(BaseModel):
     per_100_road_miles: float | None = None
     per_100k_aadt: float | None = None
     per_10k_vehicles: float | None = None
+
+
+class BatchStatsRequest(BaseModel):
+    groups: list[str]
+    year: str | None = None
+    start: str | None = None
+    end: str | None = None
+    county: str | None = None
+    severity: str | None = None
+    cause: str | None = None
+    alcohol: str | None = None
+    distracted: str | None = None
+    pedestrian: str | None = None
+    cyclist: str | None = None
+    drug: str | None = None
+    driver_age: str | None = None
+    weather: str | None = None
+    lighting: str | None = None
+    collision_type: str | None = None
+    road_type: str | None = None
+    hit_run: str | None = None
