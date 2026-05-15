@@ -114,10 +114,10 @@ def build_default_registry() -> JobRegistry:
         name="unemployment",
         module="etl.bls_unemployment",
         schedule="monthly",
-        table_name="bls_unemployment",
+        table_name="unemployment_rates",
         max_drop_pct=10,
         source_type="federal",
-        freshness_table="bls_unemployment",
+        freshness_table="unemployment_rates",
     ))
     registry.register(Job(
         name="calenviroscreen",
