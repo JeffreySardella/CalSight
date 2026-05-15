@@ -1433,10 +1433,85 @@ def run() -> int:
         db.close()
 
 
+def run_all_years() -> int:
+    """Generate cards for ALL counties × ALL years × ALL angles.
+
+    Skips county/year/angle combos that already have a card.
+    58 counties × ~20 years × 28 angles ≈ 32,000 cards.
+    """
+    db = SessionLocal()
+    try:
+        counties: list[County] = db.query(County).order_by(County.name).all()
+        created = 0
+        skipped = 0
+
+        for county in counties:
+            years = db.execute(text("""
+                SELECT crash_year FROM crashes
+                WHERE county_code = :c
+                GROUP BY crash_year HAVING COUNT(*) >= 50
+                ORDER BY crash_year
+            """), {"c": county.code}).all()
+
+            for (year,) in years:
+                data = _query_full(db, county.code, year)
+                if data is None:
+                    continue
+
+                for angle, composer in ANGLES.items():
+                    existing = (
+                        db.query(CountyInsightCard)
+                        .filter_by(county_code=county.code, year=year, angle=angle)
+                        .first()
+                    )
+                    if existing:
+                        skipped += 1
+                        continue
+
+                    narrative = composer(county.name, data)
+                    if not narrative or len(narrative) < 30:
+                        continue
+
+                    stmt = (
+                        pg_insert(CountyInsightCard)
+                        .values(
+                            county_code=county.code,
+                            county_name=county.name,
+                            year=year,
+                            angle=angle,
+                            narrative=narrative,
+                        )
+                        .on_conflict_do_update(
+                            index_elements=["county_code", "year", "angle"],
+                            set_=dict(narrative=narrative),
+                        )
+                    )
+                    db.execute(stmt)
+                    created += 1
+
+                db.commit()
+
+            logger.info("%s — all years done", county.name)
+
+        logger.info(
+            "County cards (all years): %d created, %d skipped (existing)",
+            created, skipped,
+        )
+        return created
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
+    import sys
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s — %(message)s",
     )
-    total = run()
+    mode = sys.argv[1] if len(sys.argv) > 1 else "latest"
+    if mode == "all":
+        total = run_all_years()
+    else:
+        total = run()
     print(f"\nDone — {total} cards generated.")
