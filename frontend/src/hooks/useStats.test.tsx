@@ -43,7 +43,7 @@ const DEMO_ROWS = [
 ];
 
 function mockFetch() {
-  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
     if (url.includes("/api/stats/batch")) {
       return new Response(JSON.stringify({
