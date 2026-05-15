@@ -43,16 +43,22 @@ const DEMO_ROWS = [
 ];
 
 function mockFetch() {
-  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
-    if (url.includes("group_by=year")) {
-      return new Response(JSON.stringify(YEAR_ROWS));
-    }
-    if (url.includes("group_by=hour")) {
-      return new Response(JSON.stringify(HOUR_ROWS));
-    }
-    if (url.includes("group_by=cause")) {
-      return new Response(JSON.stringify(CAUSE_ROWS));
+    if (url.includes("/api/stats/batch")) {
+      return new Response(JSON.stringify({
+        year: YEAR_ROWS,
+        hour: HOUR_ROWS,
+        cause: CAUSE_ROWS,
+        severity: [],
+        gender: [],
+        age_bracket: [],
+        at_fault_gender: [],
+        at_fault_age_bracket: [],
+        month: [],
+        day_of_week: [],
+        rate: [],
+      }));
     }
     if (url.includes("/api/demographics")) {
       return new Response(JSON.stringify(DEMO_ROWS));
@@ -66,52 +72,52 @@ describe("useStats", () => {
     vi.restoreAllMocks();
   });
 
-  it("fires 3 parallel fetches with correct group_by and filter params", async () => {
+  it("fires batch POST + demographics GET", async () => {
     const spy = mockFetch();
-    const { result } = renderHook(() => useStats(FILTERS), {
-      wrapper: makeWrapper(),
-    });
+    const { result } = renderHook(() => useStats(FILTERS), { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(spy).toHaveBeenCalledTimes(12);
-    const urls = spy.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => u.includes("group_by=year") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=hour") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=cause") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
-    expect(urls.some((u) => u.includes("/api/demographics") && u.includes("start=2022-01") && u.includes("end=2023-12"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=severity"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=gender"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=age_bracket"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=at_fault_gender"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=at_fault_age_bracket"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=month"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=day_of_week"))).toBe(true);
-    expect(urls.some((u) => u.includes("group_by=rate"))).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(2);
+    const batchCall = spy.mock.calls.find(c => String(c[0]).includes("/api/stats/batch"));
+    expect(batchCall).toBeDefined();
+    const body = JSON.parse((batchCall![1] as RequestInit).body as string);
+    expect(body.groups).toContain("year");
+    expect(body.groups).toContain("hour");
+    expect(body.groups).toContain("cause");
+    expect(body.start).toBe("2022-01");
+    expect(body.end).toBe("2023-12");
   });
 
   it("maps at-fault demographic responses to chart data points", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
-      if (url.includes("group_by=at_fault_gender")) {
-        return new Response(JSON.stringify([
-          { gender: "M", party_count: 7000, fatal_party_count: 200 },
-          { gender: "F", party_count: 3000, fatal_party_count: 80 },
-          { gender: "U", party_count: 100, fatal_party_count: 1 },
-        ]));
+      if (url.includes("/api/stats/batch")) {
+        return new Response(JSON.stringify({
+          year: YEAR_ROWS,
+          hour: HOUR_ROWS,
+          cause: CAUSE_ROWS,
+          severity: [],
+          gender: [],
+          age_bracket: [],
+          at_fault_gender: [
+            { gender: "M", party_count: 7000, fatal_party_count: 200 },
+            { gender: "F", party_count: 3000, fatal_party_count: 80 },
+            { gender: "U", party_count: 100, fatal_party_count: 1 },
+          ],
+          at_fault_age_bracket: [
+            { age_bracket: "25_44", party_count: 5000, fatal_party_count: 100 },
+            { age_bracket: "18_24", party_count: 2500, fatal_party_count: 60 },
+            { age_bracket: "45_64", party_count: 2000, fatal_party_count: 40 },
+            { age_bracket: "over_65", party_count: 800, fatal_party_count: 30 },
+            { age_bracket: "under_18", party_count: 200, fatal_party_count: 5 },
+            { age_bracket: "unknown", party_count: 50, fatal_party_count: 0 },
+          ],
+          month: [],
+          day_of_week: [],
+          rate: [],
+        }));
       }
-      if (url.includes("group_by=at_fault_age_bracket")) {
-        return new Response(JSON.stringify([
-          { age_bracket: "25_44", party_count: 5000, fatal_party_count: 100 },
-          { age_bracket: "18_24", party_count: 2500, fatal_party_count: 60 },
-          { age_bracket: "45_64", party_count: 2000, fatal_party_count: 40 },
-          { age_bracket: "over_65", party_count: 800, fatal_party_count: 30 },
-          { age_bracket: "under_18", party_count: 200, fatal_party_count: 5 },
-          { age_bracket: "unknown", party_count: 50, fatal_party_count: 0 },
-        ]));
-      }
-      if (url.includes("group_by=year")) return new Response(JSON.stringify(YEAR_ROWS));
-      if (url.includes("group_by=hour")) return new Response(JSON.stringify(HOUR_ROWS));
-      if (url.includes("group_by=cause")) return new Response(JSON.stringify(CAUSE_ROWS));
+      if (url.includes("/api/demographics")) return new Response(JSON.stringify(DEMO_ROWS));
       return new Response(JSON.stringify([]));
     });
 
@@ -174,15 +180,26 @@ describe("useStats", () => {
     const currentYear = new Date().getFullYear();
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
-      if (url.includes("group_by=year")) {
-        return new Response(JSON.stringify([
-          { year: currentYear - 2, crash_count: 400_000, total_killed: 3800, total_injured: 120_000 },
-          { year: currentYear - 1, crash_count: 420_000, total_killed: 3600, total_injured: 125_000 },
-          { year: currentYear, crash_count: 5_000, total_killed: 50, total_injured: 2_000 },
-        ]));
+      if (url.includes("/api/stats/batch")) {
+        return new Response(JSON.stringify({
+          year: [
+            { year: currentYear - 2, crash_count: 400_000, total_killed: 3800, total_injured: 120_000 },
+            { year: currentYear - 1, crash_count: 420_000, total_killed: 3600, total_injured: 125_000 },
+            { year: currentYear, crash_count: 5_000, total_killed: 50, total_injured: 2_000 },
+          ],
+          hour: HOUR_ROWS,
+          cause: CAUSE_ROWS,
+          severity: [],
+          gender: [],
+          age_bracket: [],
+          at_fault_gender: [],
+          at_fault_age_bracket: [],
+          month: [],
+          day_of_week: [],
+          rate: [],
+        }));
       }
-      if (url.includes("group_by=hour")) return new Response(JSON.stringify(HOUR_ROWS));
-      if (url.includes("group_by=cause")) return new Response(JSON.stringify(CAUSE_ROWS));
+      if (url.includes("/api/demographics")) return new Response(JSON.stringify(DEMO_ROWS));
       return new Response(JSON.stringify([]));
     });
     const { result } = renderHook(() => useStats(FILTERS), { wrapper: makeWrapper() });
