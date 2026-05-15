@@ -93,6 +93,7 @@ const L = {
   geoJSON: vi.fn(() => geoJSONLayerMock),
   tooltip: vi.fn(() => tooltipMock),
   latLngBounds: vi.fn(() => createBoundsMock()),
+  Icon: { Default: { mergeOptions: vi.fn() } },
   DomUtil: { create: vi.fn(), remove: vi.fn() },
   DomEvent: { disableClickPropagation: vi.fn(), disableScrollPropagation: vi.fn() },
 };
