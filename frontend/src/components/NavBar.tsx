@@ -31,7 +31,7 @@ export default function NavBar() {
             Beta
           </span>
         </NavLink>
-        <nav aria-label="Main navigation" className="hidden md:flex gap-6 items-center">
+        <nav aria-label="Main navigation" className="hidden lg:flex gap-6 items-center">
           {navLinks.map((link) => (
             <NavLink
               key={link.to}

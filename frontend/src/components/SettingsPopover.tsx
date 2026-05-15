@@ -50,9 +50,12 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
 
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
+    const isMobileSheet = window.innerWidth < 768;
+    if (isMobileSheet) document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
+      if (isMobileSheet) document.body.style.overflow = "";
     };
   }, [onClose]);
 

@@ -187,7 +187,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#6b7280" }} />
-            <span className="text-[10px] text-on-surface-variant font-semibold">PDO</span>
+            <span className="text-[10px] text-on-surface-variant font-semibold" title="Property Damage Only">PDO</span>
           </div>
           {mismatchCount != null && mismatchCount > 0 && (
             <div className="flex items-center gap-1.5">

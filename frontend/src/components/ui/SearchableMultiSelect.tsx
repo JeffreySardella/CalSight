@@ -89,7 +89,7 @@ export default function SearchableMultiSelect({
           onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
           aria-label={placeholder}
-          className="w-full bg-surface-container-high border-none rounded-lg py-3 pl-10 pr-4 text-sm text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20"
+          className="w-full bg-surface-container-high border-none rounded-lg py-3 pl-10 pr-4 text-base md:text-sm text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20"
         />
       </div>
 

@@ -39,6 +39,14 @@ export default function MobileFilterSheet({
     if (isOpen) setActiveTab("filters");
   }, [isOpen]);
 
+  // Lock body scroll when sheet is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const currentTab = tabs.find((t) => t.key === activeTab) ?? tabs[0];
