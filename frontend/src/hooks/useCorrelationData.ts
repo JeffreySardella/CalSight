@@ -45,7 +45,7 @@ function pearsonR(xs: number[], ys: number[]): number {
   return den === 0 ? 0 : num / den;
 }
 
-type CountyRow = Record<string, number | undefined>;
+export type CountyRow = Record<string, number | string | undefined>;
 
 export function useCorrelationData() {
   return useQuery({
@@ -151,9 +151,19 @@ export function useCorrelationData() {
         }
       }
 
-      const counties = Object.values(byCounty).filter(
-        (c) => c.crash_count != null && c.crash_count > 0,
-      );
+      const countyNames: Record<string, string> = {};
+      for (const r of countyStats) {
+        const code = String((r as Record<string, unknown>).county_code ?? "");
+        const name = String((r as Record<string, unknown>).county_name ?? code);
+        if (code) countyNames[code] = name;
+      }
+
+      const counties: CountyRow[] = Object.entries(byCounty)
+        .filter(([, c]) => c.crash_count != null && Number(c.crash_count) > 0)
+        .map(([code, c]) => {
+          const row: CountyRow = { ...c, _name: countyNames[code] ?? code };
+          return row;
+        });
 
       const fields = CORRELATION_FIELDS;
       const matrix: number[][] = [];
@@ -165,9 +175,9 @@ export function useCorrelationData() {
           const xs: number[] = [];
           const ys: number[] = [];
           for (const c of counties) {
-            const x = c[fields[i].key];
-            const y = c[fields[j].key];
-            if (x != null && y != null && isFinite(x) && isFinite(y)) {
+            const x = Number(c[fields[i].key]);
+            const y = Number(c[fields[j].key]);
+            if (!isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y)) {
               xs.push(x);
               ys.push(y);
             }
@@ -176,7 +186,7 @@ export function useCorrelationData() {
         }
       }
 
-      return { fields, matrix, countyCount: counties.length };
+      return { fields, matrix, countyCount: counties.length, counties };
     },
     staleTime: 5 * 60 * 1000,
   });

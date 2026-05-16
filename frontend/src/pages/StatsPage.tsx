@@ -267,6 +267,7 @@ export default function StatsPage() {
             fields={correlation.data.fields}
             matrix={correlation.data.matrix}
             countyCount={correlation.data.countyCount}
+            counties={correlation.data.counties}
           />
         ) : null}
       </section>
