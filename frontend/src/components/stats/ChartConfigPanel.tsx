@@ -8,12 +8,15 @@ interface Props {
   onCancel: () => void;
 }
 
-const CHART_TYPES: { value: ChartType; label: string; icon: string }[] = [
-  { value: "bar", label: "Bar", icon: "bar_chart" },
-  { value: "hbar", label: "H-Bar", icon: "bar_chart" },
-  { value: "line", label: "Line", icon: "show_chart" },
-  { value: "area", label: "Area", icon: "show_chart" },
-  { value: "donut", label: "Donut", icon: "donut_large" },
+const CHART_TYPES: { value: ChartType; label: string }[] = [
+  { value: "bar", label: "Bar" },
+  { value: "hbar", label: "H-Bar" },
+  { value: "line", label: "Line" },
+  { value: "area", label: "Area" },
+  { value: "donut", label: "Donut" },
+  { value: "treemap", label: "Treemap" },
+  { value: "gauge", label: "Gauge" },
+  { value: "stat", label: "Stat" },
 ];
 
 const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
@@ -68,20 +71,19 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
 
       <div>
         <div className="text-xs font-medium text-on-surface-variant mb-1">Chart Type</div>
-        <div role="radiogroup" aria-label="Chart type" className="flex gap-1 rounded-full bg-surface-container-high p-0.5">
+        <div role="radiogroup" aria-label="Chart type" className="grid grid-cols-4 gap-1 bg-surface-container-high rounded-xl p-1">
           {CHART_TYPES.map((ct) => (
             <button
               key={ct.value}
               role="radio"
               aria-checked={chartType === ct.value}
               onClick={() => setChartType(ct.value)}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              className={`px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
                 chartType === ct.value
                   ? "bg-primary text-on-primary"
                   : "text-on-surface-variant hover:text-on-surface"
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">{ct.icon}</span>
               {ct.label}
             </button>
           ))}

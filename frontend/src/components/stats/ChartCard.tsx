@@ -2,6 +2,9 @@ import React from "react";
 import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
 import SimpleLineChart from "../charts/SimpleLineChart";
+import SimpleTreemap from "../charts/SimpleTreemap";
+import SimpleGauge from "../charts/SimpleGauge";
+import StatCard from "../charts/StatCard";
 import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
@@ -132,6 +135,19 @@ function ChartCard({
           showDots={slot.chartType === "line"}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
         />
+      ) : slot.chartType === "treemap" ? (
+        <SimpleTreemap
+          data={data.map((d) => ({ ...d, color: d.color }))}
+          height={220}
+          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+        />
+      ) : slot.chartType === "gauge" ? (
+        <SimpleGauge
+          data={data.map((d) => ({ ...d, color: d.color }))}
+          height={180}
+        />
+      ) : slot.chartType === "stat" ? (
+        <StatCard data={data} height={192} />
       ) : slot.chartType === "hbar" ? (
         <SimpleBarChart
           data={data}
