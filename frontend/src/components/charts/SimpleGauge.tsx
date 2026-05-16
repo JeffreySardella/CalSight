@@ -44,7 +44,7 @@ export default function SimpleGauge({ data, height = 180 }: SimpleGaugeProps) {
     const rr = r - trackW / 2;
     return {
       d: `M ${x1} ${y1} A ${rr} ${rr} 0 ${large} 1 ${x2} ${y2}`,
-      color: d.color ?? COLORS[i % COLORS.length],
+      color: d.color ?? COLORS[i % COLORS.length] ?? "#6b7280",
       label: d.label,
       pct: Math.round(pct * 100),
       value: d.value,

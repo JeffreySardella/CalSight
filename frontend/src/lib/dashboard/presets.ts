@@ -67,9 +67,10 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     icon: "local_hospital",
     description: "Injury patterns — when, where, and who gets hurt",
     slots: [
-      { dimension: "hour", measure: "injured", chartType: "bar", order: 0 },
-      { dimension: "month", measure: "injured", chartType: "bar", order: 1 },
-      { dimension: "county", measure: "injured", chartType: "hbar", order: 2 },
+      { dimension: "month", measure: "injured", chartType: "bar", order: 0 },
+      { dimension: "cause", measure: "injured", chartType: "hbar", order: 1 },
+      { dimension: "year", measure: "injured", chartType: "area", order: 2 },
+      { dimension: "county", measure: "injured", chartType: "hbar", order: 3 },
     ],
   },
 };

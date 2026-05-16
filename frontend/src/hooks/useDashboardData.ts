@@ -35,19 +35,21 @@ function severityToSlug(s: string): string {
 }
 
 function pickValue(r: Record<string, unknown>, measure: Measure, dim: Dimension): number {
-  switch (measure) {
-    case "killed":
-      if (dim === "gender" || dim === "age_bracket") return (r.fatal_victim_count as number) ?? 0;
-      if (dim === "at_fault_gender" || dim === "at_fault_age_bracket") return (r.fatal_party_count as number) ?? 0;
-      return (r.total_killed as number) ?? 0;
-    case "injured":
-      return (r.total_injured as number) ?? 0;
-    case "count":
-    default:
-      if (dim === "gender" || dim === "age_bracket") return (r.victim_count as number) ?? 0;
-      if (dim === "at_fault_gender" || dim === "at_fault_age_bracket") return (r.party_count as number) ?? 0;
-      return (r.crash_count as number) ?? 0;
+  const isDemographic = dim === "gender" || dim === "age_bracket";
+  const isAtFault = dim === "at_fault_gender" || dim === "at_fault_age_bracket";
+
+  if (measure === "killed") {
+    if (isDemographic) return (r.fatal_victim_count as number) ?? 0;
+    if (isAtFault) return (r.fatal_party_count as number) ?? 0;
+    if (r.total_killed != null) return r.total_killed as number;
   }
+  if (measure === "injured") {
+    if (r.total_injured != null) return r.total_injured as number;
+  }
+
+  if (isDemographic) return (r.victim_count as number) ?? 0;
+  if (isAtFault) return (r.party_count as number) ?? 0;
+  return (r.crash_count as number) ?? 0;
 }
 
 function transformRows(dimension: Dimension, measure: Measure, rows: Record<string, unknown>[]): ChartDataItem[] {
