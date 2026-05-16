@@ -54,18 +54,18 @@ export default function AnomalyPanel({ anomalies }: Props) {
 
       <div className="space-y-2">
         {displayed.map((a) => (
-          <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg border ${SEVERITY_BG[a.severity]}`}>
-            <span className={`material-symbols-outlined text-[16px] mt-0.5 flex-shrink-0 ${SEVERITY_COLOR[a.severity]}`} aria-hidden="true">
+          <div key={a.id} className={`flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border ${SEVERITY_BG[a.severity]}`}>
+            <span className={`material-symbols-outlined text-[14px] sm:text-[16px] mt-0.5 flex-shrink-0 ${SEVERITY_COLOR[a.severity]}`} aria-hidden="true">
               {SEVERITY_ICON[a.severity]}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-on-surface leading-relaxed">{a.message}</p>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="text-[10px] text-on-surface-variant font-medium">{METHOD_LABEL[a.method]}</span>
-                <span className="text-[10px] text-on-surface-variant">{a.confidence}% confidence</span>
+              <p className="text-[11px] sm:text-xs font-medium text-on-surface leading-relaxed">{a.message}</p>
+              <div className="flex items-center gap-2 sm:gap-3 mt-0.5 sm:mt-1">
+                <span className="text-[9px] sm:text-[10px] text-on-surface-variant font-medium">{METHOD_LABEL[a.method]}</span>
+                <span className="text-[9px] sm:text-[10px] text-on-surface-variant">{a.confidence}%</span>
               </div>
             </div>
-            <div className="flex-shrink-0 w-12">
+            <div className="flex-shrink-0 w-10 sm:w-12 mt-1">
               <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
                 <div className={`h-full rounded-full ${a.severity === "critical" ? "bg-error" : a.severity === "high" ? "bg-tertiary" : "bg-primary"}`} style={{ width: `${a.confidence}%` }} />
               </div>

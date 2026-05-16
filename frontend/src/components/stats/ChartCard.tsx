@@ -165,7 +165,7 @@ function ChartCard({
           </button>
           <button
             onClick={handleExportPng}
-            className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="hidden sm:flex p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={`Download ${title} as PNG`}
             title="Download PNG"
           >
@@ -175,7 +175,7 @@ function ChartCard({
           </button>
           <button
             onClick={handleExportCsv}
-            className="px-1.5 py-1 rounded-full hover:bg-surface-container-high text-on-surface-variant text-[11px] font-bold leading-none opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="hidden sm:flex px-1.5 py-1 rounded-full hover:bg-surface-container-high text-on-surface-variant text-[11px] font-bold leading-none sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={`Download ${title} as CSV`}
             title="Download CSV"
           >
