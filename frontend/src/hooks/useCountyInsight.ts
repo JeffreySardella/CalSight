@@ -15,6 +15,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import { slugify } from "./useFilterParams";
 
 export interface CountyInsightData {
   county_name: string;
@@ -31,10 +32,6 @@ export interface CountyInsightData {
   /** LLM-generated narrative blurb. null when ETL hasn't run or LLM failed. */
   narrative: string | null;
   generated_at: string | null;
-}
-
-function slugify(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, "-");
 }
 
 async function fetchInsight(

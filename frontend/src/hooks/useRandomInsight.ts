@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import { slugify } from "./useFilterParams";
 
 export interface RandomInsightCard {
   narrative: string;
@@ -10,10 +11,6 @@ export interface RandomInsightCard {
   total_crashes?: number | null;
   total_killed?: number | null;
   total_injured?: number | null;
-}
-
-function slugify(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, "-");
 }
 
 async function fetchRandom(

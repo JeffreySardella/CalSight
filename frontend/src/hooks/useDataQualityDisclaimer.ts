@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { YEARS, yearsInRange, type DateRangeFilter } from "./useFilterParams";
+import { YEARS, yearsInRange, slugify, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
 
 type QualityRow = {
@@ -28,10 +28,6 @@ export type DataQualityDisclaimers = {
   /** gender_pct < 70% for the current scope. */
   showGenderWarning: boolean;
 };
-
-function slugify(name: string) {
-  return name.toLowerCase().replace(/ /g, "-");
-}
 
 export function useDataQualityDisclaimer(
   dateRange: DateRangeFilter | null,
