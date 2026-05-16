@@ -11,10 +11,13 @@ interface Props {
 const CHART_TYPES: { value: ChartType; label: string }[] = [
   { value: "bar", label: "Bar" },
   { value: "hbar", label: "H-Bar" },
+  { value: "lollipop", label: "Lollipop" },
   { value: "line", label: "Line" },
   { value: "area", label: "Area" },
   { value: "donut", label: "Donut" },
   { value: "treemap", label: "Treemap" },
+  { value: "polar", label: "Polar" },
+  { value: "radar", label: "Radar" },
   { value: "gauge", label: "Gauge" },
   { value: "stat", label: "Stat" },
 ];
@@ -71,7 +74,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
 
       <div>
         <div className="text-xs font-medium text-on-surface-variant mb-1">Chart Type</div>
-        <div role="radiogroup" aria-label="Chart type" className="grid grid-cols-4 gap-1 bg-surface-container-high rounded-xl p-1">
+        <div role="radiogroup" aria-label="Chart type" className="grid grid-cols-4 gap-1 bg-surface-container-high rounded-xl p-1 [&>*:nth-last-child(-n+3):nth-child(4n+1)]:col-span-1">
           {CHART_TYPES.map((ct) => (
             <button
               key={ct.value}

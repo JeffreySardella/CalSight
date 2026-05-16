@@ -5,6 +5,9 @@ import SimpleLineChart from "../charts/SimpleLineChart";
 import SimpleTreemap from "../charts/SimpleTreemap";
 import SimpleGauge from "../charts/SimpleGauge";
 import StatCard from "../charts/StatCard";
+import SimplePolarArea from "../charts/SimplePolarArea";
+import SimpleLollipop from "../charts/SimpleLollipop";
+import SimpleRadar from "../charts/SimpleRadar";
 import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
@@ -135,10 +138,28 @@ function ChartCard({
           showDots={slot.chartType === "line"}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
         />
+      ) : slot.chartType === "polar" ? (
+        <SimplePolarArea
+          data={data.map((d) => ({ ...d, color: d.color }))}
+          height={220}
+          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+        />
+      ) : slot.chartType === "lollipop" ? (
+        <SimpleLollipop
+          data={data}
+          height={Math.max(192, data.length * 28)}
+          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+        />
+      ) : slot.chartType === "radar" ? (
+        <SimpleRadar
+          data={data}
+          height={220}
+          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+        />
       ) : slot.chartType === "treemap" ? (
         <SimpleTreemap
           data={data.map((d) => ({ ...d, color: d.color }))}
-          height={220}
+          height={260}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
         />
       ) : slot.chartType === "gauge" ? (

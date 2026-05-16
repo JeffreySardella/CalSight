@@ -36,8 +36,8 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     slots: [
       { dimension: "gender", measure: "count", chartType: "bar", order: 0 },
       { dimension: "age_bracket", measure: "count", chartType: "bar", order: 1 },
-      { dimension: "at_fault_gender", measure: "count", chartType: "bar", order: 2 },
-      { dimension: "at_fault_age_bracket", measure: "count", chartType: "bar", order: 3 },
+      { dimension: "at_fault_gender", measure: "count", chartType: "polar", order: 2 },
+      { dimension: "at_fault_age_bracket", measure: "count", chartType: "lollipop", order: 3 },
     ],
   },
   rates: {
@@ -58,7 +58,7 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     slots: [
       { dimension: "hour", measure: "count", chartType: "bar", order: 0 },
       { dimension: "severity", measure: "count", chartType: "donut", order: 1 },
-      { dimension: "at_fault_age_bracket", measure: "count", chartType: "bar", order: 2 },
+      { dimension: "at_fault_age_bracket", measure: "count", chartType: "radar", order: 2 },
       { dimension: "day_of_week", measure: "count", chartType: "bar", order: 3 },
     ],
   },

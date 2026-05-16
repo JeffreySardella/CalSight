@@ -106,7 +106,7 @@ export default function SimpleTreemap({
         {rects.map((r, i) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
           const color = r.item.color ?? COLORS[i % COLORS.length] ?? defaultColor;
-          const showLabel = r.w > 50 && r.h > 32;
+          const showLabel = r.w > 44 && r.h > 28;
           return (
             <g key={r.item.label}>
               <rect

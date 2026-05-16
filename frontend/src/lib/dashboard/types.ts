@@ -13,7 +13,7 @@ export const MEASURES = [
 
 export type Measure = (typeof MEASURES)[number];
 
-export type ChartType = "bar" | "hbar" | "line" | "area" | "donut" | "treemap" | "gauge" | "stat";
+export type ChartType = "bar" | "hbar" | "line" | "area" | "donut" | "treemap" | "gauge" | "stat" | "polar" | "lollipop" | "radar";
 
 export type ChartSlot = {
   id: string;
