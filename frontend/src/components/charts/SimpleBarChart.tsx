@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { mean as calcMean } from "../../lib/dashboard/stats";
+import { useChartAnimation } from "../../hooks/useChartAnimation";
 
 interface BarItem {
   label: string;
@@ -40,6 +41,7 @@ export default function SimpleBarChart({
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const [svgWidth, setSvgWidth] = useState(300);
   const titleId = useId();
+  const { progress } = useChartAnimation(svgRef);
 
   useEffect(() => {
     const el = svgRef.current;
@@ -137,6 +139,12 @@ export default function SimpleBarChart({
                 height={Math.max(barH, 0)}
                 rx={radius}
                 fill={d.color ?? defaultColor}
+                opacity={hover !== null && hover.idx !== i ? 0.6 : 1}
+                style={{
+                  transformOrigin: `${barX + barW / 2}px ${padding.top + chartH}px`,
+                  transform: `scaleY(${progress})`,
+                  transition: "opacity 0.15s ease",
+                }}
                 onMouseMove={(e) => handleMouseMove(e, i)}
                 onMouseLeave={() => setHover(null)}
                 className="cursor-pointer"

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { useChartAnimation } from "../../hooks/useChartAnimation";
 
 interface Segment {
   label: string;
@@ -39,6 +40,7 @@ export default function SimpleDonutChart({
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const titleId = useId();
+  const { progress } = useChartAnimation(svgRef);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
     const svg = svgRef.current;
@@ -102,17 +104,29 @@ export default function SimpleDonutChart({
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
       <svg ref={svgRef} width={vw} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
         {title && <title id={titleId}>{title}</title>}
-        {segments.map((seg, i) => (
-          <path
-            key={seg.item.label}
-            d={seg.path}
-            fill={seg.color}
-            onMouseMove={(e) => handleMouseMove(e, i)}
-            onMouseLeave={() => setHover(null)}
-            className="cursor-pointer transition-opacity"
-            opacity={hover !== null && hover.idx !== i ? 0.5 : 1}
-          />
-        ))}
+        {segments.map((seg, i) => {
+          const isHovered = hover?.idx === i;
+          const pushDist = isHovered ? 4 : 0;
+          const pushRad = ((seg.midAngle - 90) * Math.PI) / 180;
+          const tx = pushDist * Math.cos(pushRad);
+          const ty = pushDist * Math.sin(pushRad);
+          return (
+            <path
+              key={seg.item.label}
+              d={seg.path}
+              fill={seg.color}
+              onMouseMove={(e) => handleMouseMove(e, i)}
+              onMouseLeave={() => setHover(null)}
+              className="cursor-pointer"
+              style={{
+                transform: `translate(${tx}px, ${ty}px) scale(${progress})`,
+                transformOrigin: `${cx}px ${cy}px`,
+                opacity: progress * (hover !== null && !isHovered ? 0.5 : 1),
+                transition: "transform 0.2s ease, opacity 0.15s ease",
+              }}
+            />
+          );
+        })}
       </svg>
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && renderTooltip?.(withPct[hover.idx], hover.idx)}

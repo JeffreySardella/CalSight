@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { linearRegression, mean as calcMean, stddev as calcStddev } from "../../lib/dashboard/stats";
+import { useChartAnimation } from "../../hooks/useChartAnimation";
 
 interface LinePoint {
   label: string;
@@ -46,6 +47,7 @@ export default function SimpleLineChart({
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const [svgWidth, setSvgWidth] = useState(400);
   const titleId = useId();
+  const { progress } = useChartAnimation(svgRef);
 
   useEffect(() => {
     const el = svgRef.current;
@@ -85,6 +87,10 @@ export default function SimpleLineChart({
     ? points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
     : "";
 
+  const pathLength = points.length >= 2
+    ? points.reduce((len, p, i) => i === 0 ? 0 : len + Math.sqrt((p.x - points[i - 1].x) ** 2 + (p.y - points[i - 1].y) ** 2), 0)
+    : 0;
+
   const interval = n > 12 ? Math.ceil(n / 6) : 1;
 
   return (
@@ -107,16 +113,28 @@ export default function SimpleLineChart({
           <path
             d={`${pathD} L ${points[points.length - 1].x} ${padding.top + chartH} L ${points[0].x} ${padding.top + chartH} Z`}
             fill={color}
-            fillOpacity={0.2}
+            fillOpacity={0.2 * progress}
             stroke="none"
           />
         )}
-        {pathD && <path d={pathD} fill="none" stroke={color} strokeWidth={2} />}
+        {pathD && (
+          <path
+            d={pathD}
+            fill="none"
+            stroke={color}
+            strokeWidth={2}
+            strokeDasharray={pathLength || undefined}
+            strokeDashoffset={pathLength * (1 - progress)}
+          />
+        )}
 
-        {points.map((p, i) => (
+        {points.map((p, i) => {
+          const dotProgress = n > 1 ? Math.max(0, Math.min(1, (progress * n - i))) : progress;
+          return (
           <g key={i}>
             {showDots && (
-              <circle cx={p.x} cy={p.y} r={3} fill={color} stroke="rgb(var(--surface))" strokeWidth={1.5} />
+              <circle cx={p.x} cy={p.y} r={hover?.idx === i ? 5 : 3} fill={color} stroke="rgb(var(--surface))" strokeWidth={1.5}
+                style={{ opacity: dotProgress, transform: `scale(${dotProgress})`, transformOrigin: `${p.x}px ${p.y}px`, transition: "r 0.15s ease" }} />
             )}
             <rect
               x={p.x - (n >= 2 ? chartW / n / 2 : 20)}
@@ -141,7 +159,8 @@ export default function SimpleLineChart({
               </text>
             )}
           </g>
-        ))}
+        );
+        })}
 
         {showMeanLine && (() => {
           const m = calcMean(data.map(d => d.value));

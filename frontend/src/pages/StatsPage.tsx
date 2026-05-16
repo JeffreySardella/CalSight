@@ -21,6 +21,8 @@ import NlqQueryBar from "../components/stats/NlqQueryBar";
 import MetaTags, { buildOgImageUrl } from "../components/seo/MetaTags";
 import { buildDatasetSchema, buildBreadcrumbSchema } from "../components/seo/JsonLd";
 import SharePanel, { buildShareUrl } from "../components/seo/SharePanel";
+import AnomalyPanel from "../components/stats/AnomalyPanel";
+import { detectAllAnomalies } from "../lib/dashboard/anomaly";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -40,6 +42,10 @@ export default function StatsPage() {
   const { data, loading, error } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
   const { dataBySlot, loading: dashLoading, error: dashError } = useDashboardData(dashboard.activeCharts, statsFilters);
+  const anomalyResult = useMemo(() => {
+    if (dashLoading || Object.keys(dataBySlot).length === 0) return { byChart: {}, all: [] };
+    return detectAllAnomalies(dataBySlot, dashboard.activeCharts);
+  }, [dataBySlot, dashboard.activeCharts, dashLoading]);
   const correlation = useCorrelationData();
   const dateRange  = filters.selectedDateRange;
   const severities = filters.selectedSeverities;
@@ -160,7 +166,10 @@ export default function StatsPage() {
     "@graph": [
       buildDatasetSchema({
         counties: counties.size > 0 ? [...counties] : undefined,
-        dateRange: dateRange ? { start: dateRange.start, end: dateRange.end } : undefined,
+        dateRange: dateRange ? {
+          start: dateRange.start ? `${dateRange.start.year}-${String(dateRange.start.month).padStart(2, "0")}` : undefined,
+          end: dateRange.end ? `${dateRange.end.year}-${String(dateRange.end.month).padStart(2, "0")}` : undefined,
+        } : undefined,
       }),
       buildBreadcrumbSchema([
         { name: "Home", path: "/" },
@@ -312,6 +321,10 @@ export default function StatsPage() {
 
       {/* Auto-generated Insight Banner */}
       <InsightBanner heroMetrics={heroMetrics} loading={loading} />
+
+      {!dashLoading && anomalyResult.all.length > 0 && (
+        <AnomalyPanel anomalies={anomalyResult.all} />
+      )}
 
       {/* Dashboard Builder */}
       <section className="space-y-4">
