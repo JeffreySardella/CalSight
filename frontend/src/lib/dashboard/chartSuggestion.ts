@@ -30,17 +30,17 @@ const RELEVANCE_BOOST = {
 
 const CHART_TYPE_ICONS: Record<ChartType, string> = {
   bar: "bar_chart",
-  hbar: "align_horizontal_left",
+  hbar: "bar_chart",
   line: "show_chart",
-  area: "area_chart",
+  area: "show_chart",
   donut: "donut_large",
-  treemap: "grid_view",
+  treemap: "donut_large",
   gauge: "speed",
-  stat: "tag",
-  polar: "radar",
-  lollipop: "candlestick_chart",
-  radar: "radar",
-  scatter: "scatter_plot",
+  stat: "insights",
+  polar: "donut_large",
+  lollipop: "bar_chart",
+  radar: "donut_large",
+  scatter: "show_chart",
 };
 
 /**
