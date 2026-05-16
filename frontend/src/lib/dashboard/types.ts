@@ -19,6 +19,8 @@ export type ChartType = "bar" | "hbar" | "line" | "area" | "donut" | "treemap" |
 export type ChartOptions = {
   trendLine?: boolean;
   meanLine?: boolean;
+  stdBand?: boolean;
+  outliers?: boolean;
   logScale?: boolean;
   cumulative?: boolean;
   movingAvg?: number;

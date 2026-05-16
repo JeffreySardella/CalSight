@@ -137,8 +137,10 @@ function ChartCard({
           height={192}
           showArea={slot.chartType === "area"}
           showDots={slot.chartType === "line"}
-          showTrendLine={slot.options?.trendLine ?? data.length >= 6}
-          showMeanLine={slot.options?.meanLine ?? data.length >= 6}
+          showTrendLine={slot.options?.trendLine ?? data.length >= 8}
+          showMeanLine={slot.options?.meanLine ?? false}
+          showStdBand={data.length >= 6}
+          showOutliers={data.length >= 6}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
         />
       ) : slot.chartType === "scatter" ? (

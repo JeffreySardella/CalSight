@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ChartTooltip from "./ChartTooltip";
-import { linearRegression, mean as calcMean } from "../../lib/dashboard/stats";
+import { linearRegression, mean as calcMean, stddev as calcStddev } from "../../lib/dashboard/stats";
 
 interface LinePoint {
   label: string;
@@ -16,6 +16,8 @@ interface SimpleLineChartProps {
   showArea?: boolean;
   showTrendLine?: boolean;
   showMeanLine?: boolean;
+  showStdBand?: boolean;
+  showOutliers?: boolean;
   renderTooltip?: (item: LinePoint, idx: number) => React.ReactNode;
 }
 
@@ -34,6 +36,8 @@ export default function SimpleLineChart({
   showArea = false,
   showTrendLine = false,
   showMeanLine = false,
+  showStdBand = false,
+  showOutliers = false,
   renderTooltip,
 }: SimpleLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -144,6 +148,43 @@ export default function SimpleLineChart({
               <text x={padding.left + chartW + 4} y={yM + 3} fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
             </g>
           );
+        })()}
+
+        {showStdBand && points.length >= 3 && (() => {
+          const vals = data.map(d => d.value);
+          const m = calcMean(vals);
+          const sd = calcStddev(vals);
+          const yUpper = padding.top + chartH - (Math.min(m + sd, maxVal) / maxVal) * chartH;
+          const yLower = padding.top + chartH - (Math.max(m - sd, 0) / maxVal) * chartH;
+          return (
+            <rect
+              x={padding.left}
+              y={yUpper}
+              width={chartW}
+              height={yLower - yUpper}
+              fill="rgb(var(--primary))"
+              fillOpacity={0.08}
+              rx={4}
+            />
+          );
+        })()}
+
+        {showOutliers && points.length >= 4 && (() => {
+          const vals = data.map(d => d.value);
+          const m = calcMean(vals);
+          const sd = calcStddev(vals);
+          return points.map((p, i) => {
+            const z = sd > 0 ? Math.abs((data[i].value - m) / sd) : 0;
+            if (z < 2) return null;
+            return (
+              <g key={`outlier-${i}`}>
+                <circle cx={p.x} cy={p.y} r={8} fill="none" stroke="rgb(var(--error))" strokeWidth={1.5} strokeDasharray="3 2" />
+                <text x={p.x} y={p.y - 12} textAnchor="middle" fontSize={8} fontWeight={700} fill="rgb(var(--error))" fontFamily="'Inter Variable', Inter, sans-serif">
+                  {z.toFixed(1)}σ
+                </text>
+              </g>
+            );
+          });
         })()}
 
         {showTrendLine && points.length >= 2 && (() => {

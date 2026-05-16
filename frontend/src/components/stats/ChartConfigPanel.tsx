@@ -45,6 +45,8 @@ const SUPPORTS_MEAN = new Set<ChartType>(["bar", "line", "area"]);
 const SUPPORTS_LOG = new Set<ChartType>(["bar", "hbar", "lollipop"]);
 const SUPPORTS_CUMULATIVE = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_MA = new Set<ChartType>(["line", "area"]);
+const SUPPORTS_STD = new Set<ChartType>(["line", "area"]);
+const SUPPORTS_OUTLIERS = new Set<ChartType>(["line", "area", "bar"]);
 
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
   const [dimension, setDimension] = useState<Dimension>(initial?.dimension ?? "hour");
@@ -62,7 +64,8 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
   }
 
   const hasOptions = SUPPORTS_TREND.has(chartType) || SUPPORTS_MEAN.has(chartType) ||
-    SUPPORTS_LOG.has(chartType) || SUPPORTS_CUMULATIVE.has(chartType) || SUPPORTS_MA.has(chartType);
+    SUPPORTS_LOG.has(chartType) || SUPPORTS_CUMULATIVE.has(chartType) || SUPPORTS_MA.has(chartType) ||
+    SUPPORTS_STD.has(chartType) || SUPPORTS_OUTLIERS.has(chartType);
 
   return (
     <div className="bg-surface-container-lowest rounded-2xl p-4 ambient-shadow space-y-4">
@@ -161,6 +164,26 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
                 }`}
               >
                 Cumulative
+              </button>
+            )}
+            {SUPPORTS_STD.has(chartType) && (
+              <button
+                onClick={() => toggle("stdBand")}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                  options.stdBand ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                ±1σ Band
+              </button>
+            )}
+            {SUPPORTS_OUTLIERS.has(chartType) && (
+              <button
+                onClick={() => toggle("outliers")}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                  options.outliers ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                Outliers
               </button>
             )}
             {SUPPORTS_MA.has(chartType) && (
