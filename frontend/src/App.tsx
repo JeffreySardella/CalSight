@@ -22,7 +22,7 @@ export default function App() {
         <LiteModeProvider>
           <AccessibilityProvider>
           <BrowserRouter>
-          <Suspense fallback={null}>
+          <Suspense fallback={<div className="flex items-center justify-center h-dvh"><span className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
             <Routes>
               <Route element={<Layout />}>
                 <Route index element={<MapPage />} />
