@@ -107,6 +107,7 @@ function ChartDataTable({ data, title, isScatter, valueLabel }: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-7 pr-2 py-1 text-[12px] rounded-lg bg-surface-container border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary"
+            aria-label="Filter table rows"
           />
         </div>
         <button
@@ -121,6 +122,7 @@ function ChartDataTable({ data, title, isScatter, valueLabel }: Props) {
 
       <div className="overflow-y-auto max-h-[300px] rounded-lg border border-outline-variant/30">
         <table className="w-full">
+          <caption className="sr-only">{title} data table</caption>
           <thead className="sticky top-0 bg-surface-container z-10">
             <tr>
               <th className={thClass} onClick={() => handleSort("label")}>

@@ -81,6 +81,8 @@ export default function NlqQueryBar({ onAddChart }: Props) {
           aria-label="Natural language chart query"
           aria-autocomplete="list"
           aria-expanded={showSuggestions}
+          aria-controls="nlq-suggestions-listbox"
+          aria-activedescendant={selectedIdx >= 0 ? `nlq-option-${selectedIdx}` : undefined}
         />
         {resolved && (
           <button
@@ -107,12 +109,14 @@ export default function NlqQueryBar({ onAddChart }: Props) {
 
       {showSuggestions && filteredSuggestions.length > 0 && (
         <ul
+          id="nlq-suggestions-listbox"
           role="listbox"
           className="absolute top-full left-0 right-0 mt-1 bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant/10 py-1 z-50 max-h-52 overflow-y-auto"
         >
           {filteredSuggestions.map((s, i) => (
             <li
               key={s}
+              id={`nlq-option-${i}`}
               role="option"
               aria-selected={i === selectedIdx}
               className={`px-4 py-2 text-sm cursor-pointer transition-colors ${

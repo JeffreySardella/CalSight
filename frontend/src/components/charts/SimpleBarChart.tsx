@@ -31,7 +31,7 @@ interface SimpleBarChartProps {
 export default function SimpleBarChart({
   data,
   height = 192,
-  defaultColor = "rgb(var(--primary-container))",
+  defaultColor = "rgb(var(--primary))",
   gap = 0.15,
   radius = 2,
   renderTooltip,

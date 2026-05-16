@@ -291,7 +291,7 @@ export default function StatsPage() {
   }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
 
   return (
-    <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative print-main">
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative print-main">
       <PrintHeader filters={printFilters} />
       <MetaTags
         title={`Statistics Dashboard — CalSight`}
@@ -353,7 +353,7 @@ export default function StatsPage() {
       </section>
 
       {/* Hero Metrics Row */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <section aria-label="Key metrics summary" className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Total Incidents */}
         <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
           <div className="flex items-start justify-between mb-4">
@@ -721,6 +721,6 @@ export default function StatsPage() {
           },
         ]}
       />
-    </main>
+    </div>
   );
 }

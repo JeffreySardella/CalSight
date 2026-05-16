@@ -106,7 +106,7 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2" role="list">
       {data.map((d) => (
         <div key={d.label} className="flex items-center gap-1.5 text-[10px]" role="listitem">
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color ?? "rgb(var(--primary-container))" }} aria-hidden="true" />
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color ?? "rgb(var(--primary))" }} aria-hidden="true" />
           <span className="text-on-surface-variant">
             {d.label} {total > 0 ? `${Math.round((d.value / total) * 100)}%` : ""}
           </span>
@@ -222,7 +222,7 @@ function ChartCard({
         <div className="flex flex-wrap items-center gap-0.5">
           <button
             onClick={handleExplainChart}
-            className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity flex items-center justify-center"
             aria-label={`Explain ${title}`}
             title="Explain this chart"
           >
@@ -232,7 +232,7 @@ function ChartCard({
           </button>
           <button
             onClick={handleExportPng}
-            className="hidden sm:flex p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="hidden sm:flex min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity items-center justify-center"
             aria-label={`Download ${title} as PNG`}
             title="Download PNG"
           >
@@ -242,7 +242,7 @@ function ChartCard({
           </button>
           <button
             onClick={handleExportCsv}
-            className="hidden sm:flex px-1.5 py-1 rounded-full hover:bg-surface-container-high text-on-surface-variant text-[11px] font-bold leading-none sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="hidden sm:flex min-h-[44px] min-w-[44px] px-1.5 py-1 rounded-full hover:bg-surface-container-high text-on-surface-variant text-[11px] font-bold leading-none sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity items-center justify-center"
             aria-label={`Download ${title} as CSV`}
             title="Download CSV"
           >
@@ -250,7 +250,7 @@ function ChartCard({
           </button>
           <button
             onClick={() => setShowTable((v) => !v)}
-            className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant"
+            className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center"
             aria-label={showTable ? "Show chart" : "View data"}
             title={showTable ? "Show chart" : "View data"}
           >
@@ -261,19 +261,19 @@ function ChartCard({
           {editing && (
             <>
               {!isFirst && (
-                <button onClick={onMoveUp} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Move ${title} up`}>
+                <button onClick={onMoveUp} className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center" aria-label={`Move ${title} up`}>
                   <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back_ios</span>
                 </button>
               )}
               {!isLast && (
-                <button onClick={onMoveDown} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Move ${title} down`}>
+                <button onClick={onMoveDown} className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center" aria-label={`Move ${title} down`}>
                   <span className="material-symbols-outlined text-[18px] rotate-180" aria-hidden="true">arrow_back_ios</span>
                 </button>
               )}
-              <button onClick={onEdit} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Edit ${title}`}>
+              <button onClick={onEdit} className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center" aria-label={`Edit ${title}`}>
                 <span className="material-symbols-outlined text-[18px]" aria-hidden="true">tune</span>
               </button>
-              <button onClick={onRemove} className="p-2.5 rounded-full hover:bg-surface-container-high text-error" aria-label={`Remove ${title}`}>
+              <button onClick={onRemove} className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-error flex items-center justify-center" aria-label={`Remove ${title}`}>
                 <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
               </button>
             </>
@@ -290,7 +290,7 @@ function ChartCard({
       ) : slot.chartType === "donut" ? (
         <>
           <SimpleDonutChart
-            data={data.map((d) => ({ label: d.label, value: d.value, color: d.color ?? "rgb(var(--primary-container))" }))}
+            data={data.map((d) => ({ label: d.label, value: d.value, color: d.color ?? "rgb(var(--primary))" }))}
             height={140}
             renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
             title={title}

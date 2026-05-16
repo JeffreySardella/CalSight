@@ -73,7 +73,7 @@ function squarify(items: { label: string; value: number; color?: string }[], w: 
 export default function SimpleTreemap({
   data,
   height = 220,
-  defaultColor = "rgb(var(--primary-container))",
+  defaultColor = "rgb(var(--primary))",
   renderTooltip,
   title,
 }: SimpleTreemapProps) {

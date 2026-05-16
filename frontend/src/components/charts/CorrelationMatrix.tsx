@@ -208,7 +208,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
                 } {matrix[selected.i][selected.j] >= 0 ? "positive" : "negative"} correlation
               </p>
             </div>
-            <button onClick={() => setSelected(null)} className="p-1 rounded-full hover:bg-surface-container-high text-on-surface-variant">
+            <button onClick={() => setSelected(null)} className="p-1 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label="Close scatter plot detail">
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
             </button>
           </div>

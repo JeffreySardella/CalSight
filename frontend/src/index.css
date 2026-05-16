@@ -994,6 +994,15 @@ body.print-mode * {
   color: #1a1a1a !important;
 }
 
+/* ── Windows High Contrast mode ── */
+@media (forced-colors: active) {
+  svg[role="img"] rect, svg[role="img"] path, svg[role="img"] circle, svg[role="img"] polygon {
+    forced-color-adjust: none;
+  }
+  .ambient-shadow { border: 1px solid ButtonText !important; box-shadow: none !important; }
+  :focus-visible { outline: 2px solid Highlight !important; outline-offset: 2px; }
+}
+
 /* ── Reduced-motion: disable chart animations ── */
 @media (prefers-reduced-motion: reduce), print {
   .chart-card-enter {
