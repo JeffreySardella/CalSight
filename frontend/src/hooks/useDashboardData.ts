@@ -181,7 +181,14 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
     for (const chart of charts) {
       const key = `${chart.dimension}:${chart.measure}`;
       if (!result[key]) {
-        result[key] = transformRows(chart.dimension, chart.measure, raw[chart.dimension] ?? []);
+        let items = transformRows(chart.dimension, chart.measure, raw[chart.dimension] ?? []);
+        if (chart.measure === "percentage") {
+          const total = items.reduce((s, d) => s + d.value, 0);
+          items = total > 0
+            ? items.map((d) => ({ ...d, value: Math.round((d.value / total) * 1000) / 10 }))
+            : items;
+        }
+        result[key] = items;
       }
     }
     return result;
