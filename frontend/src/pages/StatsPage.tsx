@@ -22,7 +22,11 @@ import MetaTags, { buildOgImageUrl } from "../components/seo/MetaTags";
 import { buildDatasetSchema, buildBreadcrumbSchema } from "../components/seo/JsonLd";
 import SharePanel, { buildShareUrl } from "../components/seo/SharePanel";
 import AnomalyPanel from "../components/stats/AnomalyPanel";
+import NarrativePanel from "../components/stats/NarrativePanel";
+import SuggestedCharts from "../components/stats/SuggestedCharts";
 import { detectAllAnomalies } from "../lib/dashboard/anomaly";
+import { useNarrativeInsights } from "../hooks/useNarrativeInsights";
+import { useChartSuggestions } from "../hooks/useChartSuggestions";
 import PrintHeader from "../components/stats/PrintHeader";
 import PrintFooter from "../components/stats/PrintFooter";
 import Sparkline from "../components/charts/Sparkline";
@@ -44,11 +48,25 @@ export default function StatsPage() {
   }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted]);
   const { data, loading, error } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
-  const { dataBySlot, loading: dashLoading, error: dashError } = useDashboardData(dashboard.activeCharts, statsFilters);
+  const { dataBySlot, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboardData(dashboard.activeCharts, statsFilters);
   const anomalyResult = useMemo(() => {
     if (dashLoading || Object.keys(dataBySlot).length === 0) return { byChart: {}, all: [] };
     return detectAllAnomalies(dataBySlot, dashboard.activeCharts);
   }, [dataBySlot, dashboard.activeCharts, dashLoading]);
+  const { narrative, getChartNarrative, tone, setTone } = useNarrativeInsights({
+    dataBySlot,
+    charts: dashboard.activeCharts,
+    anomalies: anomalyResult.all,
+    filters: statsFilters,
+    enabled: !dashLoading,
+  });
+  const suggestions = useChartSuggestions({
+    activeCharts: dashboard.activeCharts,
+    dataBySlot,
+    filters: statsFilters,
+    anomalies: anomalyResult.all,
+    enabled: !dashLoading,
+  });
   const correlation = useCorrelationData();
   const dateRange  = filters.selectedDateRange;
   const severities = filters.selectedSeverities;
@@ -378,6 +396,20 @@ export default function StatsPage() {
         <AnomalyPanel anomalies={anomalyResult.all} />
       )}
 
+      {narrative && (
+        <NarrativePanel narrative={narrative} tone={tone} onToneChange={setTone} />
+      )}
+
+      {!dashLoading && suggestions.length > 0 && (
+        <SuggestedCharts
+          suggestions={suggestions}
+          onAdd={(cfg) => {
+            if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
+            dashboard.addChart(cfg);
+          }}
+        />
+      )}
+
       {/* Dashboard Builder */}
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -424,32 +456,34 @@ export default function StatsPage() {
           <PresetPicker active={dashboard.config.preset} onSelect={dashboard.setPreset} />
         )}
         {dashError && (
-          <p role="alert" className="text-error text-sm flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>
-            Failed to load chart data. Try adjusting your filters.
-          </p>
-        )}
-        {dashLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {Array.from({ length: dashboard.activeCharts.length || 4 }).map((_, i) => (
-              <div key={i} className="bg-surface-container-lowest rounded-2xl p-4 ambient-shadow">
-                <Skeleton className="h-48 rounded-lg" />
-              </div>
-            ))}
+          <div role="alert" className="flex items-center gap-3 bg-error-container/30 rounded-lg px-4 py-3">
+            <span className="material-symbols-outlined text-[20px] text-error" aria-hidden="true">cloud_off</span>
+            <div className="flex-1">
+              <p className="text-error text-sm font-semibold">Unable to load chart data</p>
+              <p className="text-on-surface-variant text-xs mt-0.5">The server may be temporarily unavailable. You can retry or adjust your filters.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => dashRefetch()}
+              className="px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-bold hover:opacity-90 transition-opacity"
+            >
+              Retry
+            </button>
           </div>
-        ) : (
-          <DashboardGrid
-            charts={dashboard.activeCharts}
-            dataBySlot={dataBySlot}
-            mode={dashboard.config.mode}
-            onAddChart={dashboard.addChart}
-            onRemoveChart={dashboard.removeChart}
-            onUpdateChart={dashboard.updateChart}
-            onMoveChart={dashboard.moveChart}
-            onReorderChart={dashboard.reorderChart}
-            closeConfigTrigger={closeConfigTrigger}
-          />
         )}
+        <DashboardGrid
+          charts={dashboard.activeCharts}
+          dataBySlot={dataBySlot}
+          mode={dashboard.config.mode}
+          loading={dashLoading}
+          onAddChart={dashboard.addChart}
+          onRemoveChart={dashboard.removeChart}
+          onUpdateChart={dashboard.updateChart}
+          onMoveChart={dashboard.moveChart}
+          onReorderChart={dashboard.reorderChart}
+          closeConfigTrigger={closeConfigTrigger}
+          getChartNarrative={getChartNarrative}
+        />
       </section>
 
       {/* Vehicle Trends */}

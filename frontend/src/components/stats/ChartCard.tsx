@@ -13,6 +13,9 @@ import SimpleLollipop from "../charts/SimpleLollipop";
 import SimpleRadar from "../charts/SimpleRadar";
 import SimpleScatter from "../charts/SimpleScatter";
 import ChartDataTable from "./ChartDataTable";
+import ChartSkeleton from "../charts/ChartSkeleton";
+import ChartNarrative from "./ChartNarrative";
+import type { ChartNarrativeResult } from "../../hooks/useNarrativeInsights";
 import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
@@ -27,6 +30,7 @@ interface Props {
   data: ChartDataItem[];
   secondaryData?: ChartDataItem[];
   editing: boolean;
+  loading?: boolean;
   onEdit?: () => void;
   onRemove?: () => void;
   onMoveUp?: () => void;
@@ -35,6 +39,7 @@ interface Props {
   isLast?: boolean;
   enterDelay?: number;
   dragHandleProps?: DragHandleProps | null;
+  narrativeResult?: ChartNarrativeResult | null;
 }
 
 function buildTitle(slot: ChartSlot): string {
@@ -106,7 +111,7 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
 }
 
 function ChartCard({
-  slot, data, secondaryData, editing, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay, dragHandleProps,
+  slot, data, secondaryData, editing, loading, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay, dragHandleProps, narrativeResult,
 }: Props) {
   const [showTable, setShowTable] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -249,7 +254,9 @@ function ChartCard({
         </div>
       </div>
 
-      {!hasData ? (
+      {loading ? (
+        <ChartSkeleton type={slot.chartType} />
+      ) : !hasData ? (
         <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">No data</div>
       ) : showTable ? (
         <ChartDataTable data={data} title={title} isScatter={isScatter} valueLabel={valueLabel} />
@@ -372,6 +379,8 @@ function ChartCard({
           title={title}
         />
       )}
+
+      {narrativeResult && <ChartNarrative narrative={narrativeResult} />}
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import type { ChartSlot, Dimension, Measure, ChartType } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
+import type { ChartNarrativeResult } from "../../hooks/useNarrativeInsights";
 import { useDragReorder } from "../../hooks/useDragReorder";
+import { ErrorBoundary } from "../ui/ErrorBoundary";
 import ChartCard from "./ChartCard";
 import AddChartCard from "./AddChartCard";
 import ChartConfigPanel from "./ChartConfigPanel";
@@ -29,6 +31,7 @@ interface Props {
   charts: ChartSlot[];
   dataBySlot: Record<string, ChartDataItem[]>;
   mode: "simple" | "advanced";
+  loading?: boolean;
   onAddChart: (config: ChartConfig) => void;
   onRemoveChart: (id: string) => void;
   onUpdateChart: (id: string, updates: Partial<ChartConfig>) => void;
@@ -36,10 +39,12 @@ interface Props {
   onReorderChart?: (fromIndex: number, toIndex: number) => void;
   /** Increment to close any open config panel (used by keyboard shortcut) */
   closeConfigTrigger?: number;
+  /** Get narrative insight for a chart slot (from useNarrativeInsights) */
+  getChartNarrative?: (slotId: string) => ChartNarrativeResult | null;
 }
 
 export default function DashboardGrid({
-  charts, dataBySlot, mode, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, onReorderChart, closeConfigTrigger,
+  charts, dataBySlot, mode, loading, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, onReorderChart, closeConfigTrigger, getChartNarrative,
 }: Props) {
   const [configOpen, setConfigOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -132,20 +137,24 @@ export default function DashboardGrid({
               {dragState.isDragging && dragState.overIndex === idx && dragState.dragId !== slot.id && (
                 <DragDropIndicator position="before" />
               )}
-              <ChartCard
-                slot={slot}
-                data={dataBySlot[slotKey(slot)] ?? []}
-                secondaryData={secondarySlotKey(slot) ? dataBySlot[secondarySlotKey(slot)!] : undefined}
-                editing={isAdvanced}
-                onEdit={() => setEditingId(slot.id)}
-                onRemove={() => onRemoveChart(slot.id)}
-                onMoveUp={() => onMoveChart(slot.id, "up")}
-                onMoveDown={() => onMoveChart(slot.id, "down")}
-                isFirst={idx === 0}
-                isLast={idx === charts.length - 1}
-                enterDelay={idx * 40}
-                dragHandleProps={handleProps}
-              />
+              <ErrorBoundary>
+                <ChartCard
+                  slot={slot}
+                  data={dataBySlot[slotKey(slot)] ?? []}
+                  secondaryData={secondarySlotKey(slot) ? dataBySlot[secondarySlotKey(slot)!] : undefined}
+                  editing={isAdvanced}
+                  loading={loading}
+                  onEdit={() => setEditingId(slot.id)}
+                  onRemove={() => onRemoveChart(slot.id)}
+                  onMoveUp={() => onMoveChart(slot.id, "up")}
+                  onMoveDown={() => onMoveChart(slot.id, "down")}
+                  isFirst={idx === 0}
+                  isLast={idx === charts.length - 1}
+                  enterDelay={idx * 40}
+                  dragHandleProps={handleProps}
+                  narrativeResult={getChartNarrative?.(slot.id) ?? null}
+                />
+              </ErrorBoundary>
               {dragState.isDragging && dragState.overIndex === idx + 1 && idx === charts.length - 1 && dragState.dragId !== slot.id && (
                 <DragDropIndicator position="after" />
               )}

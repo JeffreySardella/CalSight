@@ -236,5 +236,6 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
     dataBySlot,
     loading: query.isLoading,
     error: query.error ? String(query.error) : null,
+    refetch: query.refetch,
   };
 }
