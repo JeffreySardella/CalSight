@@ -217,7 +217,7 @@ function ChartCard({
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
             </span>
           )}
-          <h3 className="text-sm font-headline font-bold text-on-surface truncate">{title}</h3>
+          <h3 className="text-sm font-headline font-bold text-on-surface leading-tight">{title}</h3>
         </div>
         <div className="flex flex-wrap items-center gap-0.5">
           <button
@@ -250,31 +250,31 @@ function ChartCard({
           </button>
           <button
             onClick={() => setShowTable((v) => !v)}
-            className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={showTable ? "Show chart" : "View data"}
             title={showTable ? "Show chart" : "View data"}
           >
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
               {showTable ? "bar_chart" : "table_chart"}
             </span>
           </button>
           {editing && (
             <>
               {!isFirst && (
-                <button onClick={onMoveUp} className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center" aria-label={`Move ${title} up`}>
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back_ios</span>
+                <button onClick={onMoveUp} className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Move ${title} up`}>
+                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back_ios</span>
                 </button>
               )}
               {!isLast && (
-                <button onClick={onMoveDown} className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center" aria-label={`Move ${title} down`}>
-                  <span className="material-symbols-outlined text-[18px] rotate-180" aria-hidden="true">arrow_back_ios</span>
+                <button onClick={onMoveDown} className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Move ${title} down`}>
+                  <span className="material-symbols-outlined text-[16px] rotate-180" aria-hidden="true">arrow_back_ios</span>
                 </button>
               )}
-              <button onClick={onEdit} className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant flex items-center justify-center" aria-label={`Edit ${title}`}>
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">tune</span>
+              <button onClick={onEdit} className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Edit ${title}`}>
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">tune</span>
               </button>
-              <button onClick={onRemove} className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-error flex items-center justify-center" aria-label={`Remove ${title}`}>
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+              <button onClick={onRemove} className="p-1.5 rounded-full hover:bg-surface-container-high text-error opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Remove ${title}`}>
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">close</span>
               </button>
             </>
           )}
