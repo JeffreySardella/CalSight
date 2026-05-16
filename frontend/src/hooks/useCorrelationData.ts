@@ -24,6 +24,8 @@ export const CORRELATION_FIELDS: CorrelationField[] = [
   { key: "unemployment_rate", label: "Unemploy.", source: "unemployment" },
   { key: "ces_score", label: "EnviroScr.", source: "calenviroscreen" },
   { key: "traffic_score", label: "Traffic", source: "calenviroscreen" },
+  { key: "ev_pct", label: "EV %", source: "vehicles" },
+  { key: "vehicles_per_capita", label: "Vehicles/Cap", source: "derived" },
 ];
 
 function pearsonR(xs: number[], ys: number[]): number {
@@ -49,7 +51,7 @@ export function useCorrelationData() {
   return useQuery({
     queryKey: ["correlation-matrix"],
     queryFn: async () => {
-      const [statsRes, demoRes, cesRes, unempRes] = await Promise.all([
+      const [statsRes, demoRes, cesRes, unempRes, vehRes] = await Promise.all([
         fetch(`${API_BASE}/api/stats/batch`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -58,9 +60,10 @@ export function useCorrelationData() {
         fetch(`${API_BASE}/api/demographics`),
         fetch(`${API_BASE}/api/calenviroscreen`),
         fetch(`${API_BASE}/api/unemployment`),
+        fetch(`${API_BASE}/api/vehicles`),
       ]);
 
-      if (!statsRes.ok || !demoRes.ok || !cesRes.ok || !unempRes.ok) {
+      if (!statsRes.ok || !demoRes.ok || !cesRes.ok || !unempRes.ok || !vehRes.ok) {
         throw new Error("Failed to fetch correlation data");
       }
 
@@ -68,6 +71,7 @@ export function useCorrelationData() {
       const demographics: Record<string, unknown>[] = await demoRes.json();
       const calenviro: Record<string, unknown>[] = await cesRes.json();
       const unemployment: Record<string, unknown>[] = await unempRes.json();
+      const vehicles: Record<string, unknown>[] = await vehRes.json();
 
       const countyStats: Record<string, unknown>[] = stats.county ?? [];
 
@@ -122,6 +126,29 @@ export function useCorrelationData() {
       }
       for (const [code, rate] of Object.entries(latestUnemp)) {
         if (byCounty[code]) byCounty[code].unemployment_rate = rate;
+      }
+
+      // Vehicle data — pick the most recent year with non-null data per county
+      const vehByCounty: Record<string, Record<string, unknown>> = {};
+      for (const r of vehicles) {
+        const code = String(r.county_code ?? "");
+        const existing = vehByCounty[code];
+        if (!existing || (r.total_vehicles != null && (existing.total_vehicles == null || (r.year as number) > (existing.year as number)))) {
+          vehByCounty[code] = r;
+        }
+      }
+      for (const [code, r] of Object.entries(vehByCounty)) {
+        if (!byCounty[code]) continue;
+        const total = r.total_vehicles as number;
+        const ev = r.ev_vehicles as number;
+        if (total != null && total > 0 && ev != null) {
+          byCounty[code].ev_pct = (ev / total) * 100;
+        }
+        // vehicles_per_capita requires population from demographics
+        const population = demoByCounty[code]?.population as number | undefined;
+        if (total != null && population != null && population > 0) {
+          byCounty[code].vehicles_per_capita = total / population;
+        }
       }
 
       const counties = Object.values(byCounty).filter(

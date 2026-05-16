@@ -73,6 +73,28 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
       { dimension: "county", measure: "injured", chartType: "hbar", order: 3 },
     ],
   },
+  equity: {
+    label: "Equity & Safety",
+    icon: "balance",
+    description: "Socioeconomic factors and crash outcomes across communities",
+    slots: [
+      { dimension: "county", measure: "fatality_rate", chartType: "scatter", order: 0 },
+      { dimension: "county", measure: "killed", chartType: "hbar", order: 1 },
+      { dimension: "cause", measure: "killed", chartType: "hbar", order: 2 },
+      { dimension: "age_bracket", measure: "killed", chartType: "lollipop", order: 3 },
+    ],
+  },
+  comparison: {
+    label: "County Comparison",
+    icon: "compare",
+    description: "Compare counties across multiple dimensions",
+    slots: [
+      { dimension: "county", measure: "count", chartType: "hbar", order: 0 },
+      { dimension: "county", measure: "killed", chartType: "lollipop", order: 1 },
+      { dimension: "county", measure: "injured", chartType: "hbar", order: 2 },
+      { dimension: "severity", measure: "count", chartType: "donut", order: 3 },
+    ],
+  },
 };
 
 export const PRESET_KEYS = Object.keys(PRESETS) as PresetKey[];
