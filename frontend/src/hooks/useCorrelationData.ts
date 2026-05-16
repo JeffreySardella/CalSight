@@ -55,33 +55,47 @@ function pearsonR(xs: number[], ys: number[]): number {
 
 export type CountyRow = Record<string, number | string | undefined>;
 
+/** Fetch a single endpoint, returning an empty array on failure. */
+async function safeFetchJson<T = Record<string, unknown>[]>(
+  url: string,
+  init?: RequestInit,
+): Promise<T> {
+  try {
+    const res = await fetch(url, init);
+    if (!res.ok) {
+      console.warn(`[correlation] ${url} returned ${res.status} — skipping`);
+      return [] as unknown as T;
+    }
+    return await res.json();
+  } catch (err) {
+    console.warn(`[correlation] ${url} failed — skipping`, err);
+    return [] as unknown as T;
+  }
+}
+
 export function useCorrelationData() {
   return useQuery({
     queryKey: ["correlation-matrix"],
     queryFn: async () => {
-      const [statsRes, demoRes, cesRes, unempRes, vehRes, weatherRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/batch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ groups: ["county"] }),
-        }),
-        fetch(`${API_BASE}/api/demographics`),
-        fetch(`${API_BASE}/api/calenviroscreen`),
-        fetch(`${API_BASE}/api/unemployment`),
-        fetch(`${API_BASE}/api/vehicles`),
-        fetch(`${API_BASE}/api/weather`),
-      ]);
-
-      if (!statsRes.ok || !demoRes.ok || !cesRes.ok || !unempRes.ok || !vehRes.ok || !weatherRes.ok) {
-        throw new Error("Failed to fetch correlation data");
+      // Stats is required — it provides the base county rows
+      const statsRes = await fetch(`${API_BASE}/api/stats/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groups: ["county"] }),
+      });
+      if (!statsRes.ok) {
+        throw new Error("Failed to fetch crash stats for correlation matrix");
       }
-
       const stats = await statsRes.json();
-      const demographics: Record<string, unknown>[] = await demoRes.json();
-      const calenviro: Record<string, unknown>[] = await cesRes.json();
-      const unemployment: Record<string, unknown>[] = await unempRes.json();
-      const vehicles: Record<string, unknown>[] = await vehRes.json();
-      const weather: Record<string, unknown>[] = await weatherRes.json();
+
+      // Supplemental sources — fetch in parallel, gracefully skip failures
+      const [demographics, calenviro, unemployment, vehicles, weather] = await Promise.all([
+        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/demographics`),
+        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/calenviroscreen`),
+        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/unemployment`),
+        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/vehicles`),
+        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/weather`),
+      ]);
 
       const countyStats: Record<string, unknown>[] = stats.county ?? [];
 
