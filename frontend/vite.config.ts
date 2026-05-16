@@ -20,6 +20,8 @@ export default defineConfig({
         'ca-counties.topo.json',
       ],
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,webp}'],
         globIgnores: ['**/ca-counties.geojson'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
