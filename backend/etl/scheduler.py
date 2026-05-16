@@ -1,7 +1,7 @@
 """Cron-based ETL scheduling via APScheduler.
 
 Usage:
-    python -m etl.scheduler              # Start scheduler (default: daily at 2 AM)
+    python -m etl.scheduler              # Start scheduler (default: daily at 3 AM Pacific / 10 AM UTC)
     python -m etl.scheduler --cron "0 */6 * * *"  # Every 6 hours
 """
 import argparse
@@ -35,8 +35,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="CalSight ETL Scheduler")
     parser.add_argument(
         "--cron",
-        default="0 2 * * *",
-        help="Cron expression for schedule (default: daily at 2 AM)",
+        default="0 10 * * *",
+        help="Cron expression for schedule (default: daily at 10 AM UTC / 3 AM Pacific)",
     )
     args = parser.parse_args()
 
