@@ -67,11 +67,11 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
   seasonal: {
     label: "Seasonal Patterns",
     icon: "thermostat",
-    description: "Monthly and weather-related crash trends",
+    description: "When and where crashes happen by time of year",
     slots: [
       { dimension: "month", measure: "count", chartType: "bar", order: 0 },
-      { dimension: "weather", measure: "count", chartType: "bar", order: 1 },
-      { dimension: "lighting", measure: "count", chartType: "bar", order: 2 },
+      { dimension: "day_of_week", measure: "count", chartType: "bar", order: 1 },
+      { dimension: "hour", measure: "count", chartType: "bar", order: 2 },
       { dimension: "year", measure: "count", chartType: "line", order: 3 },
     ],
   },

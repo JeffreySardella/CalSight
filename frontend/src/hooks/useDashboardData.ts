@@ -51,11 +51,15 @@ function transformRows(dimension: Dimension, rows: Record<string, unknown>[]): C
         label: MONTH_LABEL[(r.month as number) - 1] ?? String(r.month),
         value: (r.crash_count as number) ?? 0,
       }));
-    case "year":
-      return rows.map((r) => ({
-        label: String(r.year),
-        value: (r.crash_count as number) ?? 0,
-      }));
+    case "year": {
+      const currentYear = new Date().getFullYear();
+      return rows
+        .filter((r) => (r.year as number) < currentYear)
+        .map((r) => ({
+          label: String(r.year),
+          value: (r.crash_count as number) ?? 0,
+        }));
+    }
     case "cause":
       return rows.map((r) => ({
         label: CAUSE_LABEL[r.canonical_cause as string] ?? String(r.canonical_cause),
