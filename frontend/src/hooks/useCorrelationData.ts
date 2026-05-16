@@ -24,6 +24,12 @@ export const CORRELATION_FIELDS: CorrelationField[] = [
   { key: "unemployment_rate", label: "Unemploy.", source: "unemployment" },
   { key: "ces_score", label: "EnviroScr.", source: "calenviroscreen" },
   { key: "traffic_score", label: "Traffic", source: "calenviroscreen" },
+  { key: "pollution_burden", label: "Pollution", source: "calenviroscreen" },
+  { key: "diesel_pm_score", label: "Diesel PM", source: "calenviroscreen" },
+  { key: "linguistic_isolation_pct", label: "Ling Isol.", source: "calenviroscreen" },
+  { key: "housing_burden_pct", label: "Housing", source: "calenviroscreen" },
+  { key: "education_pct", label: "No Diploma", source: "calenviroscreen" },
+  { key: "ces_percentile", label: "CES %tile", source: "calenviroscreen" },
   { key: "ev_pct", label: "EV %", source: "vehicles" },
   { key: "vehicles_per_capita", label: "Vehicles/Cap", source: "derived" },
   { key: "avg_temp", label: "Avg Temp", source: "weather" },
@@ -120,6 +126,12 @@ export function useCorrelationData() {
         if (!byCounty[code]) continue;
         byCounty[code].ces_score = r.ces_score as number;
         byCounty[code].traffic_score = r.traffic_score as number;
+        byCounty[code].pollution_burden = r.pollution_burden as number;
+        byCounty[code].diesel_pm_score = r.diesel_pm_score as number;
+        byCounty[code].linguistic_isolation_pct = r.linguistic_isolation_pct as number;
+        byCounty[code].housing_burden_pct = r.housing_burden_pct as number;
+        byCounty[code].education_pct = r.education_pct as number;
+        byCounty[code].ces_percentile = r.ces_percentile as number;
       }
 
       const latestUnemp: Record<string, number> = {};
