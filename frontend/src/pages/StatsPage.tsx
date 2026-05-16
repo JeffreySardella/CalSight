@@ -18,6 +18,9 @@ import VehicleTrends from "../components/stats/VehicleTrends";
 import { encodeDashboard } from "../lib/dashboard/urlCodec";
 import SavedDashboardsPanel from "../components/stats/SavedDashboardsPanel";
 import NlqQueryBar from "../components/stats/NlqQueryBar";
+import MetaTags, { buildOgImageUrl } from "../components/seo/MetaTags";
+import { buildDatasetSchema, buildBreadcrumbSchema } from "../components/seo/JsonLd";
+import SharePanel, { buildShareUrl } from "../components/seo/SharePanel";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -59,7 +62,6 @@ export default function StatsPage() {
     setResetKey((k) => k + 1);
   }
 
-  const [shareCopied, setShareCopied] = useState(false);
   const [printPreview, setPrintPreview] = useState(false);
 
   useEffect(() => {
@@ -73,18 +75,6 @@ export default function StatsPage() {
 
   function handlePrint() {
     window.print();
-  }
-
-  function handleShareUrl() {
-    const encoded = encodeDashboard(dashboard.config);
-    const url = new URL(window.location.href);
-    url.searchParams.set("dashboard", encoded);
-    const shareUrl = url.toString();
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      history.replaceState(null, "", shareUrl);
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2000);
-    });
   }
 
   // Build typed chips so each one knows how to remove itself.
@@ -144,8 +134,56 @@ export default function StatsPage() {
   const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
   const fatalityUp = yoyFatalityChangePct != null && yoyFatalityChangePct > 0;
 
+  // SEO: dynamic meta tags and OG image based on current dashboard state
+  const ogImage = useMemo(() => buildOgImageUrl({
+    preset: dashboard.config.preset,
+    counties: [...counties].map(c => c.toLowerCase().replace(/ /g, "-")),
+    metric: totalIncidents != null ? totalIncidents.toLocaleString() : undefined,
+    metricLabel: "Total Incidents",
+    trend: incidentYoYPct != null ? (incidentYoYPct >= 0 ? "up" : "down") : undefined,
+  }), [dashboard.config.preset, counties, totalIncidents, incidentYoYPct]);
+
+  const seoDescription = useMemo(() => {
+    const parts = ["California crash statistics"];
+    if (counties.size > 0 && counties.size <= 3) {
+      parts.push(`for ${[...counties].join(", ")}`);
+    }
+    if (totalIncidents != null) {
+      parts.push(`— ${totalIncidents.toLocaleString()} incidents`);
+    }
+    parts.push(". Explore trends, demographics, and safety metrics on CalSight.");
+    return parts.join(" ");
+  }, [counties, totalIncidents]);
+
+  const jsonLd = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@graph": [
+      buildDatasetSchema({
+        counties: counties.size > 0 ? [...counties] : undefined,
+        dateRange: dateRange ? { start: dateRange.start, end: dateRange.end } : undefined,
+      }),
+      buildBreadcrumbSchema([
+        { name: "Home", path: "/" },
+        { name: "Statistics", path: "/stats" },
+      ]),
+    ],
+  }), [counties, dateRange]);
+
+  const fullShareUrl = useMemo(() => {
+    const encoded = encodeDashboard(dashboard.config);
+    return buildShareUrl({ dashboardEncoded: encoded });
+  }, [dashboard.config]);
+
   return (
     <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
+      <MetaTags
+        title={`Statistics Dashboard — CalSight`}
+        description={seoDescription}
+        ogImage={ogImage}
+        path="/stats"
+        jsonLd={jsonLd}
+        twitterCard="summary_large_image"
+      />
       <h1 className="sr-only">Statistics Dashboard</h1>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {loading ? "Loading statistics..." : error ? "Error loading statistics." : "Statistics loaded."}
@@ -277,28 +315,21 @@ export default function StatsPage() {
 
       {/* Dashboard Builder */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <DashboardModeToggle mode={dashboard.config.mode} onChange={dashboard.setMode} />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
             <SavedDashboardsPanel
               currentConfig={dashboard.config}
               onLoad={dashboard.setConfig}
             />
-            <button
-              type="button"
-              onClick={handleShareUrl}
-              className="inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
-              data-print-hide
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {shareCopied ? "check" : "link"}
-              </span>
-              {shareCopied ? "Copied!" : "Share"}
-            </button>
+            <SharePanel
+              shareUrl={fullShareUrl}
+              shareText={`California crash statistics dashboard on CalSight${counties.size > 0 && counties.size <= 3 ? ` — ${[...counties].join(", ")}` : ""}`}
+            />
             <button
               type="button"
               onClick={handlePrint}
-              className="print-keep inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+              className="hidden sm:inline-flex print-keep items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
               data-print-hide
               aria-label="Print dashboard"
             >
@@ -308,7 +339,7 @@ export default function StatsPage() {
             <button
               type="button"
               onClick={() => setPrintPreview((v) => !v)}
-              className="print-keep inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+              className="hidden sm:inline-flex print-keep items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
               data-print-hide
               aria-label="Toggle print preview"
             >

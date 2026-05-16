@@ -129,15 +129,15 @@ function ChartCard({
       aria-label={title}
       tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- intentional for keyboard navigation
       data-chart-id={slot.id}
-      className="group/card bg-surface-container-lowest rounded-2xl p-4 ambient-shadow chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2"
+      className="group/card bg-surface-container-lowest chart-card-themed chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2"
       style={{ animationDelay: enterDelay && enterDelay > 0 ? `${enterDelay}ms` : undefined }}
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-headline font-bold text-on-surface">{title}</h3>
-        <div className="flex items-center gap-0.5">
+        <div className="flex flex-wrap items-center gap-0.5">
           <button
             onClick={handleExplainChart}
-            className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={`Explain ${title}`}
             title="Explain this chart"
           >
@@ -147,7 +147,7 @@ function ChartCard({
           </button>
           <button
             onClick={handleExportPng}
-            className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={`Download ${title} as PNG`}
             title="Download PNG"
           >
@@ -157,7 +157,7 @@ function ChartCard({
           </button>
           <button
             onClick={handleExportCsv}
-            className="px-1.5 py-1 rounded-full hover:bg-surface-container-high text-on-surface-variant text-[11px] font-bold leading-none opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="px-1.5 py-1 rounded-full hover:bg-surface-container-high text-on-surface-variant text-[11px] font-bold leading-none opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={`Download ${title} as CSV`}
             title="Download CSV"
           >

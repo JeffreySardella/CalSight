@@ -54,7 +54,8 @@ export default function SimpleDonutChart({
 
   const effectiveOuter = Math.min(outerRadius, (height - 4) / 2);
   const effectiveInner = Math.min(innerRadius, effectiveOuter * 0.67);
-  const cx = effectiveOuter + 20;
+  const vw = effectiveOuter * 2 + 8;
+  const cx = vw / 2;
   const cy = height / 2;
   const padAngle = 2;
 
@@ -98,8 +99,8 @@ export default function SimpleDonutChart({
   const withPct = data.map((d) => ({ ...d, pct: Math.round((d.value / total) * 100) }));
 
   return (
-    <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+    <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
+      <svg ref={svgRef} width={vw} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
         {title && <title id={titleId}>{title}</title>}
         {segments.map((seg, i) => (
           <path

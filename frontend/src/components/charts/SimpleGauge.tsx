@@ -69,7 +69,7 @@ export default function SimpleGauge({ data, height = 180, title }: SimpleGaugePr
   });
 
   return (
-    <div className="w-full" style={{ minHeight: height }}>
+    <div className="w-full flex flex-col items-center" style={{ minHeight: height }}>
       <svg width="100%" height={height - 20} viewBox={`0 0 ${vw} ${height - 20}`} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
         {title && <title id={titleId}>{title}</title>}
         <path

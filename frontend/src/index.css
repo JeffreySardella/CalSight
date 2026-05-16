@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html {
+    @apply overflow-x-hidden;
+  }
+}
+
 /* ── Lite Mode: strip GPU-heavy effects ── */
 .lite-mode *,
 .lite-mode *::before,
@@ -69,6 +75,25 @@
   /* RGB channel tokens for rgba() usage in box-shadows */
   --shadow-rgb: 50, 50, 53;
   --outline-variant-rgb: 178, 177, 180;
+
+  /* Card style tokens (overridden by CustomThemeContext) */
+  --card-radius: 1rem;
+  --card-shadow: 0 10px 32px -4px rgba(var(--shadow-rgb), 0.04);
+  --card-border: none;
+  --card-bg-opacity: 1;
+  --card-backdrop: none;
+
+  /* Density tokens */
+  --density-chart-padding: 16px;
+  --density-card-padding: 1rem;
+  --density-gap: 1rem;
+  --density-chart-height-factor: 1;
+
+  /* Typography scale tokens */
+  --type-scale-factor: 1;
+  --type-heading-size: 0.875rem;
+  --type-body-size: 0.8125rem;
+  --type-label-size: 0.625rem;
 }
 
 /* ── Theme: Dark palette ── */
@@ -152,6 +177,16 @@
 
   .bottom-tab-shadow {
     box-shadow: 0 -1px 3px rgba(var(--shadow-rgb), 0.08);
+  }
+
+  /* Chart card with theme-aware styling via CSS custom properties */
+  .chart-card-themed {
+    border-radius: var(--card-radius);
+    padding: var(--density-card-padding);
+    box-shadow: var(--card-shadow);
+    border: var(--card-border);
+    backdrop-filter: var(--card-backdrop);
+    -webkit-backdrop-filter: var(--card-backdrop);
   }
 }
 

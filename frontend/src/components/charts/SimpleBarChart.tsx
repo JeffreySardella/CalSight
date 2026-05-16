@@ -61,7 +61,7 @@ export default function SimpleBarChart({
 
   if (layout === "horizontal") {
     const barH = 18;
-    const labelW = 100;
+    const labelW = svgWidth < 300 ? 70 : 100;
     const rowH = barH + 10;
     const svgH = Math.max(height, data.length * rowH);
     return (

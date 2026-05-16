@@ -10,7 +10,7 @@ export default function DashboardModeToggle({ mode, onChange }: Props) {
         onClick={() => onChange("simple")}
         role="radio"
         aria-checked={mode === "simple"}
-        className={`px-4 py-2 rounded-full transition-colors ${
+        className={`px-4 py-2.5 rounded-full transition-colors min-h-[44px] flex items-center ${
           mode === "simple"
             ? "bg-primary text-on-primary"
             : "text-on-surface-variant hover:text-on-surface"
@@ -22,7 +22,7 @@ export default function DashboardModeToggle({ mode, onChange }: Props) {
         onClick={() => onChange("advanced")}
         role="radio"
         aria-checked={mode === "advanced"}
-        className={`px-4 py-2 rounded-full transition-colors ${
+        className={`px-4 py-2.5 rounded-full transition-colors min-h-[44px] flex items-center ${
           mode === "advanced"
             ? "bg-primary text-on-primary"
             : "text-on-surface-variant hover:text-on-surface"
