@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { linearRegression, linearRegressionXY, mean, median, stddev, movingAverage } from "./stats";
+import { linearRegression, linearRegressionXY, mean, median, stddev, movingAverage, polynomialRegression, holtWinters, forecast } from "./stats";
 
 describe("linearRegression", () => {
   it("returns slope=0, intercept=0, r2=0 for empty array", () => {
@@ -402,5 +402,92 @@ describe("movingAverage", () => {
     // Neighbors of the spike should also be affected
     expect(result[2]).toBeGreaterThan(1);
     expect(result[4]).toBeGreaterThan(1);
+  });
+});
+
+describe("polynomialRegression", () => {
+  it("fits a perfect quadratic y = x^2", () => {
+    const values = [0, 1, 4, 9, 16, 25];
+    const result = polynomialRegression(values, 2);
+    expect(result.r2).toBeGreaterThan(0.99);
+    expect(result.predict(6)).toBeCloseTo(36, 0);
+  });
+
+  it("returns mean for insufficient data", () => {
+    const result = polynomialRegression([5, 10], 2);
+    expect(result.predict(0)).toBeCloseTo(7.5);
+  });
+
+  it("degree 1 matches linear regression", () => {
+    const values = [2, 4, 6, 8, 10];
+    const poly = polynomialRegression(values, 1);
+    const lin = linearRegression(values);
+    expect(poly.r2).toBeCloseTo(lin.r2, 2);
+  });
+});
+
+describe("holtWinters", () => {
+  it("produces fitted values same length as input", () => {
+    const values = Array.from({ length: 24 }, (_, i) => 100 + 20 * Math.sin((i / 12) * Math.PI * 2) + i * 2);
+    const hw = holtWinters(values, 12);
+    expect(hw.fitted).toHaveLength(24);
+  });
+
+  it("forecasts future values", () => {
+    const values = Array.from({ length: 24 }, (_, i) => 100 + i * 3);
+    const hw = holtWinters(values, 12);
+    const fc = hw.forecast(5);
+    expect(fc).toHaveLength(5);
+    expect(fc[0]).toBeGreaterThan(values[values.length - 1] * 0.5);
+  });
+
+  it("falls back to linear for short series", () => {
+    const values = [10, 20, 30, 40, 50];
+    const hw = holtWinters(values, 12);
+    expect(hw.fitted).toHaveLength(5);
+    const fc = hw.forecast(3);
+    expect(fc).toHaveLength(3);
+  });
+});
+
+describe("forecast", () => {
+  it("linear forecast produces values and confidence bands", () => {
+    const values = [100, 115, 118, 132, 138, 152];
+    const result = forecast(values, 3, "linear");
+    expect(result.values).toHaveLength(3);
+    expect(result.upper).toHaveLength(3);
+    expect(result.lower).toHaveLength(3);
+    expect(result.values[0]).toBeGreaterThan(140);
+    expect(result.upper[0]).toBeGreaterThan(result.values[0]);
+    expect(result.lower[0]).toBeLessThan(result.values[0]);
+    expect(result.method).toBe("Linear");
+  });
+
+  it("polynomial forecast produces non-negative values", () => {
+    const values = [100, 90, 80, 70, 60, 50];
+    const result = forecast(values, 3, "polynomial");
+    result.values.forEach(v => expect(v).toBeGreaterThanOrEqual(0));
+    result.lower.forEach(v => expect(v).toBeGreaterThanOrEqual(0));
+  });
+
+  it("holt-winters forecast works with seasonal data", () => {
+    const values = Array.from({ length: 36 }, (_, i) => 200 + 50 * Math.sin((i / 12) * Math.PI * 2) + i * 2);
+    const result = forecast(values, 6, "holt-winters");
+    expect(result.values).toHaveLength(6);
+    expect(result.method).toBe("Holt-Winters");
+  });
+
+  it("returns empty for very short series", () => {
+    const result = forecast([5, 10], 3, "linear");
+    expect(result.values).toHaveLength(0);
+  });
+
+  it("confidence bands widen with horizon", () => {
+    const values = [100, 120, 110, 130, 140, 125, 150, 160];
+    const result = forecast(values, 5, "linear");
+    const widths = result.upper.map((u, i) => u - result.lower[i]);
+    for (let i = 1; i < widths.length; i++) {
+      expect(widths[i]).toBeGreaterThanOrEqual(widths[i - 1] * 0.99);
+    }
   });
 });
