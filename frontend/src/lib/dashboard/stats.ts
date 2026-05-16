@@ -39,6 +39,29 @@ export function stddev(values: number[]): number {
   return Math.sqrt(values.reduce((s, v) => s + (v - m) ** 2, 0) / values.length);
 }
 
+export function linearRegressionXY(points: { x: number; y: number }[]): { slope: number; intercept: number; r2: number } {
+  const n = points.length;
+  if (n < 2) return { slope: 0, intercept: points[0]?.y ?? 0, r2: 0 };
+
+  const xMean = points.reduce((s, p) => s + p.x, 0) / n;
+  const yMean = points.reduce((s, p) => s + p.y, 0) / n;
+
+  let num = 0, denX = 0, denY = 0;
+  for (const p of points) {
+    const dx = p.x - xMean;
+    const dy = p.y - yMean;
+    num += dx * dy;
+    denX += dx * dx;
+    denY += dy * dy;
+  }
+
+  const slope = denX > 0 ? num / denX : 0;
+  const intercept = yMean - slope * xMean;
+  const r2 = denX > 0 && denY > 0 ? (num * num) / (denX * denY) : 0;
+
+  return { slope, intercept, r2 };
+}
+
 export function movingAverage(values: number[], window: number): number[] {
   const half = Math.floor(window / 2);
   return values.map((_, i) => {

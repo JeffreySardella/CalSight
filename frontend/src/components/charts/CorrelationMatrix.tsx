@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData";
-import { linearRegression } from "../../lib/dashboard/stats";
+import { linearRegressionXY } from "../../lib/dashboard/stats";
 
 interface Props {
   fields: CorrelationField[];
@@ -63,7 +63,7 @@ function DetailScatter({ counties, xField, yField, r }: {
   const maxX = Math.max(...points.map((p) => p.x), 1);
   const maxY = Math.max(...points.map((p) => p.y), 1);
 
-  const reg = linearRegression(points.map((p) => p.y));
+  const reg = linearRegressionXY(points.map((p) => ({ x: p.x, y: p.y })));
 
   return (
     <div className="w-full overflow-visible relative mt-3" style={{ height }}>
@@ -85,8 +85,10 @@ function DetailScatter({ counties, xField, yField, r }: {
         })}
 
         {points.length >= 3 && (() => {
-          const y0 = pad.top + ch - (reg.intercept / maxY) * ch;
-          const yN = pad.top + ch - ((reg.slope * (points.length - 1) + reg.intercept) / maxY) * ch;
+          const y0Val = reg.intercept;
+          const yNVal = reg.slope * maxX + reg.intercept;
+          const y0 = pad.top + ch - (Math.max(0, Math.min(y0Val, maxY)) / maxY) * ch;
+          const yN = pad.top + ch - (Math.max(0, Math.min(yNVal, maxY)) / maxY) * ch;
           return <line x1={pad.left} x2={pad.left + cw} y1={y0} y2={yN} stroke="rgb(var(--error))" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.5} />;
         })()}
 

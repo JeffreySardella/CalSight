@@ -15,7 +15,7 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     slots: [
       { dimension: "severity", measure: "count", chartType: "donut", order: 0 },
       { dimension: "cause", measure: "count", chartType: "hbar", order: 1 },
-      { dimension: "year", measure: "count", chartType: "area", order: 2 },
+      { dimension: "year", measure: "count", chartType: "area", order: 2, options: { trendLine: true } },
       { dimension: "county", measure: "count", chartType: "hbar", order: 3 },
     ],
   },
@@ -46,7 +46,7 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     description: "Fatal crashes — who dies, where, and trends over time",
     slots: [
       { dimension: "cause", measure: "killed", chartType: "hbar", order: 0 },
-      { dimension: "year", measure: "killed", chartType: "area", order: 1 },
+      { dimension: "year", measure: "killed", chartType: "area", order: 1, options: { trendLine: true } },
       { dimension: "age_bracket", measure: "killed", chartType: "lollipop", order: 2 },
       { dimension: "county", measure: "killed", chartType: "hbar", order: 3 },
     ],
@@ -69,7 +69,7 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     slots: [
       { dimension: "month", measure: "injured", chartType: "area", order: 0 },
       { dimension: "cause", measure: "injured", chartType: "hbar", order: 1 },
-      { dimension: "year", measure: "injured", chartType: "area", order: 2 },
+      { dimension: "year", measure: "injured", chartType: "area", order: 2, options: { trendLine: true } },
       { dimension: "county", measure: "injured", chartType: "hbar", order: 3 },
     ],
   },

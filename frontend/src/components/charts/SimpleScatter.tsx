@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ChartTooltip from "./ChartTooltip";
-import { linearRegression as lr } from "../../lib/dashboard/stats";
+import { linearRegressionXY } from "../../lib/dashboard/stats";
 
 interface ScatterItem {
   label: string;
@@ -110,11 +110,13 @@ export default function SimpleScatter({
         </text>
 
         {points.length >= 3 && (() => {
-          const reg = lr(points.map(p => p.yVal));
+          const reg = linearRegressionXY(points.map(p => ({ x: p.xVal, y: p.yVal })));
           const x0 = padding.left;
           const xN = padding.left + chartW;
-          const y0 = padding.top + chartH - ((reg.intercept) / maxY) * chartH;
-          const yN = padding.top + chartH - ((reg.slope * (points.length - 1) + reg.intercept) / maxY) * chartH;
+          const y0Val = reg.intercept;
+          const yNVal = reg.slope * maxX + reg.intercept;
+          const y0 = padding.top + chartH - (Math.max(0, Math.min(y0Val, maxY)) / maxY) * chartH;
+          const yN = padding.top + chartH - (Math.max(0, Math.min(yNVal, maxY)) / maxY) * chartH;
           return (
             <g>
               <line x1={x0} x2={xN} y1={y0} y2={yN} stroke="rgb(var(--error))" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.5} />
