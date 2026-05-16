@@ -9,7 +9,11 @@ import { useDataQualityDisclaimer } from "../hooks/useDataQualityDisclaimer";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
-import ShareButton from "../components/ui/ShareButton";
+import DashboardModeToggle from "../components/stats/DashboardModeToggle";
+import PresetPicker from "../components/stats/PresetPicker";
+import DashboardGrid from "../components/stats/DashboardGrid";
+import { useDashboardConfig } from "../hooks/useDashboardConfig";
+import { useDashboardData } from "../hooks/useDashboardData";
 
 function ChartImg({ label, children }: { label: string; children: React.ReactNode }) {
   return <div role="img" aria-label={label}>{children}</div>;
@@ -55,6 +59,8 @@ export default function StatsPage() {
     counties: [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")),
   }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
   const { data, loading, error, refetch } = useStats(statsFilters);
+  const dashboard = useDashboardConfig();
+  const { dataByDimension, loading: dashLoading } = useDashboardData(dashboard.activeCharts, statsFilters);
   const dqDisclaimers = useDataQualityDisclaimer(
     filters.selectedDateRange,
     [...filters.selectedCounties],
@@ -254,20 +260,14 @@ export default function StatsPage() {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <ShareButton
-            iconClassName="text-[16px]"
-            className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline"
-          />
-          <button
-            type="button"
-            onClick={() => setShowMobileFilters(true)}
-            className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline"
-          >
-            Edit Filters
-            <span className="material-symbols-outlined text-[16px]">tune</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowMobileFilters(true)}
+          className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline flex-shrink-0"
+        >
+          Edit Filters
+          <span className="material-symbols-outlined text-[16px]">tune</span>
+        </button>
       </section>
 
       {/* Hero Metrics Row */}
@@ -345,8 +345,37 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Bento Chart Grid */}
-      <section className="grid grid-cols-12 gap-4 md:gap-6">
+      {/* Dashboard Builder */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <DashboardModeToggle mode={dashboard.config.mode} onChange={dashboard.setMode} />
+        </div>
+        {dashboard.config.mode === "simple" && (
+          <PresetPicker active={dashboard.config.preset} onSelect={dashboard.setPreset} />
+        )}
+        {dashLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-surface-container-lowest rounded-2xl p-4 ambient-shadow">
+                <Skeleton className="h-48 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <DashboardGrid
+            charts={dashboard.activeCharts}
+            dataByDimension={dataByDimension}
+            mode={dashboard.config.mode}
+            onAddChart={dashboard.addChart}
+            onRemoveChart={dashboard.removeChart}
+            onUpdateChart={dashboard.updateChart}
+            onMoveChart={dashboard.moveChart}
+          />
+        )}
+      </section>
+
+      {/* Legacy chart grid — kept for reference, hidden */}
+      <section className="hidden grid-cols-12 gap-4 md:gap-6">
         {/* Crash Density by Hour */}
         <div className="col-span-12 md:col-span-8 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
           <div className="flex justify-between items-start mb-6">
@@ -515,7 +544,7 @@ export default function StatsPage() {
       </section>
 
       {/* Temporal Patterns Grid */}
-      <section className="grid grid-cols-12 gap-4 md:gap-6">
+      <section className="hidden grid-cols-12 gap-4 md:gap-6">
         {/* Monthly Seasonality */}
         <div className="col-span-12 md:col-span-8 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
           <div className="flex justify-between items-start mb-6">
@@ -581,7 +610,7 @@ export default function StatsPage() {
       </section>
 
       {/* Demographics Grid */}
-      <section className="grid grid-cols-12 gap-4 md:gap-6">
+      <section className="hidden grid-cols-12 gap-4 md:gap-6">
         {/* Severity Breakdown */}
         <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
           <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
@@ -774,8 +803,8 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Per-Capita Rates Table */}
-      {rateData.length > 0 && (
+      {/* Per-Capita Rates Table (hidden — replaced by dashboard) */}
+      {false && rateData.length > 0 && (
         <section className="bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
           <div className="mb-6">
             <h3 className="text-on-surface font-headline font-bold text-xl leading-tight">
