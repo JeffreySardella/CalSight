@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { mean as calcMean } from "../../lib/dashboard/stats";
 
 interface BarItem {
   label: string;
@@ -18,6 +19,7 @@ interface SimpleBarChartProps {
   layout?: "vertical" | "horizontal";
   labelFormatter?: (label: string, idx: number, isPeak: boolean) => React.ReactNode;
   showXAxis?: boolean;
+  showMeanLine?: boolean;
 }
 
 export default function SimpleBarChart({
@@ -30,6 +32,7 @@ export default function SimpleBarChart({
   layout = "vertical",
   labelFormatter,
   showXAxis = true,
+  showMeanLine = false,
 }: SimpleBarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -153,6 +156,16 @@ export default function SimpleBarChart({
             </g>
           );
         })}
+        {showMeanLine && (() => {
+          const m = calcMean(data.map(d => d.value));
+          const yM = padding.top + chartH - (m / maxVal) * chartH;
+          return (
+            <g>
+              <line x1={padding.left} x2={padding.left + svgWidth - padding.left - padding.right} y1={yM} y2={yM} stroke="rgb(var(--error))" strokeWidth={1} strokeDasharray="6 3" strokeOpacity={0.6} />
+              <text x={svgWidth - padding.right + 2} y={yM + 3} fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
+            </g>
+          );
+        })()}
       </svg>
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}

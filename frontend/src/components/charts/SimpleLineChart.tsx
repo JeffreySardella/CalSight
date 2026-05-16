@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { linearRegression, mean as calcMean } from "../../lib/dashboard/stats";
 
 interface LinePoint {
   label: string;
@@ -13,6 +14,8 @@ interface SimpleLineChartProps {
   showDots?: boolean;
   showYAxis?: boolean;
   showArea?: boolean;
+  showTrendLine?: boolean;
+  showMeanLine?: boolean;
   renderTooltip?: (item: LinePoint, idx: number) => React.ReactNode;
 }
 
@@ -29,6 +32,8 @@ export default function SimpleLineChart({
   showDots = true,
   showYAxis = true,
   showArea = false,
+  showTrendLine = false,
+  showMeanLine = false,
   renderTooltip,
 }: SimpleLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -129,6 +134,31 @@ export default function SimpleLineChart({
             )}
           </g>
         ))}
+
+        {showMeanLine && (() => {
+          const m = calcMean(data.map(d => d.value));
+          const yM = padding.top + chartH - (m / maxVal) * chartH;
+          return (
+            <g>
+              <line x1={padding.left} x2={padding.left + chartW} y1={yM} y2={yM} stroke="rgb(var(--error))" strokeWidth={1} strokeDasharray="6 3" strokeOpacity={0.6} />
+              <text x={padding.left + chartW + 4} y={yM + 3} fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
+            </g>
+          );
+        })()}
+
+        {showTrendLine && points.length >= 2 && (() => {
+          const reg = linearRegression(data.map(d => d.value));
+          const y0 = padding.top + chartH - ((reg.intercept) / maxVal) * chartH;
+          const yN = padding.top + chartH - ((reg.slope * (n - 1) + reg.intercept) / maxVal) * chartH;
+          return (
+            <g>
+              <line x1={points[0].x} x2={points[points.length - 1].x} y1={y0} y2={yN} stroke="rgb(var(--tertiary))" strokeWidth={1.5} strokeDasharray="8 4" strokeOpacity={0.7} />
+              <text x={points[points.length - 1].x - 4} y={yN - 6} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--tertiary))" fillOpacity={0.8} fontFamily="'Inter Variable', Inter, sans-serif">
+                R²={reg.r2.toFixed(2)}
+              </text>
+            </g>
+          );
+        })()}
 
         {hover !== null && points[hover.idx] && (
           <line

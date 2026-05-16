@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { linearRegression as lr } from "../../lib/dashboard/stats";
 
 interface ScatterItem {
   label: string;
@@ -107,6 +108,22 @@ export default function SimpleScatter({
         <text x={12} y={height / 2} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-90, 12, ${height / 2})`}>
           {yLabel}
         </text>
+
+        {points.length >= 3 && (() => {
+          const reg = lr(points.map(p => p.yVal));
+          const x0 = padding.left;
+          const xN = padding.left + chartW;
+          const y0 = padding.top + chartH - ((reg.intercept) / maxY) * chartH;
+          const yN = padding.top + chartH - ((reg.slope * (points.length - 1) + reg.intercept) / maxY) * chartH;
+          return (
+            <g>
+              <line x1={x0} x2={xN} y1={y0} y2={yN} stroke="rgb(var(--error))" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.5} />
+              <text x={xN - 4} y={yN - 8} textAnchor="end" fontSize={9} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">
+                R²={reg.r2.toFixed(2)}
+              </text>
+            </g>
+          );
+        })()}
 
         {data.map((d, i) => {
           const px = padding.left + (points[i].xVal / maxX) * chartW;

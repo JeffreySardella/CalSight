@@ -137,6 +137,8 @@ function ChartCard({
           height={192}
           showArea={slot.chartType === "area"}
           showDots={slot.chartType === "line"}
+          showTrendLine={data.length >= 4}
+          showMeanLine={data.length >= 3}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
         />
       ) : slot.chartType === "scatter" ? (
@@ -195,6 +197,7 @@ function ChartCard({
         <SimpleBarChart
           data={data}
           height={192}
+          showMeanLine={data.length >= 3}
           labelFormatter={thinLabelFormatter(data.length, slot.dimension)}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
         />
