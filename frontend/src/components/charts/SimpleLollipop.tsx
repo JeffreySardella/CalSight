@@ -94,7 +94,7 @@ export default function SimpleLollipop({
                 fill={color}
               />
               <text
-                x={labelW + w + 10}
+                x={Math.min(labelW + w + 10, svgWidth - 36)}
                 y={y + 3}
                 fontSize={9}
                 fontWeight={700}

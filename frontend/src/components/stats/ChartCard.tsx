@@ -162,11 +162,13 @@ function ChartCard({
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
         />
       ) : slot.chartType === "lollipop" ? (
-        <SimpleLollipop
-          data={data}
-          height={Math.max(192, data.length * 28)}
-          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
-        />
+        <div className="overflow-y-auto max-h-[360px]">
+          <SimpleLollipop
+            data={data}
+            height={Math.max(192, data.length * 28)}
+            renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+          />
+        </div>
       ) : slot.chartType === "radar" ? (
         <SimpleRadar
           data={data}
@@ -187,12 +189,14 @@ function ChartCard({
       ) : slot.chartType === "stat" ? (
         <StatCard data={data} height={192} />
       ) : slot.chartType === "hbar" ? (
-        <SimpleBarChart
-          data={data}
-          height={Math.max(192, data.length * 28)}
-          layout="horizontal"
-          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
-        />
+        <div className="overflow-y-auto max-h-[360px]">
+          <SimpleBarChart
+            data={data}
+            height={Math.max(192, data.length * 28)}
+            layout="horizontal"
+            renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+          />
+        </div>
       ) : (
         <SimpleBarChart
           data={data}

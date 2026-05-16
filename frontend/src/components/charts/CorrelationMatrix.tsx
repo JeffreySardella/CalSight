@@ -25,8 +25,9 @@ function textColorForR(r: number): string {
 export default function CorrelationMatrix({ fields, matrix, countyCount }: Props) {
   const [hover, setHover] = useState<{ i: number; j: number } | null>(null);
   const n = fields.length;
-  const cellSize = 42;
-  const labelW = 90;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const cellSize = isMobile ? 24 : 38;
+  const labelW = isMobile ? 56 : 80;
   const svgW = labelW + n * cellSize;
   const svgH = labelW + n * cellSize;
 

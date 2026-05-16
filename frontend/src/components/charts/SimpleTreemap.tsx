@@ -60,7 +60,7 @@ function squarify(items: { label: string; value: number; color?: string }[], w: 
       }
     }
 
-    if (isWide) { x += 0; y += rowLen; rh -= rowLen; }
+    if (isWide) { y += rowLen; rh -= rowLen; }
     else { x += rowLen; rw -= rowLen; }
     remTotal -= rowTotal;
     remaining = remaining.filter((r) => !row.includes(r));

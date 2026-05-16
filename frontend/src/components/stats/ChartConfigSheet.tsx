@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import ChartConfigPanel from "./ChartConfigPanel";
-import type { Dimension, Measure, ChartType } from "../../lib/dashboard/types";
+import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
 
 interface Props {
   open: boolean;
-  initial?: { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension };
-  onConfirm: (config: { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension }) => void;
+  initial?: { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension; options?: ChartOptions };
+  onConfirm: (config: { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension; options?: ChartOptions }) => void;
   onCancel: () => void;
 }
 

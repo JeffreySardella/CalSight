@@ -275,24 +275,25 @@ export default function StatsPage() {
       <section className="border-t border-outline-variant/15 pt-12 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-[10px] leading-relaxed uppercase tracking-widest font-medium text-on-surface-variant">
           <div className="space-y-4">
-            <h4 className="font-bold text-on-surface text-[11px]">Methodology Statement</h4>
+            <h4 className="font-bold text-on-surface text-[11px]">Data Sources</h4>
             <p>
-              Calculations based on integrated records from the Statewide
-              Integrated Traffic Records System (SWITRS). Data is processed
-              through an iterative algorithmic cleanup to normalize reporting
-              variations across jurisdictions. Temporal density charts are
-              weighted by population density per census tract to ensure
-              rural-urban parity.
+              Crash records from the Statewide Integrated Traffic Records
+              System (SWITRS, 2001&ndash;2015) and the California Crash Records
+              System (CCRS, 2016&ndash;present), maintained by the California
+              Highway Patrol. Demographics from U.S. Census ACS 5-year
+              estimates. Environmental data from CalEnviroScreen 4.0 (OEHHA).
+              Employment from Bureau of Labor Statistics LAUS. Vehicle and
+              driver data from California DMV.
             </p>
           </div>
           <div className="space-y-4">
             <h4 className="font-bold text-on-surface text-[11px]">California Public Records Act</h4>
             <p>
-              This information is presented in compliance with CA Gov Code
-              &sect; 6250. Access to the raw ledger for independent auditing is
-              available upon verification. System Ledger Hash ID:
-              8821-X-CALSIGHT-DASH-04. Version 4.2.1.0 Institutional
-              Transparency Protocol.
+              SWITRS and CCRS data are public records under CA Gov Code
+              &sect; 6250. Source data available at data.chp.ca.gov. This
+              dashboard is an independent analysis and is not affiliated
+              with or endorsed by the California Highway Patrol, Caltrans,
+              or any state agency.
             </p>
           </div>
         </div>

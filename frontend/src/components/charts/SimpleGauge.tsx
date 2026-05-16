@@ -65,7 +65,7 @@ export default function SimpleGauge({ data, height = 180 }: SimpleGaugeProps) {
   });
 
   return (
-    <div className="w-full" style={{ height }}>
+    <div className="w-full" style={{ minHeight: height }}>
       <svg width="100%" height={height - 20} viewBox={`0 0 ${vw} ${height - 20}`} className="block">
         <path
           d={`M ${cx - outerR} ${cy} A ${outerR} ${outerR} 0 0 1 ${cx + outerR} ${cy}`}
