@@ -116,7 +116,7 @@ export function useAskAi() {
         lastWas429 = false;
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 45_000);
+        const timeout = setTimeout(() => controller.abort(), 55_000);
         const resp = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -888,7 +888,7 @@ def stats(
 ALLOWED_GROUPS = {
     "year", "hour", "cause", "severity", "month", "day_of_week",
     "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket",
-    "rate", "county",
+    "rate", "county", "weather", "lighting", "collision_type",
 }
 
 _limiter = Limiter(key_func=get_remote_address)

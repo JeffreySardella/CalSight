@@ -173,9 +173,6 @@ class Crash(Base):
     crash_month = Column(SmallInteger)
     day_of_week_num = Column(SmallInteger)
 
-    crash_month = Column(SmallInteger)
-    day_of_week_num = Column(SmallInteger)
-
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (

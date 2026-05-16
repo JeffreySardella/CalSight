@@ -242,7 +242,10 @@ def parse_weather(raw: str | None) -> list[str] | None:
         return None
     valid = {"clear", "cloudy", "rain", "fog", "snow", "wind", "other"}
     values = [v.strip() for v in raw.split(",")]
-    return [v for v in values if v in valid] or None
+    bad = [v for v in values if v not in valid]
+    if bad:
+        raise FilterError("weather", f"Unknown weather '{bad[0]}'. Allowed: {', '.join(sorted(valid))}.")
+    return values or None
 
 
 def parse_lighting(raw: str | None) -> list[str] | None:
@@ -250,7 +253,10 @@ def parse_lighting(raw: str | None) -> list[str] | None:
         return None
     valid = {"daylight", "dark_lit", "dark_unlit", "dusk_dawn", "other"}
     values = [v.strip() for v in raw.split(",")]
-    return [v for v in values if v in valid] or None
+    bad = [v for v in values if v not in valid]
+    if bad:
+        raise FilterError("lighting", f"Unknown lighting '{bad[0]}'. Allowed: {', '.join(sorted(valid))}.")
+    return values or None
 
 
 def parse_collision_type(raw: str | None) -> list[str] | None:
@@ -258,7 +264,10 @@ def parse_collision_type(raw: str | None) -> list[str] | None:
         return None
     valid = {"rear_end", "broadside", "sideswipe", "hit_object", "head_on", "other"}
     values = [v.strip() for v in raw.split(",")]
-    return [v for v in values if v in valid] or None
+    bad = [v for v in values if v not in valid]
+    if bad:
+        raise FilterError("collision_type", f"Unknown collision_type '{bad[0]}'. Allowed: {', '.join(sorted(valid))}.")
+    return values or None
 
 
 def parse_road_type(raw: str | None) -> bool | None:
@@ -268,7 +277,7 @@ def parse_road_type(raw: str | None) -> bool | None:
         return True
     if raw == "local":
         return False
-    return None
+    raise FilterError("road_type", "road_type must be 'highway' or 'local'.")
 
 
 def parse_hit_run(raw: str | None) -> bool | None:
