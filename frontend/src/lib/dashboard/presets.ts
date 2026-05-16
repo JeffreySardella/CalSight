@@ -33,7 +33,7 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
   },
   demographics: {
     label: "Demographics",
-    icon: "person",
+    icon: "group",
     description: "Who is involved — gender, age, at-fault drivers",
     slots: [
       { dimension: "severity", measure: "count", chartType: "donut", order: 0 },
@@ -67,7 +67,7 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
   },
   seasonal: {
     label: "Seasonal Patterns",
-    icon: "wb_sunny",
+    icon: "thermostat",
     description: "Monthly and weather-related crash trends",
     slots: [
       { dimension: "month", measure: "count", chartType: "bar", order: 0 },

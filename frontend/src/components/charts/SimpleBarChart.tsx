@@ -90,7 +90,7 @@ export default function SimpleBarChart({
       <svg ref={svgRef} width="100%" height={height} className="block">
         {data.map((d, i) => {
           const n = data.length;
-          const totalW = (svgRef.current?.clientWidth ?? 300) - padding.left - padding.right;
+          const totalW = Math.max((svgRef.current?.clientWidth ?? 300) - padding.left - padding.right, 0);
           const slotW = totalW / n;
           const barW = slotW * (1 - gap);
           const barX = padding.left + i * slotW + (slotW - barW) / 2;
