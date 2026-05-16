@@ -57,7 +57,7 @@ export default function VehicleTrends() {
         <p className="text-[10px] text-on-surface-variant">California DMV — EV adoption vs total registered vehicles</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-surface-container rounded-xl p-4">
           <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold mb-2">EV Adoption Rate</p>
           <SimpleLineChart

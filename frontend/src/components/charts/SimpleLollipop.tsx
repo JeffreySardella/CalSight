@@ -93,16 +93,30 @@ export default function SimpleLollipop({
                 r={isHovered ? 6 : 4}
                 fill={color}
               />
-              <text
-                x={Math.min(labelW + w + 10, svgWidth - 36)}
-                y={y + 3}
-                fontSize={9}
-                fontWeight={700}
-                fill="rgb(var(--on-surface-variant))"
-                fontFamily="'Inter Variable', Inter, sans-serif"
-              >
-                {formatNumber(d.value)}
-              </text>
+              {labelW + w + 10 > svgWidth - 36 ? (
+                <text
+                  x={labelW + w - 10}
+                  y={y + 3}
+                  textAnchor="end"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="rgb(var(--on-surface-variant))"
+                  fontFamily="'Inter Variable', Inter, sans-serif"
+                >
+                  {formatNumber(d.value)}
+                </text>
+              ) : (
+                <text
+                  x={labelW + w + 10}
+                  y={y + 3}
+                  fontSize={9}
+                  fontWeight={700}
+                  fill="rgb(var(--on-surface-variant))"
+                  fontFamily="'Inter Variable', Inter, sans-serif"
+                >
+                  {formatNumber(d.value)}
+                </text>
+              )}
             </g>
           );
         })}

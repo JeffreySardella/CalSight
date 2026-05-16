@@ -155,7 +155,7 @@ export default function StatsPage() {
           <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
             Total Incidents
           </p>
-          <div className="flex items-baseline gap-3">
+          <div className="flex flex-wrap items-baseline gap-3">
             {loading ? (
               <Skeleton className="h-10 w-40" />
             ) : (
@@ -199,7 +199,7 @@ export default function StatsPage() {
           <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
             YoY Fatality Change
           </p>
-          <div className="flex items-baseline gap-3">
+          <div className="flex flex-wrap items-baseline gap-3">
             {loading ? (
               <Skeleton className="h-10 w-32" />
             ) : (
@@ -265,7 +265,7 @@ export default function StatsPage() {
       </section>
 
       {/* Correlation Explorer */}
-      <section className="bg-surface-container-lowest rounded-2xl p-5 md:p-8 ambient-shadow">
+      <section className="bg-surface-container-lowest rounded-2xl p-5 md:p-8 ambient-shadow overflow-hidden">
         {correlation.isLoading ? (
           <Skeleton className="h-[500px] rounded-lg" />
         ) : correlation.error ? (

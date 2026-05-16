@@ -135,7 +135,6 @@ export default function SimpleTreemap({
                   fontWeight={700}
                   fill="#fff"
                   fontFamily="'Inter Variable', Inter, sans-serif"
-                  clipPath={`inset(0 0 0 0)`}
                 >
                   {r.item.label.length > Math.floor(r.w / 7) ? r.item.label.slice(0, Math.floor(r.w / 7) - 1) + "…" : r.item.label}
                 </text>

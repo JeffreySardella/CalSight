@@ -145,7 +145,7 @@ export default function SimpleLineChart({
           return (
             <g>
               <line x1={padding.left} x2={padding.left + chartW} y1={yM} y2={yM} stroke="rgb(var(--error))" strokeWidth={1} strokeDasharray="6 3" strokeOpacity={0.6} />
-              <text x={padding.left + chartW + 4} y={yM + 3} fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
+              <text x={padding.left + chartW - 4} y={yM + 3} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
             </g>
           );
         })()}
@@ -194,7 +194,7 @@ export default function SimpleLineChart({
           return (
             <g>
               <line x1={points[0].x} x2={points[points.length - 1].x} y1={y0} y2={yN} stroke="rgb(var(--tertiary))" strokeWidth={1.5} strokeDasharray="8 4" strokeOpacity={0.7} />
-              <text x={points[points.length - 1].x - 4} y={yN - 6} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--tertiary))" fillOpacity={0.8} fontFamily="'Inter Variable', Inter, sans-serif">
+              <text x={padding.left + chartW - 4} y={yN - 6} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--tertiary))" fillOpacity={0.8} fontFamily="'Inter Variable', Inter, sans-serif">
                 R²={reg.r2.toFixed(2)}
               </text>
             </g>

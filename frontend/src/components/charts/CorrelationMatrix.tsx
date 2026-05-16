@@ -119,8 +119,18 @@ function DetailScatter({ counties, xField, yField, r }: {
 export default function CorrelationMatrix({ fields, matrix, countyCount, counties }: Props) {
   const [hoverCell, setHoverCell] = useState<{ i: number; j: number } | null>(null);
   const [selected, setSelected] = useState<{ i: number; j: number } | null>(null);
+  const [windowWidth, setWindowWidth] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1024,
+  );
+
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   const n = fields.length;
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const isMobile = windowWidth < 768;
   const cellSize = isMobile ? 24 : 36;
   const labelW = isMobile ? 56 : 76;
   const svgW = labelW + n * cellSize;

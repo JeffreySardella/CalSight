@@ -102,7 +102,7 @@ export default function SimpleScatter({
           );
         })}
 
-        <text x={svgWidth / 2} y={height - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
+        <text x="50%" y={height - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
           {xLabel}
         </text>
         <text x={12} y={height / 2} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-90, 12, ${height / 2})`}>
