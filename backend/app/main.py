@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,13 +8,22 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import engine, get_db
 from app.filters import FilterError
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="CalSight API", version="0.1.0", debug=settings.debug)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("CalSight API starting up")
+    yield
+    logger.info("CalSight API shutting down — disposing DB pool")
+    engine.dispose()
+
+
+app = FastAPI(title="CalSight API", version="0.1.0", debug=settings.debug, lifespan=lifespan)
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
