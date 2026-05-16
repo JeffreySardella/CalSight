@@ -81,6 +81,8 @@ jobs:
         run: docker compose -f docker-compose.prod.yml exec -T -d backend python -m etl.validate_coords
 
       - name: Verify backend + tunnel are healthy
+        env:
+          CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
         run: |
           for i in 1 2 3 4 5 6; do
             if curl -sf http://127.0.0.1:8000/api/health > /dev/null; then
