@@ -15,91 +15,79 @@ function formatNumber(val: number): string {
   return val.toLocaleString();
 }
 
+const DEFAULT_COLORS = ["#dc2626", "#f59e0b", "#2563eb", "#7c3aed", "#059669", "#6b7280"];
+
 export default function SimpleGauge({ data, height = 180 }: SimpleGaugeProps) {
   if (!data.length) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return null;
 
-  const cx = 140;
-  const cy = height - 30;
-  const r = Math.min(cx - 10, cy - 10);
-  const trackW = 28;
+  const vw = 240;
+  const cx = vw / 2;
+  const cy = height - 40;
+  const outerR = Math.min(cx - 8, cy - 8);
+  const trackW = 24;
+  const innerR = outerR - trackW;
 
-  const COLORS = [
-    "#dc2626", "#f59e0b", "#2563eb", "#7c3aed", "#6b7280",
-  ];
-
-  let cumPct = 0;
+  let cumAngle = Math.PI;
   const arcs = data.map((d, i) => {
     const pct = d.value / total;
-    const startAngle = Math.PI + cumPct * Math.PI;
-    cumPct += pct;
-    const endAngle = Math.PI + cumPct * Math.PI;
-    const x1 = cx + (r - trackW / 2) * Math.cos(startAngle);
-    const y1 = cy + (r - trackW / 2) * Math.sin(startAngle);
-    const x2 = cx + (r - trackW / 2) * Math.cos(endAngle);
-    const y2 = cy + (r - trackW / 2) * Math.sin(endAngle);
+    const startAngle = cumAngle;
+    const sweepAngle = pct * Math.PI;
+    cumAngle += sweepAngle;
+    const endAngle = cumAngle;
+
+    const x1 = cx + outerR * Math.cos(startAngle);
+    const y1 = cy + outerR * Math.sin(startAngle);
+    const x2 = cx + outerR * Math.cos(endAngle);
+    const y2 = cy + outerR * Math.sin(endAngle);
+    const ix1 = cx + innerR * Math.cos(endAngle);
+    const iy1 = cy + innerR * Math.sin(endAngle);
+    const ix2 = cx + innerR * Math.cos(startAngle);
+    const iy2 = cy + innerR * Math.sin(startAngle);
+
     const large = pct > 0.5 ? 1 : 0;
-    const rr = r - trackW / 2;
+    const path = [
+      `M ${x1} ${y1}`,
+      `A ${outerR} ${outerR} 0 ${large} 1 ${x2} ${y2}`,
+      `L ${ix1} ${iy1}`,
+      `A ${innerR} ${innerR} 0 ${large} 0 ${ix2} ${iy2}`,
+      "Z",
+    ].join(" ");
+
     return {
-      d: `M ${x1} ${y1} A ${rr} ${rr} 0 ${large} 1 ${x2} ${y2}`,
-      color: d.color ?? COLORS[i % COLORS.length] ?? "#6b7280",
+      path,
+      color: d.color ?? DEFAULT_COLORS[i % DEFAULT_COLORS.length],
       label: d.label,
       pct: Math.round(pct * 100),
-      value: d.value,
     };
   });
 
   return (
     <div className="w-full" style={{ height }}>
-      <svg width="100%" height={height} viewBox={`0 0 280 ${height}`} className="block">
+      <svg width="100%" height={height - 20} viewBox={`0 0 ${vw} ${height - 20}`} className="block">
         <path
-          d={`M ${cx - r + trackW / 2} ${cy} A ${r - trackW / 2} ${r - trackW / 2} 0 0 1 ${cx + r - trackW / 2} ${cy}`}
+          d={`M ${cx - outerR} ${cy} A ${outerR} ${outerR} 0 0 1 ${cx + outerR} ${cy}`}
           fill="none"
           stroke="rgb(var(--surface-container-high))"
           strokeWidth={trackW}
-          strokeLinecap="round"
         />
         {arcs.map((arc, i) => (
-          <path
-            key={i}
-            d={arc.d}
-            fill="none"
-            stroke={arc.color}
-            strokeWidth={trackW}
-            strokeLinecap="butt"
-          />
+          <path key={i} d={arc.path} fill={arc.color} />
         ))}
-        <text
-          x={cx}
-          y={cy - 10}
-          textAnchor="middle"
-          fontSize={28}
-          fontWeight={800}
-          fill="rgb(var(--on-surface))"
-          fontFamily="'Inter Variable', Inter, sans-serif"
-        >
+        <text x={cx} y={cy - 12} textAnchor="middle" fontSize={26} fontWeight={800} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
           {formatNumber(total)}
         </text>
-        <text
-          x={cx}
-          y={cy + 10}
-          textAnchor="middle"
-          fontSize={11}
-          fontWeight={600}
-          fill="rgb(var(--on-surface-variant))"
-          fontFamily="'Inter Variable', Inter, sans-serif"
-          letterSpacing={2}
-        >
+        <text x={cx} y={cy + 6} textAnchor="middle" fontSize={10} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" letterSpacing={2}>
           TOTAL
         </text>
       </svg>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center -mt-4">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center">
         {arcs.map((arc, i) => (
           <div key={i} className="flex items-center gap-1.5 text-[10px]">
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: arc.color }} />
-            <span className="text-on-surface-variant">{arc.label} {arc.pct}%</span>
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: arc.color }} />
+            <span className="text-on-surface-variant font-medium">{arc.label} {arc.pct}%</span>
           </div>
         ))}
       </div>
