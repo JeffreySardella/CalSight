@@ -93,7 +93,7 @@ export default function SimpleDonutChart({
   const withPct = data.map((d) => ({ ...d, pct: Math.round((d.value / total) * 100) }));
 
   return (
-    <div className="w-full overflow-hidden" style={{ height }}>
+    <div className="w-full overflow-visible relative" style={{ height }}>
       <svg ref={svgRef} width="100%" height={height} className="block">
         {segments.map((seg, i) => (
           <path
@@ -106,10 +106,10 @@ export default function SimpleDonutChart({
             opacity={hover !== null && hover.idx !== i ? 0.5 : 1}
           />
         ))}
-        <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-          {hover !== null && renderTooltip?.(withPct[hover.idx], hover.idx)}
-        </ChartTooltip>
       </svg>
+      <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
+        {hover !== null && renderTooltip?.(withPct[hover.idx], hover.idx)}
+      </ChartTooltip>
     </div>
   );
 }

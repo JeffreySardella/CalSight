@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import ChartTooltip from "./ChartTooltip";
 
 interface BarItem {
@@ -33,6 +33,15 @@ export default function SimpleBarChart({
 }: SimpleBarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [svgWidth, setSvgWidth] = useState(300);
+
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setSvgWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGRectElement>, idx: number) => {
     const svg = svgRef.current;
@@ -50,11 +59,11 @@ export default function SimpleBarChart({
     const rowH = barH + 10;
     const svgH = Math.max(height, data.length * rowH);
     return (
-      <div className="w-full overflow-hidden" style={{ height: svgH }}>
+      <div className="w-full overflow-visible relative" style={{ height: svgH }}>
         <svg ref={svgRef} width="100%" height={svgH} className="block">
           {data.map((d, i) => {
             const y = i * rowH + 4;
-            const barW = maxVal > 0 ? ((svgRef.current?.clientWidth ?? 300) - labelW - 16) * (d.value / maxVal) : 0;
+            const barW = maxVal > 0 ? (svgWidth - labelW - 16) * (d.value / maxVal) : 0;
             return (
               <g key={d.label}>
                 <text x={0} y={y + barH / 2 + 4} fontSize={10} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
@@ -74,10 +83,10 @@ export default function SimpleBarChart({
               </g>
             );
           })}
-          <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-            {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
-          </ChartTooltip>
         </svg>
+        <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
+          {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
+        </ChartTooltip>
       </div>
     );
   }
@@ -86,11 +95,11 @@ export default function SimpleBarChart({
   const chartH = height - padding.top - padding.bottom;
 
   return (
-    <div className="w-full overflow-hidden" style={{ height }}>
+    <div className="w-full overflow-visible relative" style={{ height }}>
       <svg ref={svgRef} width="100%" height={height} className="block">
         {data.map((d, i) => {
           const n = data.length;
-          const totalW = Math.max((svgRef.current?.clientWidth ?? 300) - padding.left - padding.right, 0);
+          const totalW = Math.max(svgWidth - padding.left - padding.right, 0);
           const slotW = totalW / n;
           const barW = slotW * (1 - gap);
           const barX = padding.left + i * slotW + (slotW - barW) / 2;
@@ -144,10 +153,10 @@ export default function SimpleBarChart({
             </g>
           );
         })}
-        <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-          {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
-        </ChartTooltip>
       </svg>
+      <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
+        {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
+      </ChartTooltip>
     </div>
   );
 }
