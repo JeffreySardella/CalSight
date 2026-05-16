@@ -8,6 +8,8 @@ interface Segment {
   color: string;
 }
 
+export type DonutHighlight = "selected" | "dimmed" | "normal";
+
 interface SimpleDonutChartProps {
   data: Segment[];
   height?: number;
@@ -15,6 +17,8 @@ interface SimpleDonutChartProps {
   outerRadius?: number;
   renderTooltip?: (item: Segment & { pct: number }, idx: number) => React.ReactNode;
   title?: string;
+  onSegmentClick?: (item: Segment, idx: number) => void;
+  getHighlight?: (item: Segment, idx: number) => DonutHighlight;
 }
 
 function polarToCartesian(cx: number, cy: number, r: number, angle: number) {
@@ -36,6 +40,8 @@ export default function SimpleDonutChart({
   outerRadius = 72,
   renderTooltip,
   title,
+  onSegmentClick,
+  getHighlight,
 }: SimpleDonutChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -117,11 +123,17 @@ export default function SimpleDonutChart({
               fill={seg.color}
               onMouseMove={(e) => handleMouseMove(e, i)}
               onMouseLeave={() => setHover(null)}
+              onClick={() => onSegmentClick?.(seg.item, i)}
               className="cursor-pointer"
               style={{
                 transform: `translate(${tx}px, ${ty}px) scale(${progress})`,
                 transformOrigin: `${cx}px ${cy}px`,
-                opacity: progress * (hover !== null && !isHovered ? 0.5 : 1),
+                opacity: (() => {
+                  const hl = getHighlight?.(seg.item, i) ?? "normal";
+                  if (hl === "dimmed") return progress * 0.3;
+                  if (hl === "selected") return progress;
+                  return progress * (hover !== null && !isHovered ? 0.5 : 1);
+                })(),
                 transition: "transform 0.2s ease, opacity 0.15s ease",
               }}
             />

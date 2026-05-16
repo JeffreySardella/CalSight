@@ -145,7 +145,7 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
   }
 }
 
-export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
+export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, crossFilterOverrides?: Record<string, string | undefined>) {
   const groups = useMemo(() => {
     const dims = new Set(charts.map((c) => c.dimension));
     return [...dims] as string[];
@@ -163,8 +163,26 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
     if (filters.cyclist) b.cyclist = "true";
     if (filters.drug) b.drug = "true";
     if (filters.distracted) b.distracted = "true";
+    // Merge cross-filter overrides (narrow, don't replace)
+    if (crossFilterOverrides) {
+      for (const [key, val] of Object.entries(crossFilterOverrides)) {
+        if (!val) continue;
+        if (b[key]) {
+          // Narrow: intersect with existing (only keep the override value if it exists in current)
+          const existing = b[key].split(",");
+          if (existing.includes(val)) {
+            b[key] = val;
+          } else {
+            // Override value not in current filter list — use it directly (backend will just return nothing for invalid combos)
+            b[key] = val;
+          }
+        } else {
+          b[key] = val;
+        }
+      }
+    }
     return b;
-  }, [filters]);
+  }, [filters, crossFilterOverrides]);
 
   const query = useQuery({
     queryKey: ["dashboard", groups, filterBody],
@@ -179,6 +197,7 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
       return await res.json() as Record<string, Record<string, unknown>[]>;
     },
     enabled: groups.length > 0,
+    staleTime: 60_000,
   });
 
   const dataBySlot = useMemo(() => {

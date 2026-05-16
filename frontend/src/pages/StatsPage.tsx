@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
+import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES, YEARS } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
 import { useStats } from "../hooks/useStats";
@@ -30,25 +30,56 @@ import { useChartSuggestions } from "../hooks/useChartSuggestions";
 import PrintHeader from "../components/stats/PrintHeader";
 import PrintFooter from "../components/stats/PrintFooter";
 import Sparkline from "../components/charts/Sparkline";
+import { useTimelapsePlayer } from "../hooks/useTimelapsePlayer";
+import TimelapseControls from "../components/stats/TimelapseControls";
+import StoryReader from "../components/stats/StoryReader";
+import { useDrillDown } from "../hooks/useDrillDown";
+import DrillBreadcrumb from "../components/stats/DrillBreadcrumb";
+import { DIMENSION_LABELS } from "../lib/dashboard/types";
+import { DATA_STORIES, getStoryById } from "../lib/dashboard/stories";
+import { useCrossFilter } from "../hooks/useCrossFilter";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [timelapseActive, setTimelapseActive] = useState(false);
+  const [storiesMode, setStoriesMode] = useState(false);
+  const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
   const filters = useFilterParams();
-  const statsFilters = useMemo(() => ({
-    dateRange: filters.selectedDateRange,
-    severities: [...filters.selectedSeverities],
-    causes: [...filters.selectedCauses],
-    counties: [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")),
-    alcohol: filters.selectedAlcohol,
-    pedestrian: filters.selectedPedestrian,
-    cyclist: filters.selectedCyclist,
-    drug: filters.selectedDrug,
-    distracted: filters.selectedDistracted,
-  }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted]);
+  const { drillState, drillToCounty, drillUp, resetDrill } = useDrillDown();
+  const crossFilter = useCrossFilter();
+
+  // Time-lapse player
+  const tlMinYear = YEARS[0];
+  const tlMaxYear = YEARS[YEARS.length - 1] - 1; // Exclude current (incomplete) year
+  const timelapse = useTimelapsePlayer(tlMinYear, tlMaxYear);
+
+  // When timelapse is active, override the date filter to the animated year
+  // When drill_county is set, override the county filter to just that county
+  const statsFilters = useMemo(() => {
+    const baseRange = timelapseActive
+      ? { start: { year: timelapse.currentYear, month: 1 }, end: { year: timelapse.currentYear, month: 12 } }
+      : filters.selectedDateRange;
+    const baseCounties = [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-"));
+    const drillCountySlug = drillState.county
+      ? drillState.county.toLowerCase().replace(/ /g, "-")
+      : null;
+    return {
+      dateRange: baseRange,
+      severities: [...filters.selectedSeverities],
+      causes: [...filters.selectedCauses],
+      counties: drillCountySlug ? [drillCountySlug] : baseCounties,
+      alcohol: filters.selectedAlcohol,
+      pedestrian: filters.selectedPedestrian,
+      cyclist: filters.selectedCyclist,
+      drug: filters.selectedDrug,
+      distracted: filters.selectedDistracted,
+    };
+  }, [timelapseActive, timelapse.currentYear, filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, drillState.county]);
   const { data, loading, error } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
-  const { dataBySlot, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboardData(dashboard.activeCharts, statsFilters);
+  const crossFilterOverrides = useMemo(() => crossFilter.toFilterOverrides(), [crossFilter.toFilterOverrides]);
+  const { dataBySlot, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboardData(dashboard.activeCharts, statsFilters, crossFilterOverrides);
   const anomalyResult = useMemo(() => {
     if (dashLoading || Object.keys(dataBySlot).length === 0) return { byChart: {}, all: [] };
     return detectAllAnomalies(dataBySlot, dashboard.activeCharts);
@@ -73,6 +104,14 @@ export default function StatsPage() {
   const counties   = filters.selectedCounties;
   const causes     = filters.selectedCauses;
 
+  // Geo drill-down: click county bar → filter to that county
+  const handleBarClick = useCallback((label: string, dimension: string) => {
+    if (dimension === "county") {
+      const slug = label.toLowerCase().replace(/ /g, "-");
+      drillToCounty(slug);
+    }
+  }, [drillToCounty]);
+
   // Keyboard shortcut: close config panel trigger (incremented to signal DashboardGrid)
   const [closeConfigTrigger, setCloseConfigTrigger] = useState(0);
   const handleCloseConfig = useCallback(() => setCloseConfigTrigger((n) => n + 1), []);
@@ -84,8 +123,17 @@ export default function StatsPage() {
     onCloseConfig: handleCloseConfig,
   });
 
+  // Clear drill state and cross-filter when preset changes
+  const handlePresetSelect = useCallback((key: Parameters<typeof dashboard.setPreset>[0]) => {
+    resetDrill();
+    crossFilter.clearCrossFilter();
+    dashboard.setPreset(key);
+  }, [resetDrill, crossFilter, dashboard]);
+
   function handleClearAll() {
     filters.clearFilters();
+    resetDrill();
+    crossFilter.clearCrossFilter();
     setResetKey((k) => k + 1);
   }
 
@@ -148,12 +196,17 @@ export default function StatsPage() {
     ...(filters.selectedDistracted ? [{ label: "Distracted", onRemove: () => filters.toggleDistracted() }] : []),
   ];
 
+  const crossFilterChips: Chip[] = crossFilter.state.selection
+    ? [{ label: `Cross-filter: ${DIMENSION_LABELS[crossFilter.state.selection.dimension]}`, onRemove: () => crossFilter.clearCrossFilter() }]
+    : [];
+
   const chips: Chip[] = [
     ...countyChips,
     ...yearChips,
     ...causeChips,
     ...severityChips,
     ...involvementChips,
+    ...crossFilterChips,
   ];
 
   const heroMetrics = data?.heroMetrics ?? {};
@@ -413,7 +466,18 @@ export default function StatsPage() {
       {/* Dashboard Builder */}
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <DashboardModeToggle mode={dashboard.config.mode} onChange={dashboard.setMode} />
+          <DashboardModeToggle
+            mode={storiesMode ? "stories" : dashboard.config.mode}
+            onChange={(m) => {
+              if (m === "stories") {
+                setStoriesMode(true);
+              } else {
+                setStoriesMode(false);
+                setActiveStoryId(null);
+                dashboard.setMode(m);
+              }
+            }}
+          />
           <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
             <SavedDashboardsPanel
               currentConfig={dashboard.config}
@@ -423,6 +487,27 @@ export default function StatsPage() {
               shareUrl={fullShareUrl}
               shareText={`California crash statistics dashboard on CalSight${counties.size > 0 && counties.size <= 3 ? ` — ${[...counties].join(", ")}` : ""}`}
             />
+            <button
+              type="button"
+              onClick={() => {
+                setTimelapseActive((v) => {
+                  if (v) timelapse.pause();
+                  return !v;
+                });
+              }}
+              className={`hidden sm:inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                timelapseActive
+                  ? "text-primary"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+              aria-label="Toggle time-lapse mode"
+              aria-pressed={timelapseActive}
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {timelapseActive ? "stop_circle" : "play_circle"}
+              </span>
+              Time-Lapse
+            </button>
             <button
               type="button"
               onClick={handlePrint}
@@ -448,42 +533,92 @@ export default function StatsPage() {
             <DataFreshnessBanner />
           </div>
         </div>
-        <NlqQueryBar onAddChart={(cfg) => {
-          if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
-          dashboard.addChart(cfg);
-        }} />
-        {dashboard.config.mode === "simple" && (
-          <PresetPicker active={dashboard.config.preset} onSelect={dashboard.setPreset} />
-        )}
-        {dashError && (
-          <div role="alert" className="flex items-center gap-3 bg-error-container/30 rounded-lg px-4 py-3">
-            <span className="material-symbols-outlined text-[20px] text-error" aria-hidden="true">cloud_off</span>
-            <div className="flex-1">
-              <p className="text-error text-sm font-semibold">Unable to load chart data</p>
-              <p className="text-on-surface-variant text-xs mt-0.5">The server may be temporarily unavailable. You can retry or adjust your filters.</p>
+        {storiesMode ? (
+          activeStoryId ? (
+            <StoryReader
+              story={getStoryById(activeStoryId)!}
+              onBack={() => setActiveStoryId(null)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {DATA_STORIES.map((story) => (
+                <button
+                  key={story.id}
+                  type="button"
+                  onClick={() => setActiveStoryId(story.id)}
+                  className="text-left bg-surface-container-lowest rounded-xl p-5 ambient-shadow hover:bg-surface-container-low transition-colors group"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">
+                      {story.icon}
+                    </span>
+                    <h3 className="text-sm font-headline font-bold text-on-surface group-hover:text-primary transition-colors">
+                      {story.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    {story.subtitle}
+                  </p>
+                </button>
+              ))}
             </div>
-            <button
-              type="button"
-              onClick={() => dashRefetch()}
-              className="px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-bold hover:opacity-90 transition-opacity"
-            >
-              Retry
-            </button>
-          </div>
+          )
+        ) : (
+          <>
+            {timelapseActive && (
+              <TimelapseControls
+                currentYear={timelapse.currentYear}
+                isPlaying={timelapse.isPlaying}
+                speed={timelapse.speed}
+                minYear={tlMinYear}
+                maxYear={tlMaxYear}
+                onPlay={timelapse.play}
+                onPause={timelapse.pause}
+                onSeek={timelapse.seek}
+                onSetSpeed={timelapse.setSpeed}
+              />
+            )}
+            <NlqQueryBar onAddChart={(cfg) => {
+              if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
+              dashboard.addChart(cfg);
+            }} />
+            {dashboard.config.mode === "simple" && (
+              <PresetPicker active={dashboard.config.preset} onSelect={handlePresetSelect} />
+            )}
+            {dashError && (
+              <div role="alert" className="flex items-center gap-3 bg-error-container/30 rounded-lg px-4 py-3">
+                <span className="material-symbols-outlined text-[20px] text-error" aria-hidden="true">cloud_off</span>
+                <div className="flex-1">
+                  <p className="text-error text-sm font-semibold">Unable to load chart data</p>
+                  <p className="text-on-surface-variant text-xs mt-0.5">The server may be temporarily unavailable. You can retry or adjust your filters.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dashRefetch()}
+                  className="px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-bold hover:opacity-90 transition-opacity"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            <DrillBreadcrumb drillState={drillState} onDrillUp={drillUp} />
+            <DashboardGrid
+              charts={dashboard.activeCharts}
+              dataBySlot={dataBySlot}
+              mode={dashboard.config.mode}
+              loading={dashLoading}
+              onAddChart={dashboard.addChart}
+              onRemoveChart={dashboard.removeChart}
+              onUpdateChart={dashboard.updateChart}
+              onMoveChart={dashboard.moveChart}
+              onReorderChart={dashboard.reorderChart}
+              closeConfigTrigger={closeConfigTrigger}
+              getChartNarrative={getChartNarrative}
+              crossFilter={crossFilter}
+              onBarClick={handleBarClick}
+            />
+          </>
         )}
-        <DashboardGrid
-          charts={dashboard.activeCharts}
-          dataBySlot={dataBySlot}
-          mode={dashboard.config.mode}
-          loading={dashLoading}
-          onAddChart={dashboard.addChart}
-          onRemoveChart={dashboard.removeChart}
-          onUpdateChart={dashboard.updateChart}
-          onMoveChart={dashboard.moveChart}
-          onReorderChart={dashboard.reorderChart}
-          closeConfigTrigger={closeConfigTrigger}
-          getChartNarrative={getChartNarrative}
-        />
       </section>
 
       {/* Vehicle Trends */}

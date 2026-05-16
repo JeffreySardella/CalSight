@@ -24,6 +24,10 @@ import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
 import type { DragHandleProps } from "../../hooks/useDragReorder";
+import type { CrossFilterAPI } from "../../hooks/useCrossFilter";
+import type { BarHighlight } from "../charts/SimpleBarChart";
+
+const CROSS_FILTER_DIMS: Dimension[] = ["severity", "cause", "county", "year"];
 
 interface Props {
   slot: ChartSlot;
@@ -40,6 +44,8 @@ interface Props {
   enterDelay?: number;
   dragHandleProps?: DragHandleProps | null;
   narrativeResult?: ChartNarrativeResult | null;
+  crossFilter?: CrossFilterAPI;
+  onBarClick?: (label: string, dimension: Dimension) => void;
 }
 
 function buildTitle(slot: ChartSlot): string {
@@ -111,13 +117,34 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
 }
 
 function ChartCard({
-  slot, data, secondaryData, editing, loading, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay, dragHandleProps, narrativeResult,
+  slot, data, secondaryData, editing, loading, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay, dragHandleProps, narrativeResult, crossFilter, onBarClick,
 }: Props) {
   const [showTable, setShowTable] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { selectedCounties } = useFilterParams();
   const title = buildTitle(slot);
+
+  // Cross-filter: determine if this chart's dimension supports brushing
+  const canCrossFilter = CROSS_FILTER_DIMS.includes(slot.dimension);
+  const isSourceChart = crossFilter?.state.sourceChartId === slot.id;
+
+  const handleCrossFilterClick = useMemo(() => {
+    if (!crossFilter || !canCrossFilter) return undefined;
+    return (label: string) => {
+      crossFilter.toggleCategory(slot.id, slot.dimension, label);
+    };
+  }, [crossFilter, canCrossFilter, slot.id, slot.dimension]);
+
+  const getHighlight = useMemo(() => {
+    if (!crossFilter?.state.selection) return undefined;
+    const { dimension, values } = crossFilter.state.selection;
+    // Only highlight bars on the same dimension as the active cross-filter
+    if (dimension !== slot.dimension) return undefined;
+    return (item: { label: string }): BarHighlight => {
+      return values.includes(item.label) ? "selected" : "dimmed";
+    };
+  }, [crossFilter?.state.selection, slot.dimension]);
   const hasData = data.length > 0 && data.some((d) => d.value > 0);
   const isScatter = slot.chartType === "scatter";
   const valueLabel = MEASURE_LABELS[slot.measure];
@@ -175,7 +202,7 @@ function ChartCard({
       aria-label={title}
       tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- intentional for keyboard navigation
       data-chart-id={slot.id}
-      className="group/card bg-surface-container-lowest chart-card-themed chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2"
+      className={`group/card bg-surface-container-lowest chart-card-themed chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2${isSourceChart ? " ring-2 ring-primary" : ""}`}
       style={{ animationDelay: enterDelay && enterDelay > 0 ? `${enterDelay}ms` : undefined }}
     >
       <div className="flex items-center justify-between mb-3">
@@ -267,6 +294,8 @@ function ChartCard({
             height={140}
             renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
             title={title}
+            onSegmentClick={handleCrossFilterClick ? (item) => handleCrossFilterClick(item.label) : undefined}
+            getHighlight={getHighlight ? (item) => getHighlight(item) : undefined}
           />
           <DonutLegend data={data} />
         </>
@@ -335,6 +364,8 @@ function ChartCard({
             height={Math.max(192, data.length * 28)}
             renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
             title={title}
+            onItemClick={handleCrossFilterClick ? (item) => handleCrossFilterClick(item.label) : undefined}
+            getHighlight={getHighlight ? (item) => getHighlight(item) : undefined}
           />
         </div>
       ) : slot.chartType === "radar" ? (
@@ -367,6 +398,11 @@ function ChartCard({
             layout="horizontal"
             renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
             title={title}
+            onBarClick={(item) => {
+              handleCrossFilterClick?.(item.label);
+              onBarClick?.(item.label, slot.dimension);
+            }}
+            getHighlight={getHighlight}
           />
         </div>
       ) : (
@@ -377,6 +413,11 @@ function ChartCard({
           labelFormatter={thinLabelFormatter(data.length, slot.dimension)}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
           title={title}
+          onBarClick={(item) => {
+            handleCrossFilterClick?.(item.label);
+            onBarClick?.(item.label, slot.dimension);
+          }}
+          getHighlight={getHighlight}
         />
       )}
 

@@ -10,6 +10,8 @@ interface BarItem {
   peakLabel?: string;
 }
 
+export type BarHighlight = "selected" | "dimmed" | "normal";
+
 interface SimpleBarChartProps {
   data: BarItem[];
   height?: number;
@@ -22,6 +24,8 @@ interface SimpleBarChartProps {
   showXAxis?: boolean;
   showMeanLine?: boolean;
   title?: string;
+  onBarClick?: (item: BarItem, idx: number) => void;
+  getHighlight?: (item: BarItem, idx: number) => BarHighlight;
 }
 
 export default function SimpleBarChart({
@@ -36,6 +40,8 @@ export default function SimpleBarChart({
   showXAxis = true,
   showMeanLine = false,
   title,
+  onBarClick,
+  getHighlight,
 }: SimpleBarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -73,6 +79,8 @@ export default function SimpleBarChart({
           {data.map((d, i) => {
             const y = i * rowH + 4;
             const barW = maxVal > 0 ? (svgWidth - labelW - 16) * (d.value / maxVal) : 0;
+            const hl = getHighlight?.(d, i) ?? "normal";
+            const hlOpacity = hl === "dimmed" ? 0.3 : 1;
             return (
               <g key={d.label}>
                 <text x={0} y={y + barH / 2 + 4} fontSize={10} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
@@ -85,9 +93,12 @@ export default function SimpleBarChart({
                   height={barH}
                   rx={radius}
                   fill={d.color ?? defaultColor}
+                  opacity={hlOpacity}
                   onMouseMove={(e) => handleMouseMove(e, i)}
                   onMouseLeave={() => setHover(null)}
+                  onClick={() => onBarClick?.(d, i)}
                   className="cursor-pointer"
+                  style={{ transition: "opacity 0.15s ease" }}
                 />
               </g>
             );
@@ -139,7 +150,12 @@ export default function SimpleBarChart({
                 height={Math.max(barH, 0)}
                 rx={radius}
                 fill={d.color ?? defaultColor}
-                opacity={hover !== null && hover.idx !== i ? 0.6 : 1}
+                opacity={(() => {
+                  const hl = getHighlight?.(d, i) ?? "normal";
+                  if (hl === "dimmed") return 0.3;
+                  if (hl === "selected") return 1;
+                  return hover !== null && hover.idx !== i ? 0.6 : 1;
+                })()}
                 style={{
                   transformOrigin: `${barX + barW / 2}px ${padding.top + chartH}px`,
                   transform: `scaleY(${progress})`,
@@ -147,6 +163,7 @@ export default function SimpleBarChart({
                 }}
                 onMouseMove={(e) => handleMouseMove(e, i)}
                 onMouseLeave={() => setHover(null)}
+                onClick={() => onBarClick?.(d, i)}
                 className="cursor-pointer"
               />
               {showXAxis && (

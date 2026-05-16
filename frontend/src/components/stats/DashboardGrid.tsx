@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import type { ChartSlot, Dimension, Measure, ChartType } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import type { ChartNarrativeResult } from "../../hooks/useNarrativeInsights";
+import type { CrossFilterAPI } from "../../hooks/useCrossFilter";
 import { useDragReorder } from "../../hooks/useDragReorder";
 import { ErrorBoundary } from "../ui/ErrorBoundary";
 import ChartCard from "./ChartCard";
@@ -41,10 +42,14 @@ interface Props {
   closeConfigTrigger?: number;
   /** Get narrative insight for a chart slot (from useNarrativeInsights) */
   getChartNarrative?: (slotId: string) => ChartNarrativeResult | null;
+  /** Cross-filter API for inter-chart brushing */
+  crossFilter?: CrossFilterAPI;
+  /** Called when a bar is clicked in a chart (for drill-down) */
+  onBarClick?: (label: string, dimension: Dimension) => void;
 }
 
 export default function DashboardGrid({
-  charts, dataBySlot, mode, loading, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, onReorderChart, closeConfigTrigger, getChartNarrative,
+  charts, dataBySlot, mode, loading, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, onReorderChart, closeConfigTrigger, getChartNarrative, crossFilter, onBarClick,
 }: Props) {
   const [configOpen, setConfigOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -153,6 +158,8 @@ export default function DashboardGrid({
                   enterDelay={idx * 40}
                   dragHandleProps={handleProps}
                   narrativeResult={getChartNarrative?.(slot.id) ?? null}
+                  crossFilter={crossFilter}
+                  onBarClick={onBarClick}
                 />
               </ErrorBoundary>
               {dragState.isDragging && dragState.overIndex === idx + 1 && idx === charts.length - 1 && dragState.dragId !== slot.id && (

@@ -7,12 +7,16 @@ interface LollipopItem {
   color?: string;
 }
 
+export type LollipopHighlight = "selected" | "dimmed" | "normal";
+
 interface SimpleLollipopProps {
   data: LollipopItem[];
   height?: number;
   defaultColor?: string;
   renderTooltip?: (item: LollipopItem, idx: number) => React.ReactNode;
   title?: string;
+  onItemClick?: (item: LollipopItem, idx: number) => void;
+  getHighlight?: (item: LollipopItem, idx: number) => LollipopHighlight;
 }
 
 function formatNumber(val: number): string {
@@ -27,6 +31,8 @@ export default function SimpleLollipop({
   defaultColor = "rgb(var(--primary))",
   renderTooltip,
   title,
+  onItemClick,
+  getHighlight,
 }: SimpleLollipopProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -64,12 +70,17 @@ export default function SimpleLollipop({
           const w = maxVal > 0 ? (d.value / maxVal) * barArea : 0;
           const color = d.color ?? defaultColor;
           const isHovered = hover?.idx === i;
+          const hl = getHighlight?.(d, i) ?? "normal";
+          const hlOpacity = hl === "dimmed" ? 0.3 : 1;
           return (
             <g
               key={d.label}
               onMouseMove={(e) => handleMouseMove(e, i)}
               onMouseLeave={() => setHover(null)}
+              onClick={() => onItemClick?.(d, i)}
               className="cursor-pointer"
+              opacity={hlOpacity}
+              style={{ transition: "opacity 0.15s ease" }}
             >
               <text
                 x={labelW - 6}

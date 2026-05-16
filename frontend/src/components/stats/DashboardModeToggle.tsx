@@ -1,6 +1,6 @@
 interface Props {
-  mode: "simple" | "advanced";
-  onChange: (mode: "simple" | "advanced") => void;
+  mode: "simple" | "advanced" | "stories";
+  onChange: (mode: "simple" | "advanced" | "stories") => void;
 }
 
 export default function DashboardModeToggle({ mode, onChange }: Props) {
@@ -29,6 +29,18 @@ export default function DashboardModeToggle({ mode, onChange }: Props) {
         }`}
       >
         Builder
+      </button>
+      <button
+        onClick={() => onChange("stories")}
+        role="radio"
+        aria-checked={mode === "stories"}
+        className={`px-4 py-2.5 rounded-full transition-colors min-h-[44px] flex items-center ${
+          mode === "stories"
+            ? "bg-primary text-on-primary"
+            : "text-on-surface-variant hover:text-on-surface"
+        }`}
+      >
+        Stories
       </button>
     </div>
   );

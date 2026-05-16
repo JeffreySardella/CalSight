@@ -215,11 +215,13 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
       if (!res.ok) throw new Error(`stats batch ${res.status}`);
       return res.json();
     },
+    staleTime: 60_000,
   });
 
   const demoQuery = useQuery({
     queryKey: ["stats", "demographics", { d: dateKey, co: filters.counties }],
     queryFn: () => fetchJson<DemoRow[]>(buildDemoUrl(filters)),
+    staleTime: 60_000,
   });
 
   const loading = batchQuery.isLoading;
