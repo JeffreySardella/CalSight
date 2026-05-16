@@ -10,8 +10,16 @@
 /ca-counties.topo.json
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
+/sitemap.xml
+  Cache-Control: public, max-age=86400
+  Content-Type: application/xml
+
+/robots.txt
+  Cache-Control: public, max-age=86400
+
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+  X-Robots-Tag: index, follow

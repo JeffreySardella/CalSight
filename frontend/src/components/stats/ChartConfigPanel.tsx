@@ -5,6 +5,7 @@ import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dash
 interface ChartConfig {
   dimension: Dimension;
   measure: Measure;
+  secondaryMeasure?: Measure;
   chartType: ChartType;
   splitBy?: Dimension;
   options?: ChartOptions;
@@ -40,6 +41,7 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "yoy_change", label: MEASURE_LABELS.yoy_change },
 ];
 
+const SUPPORTS_DUAL_AXIS = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_TREND = new Set<ChartType>(["line", "area", "scatter"]);
 const SUPPORTS_MEAN = new Set<ChartType>(["bar", "line", "area"]);
 const SUPPORTS_LOG = new Set<ChartType>(["bar", "hbar", "lollipop"]);
@@ -52,6 +54,7 @@ const SUPPORTS_FORECAST = new Set<ChartType>(["line", "area"]);
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
   const [dimension, setDimension] = useState<Dimension>(initial?.dimension ?? "hour");
   const [measure, setMeasure] = useState<Measure>(initial?.measure ?? "count");
+  const [secondaryMeasure, setSecondaryMeasure] = useState<Measure | undefined>(initial?.secondaryMeasure);
   const [chartType, setChartType] = useState<ChartType>(initial?.chartType ?? defaultChartType("hour"));
   const [options, setOptions] = useState<ChartOptions>(initial?.options ?? {});
 
@@ -101,6 +104,30 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
           ))}
         </select>
       </div>
+
+      {SUPPORTS_DUAL_AXIS.has(chartType) && (
+        <div>
+          <label htmlFor="cfg-secondary" className="block text-xs font-medium text-on-surface-variant mb-1">
+            Secondary Measure (Right Axis)
+          </label>
+          <select
+            id="cfg-secondary"
+            value={secondaryMeasure ?? ""}
+            onChange={(e) => setSecondaryMeasure(e.target.value ? e.target.value as Measure : undefined)}
+            className="w-full rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
+          >
+            <option value="">None (single axis)</option>
+            {SUPPORTED_MEASURES.filter((m) => m.value !== measure).map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+          {secondaryMeasure && (
+            <p className="text-[10px] text-on-surface-variant mt-1">
+              Dual axis: {MEASURE_LABELS[measure]} (left) vs {MEASURE_LABELS[secondaryMeasure]} (right)
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <div className="text-xs font-medium text-on-surface-variant mb-1">Chart Type</div>
@@ -227,7 +254,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
           Cancel
         </button>
         <button
-          onClick={() => onConfirm({ dimension, measure, chartType, options })}
+          onClick={() => onConfirm({ dimension, measure, secondaryMeasure, chartType, options })}
           className="flex-1 px-4 py-2 rounded-full text-sm font-medium text-on-primary bg-primary hover:opacity-90 transition-opacity"
         >
           {initial ? "Update" : "Add"}

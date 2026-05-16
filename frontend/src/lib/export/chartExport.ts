@@ -29,9 +29,19 @@ function resolveVarColors(svgString: string): string {
  * Export an SVG element as a retina-quality PNG.
  *
  * Approach: serialize the SVG with resolved CSS vars, load as an Image onto a
- * 2x canvas with a white background, then trigger download.
+ * scaled canvas with a white background, then trigger download.
+ *
+ * @param svgEl  - The SVG element to export
+ * @param title  - Used for the filename
+ * @param options - Optional settings:
+ *   - printQuality: when true, renders at 3x (300 DPI equivalent at 100% zoom)
+ *     instead of the default 2x (retina). Use for print-ready exports.
  */
-export async function exportChartPng(svgEl: SVGSVGElement, title: string): Promise<void> {
+export async function exportChartPng(
+  svgEl: SVGSVGElement,
+  title: string,
+  options?: { printQuality?: boolean },
+): Promise<void> {
   const serializer = new XMLSerializer();
   let svgString = serializer.serializeToString(svgEl);
   svgString = resolveVarColors(svgString);
@@ -46,7 +56,12 @@ export async function exportChartPng(svgEl: SVGSVGElement, title: string): Promi
     svgString = svgString.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
   }
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // For print quality, use 3x scaling (300 DPI equivalent at ~100px/inch base).
+  // For screen, clamp to 2x for retina displays.
+  const dpr = options?.printQuality
+    ? 3
+    : Math.min(window.devicePixelRatio || 1, 2);
+
   const canvas = document.createElement("canvas");
   canvas.width = w * dpr;
   canvas.height = h * dpr;
@@ -70,7 +85,7 @@ export async function exportChartPng(svgEl: SVGSVGElement, title: string): Promi
           reject(new Error("Canvas toBlob returned null"));
           return;
         }
-        const filename = `${slugify(title)}_${todayStamp()}.png`;
+        const filename = `${slugify(title)}_${todayStamp()}${options?.printQuality ? "_print" : ""}.png`;
         triggerDownload(pngBlob, filename);
         resolve();
       }, "image/png");
@@ -81,6 +96,74 @@ export async function exportChartPng(svgEl: SVGSVGElement, title: string): Promi
     };
     img.src = url;
   });
+}
+
+/**
+ * Export all SVGs within a container as a single high-DPI composite PNG.
+ * Useful for a "print all charts" export that gives users a single image file
+ * suitable for embedding in reports at 300 DPI.
+ */
+export async function exportAllChartsPng(
+  container: HTMLElement,
+  title: string,
+): Promise<void> {
+  const svgs = container.querySelectorAll<SVGSVGElement>("svg");
+  if (svgs.length === 0) return;
+
+  // Lay out charts vertically with padding
+  const padding = 20;
+  const dpr = 3; // 300 DPI equivalent
+  const measurements = Array.from(svgs).map((svg) => {
+    const rect = svg.getBoundingClientRect();
+    return { svg, w: rect.width, h: rect.height };
+  });
+
+  const maxW = Math.max(...measurements.map((m) => m.w));
+  const totalH = measurements.reduce((sum, m) => sum + m.h + padding, 0) - padding;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = maxW * dpr;
+  canvas.height = totalH * dpr;
+  const ctx = canvas.getContext("2d")!;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.scale(dpr, dpr);
+
+  let offsetY = 0;
+  for (const { svg, w, h } of measurements) {
+    const serializer = new XMLSerializer();
+    let svgString = serializer.serializeToString(svg);
+    svgString = resolveVarColors(svgString);
+    if (!svgString.includes("xmlns")) {
+      svgString = svgString.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+
+    const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    await new Promise<void>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, offsetY, w, h);
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(); // Skip failed SVGs
+      };
+      img.src = url;
+    });
+
+    offsetY += h + padding;
+  }
+
+  canvas.toBlob((pngBlob) => {
+    if (!pngBlob) return;
+    const filename = `${slugify(title)}_all_charts_${todayStamp()}.png`;
+    triggerDownload(pngBlob, filename);
+  }, "image/png");
 }
 
 // ---------------------------------------------------------------------------

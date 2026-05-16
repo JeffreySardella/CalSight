@@ -88,7 +88,9 @@ from app.routers.context import router as context_router  # noqa: E402
 from app.routers.crash_people import router as crash_people_router  # noqa: E402
 from app.routers.crashes import router as crashes_router  # noqa: E402
 from app.routers.demographics import router as demographics_router  # noqa: E402
+from app.routers.freshness import router as freshness_router  # noqa: E402
 from app.routers.heatmap import router as heatmap_router  # noqa: E402
+from app.routers.pipeline_health import router as pipeline_health_router  # noqa: E402
 from app.routers.ask import router as ask_router  # noqa: E402
 from app.routers.insights import router as insights_router  # noqa: E402
 from app.routers.meta import router as meta_router  # noqa: E402
@@ -102,12 +104,14 @@ app.include_router(demographics_router, prefix="/api")
 app.include_router(context_router, prefix="/api")
 app.include_router(crashes_router, prefix="/api")
 app.include_router(crash_people_router, prefix="/api")
+app.include_router(freshness_router, prefix="/api")
 app.include_router(heatmap_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
 app.include_router(meta_router, prefix="/api")
 app.include_router(insights_router, prefix="/api")
 app.include_router(ask_router, prefix="/api")
 app.include_router(etl_router, prefix="/api")
+app.include_router(pipeline_health_router, prefix="/api")
 app.include_router(weather_router, prefix="/api")
 
 

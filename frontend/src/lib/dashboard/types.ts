@@ -33,6 +33,7 @@ export type ChartSlot = {
   id: string;
   dimension: Dimension;
   measure: Measure;
+  secondaryMeasure?: Measure;
   chartType: ChartType;
   splitBy?: Dimension;
   order: number;

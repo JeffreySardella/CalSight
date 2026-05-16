@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from "react";
+import Sparkline from "../charts/Sparkline";
 
 interface DataRow {
   label: string;
   value: number;
   x?: number;
   y?: number;
+  /** Optional trend data for inline sparkline in the row */
+  sparkData?: number[];
 }
 
 interface Props {
@@ -88,6 +91,8 @@ function ChartDataTable({ data, title, isScatter, valueLabel }: Props) {
     );
   }
 
+  const hasSparkData = data.some((d) => d.sparkData && d.sparkData.length >= 2);
+
   const thClass = "px-2 py-1.5 text-left text-[11px] font-headline font-bold text-on-surface-variant cursor-pointer select-none hover:text-on-surface whitespace-nowrap";
   const tdClass = "px-2 py-1 text-[12px] text-on-surface border-t border-outline-variant/20";
 
@@ -135,12 +140,17 @@ function ChartDataTable({ data, title, isScatter, valueLabel }: Props) {
                   <span className="inline-flex items-center gap-0.5">{valueLabel} <SortIcon col="value" /></span>
                 </th>
               )}
+              {hasSparkData && (
+                <th className={`${thClass} cursor-default`}>
+                  <span className="inline-flex items-center gap-0.5">Trend</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={isScatter ? 3 : 2} className="px-2 py-4 text-center text-[12px] text-on-surface-variant">
+                <td colSpan={(isScatter ? 3 : 2) + (hasSparkData ? 1 : 0)} className="px-2 py-4 text-center text-[12px] text-on-surface-variant">
                   No matching rows
                 </td>
               </tr>
@@ -155,6 +165,20 @@ function ChartDataTable({ data, title, isScatter, valueLabel }: Props) {
                     </>
                   ) : (
                     <td className={`${tdClass} tabular-nums`}>{d.value.toLocaleString()}</td>
+                  )}
+                  {hasSparkData && (
+                    <td className={tdClass}>
+                      {d.sparkData && d.sparkData.length >= 2 ? (
+                        <Sparkline
+                          data={d.sparkData}
+                          width={48}
+                          height={16}
+                          strokeWidth={1.2}
+                          showEndDot={false}
+                          label={`${d.label} trend`}
+                        />
+                      ) : null}
+                    </td>
                   )}
                 </tr>
               ))

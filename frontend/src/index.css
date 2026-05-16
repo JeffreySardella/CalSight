@@ -331,9 +331,115 @@
   }
 }
 
-/* ── Print styles: Stats page ── */
+/* ── Drag-and-drop reorder ── */
+.drag-active [data-drag-id] {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.drag-handle {
+  touch-action: none;
+}
+
+.drag-drop-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.drag-drop-indicator-before {
+  top: -2px;
+}
+
+.drag-drop-indicator-after {
+  bottom: -2px;
+}
+
+.drag-drop-indicator-line {
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(var(--primary));
+  position: relative;
+  animation: dragIndicatorPulse 1s ease-in-out infinite;
+}
+
+.drag-drop-indicator-line::before,
+.drag-drop-indicator-line::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--primary));
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.drag-drop-indicator-line::before {
+  left: -2px;
+}
+
+.drag-drop-indicator-line::after {
+  right: -2px;
+}
+
+@keyframes dragIndicatorPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * PRINT-PERFECT LAYOUT SYSTEM
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Designed for clean printed output of the Statistics Dashboard.
+ * Supports both A4 (210x297mm) and US Letter (8.5x11in) paper sizes.
+ * Forces light-mode colors, optimizes SVG for 300 DPI equivalent,
+ * manages page breaks, and adds branded headers/footers.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Print Header & Footer: hidden on screen, visible in print ── */
+.print-header,
+.print-footer {
+  display: none !important;
+}
+
+/* ── @media print ── */
 @media print {
-  /* Hide non-content UI */
+  /* ── Page Setup ──
+   * @page sets margins and paper preference. Landscape is available via
+   * a separate .print-landscape class on the body for wide charts. */
+  @page {
+    size: auto;
+    margin: 15mm 12mm 20mm 12mm;
+  }
+
+  @page :first {
+    margin-top: 10mm;
+  }
+
+  /* ── Force Light Mode ──
+   * Override ALL CSS custom properties to their light-mode values so charts
+   * print with proper contrast regardless of user's dark-mode preference. */
+  :root,
+  .dark {
+    --on-surface: 50 50 53 !important;
+    --on-surface-variant: 95 95 97 !important;
+    --surface: 255 255 255 !important;
+    --surface-container-lowest: 255 255 255 !important;
+    --surface-container-low: 246 243 244 !important;
+    --surface-container: 240 237 239 !important;
+    --surface-container-high: 233 231 234 !important;
+    --surface-container-highest: 227 226 228 !important;
+    --primary: 87 95 107 !important;
+    --primary-container: 220 227 242 !important;
+    --error: 159 64 61 !important;
+    --outline: 123 122 125 !important;
+    --outline-variant: 178 177 180 !important;
+    --shadow-rgb: 0, 0, 0 !important;
+  }
+
+  /* ── Hide Non-Content UI ── */
   nav,
   footer,
   .mobile-share-fab,
@@ -342,34 +448,188 @@
   [data-print-hide],
   button:not(.print-keep),
   a:not(.print-keep),
-  .no-scrollbar {
+  .no-scrollbar,
+  .bottom-tab-bar,
+  #bottom-tab-bar {
     display: none !important;
   }
 
-  /* Hide chart edit/config buttons */
+  /* Hide chart edit/config/move buttons */
   [aria-label*="config"],
+  [aria-label*="Config"],
   [aria-label*="edit"],
+  [aria-label*="Edit"],
   [aria-label*="remove"],
-  [aria-label*="move"] {
+  [aria-label*="Remove"],
+  [aria-label*="move"],
+  [aria-label*="Move"],
+  [aria-label*="Download"],
+  [aria-label*="Explain"] {
     display: none !important;
   }
 
-  /* Hide correlation matrix interactive controls */
+  /* Hide interactive-only elements */
   .correlation-controls,
-  .correlation-tooltip {
+  .correlation-tooltip,
+  .chart-config-panel,
+  .add-chart-card {
     display: none !important;
   }
 
-  /* Reset page background to white */
-  body {
-    background: white !important;
-    color: black !important;
+  /* ── Print Header & Footer ── */
+  .print-header,
+  .print-footer {
+    display: block !important;
   }
 
-  /* White backgrounds on all chart cards */
-  .ambient-shadow {
+  .print-header {
+    margin-bottom: 6mm;
+  }
+
+  .print-header__brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .print-header__logo {
+    height: 22px;
+    width: auto;
+  }
+
+  .print-header__title {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .print-header__name {
+    font-size: 14pt;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #1a1a1a !important;
+  }
+
+  .print-header__subtitle {
+    font-size: 8pt;
+    color: #555 !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .print-header__meta {
+    margin-top: 3mm;
+  }
+
+  .print-header__timestamp {
+    font-size: 8pt;
+    color: #666 !important;
+    margin: 0;
+  }
+
+  .print-header__filters {
+    margin-top: 2mm;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+
+  .print-header__filters-label {
+    font-size: 7pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #333 !important;
+  }
+
+  .print-header__filter-chip {
+    font-size: 7pt;
+    color: #444 !important;
+    background: #f0f0f0 !important;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 0.5px solid #ccc;
+  }
+
+  .print-header__divider {
+    margin-top: 3mm;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2mm 12mm;
+  }
+
+  .print-footer__divider {
+    border-top: 0.5px solid #ddd;
+    margin-bottom: 1.5mm;
+  }
+
+  .print-footer__content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 7pt;
+    color: #888 !important;
+  }
+
+  .print-footer__brand {
+    font-weight: 700;
+    color: #555 !important;
+  }
+
+  .print-footer__disclaimer {
+    flex: 1;
+    text-align: center;
+    padding: 0 8px;
+    color: #888 !important;
+  }
+
+  .print-footer__page::after {
+    content: counter(page);
+    color: #888 !important;
+  }
+
+  /* ── Page Body Reset ── */
+  html, body {
+    background: white !important;
+    color: #1a1a1a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 10pt;
+  }
+
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Remove page container max-width constraint for print */
+  .print-main {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ── Surface & Card Styles ── */
+  .ambient-shadow,
+  .ghost-border {
     box-shadow: none !important;
-    border-radius: 0 !important;
+  }
+
+  .chart-card-themed {
+    background: white !important;
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+    padding: 10px !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .bg-surface-container-lowest,
@@ -378,53 +638,266 @@
   .bg-surface-container-high,
   .bg-surface-container-highest {
     background: white !important;
-    border: 1px solid #ccc !important;
-    border-radius: 0 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 4px !important;
   }
 
-  /* Black text on all SVG text elements */
+  /* ── Typography: Force black/dark text ── */
+  * {
+    color: #1a1a1a !important;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #000 !important;
+  }
+
+  .text-on-surface-variant,
+  .text-on-surface {
+    color: #333 !important;
+  }
+
+  /* ── SVG Charts: Print-Optimized ──
+   * Force crisp rendering for 300 DPI equivalent output.
+   * Override dark mode fills/strokes with print-friendly values. */
+  svg {
+    shape-rendering: crispEdges;
+    text-rendering: optimizeLegibility;
+    /* Scale SVG viewBox content to fill available width for crispness */
+    width: 100% !important;
+    height: auto !important;
+    min-height: 140px;
+    max-height: 200px;
+  }
+
   svg text,
   svg tspan {
-    fill: black !important;
-    color: black !important;
+    fill: #1a1a1a !important;
+    color: #1a1a1a !important;
+    font-size: 9px !important;
   }
 
-  /* Page-break-inside: avoid on chart cards */
-  .grid-cols-12 > div,
-  .grid > div,
+  /* Keep chart colors intact for visual distinction (print-color-adjust: exact) */
+  svg rect,
+  svg circle,
+  svg path {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Ensure SVG grid lines are subtle */
+  svg line[stroke*="var"],
+  svg .grid-line {
+    stroke: #e0e0e0 !important;
+    stroke-width: 0.5px !important;
+  }
+
+  /* ── Page Break Management ── */
+
+  /* Never break inside a chart card */
+  .chart-card-themed,
+  .group\/card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 8px;
+  }
+
+  /* Never break inside hero metric cards */
+  .grid-cols-1 > div,
+  section > .grid > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Allow breaks between major sections */
   section {
-    page-break-inside: avoid;
-    break-inside: avoid;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: auto;
+    break-after: auto;
   }
 
-  /* Make charts print at full width */
-  .grid-cols-12 > div {
-    width: 100% !important;
+  /* Force break before correlation matrix (it's large) */
+  section:has(.correlation-matrix),
+  section:has(canvas) {
+    page-break-before: always !important;
+    break-before: page !important;
   }
 
-  /* Methodology footer: always visible, no opacity gating */
+  /* Avoid orphaned section headings */
+  h2, h3, h4 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* ── Grid Layout: 2-up for print ──
+   * Charts print in a 2-column layout for density while maintaining readability. */
+  .grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  /* Hero metrics: keep 3-col on print */
+  section > .grid.grid-cols-1 {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* Full-width sections like VehicleTrends and CorrelationMatrix */
+  section > .rounded-2xl,
+  section.bg-surface-container-lowest {
+    grid-column: 1 / -1;
+  }
+
+  /* ── Methodology footer: always visible ── */
   section:last-of-type {
     opacity: 1 !important;
-    border-top: 1px solid #ccc;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
-  /* Black and white friendly — replace color-dependent chart bars */
-  .bg-primary,
-  .bg-primary-container {
-    background: #333 !important;
+  /* ── Overflow handling ── */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+    max-height: none !important;
   }
 
-  .bg-error {
-    background: #666 !important;
-  }
-
-  /* Ensure text is black */
+  /* ── Disable animations/transitions ── */
   * {
-    color: black !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* ── Remove max-height limits on lollipop/hbar containers */
+  .max-h-\[360px\] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* ── Insight Banner: simplify for print ── */
+  .insight-banner {
+    border: 1px solid #ddd !important;
+    background: #fafafa !important;
   }
 }
 
-/* ── Print-mode class: identical to @media print, toggled via JS ── */
+/* ══════════════════════════════════════════════════════════════════════════════
+ * PRINT-MODE CLASS (JS toggle for preview)
+ * Mirrors @media print rules for live on-screen preview.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+body.print-mode .print-header,
+body.print-mode .print-footer {
+  display: block !important;
+}
+
+body.print-mode .print-header {
+  margin-bottom: 16px;
+}
+
+body.print-mode .print-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.print-mode .print-header__logo {
+  height: 22px;
+  width: auto;
+}
+
+body.print-mode .print-header__title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+body.print-mode .print-header__name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #1a1a1a !important;
+}
+
+body.print-mode .print-header__subtitle {
+  font-size: 10px;
+  color: #555 !important;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+body.print-mode .print-header__meta {
+  margin-top: 8px;
+}
+
+body.print-mode .print-header__timestamp {
+  font-size: 11px;
+  color: #666 !important;
+  margin: 0;
+}
+
+body.print-mode .print-header__filters {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+body.print-mode .print-header__filters-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #333 !important;
+}
+
+body.print-mode .print-header__filter-chip {
+  font-size: 9px;
+  color: #444 !important;
+  background: #f0f0f0 !important;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+body.print-mode .print-header__divider {
+  margin-top: 12px;
+  border-bottom: 1px solid #ccc;
+}
+
+body.print-mode .print-footer {
+  margin-top: 24px;
+  padding-top: 8px;
+}
+
+body.print-mode .print-footer__divider {
+  border-top: 1px solid #ddd;
+  margin-bottom: 6px;
+}
+
+body.print-mode .print-footer__content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: #888 !important;
+}
+
+body.print-mode .print-footer__brand {
+  font-weight: 700;
+  color: #555 !important;
+}
+
+body.print-mode .print-footer__disclaimer {
+  flex: 1;
+  text-align: center;
+  padding: 0 12px;
+  color: #888 !important;
+}
+
+/* Hide non-content UI */
 body.print-mode nav,
 body.print-mode footer,
 body.print-mode .mobile-share-fab,
@@ -433,63 +906,92 @@ body.print-mode .filter-bar-actions,
 body.print-mode [data-print-hide],
 body.print-mode button:not(.print-keep),
 body.print-mode a:not(.print-keep),
-body.print-mode .no-scrollbar {
+body.print-mode .no-scrollbar,
+body.print-mode .bottom-tab-bar,
+body.print-mode #bottom-tab-bar {
   display: none !important;
 }
 body.print-mode [aria-label*="config"],
+body.print-mode [aria-label*="Config"],
 body.print-mode [aria-label*="edit"],
+body.print-mode [aria-label*="Edit"],
 body.print-mode [aria-label*="remove"],
-body.print-mode [aria-label*="move"] {
+body.print-mode [aria-label*="Remove"],
+body.print-mode [aria-label*="move"],
+body.print-mode [aria-label*="Move"],
+body.print-mode [aria-label*="Download"],
+body.print-mode [aria-label*="Explain"] {
   display: none !important;
 }
 body.print-mode .correlation-controls,
-body.print-mode .correlation-tooltip {
+body.print-mode .correlation-tooltip,
+body.print-mode .chart-config-panel,
+body.print-mode .add-chart-card {
   display: none !important;
 }
+
+/* Force light mode */
 body.print-mode {
   background: white !important;
-  color: black !important;
+  color: #1a1a1a !important;
 }
-body.print-mode .ambient-shadow {
+
+body.print-mode .ambient-shadow,
+body.print-mode .ghost-border {
   box-shadow: none !important;
-  border-radius: 0 !important;
 }
+
+body.print-mode .chart-card-themed {
+  background: white !important;
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+  padding: 10px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 body.print-mode .bg-surface-container-lowest,
 body.print-mode .bg-surface-container-low,
 body.print-mode .bg-surface-container,
 body.print-mode .bg-surface-container-high,
 body.print-mode .bg-surface-container-highest {
   background: white !important;
-  border: 1px solid #ccc !important;
-  border-radius: 0 !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 4px !important;
 }
+
 body.print-mode svg text,
 body.print-mode svg tspan {
-  fill: black !important;
-  color: black !important;
+  fill: #1a1a1a !important;
+  color: #1a1a1a !important;
 }
-body.print-mode .grid-cols-12 > div,
-body.print-mode .grid > div,
+
+body.print-mode .chart-card-themed,
+body.print-mode .group\/card {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  margin-bottom: 8px;
+}
+
 body.print-mode section {
   page-break-inside: avoid;
   break-inside: avoid;
 }
-body.print-mode .grid-cols-12 > div {
-  width: 100% !important;
-}
+
 body.print-mode section:last-of-type {
   opacity: 1 !important;
-  border-top: 1px solid #ccc;
 }
-body.print-mode .bg-primary,
-body.print-mode .bg-primary-container {
-  background: #333 !important;
+
+body.print-mode .overflow-x-auto,
+body.print-mode .overflow-y-auto,
+body.print-mode .overflow-hidden {
+  overflow: visible !important;
+  max-height: none !important;
 }
-body.print-mode .bg-error {
-  background: #666 !important;
-}
+
 body.print-mode * {
-  color: black !important;
+  color: #1a1a1a !important;
 }
 
 /* ── Reduced-motion: disable chart animations ── */

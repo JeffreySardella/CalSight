@@ -1,5 +1,22 @@
 import { PRESETS, PRESET_KEYS } from "../../lib/dashboard/presets";
 import type { PresetKey } from "../../lib/dashboard/types";
+import Sparkline from "../charts/Sparkline";
+
+/**
+ * Representative mini-data for each preset — gives a visual "fingerprint"
+ * so users can see at a glance what shape of data each preset produces.
+ * These are static representative patterns, not live data.
+ */
+const PRESET_SPARK_DATA: Record<PresetKey, number[]> = {
+  overview: [12, 14, 13, 16, 15, 18, 17, 19, 16, 14],
+  time: [3, 5, 8, 12, 10, 7, 9, 14, 11, 6],
+  demographics: [8, 10, 15, 12, 9, 7, 6, 5, 4, 3],
+  rates: [6, 7, 8, 9, 11, 10, 12, 14, 13, 15],
+  dui: [10, 9, 11, 8, 7, 6, 5, 6, 4, 3],
+  seasonal: [5, 8, 12, 15, 14, 16, 18, 17, 13, 10],
+  equity: [4, 5, 7, 6, 8, 10, 9, 11, 12, 13],
+  comparison: [14, 12, 10, 11, 9, 8, 10, 7, 6, 5],
+};
 
 interface Props {
   active: PresetKey;
@@ -25,6 +42,17 @@ export default function PresetPicker({ active, onSelect }: Props) {
           >
             <span className="material-symbols-outlined text-[18px]" aria-hidden="true">{p.icon}</span>
             {p.label}
+            <Sparkline
+              data={PRESET_SPARK_DATA[key]}
+              width={40}
+              height={16}
+              showEndDot={false}
+              showArea={false}
+              strokeWidth={1.2}
+              color={isActive ? "rgb(var(--on-primary-container))" : "rgb(var(--on-surface-variant))"}
+              className="opacity-60"
+              label={`${p.label} trend shape`}
+            />
           </button>
         );
       })}

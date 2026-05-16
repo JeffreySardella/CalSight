@@ -23,6 +23,9 @@ import { buildDatasetSchema, buildBreadcrumbSchema } from "../components/seo/Jso
 import SharePanel, { buildShareUrl } from "../components/seo/SharePanel";
 import AnomalyPanel from "../components/stats/AnomalyPanel";
 import { detectAllAnomalies } from "../lib/dashboard/anomaly";
+import PrintHeader from "../components/stats/PrintHeader";
+import PrintFooter from "../components/stats/PrintFooter";
+import Sparkline from "../components/charts/Sparkline";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -140,6 +143,20 @@ export default function StatsPage() {
   const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
   const fatalityUp = yoyFatalityChangePct != null && yoyFatalityChangePct > 0;
 
+  // Sparkline data: last 10 years of trends for hero metric cards
+  const sparkIncidents = useMemo(() => {
+    const yearly = data?.yearlyData ?? [];
+    return yearly.slice(-10).map((d) => d.count);
+  }, [data?.yearlyData]);
+  const sparkFatalities = useMemo(() => {
+    const yearly = data?.yearlyData ?? [];
+    return yearly.slice(-10).map((d) => d.killed);
+  }, [data?.yearlyData]);
+  const sparkKsi = useMemo(() => {
+    const yearly = data?.yearlyData ?? [];
+    return yearly.slice(-10).map((d) => d.killed + d.injured);
+  }, [data?.yearlyData]);
+
   // SEO: dynamic meta tags and OG image based on current dashboard state
   const ogImage = useMemo(() => buildOgImageUrl({
     preset: dashboard.config.preset,
@@ -183,8 +200,28 @@ export default function StatsPage() {
     return buildShareUrl({ dashboardEncoded: encoded });
   }, [dashboard.config]);
 
+  // Build print filter summary
+  const printFilters = useMemo(() => ({
+    counties: [...counties].sort(),
+    dateRange: dateRangeLabel,
+    severities: severities.size > 0 && severities.size < SEVERITIES.length
+      ? [...severities]
+      : [],
+    causes: causes.size > 0 && causes.size < CAUSE_OPTIONS.length
+      ? [...causes].map((c) => CAUSE_LABEL[c] ?? c)
+      : [],
+    involvements: [
+      ...(filters.selectedAlcohol ? ["Alcohol"] : []),
+      ...(filters.selectedDistracted ? ["Distracted"] : []),
+      ...(filters.selectedPedestrian ? ["Pedestrian"] : []),
+      ...(filters.selectedCyclist ? ["Cyclist"] : []),
+      ...(filters.selectedDrug ? ["Drug"] : []),
+    ],
+  }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
+
   return (
-    <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
+    <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative print-main">
+      <PrintHeader filters={printFilters} />
       <MetaTags
         title={`Statistics Dashboard — CalSight`}
         description={seoDescription}
@@ -248,9 +285,14 @@ export default function StatsPage() {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Total Incidents */}
         <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
-          <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
-            Total Incidents
-          </p>
+          <div className="flex items-start justify-between mb-4">
+            <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
+              Total Incidents
+            </p>
+            {!loading && sparkIncidents.length >= 2 && (
+              <Sparkline data={sparkIncidents} label="Incident trend, last 10 years" />
+            )}
+          </div>
           <div className="flex flex-wrap items-baseline gap-3">
             {loading ? (
               <Skeleton className="h-10 w-40" />
@@ -275,9 +317,14 @@ export default function StatsPage() {
 
         {/* KSI Rate */}
         <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
-          <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
-            KSI Rate / 100K Pop.
-          </p>
+          <div className="flex items-start justify-between mb-4">
+            <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
+              KSI Rate / 100K Pop.
+            </p>
+            {!loading && sparkKsi.length >= 2 && (
+              <Sparkline data={sparkKsi} label="KSI trend, last 10 years" />
+            )}
+          </div>
           {loading ? (
             <Skeleton className="h-10 w-24" />
           ) : (
@@ -292,9 +339,14 @@ export default function StatsPage() {
 
         {/* YoY Fatality Change */}
         <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
-          <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
-            YoY Fatality Change
-          </p>
+          <div className="flex items-start justify-between mb-4">
+            <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
+              YoY Fatality Change
+            </p>
+            {!loading && sparkFatalities.length >= 2 && (
+              <Sparkline data={sparkFatalities} label="Fatality trend, last 10 years" />
+            )}
+          </div>
           <div className="flex flex-wrap items-baseline gap-3">
             {loading ? (
               <Skeleton className="h-10 w-32" />
@@ -394,6 +446,7 @@ export default function StatsPage() {
             onRemoveChart={dashboard.removeChart}
             onUpdateChart={dashboard.updateChart}
             onMoveChart={dashboard.moveChart}
+            onReorderChart={dashboard.reorderChart}
             closeConfigTrigger={closeConfigTrigger}
           />
         )}
@@ -450,6 +503,8 @@ export default function StatsPage() {
           </div>
         </div>
       </section>
+
+      <PrintFooter />
 
       {/* Mobile filter sheet overlay */}
       <MobileFilterSheet

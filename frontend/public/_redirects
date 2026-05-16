@@ -1,1 +1,9 @@
+# Cloudflare Pages redirects
+# Note: Pages Functions (_middleware.ts) handle crawler meta-tag injection
+# The SPA catch-all must be LAST — specific routes above take precedence.
+
+# API proxy (handled by Cloudflare Tunnel to backend, but document it here)
+# /api/*  https://api.calsight.org/api/:splat  200
+
+# SPA fallback — all non-file routes serve index.html
 /*  /index.html  200

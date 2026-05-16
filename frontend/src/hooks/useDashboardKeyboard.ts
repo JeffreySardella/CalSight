@@ -15,7 +15,12 @@ function isInputFocused(): boolean {
 }
 
 /**
- * Keyboard shortcuts for the dashboard builder.
+ * Legacy keyboard shortcuts for the dashboard builder.
+ *
+ * NOTE: This hook provides backward-compatible basic shortcuts.
+ * For the full power-user keyboard system (command palette, vi-nav, chart shortcuts),
+ * use `useDashboardPowerKeys` instead. Both can coexist — the power keys hook
+ * handles all the same shortcuts plus many more.
  *
  * - 1-8: switch to preset by index (PRESET_KEYS[n-1]), also sets mode to "simple"
  * - B: toggle builder mode (advanced)

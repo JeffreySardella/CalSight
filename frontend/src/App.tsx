@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { ThemeProvider } from "./context/ThemeContext";
+import { CustomThemeProvider } from "./context/CustomThemeContext";
 import { LiteModeProvider } from "./context/LiteModeContext";
 import { AccessibilityProvider } from "./context/AccessibilityContext";
 import { queryClient } from "./lib/queryClient";
@@ -33,6 +34,7 @@ export default function App() {
       }}
     >
       <ThemeProvider>
+        <CustomThemeProvider>
         <LiteModeProvider>
           <AccessibilityProvider>
           <BrowserRouter>
@@ -52,6 +54,7 @@ export default function App() {
           </BrowserRouter>
           </AccessibilityProvider>
         </LiteModeProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
     </PersistQueryClientProvider>
   );

@@ -106,6 +106,18 @@ export function useDashboardConfig() {
     });
   }, []);
 
+  const reorderChart = useCallback((fromIndex: number, toIndex: number) => {
+    setConfig((prev) => {
+      if (fromIndex < 0 || fromIndex >= prev.charts.length) return prev;
+      if (toIndex < 0 || toIndex >= prev.charts.length) return prev;
+      if (fromIndex === toIndex) return prev;
+      const next = [...prev.charts];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return { ...prev, charts: next.map((c, i) => ({ ...c, order: i })) };
+    });
+  }, []);
+
   const activeCharts = useMemo<ChartSlot[]>(() => {
     if (config.mode === "simple") {
       return buildPresetCharts(config.preset);
@@ -123,5 +135,6 @@ export function useDashboardConfig() {
     removeChart,
     updateChart,
     moveChart,
+    reorderChart,
   };
 }

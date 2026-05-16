@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
 import SimpleLineChart from "../charts/SimpleLineChart";
+import DualAxisLineChart from "../charts/DualAxisLineChart";
+import type { DualAxisPoint } from "../charts/DualAxisLineChart";
 import SimpleTreemap from "../charts/SimpleTreemap";
 import SimpleGauge from "../charts/SimpleGauge";
 import StatCard from "../charts/StatCard";
@@ -18,10 +20,12 @@ import { useFilterParams } from "../../hooks/useFilterParams";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
+import type { DragHandleProps } from "../../hooks/useDragReorder";
 
 interface Props {
   slot: ChartSlot;
   data: ChartDataItem[];
+  secondaryData?: ChartDataItem[];
   editing: boolean;
   onEdit?: () => void;
   onRemove?: () => void;
@@ -30,11 +34,17 @@ interface Props {
   isFirst?: boolean;
   isLast?: boolean;
   enterDelay?: number;
+  dragHandleProps?: DragHandleProps | null;
 }
 
 function buildTitle(slot: ChartSlot): string {
   const measure = MEASURE_LABELS[slot.measure];
   const dim = DIMENSION_LABELS[slot.dimension];
+  const primary = measure === "Crash Count" ? "Crashes" : measure;
+  if (slot.secondaryMeasure) {
+    const secondary = MEASURE_LABELS[slot.secondaryMeasure];
+    return `${primary} vs ${secondary} by ${dim}`;
+  }
   if (measure === "Crash Count") return `Crashes by ${dim}`;
   return `${measure} by ${dim}`;
 }
@@ -96,7 +106,7 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
 }
 
 function ChartCard({
-  slot, data, editing, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay,
+  slot, data, secondaryData, editing, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay, dragHandleProps,
 }: Props) {
   const [showTable, setShowTable] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -106,6 +116,7 @@ function ChartCard({
   const hasData = data.length > 0 && data.some((d) => d.value > 0);
   const isScatter = slot.chartType === "scatter";
   const valueLabel = MEASURE_LABELS[slot.measure];
+  const hasDualAxis = !!slot.secondaryMeasure && !!secondaryData && secondaryData.length > 0;
 
   const forecastData = useMemo<ForecastPoint[] | undefined>(() => {
     if (!slot.options?.forecast || data.length < 4) return undefined;
@@ -122,6 +133,18 @@ function ChartCard({
       lower: result.lower[i],
     }));
   }, [data, slot.options?.forecast, slot.options?.forecastMethod, slot.options?.forecastHorizon, slot.dimension]);
+
+  // Merge primary + secondary data into DualAxisPoint[] for dual-axis rendering
+  const dualAxisData = useMemo<DualAxisPoint[]>(() => {
+    if (!hasDualAxis || !secondaryData) return [];
+    // Build a lookup from label -> secondary value
+    const secondaryMap = new Map(secondaryData.map((d) => [d.label, d.value]));
+    return data.map((d) => ({
+      label: d.label,
+      primary: d.value,
+      secondary: secondaryMap.get(d.label) ?? 0,
+    }));
+  }, [data, secondaryData, hasDualAxis]);
 
   const handleExplainChart = () => {
     const countyPart = selectedCounties.size > 0
@@ -151,7 +174,19 @@ function ChartCard({
       style={{ animationDelay: enterDelay && enterDelay > 0 ? `${enterDelay}ms` : undefined }}
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-headline font-bold text-on-surface">{title}</h3>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {editing && dragHandleProps && (
+            <span
+              {...dragHandleProps}
+              data-drag-handle
+              className="drag-handle flex-shrink-0 p-1 rounded hover:bg-surface-container-high text-on-surface-variant cursor-grab active:cursor-grabbing opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+              title="Drag to reorder"
+            >
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
+            </span>
+          )}
+          <h3 className="text-sm font-headline font-bold text-on-surface truncate">{title}</h3>
+        </div>
         <div className="flex flex-wrap items-center gap-0.5">
           <button
             onClick={handleExplainChart}
@@ -228,6 +263,28 @@ function ChartCard({
           />
           <DonutLegend data={data} />
         </>
+      ) : (slot.chartType === "line" || slot.chartType === "area") && hasDualAxis ? (
+        <DualAxisLineChart
+          data={dualAxisData}
+          height={220}
+          showArea={slot.chartType === "area"}
+          primaryLabel={MEASURE_LABELS[slot.measure]}
+          secondaryLabel={MEASURE_LABELS[slot.secondaryMeasure!]}
+          renderTooltip={(item) => (
+            <>
+              <p className="font-headline font-bold text-on-surface">{item.label}</p>
+              <p className="text-on-surface-variant mt-0.5">
+                <span style={{ color: "rgb(var(--primary))" }}>{MEASURE_LABELS[slot.measure]}:</span>{" "}
+                {fmtValue(item.primary)}
+              </p>
+              <p className="text-on-surface-variant">
+                <span style={{ color: "rgb(var(--tertiary))" }}>{MEASURE_LABELS[slot.secondaryMeasure!]}:</span>{" "}
+                {fmtValue(item.secondary)}
+              </p>
+            </>
+          )}
+          title={title}
+        />
       ) : slot.chartType === "line" || slot.chartType === "area" ? (
         <SimpleLineChart
           data={data}

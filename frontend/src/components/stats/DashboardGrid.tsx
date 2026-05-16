@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { ChartSlot, Dimension, Measure, ChartType } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
+import { useDragReorder } from "../../hooks/useDragReorder";
 import ChartCard from "./ChartCard";
 import AddChartCard from "./AddChartCard";
 import ChartConfigPanel from "./ChartConfigPanel";
 import ChartConfigSheet from "./ChartConfigSheet";
+import DragDropIndicator from "./DragDropIndicator";
 
 function slotKey(slot: ChartSlot): string {
   const opts = slot.options ?? {};
@@ -16,7 +18,12 @@ function slotKey(slot: ChartSlot): string {
   return `${slot.dimension}:${slot.measure}${optStr ? `:${optStr}` : ""}`;
 }
 
-type ChartConfig = { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension; options?: import("../../lib/dashboard/types").ChartOptions };
+function secondarySlotKey(slot: ChartSlot): string | null {
+  if (!slot.secondaryMeasure) return null;
+  return `${slot.dimension}:${slot.secondaryMeasure}`;
+}
+
+type ChartConfig = { dimension: Dimension; measure: Measure; secondaryMeasure?: Measure; chartType: ChartType; splitBy?: Dimension; options?: import("../../lib/dashboard/types").ChartOptions };
 
 interface Props {
   charts: ChartSlot[];
@@ -26,12 +33,13 @@ interface Props {
   onRemoveChart: (id: string) => void;
   onUpdateChart: (id: string, updates: Partial<ChartConfig>) => void;
   onMoveChart: (id: string, direction: "up" | "down") => void;
+  onReorderChart?: (fromIndex: number, toIndex: number) => void;
   /** Increment to close any open config panel (used by keyboard shortcut) */
   closeConfigTrigger?: number;
 }
 
 export default function DashboardGrid({
-  charts, dataBySlot, mode, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, closeConfigTrigger,
+  charts, dataBySlot, mode, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, onReorderChart, closeConfigTrigger,
 }: Props) {
   const [configOpen, setConfigOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -57,6 +65,14 @@ export default function DashboardGrid({
 
   const isAdvanced = mode === "advanced";
   const editingSlot = editingId ? charts.find((c) => c.id === editingId) : undefined;
+
+  // Drag-and-drop reorder
+  const chartIds = useMemo(() => charts.map((c) => c.id), [charts]);
+  const { dragState, containerProps, getItemProps, getHandleProps, announcement } = useDragReorder({
+    items: chartIds,
+    onReorder: onReorderChart ?? (() => {}),
+    enabled: isAdvanced && !!onReorderChart,
+  });
 
   const sheetOpen = isMobile && (configOpen || !!editingId);
   const sheetInitial = editingId ? editingSlot : undefined;
@@ -90,9 +106,21 @@ export default function DashboardGrid({
       {isAdvanced && charts.length === 0 && !configOpen && (
         <p className="text-sm text-on-surface-variant mb-2">Build your own dashboard — choose any combination of dimensions and chart types.</p>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {charts.map((slot, idx) =>
-          editingId === slot.id && !isMobile ? (
+
+      {/* Screen reader announcements for drag-and-drop */}
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        {announcement}
+      </div>
+
+      <div
+        className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 ${dragState.isDragging ? "drag-active" : ""}`}
+        {...containerProps}
+      >
+        {charts.map((slot, idx) => {
+          const itemProps = isAdvanced && onReorderChart ? getItemProps(slot.id, idx) : {};
+          const handleProps = isAdvanced && onReorderChart ? getHandleProps(slot.id) : null;
+
+          return editingId === slot.id && !isMobile ? (
             <ChartConfigPanel
               key={slot.id}
               initial={slot}
@@ -100,21 +128,30 @@ export default function DashboardGrid({
               onCancel={() => setEditingId(null)}
             />
           ) : (
-            <ChartCard
-              key={slot.id}
-              slot={slot}
-              data={dataBySlot[slotKey(slot)] ?? []}
-              editing={isAdvanced}
-              onEdit={() => setEditingId(slot.id)}
-              onRemove={() => onRemoveChart(slot.id)}
-              onMoveUp={() => onMoveChart(slot.id, "up")}
-              onMoveDown={() => onMoveChart(slot.id, "down")}
-              isFirst={idx === 0}
-              isLast={idx === charts.length - 1}
-              enterDelay={idx * 40}
-            />
-          ),
-        )}
+            <div key={slot.id} className="relative" {...itemProps}>
+              {dragState.isDragging && dragState.overIndex === idx && dragState.dragId !== slot.id && (
+                <DragDropIndicator position="before" />
+              )}
+              <ChartCard
+                slot={slot}
+                data={dataBySlot[slotKey(slot)] ?? []}
+                secondaryData={secondarySlotKey(slot) ? dataBySlot[secondarySlotKey(slot)!] : undefined}
+                editing={isAdvanced}
+                onEdit={() => setEditingId(slot.id)}
+                onRemove={() => onRemoveChart(slot.id)}
+                onMoveUp={() => onMoveChart(slot.id, "up")}
+                onMoveDown={() => onMoveChart(slot.id, "down")}
+                isFirst={idx === 0}
+                isLast={idx === charts.length - 1}
+                enterDelay={idx * 40}
+                dragHandleProps={handleProps}
+              />
+              {dragState.isDragging && dragState.overIndex === idx + 1 && idx === charts.length - 1 && dragState.dragId !== slot.id && (
+                <DragDropIndicator position="after" />
+              )}
+            </div>
+          );
+        })}
         {isAdvanced && !configOpen && (
           <AddChartCard onClick={() => setConfigOpen(true)} />
         )}
