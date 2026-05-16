@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 
 interface LollipopItem {
@@ -31,6 +31,7 @@ export default function SimpleLollipop({
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const [svgWidth, setSvgWidth] = useState(300);
+  const titleId = useId();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -56,8 +57,8 @@ export default function SimpleLollipop({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height: svgH }}>
-      <svg ref={svgRef} width="100%" height={svgH} className="block" role="img" aria-labelledby={title ? "lollipop-chart-title" : undefined}>
-        {title && <title id="lollipop-chart-title">{title}</title>}
+      <svg ref={svgRef} width="100%" height={svgH} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+        {title && <title id={titleId}>{title}</title>}
         {data.map((d, i) => {
           const y = i * rowH + rowH / 2 + 4;
           const w = maxVal > 0 ? (d.value / maxVal) * barArea : 0;

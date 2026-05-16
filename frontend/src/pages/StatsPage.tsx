@@ -17,6 +17,7 @@ import CorrelationMatrix from "../components/charts/CorrelationMatrix";
 import VehicleTrends from "../components/stats/VehicleTrends";
 import { encodeDashboard } from "../lib/dashboard/urlCodec";
 import SavedDashboardsPanel from "../components/stats/SavedDashboardsPanel";
+import NlqQueryBar from "../components/stats/NlqQueryBar";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -319,6 +320,10 @@ export default function StatsPage() {
             <DataFreshnessBanner />
           </div>
         </div>
+        <NlqQueryBar onAddChart={(cfg) => {
+          if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
+          dashboard.addChart(cfg);
+        }} />
         {dashboard.config.mode === "simple" && (
           <PresetPicker active={dashboard.config.preset} onSelect={dashboard.setPreset} />
         )}

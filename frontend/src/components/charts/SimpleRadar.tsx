@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 
 interface RadarItem {
@@ -23,6 +23,7 @@ export default function SimpleRadar({
 }: SimpleRadarProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const titleId = useId();
 
   const handleMouseMove = useCallback((e: React.MouseEvent, idx: number) => {
     const svg = svgRef.current;
@@ -57,8 +58,8 @@ export default function SimpleRadar({
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? "radar-chart-title" : undefined}>
-        {title && <title id="radar-chart-title">{title}</title>}
+      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+        {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: rings }).map((_, ring) => {
           const r = ((ring + 1) / rings) * maxR;
           const ringPoints = Array.from({ length: n }).map((_, i) => {

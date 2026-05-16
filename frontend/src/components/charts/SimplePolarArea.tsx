@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 
 interface PolarItem {
@@ -23,6 +23,7 @@ const COLORS = [
 export default function SimplePolarArea({ data, height = 220, renderTooltip, title }: SimplePolarAreaProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const titleId = useId();
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
     const svg = svgRef.current;
@@ -41,8 +42,8 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? "polar-chart-title" : undefined}>
-        {title && <title id="polar-chart-title">{title}</title>}
+      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+        {title && <title id={titleId}>{title}</title>}
         {data.map((d, i) => {
           const r = maxVal > 0 ? (d.value / maxVal) * maxR : 0;
           const startAngle = i * sliceAngle - Math.PI / 2;

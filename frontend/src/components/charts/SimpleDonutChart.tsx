@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 
 interface Segment {
@@ -38,6 +38,7 @@ export default function SimpleDonutChart({
 }: SimpleDonutChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const titleId = useId();
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
     const svg = svgRef.current;
@@ -98,8 +99,8 @@ export default function SimpleDonutChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? "donut-chart-title" : undefined}>
-        {title && <title id="donut-chart-title">{title}</title>}
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+        {title && <title id={titleId}>{title}</title>}
         {segments.map((seg, i) => (
           <path
             key={seg.item.label}

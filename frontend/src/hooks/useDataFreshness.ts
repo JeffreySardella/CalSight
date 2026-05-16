@@ -33,12 +33,13 @@ export function useDataFreshness(): DataFreshnessResult {
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/meta/data-freshness`);
       if (!res.ok) throw new Error(`data-freshness ${res.status}`);
-      return res.json();
+      const json = await res.json();
+      return Array.isArray(json) ? json : json?.sources ?? [];
     },
     refetchInterval: 5 * 60 * 1000,
   });
 
-  if (!data || data.length === 0) {
+  if (!data || !Array.isArray(data) || data.length === 0) {
     return { lastUpdatedAt: null, isStale: false, relativeTime: "", isLoading };
   }
 

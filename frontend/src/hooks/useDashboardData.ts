@@ -58,16 +58,16 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
 
   switch (dimension) {
     case "hour":
-      return rows.map((r) => ({ label: `${r.hour as number}:00`, value: val(r) }));
+      return rows.map((r) => ({ label: `${r.hour as number}:00`, value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0 }));
     case "day_of_week":
       return rows.map((r) => ({
         label: DOW_LABEL[(r.day_of_week as number)] ?? String(r.day_of_week),
-        value: val(r),
+        value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
       }));
     case "month":
       return rows.map((r) => ({
         label: MONTH_LABEL[(r.month as number) - 1] ?? String(r.month),
-        value: val(r),
+        value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
       }));
     case "year": {
       const currentYear = new Date().getFullYear();
@@ -108,7 +108,7 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
         .filter((r) => r.gender && r.gender !== "unknown")
         .map((r) => ({
           label: (r.gender as string).charAt(0).toUpperCase() + (r.gender as string).slice(1),
-          value: val(r),
+          value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
         }));
     case "age_bracket":
       return [...rows]
@@ -116,14 +116,14 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
         .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket as string) - AGE_ORDER.indexOf(b.age_bracket as string))
         .map((r) => ({
           label: AGE_LABEL[r.age_bracket as string] ?? String(r.age_bracket),
-          value: val(r),
+          value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
         }));
     case "at_fault_gender":
       return rows
         .filter((r) => r.gender && r.gender !== "unknown")
         .map((r) => ({
           label: (r.gender as string).charAt(0).toUpperCase() + (r.gender as string).slice(1),
-          value: val(r),
+          value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
         }));
     case "at_fault_age_bracket":
       return rows
@@ -131,14 +131,14 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
         .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket as string) - AGE_ORDER.indexOf(b.age_bracket as string))
         .map((r) => ({
           label: AGE_LABEL[r.age_bracket as string] ?? String(r.age_bracket),
-          value: val(r),
+          value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
         }));
     case "weather":
     case "lighting":
     case "collision_type":
       return rows.map((r) => ({
         label: String(r.value ?? r[dimension] ?? "Unknown"),
-        value: val(r),
+        value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
       }));
     default:
       return [];
@@ -200,11 +200,9 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
             ? items.map((d) => ({ ...d, value: Math.round((d.value / total) * 1000) / 10 }))
             : items;
         } else if (chart.measure === "fatality_rate") {
-          const rawRows = raw[chart.dimension] ?? [];
-          items = items.map((d, i) => {
-            const r = rawRows[i];
-            const crashes = r ? ((r.crash_count as number) ?? 1) : 1;
-            const killed = r ? ((r.total_killed as number) ?? 0) : 0;
+          items = items.map((d) => {
+            const crashes = d.x ?? 1;
+            const killed = d.y ?? 0;
             return { ...d, value: crashes > 0 ? Math.round((killed / crashes) * 10000) / 100 : 0 };
           });
         } else if (chart.measure === "yoy_change") {

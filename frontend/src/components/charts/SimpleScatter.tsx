@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 
@@ -43,6 +43,7 @@ export default function SimpleScatter({
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const [svgWidth, setSvgWidth] = useState(400);
+  const titleId = useId();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -78,8 +79,8 @@ export default function SimpleScatter({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? "scatter-chart-title" : undefined}>
-        {title && <title id="scatter-chart-title">{title}</title>}
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+        {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: yTicks + 1 }).map((_, i) => {
           const v = Math.round((maxY / yTicks) * i);
           const py = padding.top + chartH - (v / maxY) * chartH;

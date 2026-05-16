@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 
 interface TreemapItem {
@@ -80,6 +80,7 @@ export default function SimpleTreemap({
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const [svgWidth, setSvgWidth] = useState(300);
+  const titleId = useId();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -104,8 +105,8 @@ export default function SimpleTreemap({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? "treemap-chart-title" : undefined}>
-        {title && <title id="treemap-chart-title">{title}</title>}
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+        {title && <title id={titleId}>{title}</title>}
         {rects.map((r, i) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
           const color = r.item.color ?? COLORS[i % COLORS.length] ?? defaultColor;
