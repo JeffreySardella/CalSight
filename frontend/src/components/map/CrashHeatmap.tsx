@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.heat";
@@ -225,9 +225,9 @@ interface CrashHeatmapProps {
   palette: PaletteKey;
 }
 
-export default function CrashHeatmap({ points, resolution, palette }: CrashHeatmapProps) {
+export default memo(function CrashHeatmap({ points, resolution, palette }: CrashHeatmapProps) {
   const isDark = useIsDark();
   useHeatLayer(points, resolution, palette, isDark);
   useFatalLayer(points, resolution, palette);
   return null;
-}
+});

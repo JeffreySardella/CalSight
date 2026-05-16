@@ -65,15 +65,15 @@ export default function StatsPage() {
     return () => observer.disconnect();
   }, []);
 
-  // Re-read CSS variables on every render — isDark change triggers a re-render,
-  // so these always reflect the current theme.
   const isDark = document.documentElement.classList.contains("dark");
-  const clrPrimary           = token("--primary");
-  const clrPrimaryContainer  = token("--primary-container");
-  const clrOnSurface         = token("--on-surface");
-  const clrOnSurfaceVariant  = token("--on-surface-variant");
-  const clrError             = token("--error");
-  const clrTertiary          = token("--tertiary");
+  const { clrPrimary, clrPrimaryContainer, clrOnSurface, clrOnSurfaceVariant, clrError, clrTertiary } = useMemo(() => ({
+    clrPrimary: token("--primary"),
+    clrPrimaryContainer: token("--primary-container"),
+    clrOnSurface: token("--on-surface"),
+    clrOnSurfaceVariant: token("--on-surface-variant"),
+    clrError: token("--error"),
+    clrTertiary: token("--tertiary"),
+  }), [isDark]);
 
   const causeColorMap: Record<string, string> = isDark
     ? {
