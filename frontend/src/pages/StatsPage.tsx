@@ -22,7 +22,7 @@ export default function StatsPage() {
   }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
   const { data, loading, error } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
-  const { dataByDimension, loading: dashLoading } = useDashboardData(dashboard.activeCharts, statsFilters);
+  const { dataByDimension, loading: dashLoading, error: dashError } = useDashboardData(dashboard.activeCharts, statsFilters);
   const dateRange  = filters.selectedDateRange;
   const severities = filters.selectedSeverities;
   const counties   = filters.selectedCounties;
@@ -226,9 +226,15 @@ export default function StatsPage() {
         {dashboard.config.mode === "simple" && (
           <PresetPicker active={dashboard.config.preset} onSelect={dashboard.setPreset} />
         )}
+        {dashError && (
+          <p role="alert" className="text-error text-sm flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>
+            Failed to load chart data. Try adjusting your filters.
+          </p>
+        )}
         {dashLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: dashboard.activeCharts.length || 4 }).map((_, i) => (
               <div key={i} className="bg-surface-container-lowest rounded-2xl p-4 ambient-shadow">
                 <Skeleton className="h-48 rounded-lg" />
               </div>

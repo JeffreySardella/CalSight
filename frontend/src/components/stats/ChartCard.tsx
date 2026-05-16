@@ -70,7 +70,7 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
       {data.map((d) => (
         <div key={d.label} className="flex items-center gap-1.5 text-[10px]">
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color ?? "rgb(var(--primary-container))" }} />
           <span className="text-on-surface-variant">
             {d.label} {total > 0 ? `${Math.round((d.value / total) * 100)}%` : ""}
           </span>

@@ -25,7 +25,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
 
   function handleDimensionChange(dim: Dimension) {
     setDimension(dim);
-    if (!initial) setChartType(defaultChartType(dim));
+    setChartType(defaultChartType(dim));
   }
 
   return (

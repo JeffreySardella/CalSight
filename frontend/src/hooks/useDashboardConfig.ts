@@ -3,7 +3,7 @@ import type { DashboardConfig, ChartSlot, Dimension, Measure, ChartType, PresetK
 import { DIMENSIONS, MEASURES } from "../lib/dashboard/types";
 import { generateId } from "../lib/dashboard/types";
 import { buildPresetCharts, PRESET_KEYS } from "../lib/dashboard/presets";
-import { encodeDashboard, decodeDashboard } from "../lib/dashboard/urlCodec";
+import { decodeDashboard } from "../lib/dashboard/urlCodec";
 
 const STORAGE_KEY = "calsight-dashboard-v1";
 const URL_PARAM = "dashboard";
@@ -19,6 +19,7 @@ function isValidConfig(p: unknown): p is DashboardConfig {
   return c.charts.every(
     (s: Record<string, unknown>) =>
       typeof s.id === "string" &&
+      typeof s.order === "number" &&
       (DIMENSIONS as readonly string[]).includes(s.dimension as string) &&
       (MEASURES as readonly string[]).includes(s.measure as string) &&
       ["bar", "line", "donut"].includes(s.chartType as string),
@@ -112,20 +113,9 @@ export function useDashboardConfig() {
     return [...config.charts].sort((a, b) => a.order - b.order);
   }, [config.mode, config.preset, config.charts]);
 
-  const shareUrl = useMemo(() => {
-    const shareable: DashboardConfig = config.mode === "simple"
-      ? { mode: "simple", preset: config.preset, charts: [] }
-      : config;
-    const base = `${window.location.origin}/stats`;
-    const params = new URLSearchParams(window.location.search);
-    params.set(URL_PARAM, encodeDashboard(shareable));
-    return `${base}?${params.toString()}`;
-  }, [config]);
-
   return {
     config,
     activeCharts,
-    shareUrl,
     setMode,
     setPreset,
     addChart,
