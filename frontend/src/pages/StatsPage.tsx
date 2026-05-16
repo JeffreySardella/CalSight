@@ -9,6 +9,8 @@ import PresetPicker from "../components/stats/PresetPicker";
 import DashboardGrid from "../components/stats/DashboardGrid";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
 import { useDashboardData } from "../hooks/useDashboardData";
+import { useCorrelationData } from "../hooks/useCorrelationData";
+import CorrelationMatrix from "../components/charts/CorrelationMatrix";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -23,6 +25,7 @@ export default function StatsPage() {
   const { data, loading, error } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
   const { dataBySlot, loading: dashLoading, error: dashError } = useDashboardData(dashboard.activeCharts, statsFilters);
+  const correlation = useCorrelationData();
   const dateRange  = filters.selectedDateRange;
   const severities = filters.selectedSeverities;
   const counties   = filters.selectedCounties;
@@ -251,6 +254,21 @@ export default function StatsPage() {
             onMoveChart={dashboard.moveChart}
           />
         )}
+      </section>
+
+      {/* Correlation Explorer */}
+      <section className="bg-surface-container-lowest rounded-2xl p-5 md:p-8 ambient-shadow">
+        {correlation.isLoading ? (
+          <Skeleton className="h-[500px] rounded-lg" />
+        ) : correlation.error ? (
+          <p className="text-error text-sm">Failed to load correlation data.</p>
+        ) : correlation.data ? (
+          <CorrelationMatrix
+            fields={correlation.data.fields}
+            matrix={correlation.data.matrix}
+            countyCount={correlation.data.countyCount}
+          />
+        ) : null}
       </section>
 
       {/* Methodology Footer */}
