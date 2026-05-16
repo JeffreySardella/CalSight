@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
@@ -16,6 +16,7 @@ import { useDashboardKeyboard } from "../hooks/useDashboardKeyboard";
 import CorrelationMatrix from "../components/charts/CorrelationMatrix";
 import VehicleTrends from "../components/stats/VehicleTrends";
 import { encodeDashboard } from "../lib/dashboard/urlCodec";
+import SavedDashboardsPanel from "../components/stats/SavedDashboardsPanel";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -58,6 +59,20 @@ export default function StatsPage() {
   }
 
   const [shareCopied, setShareCopied] = useState(false);
+  const [printPreview, setPrintPreview] = useState(false);
+
+  useEffect(() => {
+    if (printPreview) {
+      document.body.classList.add("print-mode");
+    } else {
+      document.body.classList.remove("print-mode");
+    }
+    return () => document.body.classList.remove("print-mode");
+  }, [printPreview]);
+
+  function handlePrint() {
+    window.print();
+  }
 
   function handleShareUrl() {
     const encoded = encodeDashboard(dashboard.config);
@@ -264,15 +279,42 @@ export default function StatsPage() {
         <div className="flex items-center justify-between">
           <DashboardModeToggle mode={dashboard.config.mode} onChange={dashboard.setMode} />
           <div className="flex items-center gap-3">
+            <SavedDashboardsPanel
+              currentConfig={dashboard.config}
+              onLoad={dashboard.setConfig}
+            />
             <button
               type="button"
               onClick={handleShareUrl}
               className="inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+              data-print-hide
             >
               <span className="material-symbols-outlined text-[16px]">
                 {shareCopied ? "check" : "link"}
               </span>
               {shareCopied ? "Copied!" : "Share"}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="print-keep inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+              data-print-hide
+              aria-label="Print dashboard"
+            >
+              <span className="material-symbols-outlined text-[16px]">print</span>
+              Print
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrintPreview((v) => !v)}
+              className="print-keep inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+              data-print-hide
+              aria-label="Toggle print preview"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {printPreview ? "visibility_off" : "visibility"}
+              </span>
+              {printPreview ? "Exit Preview" : "Preview"}
             </button>
             <DataFreshnessBanner />
           </div>

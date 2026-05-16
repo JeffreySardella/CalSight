@@ -302,9 +302,26 @@
   nav,
   footer,
   .mobile-share-fab,
-  button,
-  a,
+  .mobile-nav,
+  .filter-bar-actions,
+  [data-print-hide],
+  button:not(.print-keep),
+  a:not(.print-keep),
   .no-scrollbar {
+    display: none !important;
+  }
+
+  /* Hide chart edit/config buttons */
+  [aria-label*="config"],
+  [aria-label*="edit"],
+  [aria-label*="remove"],
+  [aria-label*="move"] {
+    display: none !important;
+  }
+
+  /* Hide correlation matrix interactive controls */
+  .correlation-controls,
+  .correlation-tooltip {
     display: none !important;
   }
 
@@ -314,23 +331,40 @@
     color: black !important;
   }
 
-  /* Remove shadows and decorative backgrounds from cards */
+  /* White backgrounds on all chart cards */
   .ambient-shadow {
     box-shadow: none !important;
+    border-radius: 0 !important;
   }
 
   .bg-surface-container-lowest,
   .bg-surface-container-low,
   .bg-surface-container,
-  .bg-surface-container-high {
+  .bg-surface-container-high,
+  .bg-surface-container-highest {
     background: white !important;
     border: 1px solid #ccc !important;
+    border-radius: 0 !important;
   }
 
-  /* Make charts print at full width and sensible height */
+  /* Black text on all SVG text elements */
+  svg text,
+  svg tspan {
+    fill: black !important;
+    color: black !important;
+  }
+
+  /* Page-break-inside: avoid on chart cards */
+  .grid-cols-12 > div,
+  .grid > div,
+  section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Make charts print at full width */
   .grid-cols-12 > div {
     width: 100% !important;
-    page-break-inside: avoid;
   }
 
   /* Methodology footer: always visible, no opacity gating */
@@ -353,4 +387,90 @@
   * {
     color: black !important;
   }
+}
+
+/* ── Print-mode class: identical to @media print, toggled via JS ── */
+body.print-mode nav,
+body.print-mode footer,
+body.print-mode .mobile-share-fab,
+body.print-mode .mobile-nav,
+body.print-mode .filter-bar-actions,
+body.print-mode [data-print-hide],
+body.print-mode button:not(.print-keep),
+body.print-mode a:not(.print-keep),
+body.print-mode .no-scrollbar {
+  display: none !important;
+}
+body.print-mode [aria-label*="config"],
+body.print-mode [aria-label*="edit"],
+body.print-mode [aria-label*="remove"],
+body.print-mode [aria-label*="move"] {
+  display: none !important;
+}
+body.print-mode .correlation-controls,
+body.print-mode .correlation-tooltip {
+  display: none !important;
+}
+body.print-mode {
+  background: white !important;
+  color: black !important;
+}
+body.print-mode .ambient-shadow {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+body.print-mode .bg-surface-container-lowest,
+body.print-mode .bg-surface-container-low,
+body.print-mode .bg-surface-container,
+body.print-mode .bg-surface-container-high,
+body.print-mode .bg-surface-container-highest {
+  background: white !important;
+  border: 1px solid #ccc !important;
+  border-radius: 0 !important;
+}
+body.print-mode svg text,
+body.print-mode svg tspan {
+  fill: black !important;
+  color: black !important;
+}
+body.print-mode .grid-cols-12 > div,
+body.print-mode .grid > div,
+body.print-mode section {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+body.print-mode .grid-cols-12 > div {
+  width: 100% !important;
+}
+body.print-mode section:last-of-type {
+  opacity: 1 !important;
+  border-top: 1px solid #ccc;
+}
+body.print-mode .bg-primary,
+body.print-mode .bg-primary-container {
+  background: #333 !important;
+}
+body.print-mode .bg-error {
+  background: #666 !important;
+}
+body.print-mode * {
+  color: black !important;
+}
+
+/* ── Reduced-motion: disable chart animations ── */
+@media (prefers-reduced-motion: reduce), print {
+  .chart-card-enter {
+    animation: none !important;
+  }
+  svg * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+body.print-mode .chart-card-enter {
+  animation: none !important;
+}
+body.print-mode svg * {
+  animation: none !important;
+  transition: none !important;
 }

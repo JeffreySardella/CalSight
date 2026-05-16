@@ -115,6 +115,7 @@ export function useDashboardConfig() {
 
   return {
     config,
+    setConfig,
     activeCharts,
     setMode,
     setPreset,

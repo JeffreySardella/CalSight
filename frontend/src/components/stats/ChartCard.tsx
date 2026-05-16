@@ -122,13 +122,12 @@ function ChartCard({
     exportChartCsv(data, title, isScatter);
   };
 
-  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- intentional for keyboard navigation
   return (
     <div
       ref={cardRef}
       role="group"
       aria-label={title}
-      tabIndex={0}
+      tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- intentional for keyboard navigation
       data-chart-id={slot.id}
       className="group/card bg-surface-container-lowest rounded-2xl p-4 ambient-shadow chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2"
       style={{ animationDelay: enterDelay && enterDelay > 0 ? `${enterDelay}ms` : undefined }}
