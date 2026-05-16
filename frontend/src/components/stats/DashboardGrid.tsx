@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import type { ChartSlot, Dimension, Measure, ChartType } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
-
-function slotKey(slot: ChartSlot): string {
-  return `${slot.dimension}:${slot.measure}`;
-}
 import ChartCard from "./ChartCard";
 import AddChartCard from "./AddChartCard";
 import ChartConfigPanel from "./ChartConfigPanel";
 import ChartConfigSheet from "./ChartConfigSheet";
+
+function slotKey(slot: ChartSlot): string {
+  return `${slot.dimension}:${slot.measure}`;
+}
 
 type ChartConfig = { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension };
 

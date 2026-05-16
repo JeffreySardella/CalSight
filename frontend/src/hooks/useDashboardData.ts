@@ -87,7 +87,7 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
       }));
     case "county":
       return rows
-        .sort((a, b) => ((b.crash_count as number) ?? 0) - ((a.crash_count as number) ?? 0))
+        .sort((a, b) => val(b) - val(a))
         .slice(0, 15)
         .map((r) => ({ label: String(r.county_name), value: val(r) }));
     case "gender":

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { DashboardConfig, ChartSlot, Dimension, Measure, ChartType, PresetKey } from "../lib/dashboard/types";
-import { DIMENSIONS, MEASURES } from "../lib/dashboard/types";
+import { DIMENSIONS } from "../lib/dashboard/types";
 import { generateId } from "../lib/dashboard/types";
 import { buildPresetCharts, PRESET_KEYS } from "../lib/dashboard/presets";
 import { decodeDashboard } from "../lib/dashboard/urlCodec";
@@ -21,7 +21,7 @@ function isValidConfig(p: unknown): p is DashboardConfig {
       typeof s.id === "string" &&
       typeof s.order === "number" &&
       (DIMENSIONS as readonly string[]).includes(s.dimension as string) &&
-      (MEASURES as readonly string[]).includes(s.measure as string) &&
+      ["count", "killed", "injured"].includes(s.measure as string) &&
       ["bar", "hbar", "line", "area", "donut", "treemap", "gauge", "stat", "polar", "lollipop", "radar"].includes(s.chartType as string),
   );
 }

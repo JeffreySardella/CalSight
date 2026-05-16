@@ -74,14 +74,14 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
 
       <div>
         <div className="text-xs font-medium text-on-surface-variant mb-1">Chart Type</div>
-        <div role="radiogroup" aria-label="Chart type" className="grid grid-cols-4 gap-1 bg-surface-container-high rounded-xl p-1 [&>*:nth-last-child(-n+3):nth-child(4n+1)]:col-span-1">
+        <div role="radiogroup" aria-label="Chart type" className="flex flex-wrap gap-1 bg-surface-container-high rounded-xl p-1">
           {CHART_TYPES.map((ct) => (
             <button
               key={ct.value}
               role="radio"
               aria-checked={chartType === ct.value}
               onClick={() => setChartType(ct.value)}
-              className={`px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+              className={`flex-1 min-w-[60px] px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
                 chartType === ct.value
                   ? "bg-primary text-on-primary"
                   : "text-on-surface-variant hover:text-on-surface"

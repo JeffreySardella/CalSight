@@ -48,7 +48,7 @@ export default function SimpleLollipop({
   if (!data.length) return null;
   const maxVal = Math.max(...data.map((d) => d.value), 1);
   const labelW = 80;
-  const barArea = svgWidth - labelW - 40;
+  const barArea = Math.max(svgWidth - labelW - 40, 0);
   const rowH = Math.min(28, (height - 8) / data.length);
   const svgH = Math.max(height, data.length * rowH + 8);
 
