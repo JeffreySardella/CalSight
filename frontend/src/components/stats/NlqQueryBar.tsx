@@ -76,7 +76,7 @@ export default function NlqQueryBar({ onAddChart }: Props) {
           onChange={(e) => { setValue(e.target.value); setShowSuggestions(true); setSelectedIdx(-1); }}
           onFocus={() => setShowSuggestions(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Describe a chart… e.g. &quot;fatalities by county as scatter&quot;"
+          placeholder="Add a chart… try &quot;crashes by hour&quot; or &quot;fatalities by county as scatter&quot;"
           className="w-full pl-9 pr-20 py-2.5 bg-surface-container rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/50 border border-outline-variant/20 focus:border-primary focus:outline-none transition-colors"
           aria-label="Natural language chart query"
           aria-autocomplete="list"
