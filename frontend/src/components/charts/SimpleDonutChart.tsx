@@ -49,7 +49,9 @@ export default function SimpleDonutChart({
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return null;
 
-  const cx = height / 2 + 20;
+  const effectiveOuter = Math.min(outerRadius, (height - 4) / 2);
+  const effectiveInner = Math.min(innerRadius, effectiveOuter * 0.67);
+  const cx = effectiveOuter + 20;
   const cy = height / 2;
   const padAngle = 2;
 
@@ -62,21 +64,21 @@ export default function SimpleDonutChart({
     const end = cumAngle + sweep;
     const mid = (start + end) / 2;
 
-    const innerStart = polarToCartesian(cx, cy, innerRadius, end);
-    const innerEnd = polarToCartesian(cx, cy, innerRadius, start);
-    const outerStart = polarToCartesian(cx, cy, outerRadius, end);
-    const outerEnd = polarToCartesian(cx, cy, outerRadius, start);
+    const innerStart = polarToCartesian(cx, cy, effectiveInner, end);
+    const innerEnd = polarToCartesian(cx, cy, effectiveInner, start);
+    const outerStart = polarToCartesian(cx, cy, effectiveOuter, end);
+    const outerEnd = polarToCartesian(cx, cy, effectiveOuter, start);
     const large = sweep > 180 ? 1 : 0;
 
     const path = [
       `M ${outerStart.x} ${outerStart.y}`,
-      `A ${outerRadius} ${outerRadius} 0 ${large} 0 ${outerEnd.x} ${outerEnd.y}`,
+      `A ${effectiveOuter} ${effectiveOuter} 0 ${large} 0 ${outerEnd.x} ${outerEnd.y}`,
       `L ${innerEnd.x} ${innerEnd.y}`,
-      `A ${innerRadius} ${innerRadius} 0 ${large} 1 ${innerStart.x} ${innerStart.y}`,
+      `A ${effectiveInner} ${effectiveInner} 0 ${large} 1 ${innerStart.x} ${innerStart.y}`,
       "Z",
     ].join(" ");
 
-    const outerPath = arcPath(cx, cy, outerRadius, start, end);
+    const outerPath = arcPath(cx, cy, effectiveOuter, start, end);
 
     segments.push({
       path,
