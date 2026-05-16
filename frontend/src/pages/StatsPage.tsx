@@ -11,6 +11,7 @@ import { useDashboardConfig } from "../hooks/useDashboardConfig";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useCorrelationData } from "../hooks/useCorrelationData";
 import CorrelationMatrix from "../components/charts/CorrelationMatrix";
+import VehicleTrends from "../components/stats/VehicleTrends";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -254,6 +255,11 @@ export default function StatsPage() {
             onMoveChart={dashboard.moveChart}
           />
         )}
+      </section>
+
+      {/* Vehicle Trends */}
+      <section className="bg-surface-container-lowest rounded-2xl p-5 md:p-8 ambient-shadow">
+        <VehicleTrends />
       </section>
 
       {/* Correlation Explorer */}
