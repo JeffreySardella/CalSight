@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
 import SimpleLineChart from "../charts/SimpleLineChart";
@@ -9,6 +9,7 @@ import SimplePolarArea from "../charts/SimplePolarArea";
 import SimpleLollipop from "../charts/SimpleLollipop";
 import SimpleRadar from "../charts/SimpleRadar";
 import SimpleScatter from "../charts/SimpleScatter";
+import ChartDataTable from "./ChartDataTable";
 import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
@@ -91,37 +92,54 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
 function ChartCard({
   slot, data, editing, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast,
 }: Props) {
+  const [showTable, setShowTable] = useState(false);
   const title = buildTitle(slot);
   const hasData = data.length > 0 && data.some((d) => d.value > 0);
+  const isScatter = slot.chartType === "scatter";
+  const valueLabel = MEASURE_LABELS[slot.measure];
 
   return (
     <div className="bg-surface-container-lowest rounded-2xl p-4 ambient-shadow">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-headline font-bold text-on-surface">{title}</h3>
-        {editing && (
-          <div className="flex items-center gap-0.5">
-            {!isFirst && (
-              <button onClick={onMoveUp} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Move ${title} up`}>
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back_ios</span>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => setShowTable((v) => !v)}
+            className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant"
+            aria-label={showTable ? "Show chart" : "View data"}
+            title={showTable ? "Show chart" : "View data"}
+          >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+              {showTable ? "bar_chart" : "table_chart"}
+            </span>
+          </button>
+          {editing && (
+            <>
+              {!isFirst && (
+                <button onClick={onMoveUp} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Move ${title} up`}>
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back_ios</span>
+                </button>
+              )}
+              {!isLast && (
+                <button onClick={onMoveDown} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Move ${title} down`}>
+                  <span className="material-symbols-outlined text-[18px] rotate-180" aria-hidden="true">arrow_back_ios</span>
+                </button>
+              )}
+              <button onClick={onEdit} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Edit ${title}`}>
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">tune</span>
               </button>
-            )}
-            {!isLast && (
-              <button onClick={onMoveDown} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Move ${title} down`}>
-                <span className="material-symbols-outlined text-[18px] rotate-180" aria-hidden="true">arrow_back_ios</span>
+              <button onClick={onRemove} className="p-2.5 rounded-full hover:bg-surface-container-high text-error" aria-label={`Remove ${title}`}>
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
               </button>
-            )}
-            <button onClick={onEdit} className="p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label={`Edit ${title}`}>
-              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">tune</span>
-            </button>
-            <button onClick={onRemove} className="p-2.5 rounded-full hover:bg-surface-container-high text-error" aria-label={`Remove ${title}`}>
-              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
-            </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {!hasData ? (
         <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">No data</div>
+      ) : showTable ? (
+        <ChartDataTable data={data} title={title} isScatter={isScatter} valueLabel={valueLabel} />
       ) : slot.chartType === "donut" ? (
         <>
           <SimpleDonutChart

@@ -5,6 +5,7 @@ import FiltersPanel from "../components/map/FiltersPanel";
 import { useStats } from "../hooks/useStats";
 import { Skeleton } from "../components/ui/Skeleton";
 import DashboardModeToggle from "../components/stats/DashboardModeToggle";
+import DataFreshnessBanner from "../components/stats/DataFreshnessBanner";
 import PresetPicker from "../components/stats/PresetPicker";
 import DashboardGrid from "../components/stats/DashboardGrid";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
@@ -226,6 +227,7 @@ export default function StatsPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <DashboardModeToggle mode={dashboard.config.mode} onChange={dashboard.setMode} />
+          <DataFreshnessBanner />
         </div>
         {dashboard.config.mode === "simple" && (
           <PresetPicker active={dashboard.config.preset} onSelect={dashboard.setPreset} />

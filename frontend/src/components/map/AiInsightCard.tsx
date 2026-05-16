@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { ChoroplethPoint } from "../../hooks/useChoroplethData";
 import { Skeleton } from "../ui/Skeleton";
 
@@ -297,6 +298,16 @@ export default function AiInsightCard({
                   >
                     Compare
                   </button>
+                )}
+
+                {!compareMode && data && (
+                  <Link
+                    to={`/stats?county=${countyName.toLowerCase().replace(/ /g, "-")}`}
+                    className="w-full bg-surface-container text-on-surface py-2 rounded-lg text-[11px] font-bold tracking-widest uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-sm">bar_chart</span>
+                    View Stats
+                  </Link>
                 )}
               </>
             )}

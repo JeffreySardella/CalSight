@@ -26,6 +26,8 @@ export const CORRELATION_FIELDS: CorrelationField[] = [
   { key: "traffic_score", label: "Traffic", source: "calenviroscreen" },
   { key: "ev_pct", label: "EV %", source: "vehicles" },
   { key: "vehicles_per_capita", label: "Vehicles/Cap", source: "derived" },
+  { key: "avg_temp", label: "Avg Temp", source: "weather" },
+  { key: "precip", label: "Rainfall", source: "weather" },
 ];
 
 function pearsonR(xs: number[], ys: number[]): number {
@@ -51,7 +53,7 @@ export function useCorrelationData() {
   return useQuery({
     queryKey: ["correlation-matrix"],
     queryFn: async () => {
-      const [statsRes, demoRes, cesRes, unempRes, vehRes] = await Promise.all([
+      const [statsRes, demoRes, cesRes, unempRes, vehRes, weatherRes] = await Promise.all([
         fetch(`${API_BASE}/api/stats/batch`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -61,9 +63,10 @@ export function useCorrelationData() {
         fetch(`${API_BASE}/api/calenviroscreen`),
         fetch(`${API_BASE}/api/unemployment`),
         fetch(`${API_BASE}/api/vehicles`),
+        fetch(`${API_BASE}/api/weather`),
       ]);
 
-      if (!statsRes.ok || !demoRes.ok || !cesRes.ok || !unempRes.ok || !vehRes.ok) {
+      if (!statsRes.ok || !demoRes.ok || !cesRes.ok || !unempRes.ok || !vehRes.ok || !weatherRes.ok) {
         throw new Error("Failed to fetch correlation data");
       }
 
@@ -72,6 +75,7 @@ export function useCorrelationData() {
       const calenviro: Record<string, unknown>[] = await cesRes.json();
       const unemployment: Record<string, unknown>[] = await unempRes.json();
       const vehicles: Record<string, unknown>[] = await vehRes.json();
+      const weather: Record<string, unknown>[] = await weatherRes.json();
 
       const countyStats: Record<string, unknown>[] = stats.county ?? [];
 
@@ -148,6 +152,31 @@ export function useCorrelationData() {
         const population = demoByCounty[code]?.population as number | undefined;
         if (total != null && population != null && population > 0) {
           byCounty[code].vehicles_per_capita = total / population;
+        }
+      }
+
+      // Weather data — find most recent year per county, then average temp and sum precip
+      const weatherByCountyYear: Record<string, Record<number, { temps: number[]; precips: number[] }>> = {};
+      for (const r of weather) {
+        const code = String(r.county_code ?? "");
+        const year = r.year as number;
+        const temp = r.avg_temp_f as number | null;
+        const precip = r.precipitation_in as number | null;
+        if (!code || year == null) continue;
+        if (!weatherByCountyYear[code]) weatherByCountyYear[code] = {};
+        if (!weatherByCountyYear[code][year]) weatherByCountyYear[code][year] = { temps: [], precips: [] };
+        if (temp != null) weatherByCountyYear[code][year].temps.push(temp);
+        if (precip != null) weatherByCountyYear[code][year].precips.push(precip);
+      }
+      for (const [code, years] of Object.entries(weatherByCountyYear)) {
+        if (!byCounty[code]) continue;
+        const latestYear = Math.max(...Object.keys(years).map(Number));
+        const data = years[latestYear];
+        if (data.temps.length > 0) {
+          byCounty[code].avg_temp = data.temps.reduce((s, v) => s + v, 0) / data.temps.length;
+        }
+        if (data.precips.length > 0) {
+          byCounty[code].precip = data.precips.reduce((s, v) => s + v, 0);
         }
       }
 
