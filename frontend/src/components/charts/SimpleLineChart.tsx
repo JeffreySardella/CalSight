@@ -12,6 +12,7 @@ interface SimpleLineChartProps {
   color?: string;
   showDots?: boolean;
   showYAxis?: boolean;
+  showArea?: boolean;
   renderTooltip?: (item: LinePoint, idx: number) => React.ReactNode;
 }
 
@@ -27,6 +28,7 @@ export default function SimpleLineChart({
   color = "rgb(var(--primary))",
   showDots = true,
   showYAxis = true,
+  showArea = false,
   renderTooltip,
 }: SimpleLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -88,6 +90,14 @@ export default function SimpleLineChart({
           );
         })}
 
+        {pathD && showArea && points.length >= 2 && (
+          <path
+            d={`${pathD} L ${points[points.length - 1].x} ${padding.top + chartH} L ${points[0].x} ${padding.top + chartH} Z`}
+            fill={color}
+            fillOpacity={0.12}
+            stroke="none"
+          />
+        )}
         {pathD && <path d={pathD} fill="none" stroke={color} strokeWidth={2} />}
 
         {points.map((p, i) => (

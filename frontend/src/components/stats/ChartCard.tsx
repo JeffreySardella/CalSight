@@ -124,10 +124,19 @@ function ChartCard({
           />
           <DonutLegend data={data} />
         </>
-      ) : slot.chartType === "line" ? (
+      ) : slot.chartType === "line" || slot.chartType === "area" ? (
         <SimpleLineChart
           data={data}
           height={192}
+          showArea={slot.chartType === "area"}
+          showDots={slot.chartType === "line"}
+          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+        />
+      ) : slot.chartType === "hbar" ? (
+        <SimpleBarChart
+          data={data}
+          height={Math.max(192, data.length * 28)}
+          layout="horizontal"
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
         />
       ) : (

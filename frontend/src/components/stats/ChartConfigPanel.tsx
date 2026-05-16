@@ -10,7 +10,9 @@ interface Props {
 
 const CHART_TYPES: { value: ChartType; label: string; icon: string }[] = [
   { value: "bar", label: "Bar", icon: "bar_chart" },
+  { value: "hbar", label: "H-Bar", icon: "bar_chart" },
   { value: "line", label: "Line", icon: "show_chart" },
+  { value: "area", label: "Area", icon: "show_chart" },
   { value: "donut", label: "Donut", icon: "donut_large" },
 ];
 

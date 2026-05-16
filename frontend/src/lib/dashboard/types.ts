@@ -13,7 +13,7 @@ export const MEASURES = [
 
 export type Measure = (typeof MEASURES)[number];
 
-export type ChartType = "bar" | "line" | "donut";
+export type ChartType = "bar" | "hbar" | "line" | "area" | "donut";
 
 export type ChartSlot = {
   id: string;
@@ -61,12 +61,15 @@ export const MEASURE_LABELS: Record<Measure, string> = {
 
 const DEFAULT_CHART_TYPE: Partial<Record<Dimension, ChartType>> = {
   severity: "donut",
-  year: "line",
+  year: "area",
   hour: "bar",
-  cause: "bar",
-  county: "bar",
+  cause: "hbar",
+  county: "hbar",
   month: "bar",
   day_of_week: "bar",
+  weather: "hbar",
+  lighting: "hbar",
+  collision_type: "hbar",
 };
 
 export function defaultChartType(dim: Dimension): ChartType {
