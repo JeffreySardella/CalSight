@@ -31,12 +31,13 @@ function fmtValue(v: number): string {
   return v.toLocaleString();
 }
 
-const TEXT_DIMS: Dimension[] = ["cause", "weather", "lighting", "collision_type"];
+const TEXT_DIMS: Dimension[] = ["cause", "county", "weather", "lighting", "collision_type"];
 
 function thinLabelFormatter(total: number, dim: Dimension) {
   const isText = TEXT_DIMS.includes(dim);
-  const step = total > 16 ? 4 : total > 10 ? 3 : total > 7 ? 2 : 1;
-  const maxLen = isText ? 6 : 20;
+  const step = isText ? (total > 12 ? 4 : total > 8 ? 3 : total > 5 ? 2 : 1)
+    : (total > 16 ? 4 : total > 10 ? 3 : total > 7 ? 2 : 1);
+  const maxLen = isText ? 10 : 20;
 
   return (label: string, idx: number) => {
     if (step > 1 && idx % step !== 0 && idx !== total - 1) return null;

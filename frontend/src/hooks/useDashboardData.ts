@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
-import type { ChartSlot, Dimension } from "../lib/dashboard/types";
+import type { ChartSlot, Dimension, Measure } from "../lib/dashboard/types";
 import type { StatsFilters } from "./useStats";
 import { formatYearMonth } from "./useFilterParams";
 
@@ -34,49 +34,66 @@ function severityToSlug(s: string): string {
   return s.toLowerCase().replace(/ /g, "-");
 }
 
-function transformRows(dimension: Dimension, rows: Record<string, unknown>[]): ChartDataItem[] {
+function pickValue(r: Record<string, unknown>, measure: Measure, dim: Dimension): number {
+  switch (measure) {
+    case "killed":
+      if (dim === "gender" || dim === "age_bracket") return (r.fatal_victim_count as number) ?? 0;
+      if (dim === "at_fault_gender" || dim === "at_fault_age_bracket") return (r.fatal_party_count as number) ?? 0;
+      return (r.total_killed as number) ?? 0;
+    case "injured":
+      return (r.total_injured as number) ?? 0;
+    case "count":
+    default:
+      if (dim === "gender" || dim === "age_bracket") return (r.victim_count as number) ?? 0;
+      if (dim === "at_fault_gender" || dim === "at_fault_age_bracket") return (r.party_count as number) ?? 0;
+      return (r.crash_count as number) ?? 0;
+  }
+}
+
+function transformRows(dimension: Dimension, measure: Measure, rows: Record<string, unknown>[]): ChartDataItem[] {
+  const val = (r: Record<string, unknown>) => pickValue(r, measure, dimension);
+
   switch (dimension) {
     case "hour":
-      return rows.map((r) => ({
-        label: `${r.hour as number}:00`,
-        value: (r.crash_count as number) ?? 0,
-      }));
+      return rows.map((r) => ({ label: `${r.hour as number}:00`, value: val(r) }));
     case "day_of_week":
       return rows.map((r) => ({
         label: DOW_LABEL[(r.day_of_week as number)] ?? String(r.day_of_week),
-        value: (r.crash_count as number) ?? 0,
+        value: val(r),
       }));
     case "month":
       return rows.map((r) => ({
         label: MONTH_LABEL[(r.month as number) - 1] ?? String(r.month),
-        value: (r.crash_count as number) ?? 0,
+        value: val(r),
       }));
     case "year": {
       const currentYear = new Date().getFullYear();
       return rows
         .filter((r) => (r.year as number) < currentYear)
-        .map((r) => ({
-          label: String(r.year),
-          value: (r.crash_count as number) ?? 0,
-        }));
+        .map((r) => ({ label: String(r.year), value: val(r) }));
     }
     case "cause":
       return rows.map((r) => ({
         label: CAUSE_LABEL[r.canonical_cause as string] ?? String(r.canonical_cause),
-        value: (r.crash_count as number) ?? 0,
+        value: val(r),
       }));
     case "severity":
       return rows.map((r) => ({
         label: r.severity as string,
-        value: (r.crash_count as number) ?? 0,
+        value: val(r),
         color: SEVERITY_COLORS[r.severity as string],
       }));
+    case "county":
+      return rows
+        .sort((a, b) => ((b.crash_count as number) ?? 0) - ((a.crash_count as number) ?? 0))
+        .slice(0, 15)
+        .map((r) => ({ label: String(r.county_name), value: val(r) }));
     case "gender":
       return rows
         .filter((r) => r.gender && r.gender !== "unknown")
         .map((r) => ({
           label: (r.gender as string).charAt(0).toUpperCase() + (r.gender as string).slice(1),
-          value: (r.victim_count as number) ?? 0,
+          value: val(r),
         }));
     case "age_bracket":
       return rows
@@ -84,14 +101,14 @@ function transformRows(dimension: Dimension, rows: Record<string, unknown>[]): C
         .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket as string) - AGE_ORDER.indexOf(b.age_bracket as string))
         .map((r) => ({
           label: AGE_LABEL[r.age_bracket as string] ?? String(r.age_bracket),
-          value: (r.victim_count as number) ?? 0,
+          value: val(r),
         }));
     case "at_fault_gender":
       return rows
         .filter((r) => r.gender && r.gender !== "unknown")
         .map((r) => ({
           label: (r.gender as string).charAt(0).toUpperCase() + (r.gender as string).slice(1),
-          value: (r.party_count as number) ?? 0,
+          value: val(r),
         }));
     case "at_fault_age_bracket":
       return rows
@@ -99,14 +116,14 @@ function transformRows(dimension: Dimension, rows: Record<string, unknown>[]): C
         .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket as string) - AGE_ORDER.indexOf(b.age_bracket as string))
         .map((r) => ({
           label: AGE_LABEL[r.age_bracket as string] ?? String(r.age_bracket),
-          value: (r.party_count as number) ?? 0,
+          value: val(r),
         }));
     case "weather":
     case "lighting":
     case "collision_type":
       return rows.map((r) => ({
         label: String(r.value ?? r[dimension] ?? "Unknown"),
-        value: (r.crash_count as number) ?? 0,
+        value: val(r),
       }));
     default:
       return [];
@@ -132,25 +149,32 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
   const query = useQuery({
     queryKey: ["dashboard", groups, filterBody],
     queryFn: async () => {
-      if (groups.length === 0) return {} as Record<string, ChartDataItem[]>;
+      if (groups.length === 0) return {} as Record<string, Record<string, unknown>[]>;
       const res = await fetch(`${API_BASE}/api/stats/batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ groups, ...filterBody }),
       });
       if (!res.ok) throw new Error(`dashboard batch ${res.status}`);
-      const raw: Record<string, Record<string, unknown>[]> = await res.json();
-      const result: Record<string, ChartDataItem[]> = {};
-      for (const dim of groups) {
-        result[dim] = transformRows(dim as Dimension, raw[dim] ?? []);
-      }
-      return result;
+      return await res.json() as Record<string, Record<string, unknown>[]>;
     },
     enabled: groups.length > 0,
   });
 
+  const dataBySlot = useMemo(() => {
+    const raw = query.data ?? {};
+    const result: Record<string, ChartDataItem[]> = {};
+    for (const chart of charts) {
+      const key = `${chart.dimension}:${chart.measure}`;
+      if (!result[key]) {
+        result[key] = transformRows(chart.dimension, chart.measure, raw[chart.dimension] ?? []);
+      }
+    }
+    return result;
+  }, [query.data, charts]);
+
   return {
-    dataByDimension: query.data ?? ({} as Record<string, ChartDataItem[]>),
+    dataBySlot,
     loading: query.isLoading,
     error: query.error ? String(query.error) : null,
   };

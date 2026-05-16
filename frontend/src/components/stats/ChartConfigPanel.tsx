@@ -16,6 +16,8 @@ const CHART_TYPES: { value: ChartType; label: string; icon: string }[] = [
 
 const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "count", label: MEASURE_LABELS.count },
+  { value: "killed", label: MEASURE_LABELS.killed },
+  { value: "injured", label: MEASURE_LABELS.injured },
 ];
 
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {

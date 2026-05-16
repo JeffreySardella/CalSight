@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import type { ChartSlot, Dimension, Measure, ChartType } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
+
+function slotKey(slot: ChartSlot): string {
+  return `${slot.dimension}:${slot.measure}`;
+}
 import ChartCard from "./ChartCard";
 import AddChartCard from "./AddChartCard";
 import ChartConfigPanel from "./ChartConfigPanel";
@@ -10,7 +14,7 @@ type ChartConfig = { dimension: Dimension; measure: Measure; chartType: ChartTyp
 
 interface Props {
   charts: ChartSlot[];
-  dataByDimension: Record<string, ChartDataItem[]>;
+  dataBySlot: Record<string, ChartDataItem[]>;
   mode: "simple" | "advanced";
   onAddChart: (config: ChartConfig) => void;
   onRemoveChart: (id: string) => void;
@@ -19,7 +23,7 @@ interface Props {
 }
 
 export default function DashboardGrid({
-  charts, dataByDimension, mode, onAddChart, onRemoveChart, onUpdateChart, onMoveChart,
+  charts, dataBySlot, mode, onAddChart, onRemoveChart, onUpdateChart, onMoveChart,
 }: Props) {
   const [configOpen, setConfigOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -83,7 +87,7 @@ export default function DashboardGrid({
             <ChartCard
               key={slot.id}
               slot={slot}
-              data={dataByDimension[slot.dimension] ?? []}
+              data={dataBySlot[slotKey(slot)] ?? []}
               editing={isAdvanced}
               onEdit={() => setEditingId(slot.id)}
               onRemove={() => onRemoveChart(slot.id)}

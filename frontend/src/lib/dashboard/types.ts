@@ -1,6 +1,6 @@
 export const DIMENSIONS = [
   "hour", "day_of_week", "month", "year", "cause", "severity",
-  "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket",
+  "county", "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket",
   "weather", "lighting", "collision_type",
 ] as const;
 
@@ -39,6 +39,7 @@ export const DIMENSION_LABELS: Record<Dimension, string> = {
   year: "Year",
   cause: "Primary Cause",
   severity: "Severity",
+  county: "County",
   gender: "Victim Gender",
   age_bracket: "Victim Age",
   at_fault_gender: "At-Fault Gender",
@@ -63,6 +64,7 @@ const DEFAULT_CHART_TYPE: Partial<Record<Dimension, ChartType>> = {
   year: "line",
   hour: "bar",
   cause: "bar",
+  county: "bar",
   month: "bar",
   day_of_week: "bar",
 };

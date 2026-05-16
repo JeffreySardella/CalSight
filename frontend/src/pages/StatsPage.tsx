@@ -22,7 +22,7 @@ export default function StatsPage() {
   }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
   const { data, loading, error } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
-  const { dataByDimension, loading: dashLoading, error: dashError } = useDashboardData(dashboard.activeCharts, statsFilters);
+  const { dataBySlot, loading: dashLoading, error: dashError } = useDashboardData(dashboard.activeCharts, statsFilters);
   const dateRange  = filters.selectedDateRange;
   const severities = filters.selectedSeverities;
   const counties   = filters.selectedCounties;
@@ -243,7 +243,7 @@ export default function StatsPage() {
         ) : (
           <DashboardGrid
             charts={dashboard.activeCharts}
-            dataByDimension={dataByDimension}
+            dataBySlot={dataBySlot}
             mode={dashboard.config.mode}
             onAddChart={dashboard.addChart}
             onRemoveChart={dashboard.removeChart}
