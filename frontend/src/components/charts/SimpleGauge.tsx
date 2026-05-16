@@ -24,11 +24,10 @@ export default function SimpleGauge({ data, height = 180 }: SimpleGaugeProps) {
   const cx = 140;
   const cy = height - 30;
   const r = Math.min(cx - 10, cy - 10);
-  const trackW = 18;
+  const trackW = 28;
 
   const COLORS = [
-    "rgb(var(--error))", "rgb(var(--tertiary))", "rgb(var(--primary))",
-    "rgb(var(--secondary))", "rgb(var(--outline-variant))",
+    "#dc2626", "#f59e0b", "#2563eb", "#7c3aed", "#6b7280",
   ];
 
   let cumPct = 0;
@@ -74,9 +73,9 @@ export default function SimpleGauge({ data, height = 180 }: SimpleGaugeProps) {
         ))}
         <text
           x={cx}
-          y={cy - 8}
+          y={cy - 10}
           textAnchor="middle"
-          fontSize={22}
+          fontSize={28}
           fontWeight={800}
           fill="rgb(var(--on-surface))"
           fontFamily="'Inter Variable', Inter, sans-serif"
@@ -87,11 +86,13 @@ export default function SimpleGauge({ data, height = 180 }: SimpleGaugeProps) {
           x={cx}
           y={cy + 10}
           textAnchor="middle"
-          fontSize={10}
+          fontSize={11}
+          fontWeight={600}
           fill="rgb(var(--on-surface-variant))"
           fontFamily="'Inter Variable', Inter, sans-serif"
+          letterSpacing={2}
         >
-          total
+          TOTAL
         </text>
       </svg>
       <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center -mt-4">

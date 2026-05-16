@@ -95,9 +95,9 @@ export default function SimpleTreemap({
   const rects = squarify(data, svgWidth - PAD * 2, height - PAD * 2);
 
   const COLORS = [
-    "rgb(var(--primary))", "rgb(var(--tertiary))", "rgb(var(--primary-container))",
-    "rgb(var(--tertiary-container))", "rgb(var(--secondary))", "rgb(var(--secondary-container))",
-    "rgb(var(--error))", "rgb(var(--outline-variant))",
+    "#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706",
+    "#dc2626", "#6366f1", "#0d9488", "#ca8a04", "#e11d48",
+    "#4f46e5", "#0284c7",
   ];
 
   return (
@@ -106,7 +106,7 @@ export default function SimpleTreemap({
         {rects.map((r, i) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
           const color = r.item.color ?? COLORS[i % COLORS.length] ?? defaultColor;
-          const showLabel = r.w > 40 && r.h > 28;
+          const showLabel = r.w > 50 && r.h > 32;
           return (
             <g key={r.item.label}>
               <rect
@@ -116,7 +116,7 @@ export default function SimpleTreemap({
                 height={Math.max(r.h - 2, 0)}
                 rx={4}
                 fill={color}
-                fillOpacity={hover !== null && hover.idx !== r.idx ? 0.5 : 0.85}
+                fillOpacity={hover !== null && hover.idx !== r.idx ? 0.4 : 1}
                 onMouseMove={(e) => {
                   const svg = svgRef.current;
                   if (!svg) return;
@@ -129,21 +129,22 @@ export default function SimpleTreemap({
               {showLabel && (
                 <>
                   <text
-                    x={PAD + r.x + 6}
-                    y={PAD + r.y + 16}
-                    fontSize={11}
+                    x={PAD + r.x + 8}
+                    y={PAD + r.y + 18}
+                    fontSize={12}
                     fontWeight={700}
-                    fill="rgb(var(--on-primary))"
+                    fill="#fff"
                     fontFamily="'Inter Variable', Inter, sans-serif"
                   >
-                    {r.item.label.length > 12 ? r.item.label.slice(0, 11) + "…" : r.item.label}
+                    {r.item.label.length > Math.floor(r.w / 7) ? r.item.label.slice(0, Math.floor(r.w / 7) - 1) + "…" : r.item.label}
                   </text>
                   <text
-                    x={PAD + r.x + 6}
-                    y={PAD + r.y + 30}
-                    fontSize={10}
-                    fill="rgb(var(--on-primary))"
-                    fillOpacity={0.8}
+                    x={PAD + r.x + 8}
+                    y={PAD + r.y + 34}
+                    fontSize={13}
+                    fontWeight={800}
+                    fill="#fff"
+                    fillOpacity={0.9}
                     fontFamily="'Inter Variable', Inter, sans-serif"
                   >
                     {pct}%

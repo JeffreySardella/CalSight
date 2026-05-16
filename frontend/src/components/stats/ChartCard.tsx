@@ -24,7 +24,7 @@ interface Props {
 function buildTitle(slot: ChartSlot): string {
   const measure = MEASURE_LABELS[slot.measure];
   const dim = DIMENSION_LABELS[slot.dimension];
-  if (measure === "Crash Count") return dim;
+  if (measure === "Crash Count") return `Crashes by ${dim}`;
   return `${measure} by ${dim}`;
 }
 

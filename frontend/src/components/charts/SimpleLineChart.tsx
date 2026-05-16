@@ -94,7 +94,7 @@ export default function SimpleLineChart({
           <path
             d={`${pathD} L ${points[points.length - 1].x} ${padding.top + chartH} L ${points[0].x} ${padding.top + chartH} Z`}
             fill={color}
-            fillOpacity={0.12}
+            fillOpacity={0.2}
             stroke="none"
           />
         )}
