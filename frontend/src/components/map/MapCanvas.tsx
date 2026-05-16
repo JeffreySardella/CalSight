@@ -197,7 +197,7 @@ export default function MapCanvas({
         key={baseTileUrl}
         url={baseTileUrl}
         keepBuffer={2}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/">CARTO</a>'
       />
 
       <MapInternals

@@ -13,6 +13,7 @@ const AboutPage = lazy(() => import("./pages/AboutPage"));
 const AskAiPage = lazy(() => import("./pages/AskAiPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const AdminEtlPage = lazy(() => import("./pages/AdminEtlPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
                 <Route path="ask" element={<AskAiPage />} />
                 <Route path="privacy" element={<PrivacyPage />} />
                 <Route path="admin/etl" element={<AdminEtlPage />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
           </Suspense>
