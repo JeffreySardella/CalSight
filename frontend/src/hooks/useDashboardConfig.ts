@@ -22,7 +22,7 @@ function isValidConfig(p: unknown): p is DashboardConfig {
       typeof s.order === "number" &&
       (DIMENSIONS as readonly string[]).includes(s.dimension as string) &&
       ["count", "killed", "injured"].includes(s.measure as string) &&
-      ["bar", "hbar", "line", "area", "donut", "treemap", "gauge", "stat", "polar", "lollipop", "radar"].includes(s.chartType as string),
+      ["bar", "hbar", "line", "area", "donut", "treemap", "gauge", "stat", "polar", "lollipop", "radar", "scatter"].includes(s.chartType as string),
   );
 }
 

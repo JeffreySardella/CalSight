@@ -5,7 +5,7 @@ import type { ChartSlot, Dimension, Measure } from "../lib/dashboard/types";
 import type { StatsFilters } from "./useStats";
 import { formatYearMonth } from "./useFilterParams";
 
-export type ChartDataItem = { label: string; value: number; color?: string };
+export type ChartDataItem = { label: string; value: number; color?: string; x?: number; y?: number };
 
 const CAUSE_LABEL: Record<string, string> = {
   dui: "DUI", speeding: "Speeding", lane_change: "Lane Change",
@@ -72,24 +72,36 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
       const currentYear = new Date().getFullYear();
       return rows
         .filter((r) => (r.year as number) < currentYear)
-        .map((r) => ({ label: String(r.year), value: val(r) }));
+        .map((r) => ({
+          label: String(r.year), value: val(r),
+          x: (r.crash_count as number) ?? 0,
+          y: (r.total_killed as number) ?? 0,
+        }));
     }
     case "cause":
       return rows.map((r) => ({
         label: CAUSE_LABEL[r.canonical_cause as string] ?? String(r.canonical_cause),
         value: val(r),
+        x: (r.crash_count as number) ?? 0,
+        y: (r.total_killed as number) ?? 0,
       }));
     case "severity":
       return rows.map((r) => ({
         label: r.severity as string,
         value: val(r),
         color: SEVERITY_COLORS[r.severity as string],
+        x: (r.crash_count as number) ?? 0,
+        y: (r.total_killed as number) ?? 0,
       }));
     case "county":
       return rows
         .sort((a, b) => val(b) - val(a))
-        .slice(0, 15)
-        .map((r) => ({ label: String(r.county_name), value: val(r) }));
+        .slice(0, 30)
+        .map((r) => ({
+          label: String(r.county_name), value: val(r),
+          x: (r.crash_count as number) ?? 0,
+          y: (r.total_killed as number) ?? 0,
+        }));
     case "gender":
       return rows
         .filter((r) => r.gender && r.gender !== "unknown")

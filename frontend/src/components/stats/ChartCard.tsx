@@ -8,6 +8,7 @@ import StatCard from "../charts/StatCard";
 import SimplePolarArea from "../charts/SimplePolarArea";
 import SimpleLollipop from "../charts/SimpleLollipop";
 import SimpleRadar from "../charts/SimpleRadar";
+import SimpleScatter from "../charts/SimpleScatter";
 import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
@@ -137,6 +138,20 @@ function ChartCard({
           showArea={slot.chartType === "area"}
           showDots={slot.chartType === "line"}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+        />
+      ) : slot.chartType === "scatter" ? (
+        <SimpleScatter
+          data={data}
+          height={260}
+          xLabel="Crashes"
+          yLabel="Fatalities"
+          renderTooltip={(item) => (
+            <>
+              <p className="font-headline font-bold text-on-surface">{item.label}</p>
+              <p className="text-on-surface-variant mt-0.5">{fmtValue(item.x ?? 0)} crashes</p>
+              <p className="text-on-surface-variant">{fmtValue(item.y ?? 0)} fatalities</p>
+            </>
+          )}
         />
       ) : slot.chartType === "polar" ? (
         <SimplePolarArea

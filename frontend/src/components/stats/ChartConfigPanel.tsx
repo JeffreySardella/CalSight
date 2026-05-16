@@ -19,6 +19,7 @@ const CHART_TYPES: { value: ChartType; label: string }[] = [
   { value: "polar", label: "Polar" },
   { value: "radar", label: "Radar" },
   { value: "gauge", label: "Gauge" },
+  { value: "scatter", label: "Scatter" },
   { value: "stat", label: "Stat" },
 ];
 
