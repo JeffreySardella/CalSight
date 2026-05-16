@@ -12,7 +12,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 4G
           cpus: "2.0"
     logging:
       driver: json-file
@@ -26,7 +26,7 @@ services:
       retries: 3
 
   tunnel:
-    image: cloudflare/cloudflared:2025.4.2
+    image: cloudflare/cloudflared:latest
     command: tunnel run
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN}

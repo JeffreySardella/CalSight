@@ -1,142 +1,100 @@
 # CalSight
 
-California Crash Data Explorer — an open source civic tech tool that makes California's public crash data explorable through interactive maps, charts, and filters.
+Ever wonder which California intersections are the most dangerous, or whether DUI crashes are actually going down? We did too.
 
-## What It Does
+CalSight pulls 11 million crash records from California's public data and lets you explore them on a map, dig into the stats, or just ask a question in plain English. It's a civic tech project built by a small team who wanted to make this data accessible to everyone — not just researchers with SQL skills.
 
-Takes millions of crash records from California's [Crash Reporting System (CCRS)](https://data.ca.gov/dataset/ccrs) and presents them through:
+**Check it out at [calsight.org](https://calsight.org)**
 
-- Choropleth map showing crash density by county
-- Charts breaking down crashes by year, cause, time of day, severity
-- Filters to drill into specific data slices
-- AI-powered natural language queries (coming soon)
+## What you can do
 
-## Tech Stack
+**Explore the map** — see crash density by county, zoom into street-level crash dots, or turn on the heatmap. Filter by year, severity, cause, weather, lighting, time of day, and more.
 
-| Layer | Tech |
-|-------|------|
-| Frontend | React, TypeScript, Vite |
-| Maps | Leaflet |
-| Charts | Recharts |
-| Backend | Python, FastAPI |
-| Database | PostgreSQL |
-| Containers | Docker + docker-compose |
-| CI/CD | GitHub Actions |
+**Dig into stats** — 12 different chart breakdowns across the state or any county. Crashes by hour, cause, age, gender, at-fault driver demographics, per-capita rates — all filterable.
 
-## Getting Started
+**Ask AI** — type a question like "Which county has the highest DUI fatality rate?" and get an answer with inline charts pulled from the actual data.
 
-### Prerequisites
+**AI insights** — every county gets pre-computed narratives highlighting what makes it unique. Click any county on the map to see its story.
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Git](https://git-scm.com/)
+Also: dark mode, offline support (PWA), keyboard accessibility, high contrast mode, and it works on your phone.
 
-### Run Locally
+## Tech stack
+
+| | |
+|---|---|
+| Frontend | React 19, TypeScript, Vite 6, Tailwind, Leaflet, custom SVG charts |
+| Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 |
+| Database | PostgreSQL 17 — 11M crashes, 25M parties, 8 materialized views |
+| AI | Multi-provider fallback: Groq, OpenRouter, Cerebras, Gemini |
+| ETL | 22 jobs pulling from CKAN, Census, NOAA, BLS, CalEnviroScreen |
+| Infra | Cloudflare Pages + self-hosted backend on Proxmox LXC |
+
+## Run it locally
 
 ```bash
 git clone https://github.com/JeffreySardella/CalSight.git
 cd CalSight
-docker-compose up --build
+docker compose up --build
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API docs: http://localhost:8000/docs
+Frontend at http://localhost:5180, API at http://localhost:8000, docs at http://localhost:8000/docs.
+
+By default the backend connects to our shared database. For a fresh local Postgres:
 
 ```bash
-# Stop all services
-docker-compose down
-
-# Stop and reset database
-docker-compose down -v
-
-# Rebuild after dependency changes
-docker-compose up --build
+docker compose --profile local-db up --build
 ```
 
-### Run Without Docker
+Or without Docker:
 
-**Backend:**
 ```bash
+# Backend
 cd backend
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
+pip install -r requirements-dev.txt
+cp .env.example .env  # set DATABASE_URL
 uvicorn app.main:app --reload
-```
 
-**Frontend:**
-```bash
+# Frontend
 cd frontend
 npm install
 npm run dev
 ```
 
-Requires a running PostgreSQL instance — update `DATABASE_URL` in `.env`.
-
-## Database
-
-PostgreSQL 16 with schema managed by Alembic migrations.
-
-### Tables
-
-| Table | Purpose |
-|-------|---------|
-| `counties` | 58 California counties — FIPS codes, coordinates, boundaries |
-| `crashes` | Individual crash records from CCRS (indexed by county, date, cause) |
-| `demographics` | Yearly Census ACS data per county (population, income, commute modes) |
-| `county_insights` | Pre-computed summary stats and AI narrative per county/year |
-| `county_insight_details` | Granular breakdowns by category (collision type, cause, etc.) |
-| `etl_runs` | ETL pipeline execution history |
-
-### Migrations
+## Tests
 
 ```bash
-# Run migrations (done automatically on docker-compose up)
-cd backend
-alembic upgrade head
-
-# Seed counties table
-python -m app.seed_counties
-
-# Create a new migration after changing models
-alembic revision --autogenerate -m "description of change"
+cd backend && pytest -m "not integration"  # 364 unit tests
+cd frontend && npm test                     # 173 tests
 ```
 
-## Project Structure
+## Project layout
 
 ```
-CalSight/
-├── backend/
-│   ├── app/          # FastAPI application
-│   ├── migrations/   # Alembic database migrations
-│   ├── etl/          # Data pipeline (CKAN API → PostgreSQL)
-│   ├── tests/        # Backend tests
-│   ├── alembic.ini
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/  # Map, charts, filters
-│   │   ├── pages/
-│   │   └── hooks/
-│   ├── Dockerfile
-│   └── package.json
-├── docs/             # Design spec and pitch
-├── docker-compose.yml
-└── .github/workflows/ci.yml
+backend/
+  app/          FastAPI app — routers, models, filters, LLM client
+  etl/          Data pipeline — 22 jobs across 5 data sources
+  migrations/   Alembic schema migrations
+  tests/        Backend test suite
+
+frontend/
+  src/
+    components/   Map layers, charts, filters, UI
+    pages/        Map, Stats, Ask AI, About, 404
+    hooks/        Data fetching, filter state, map controls
+    context/      Theme, accessibility, lite mode
 ```
+
+## Data sources
+
+- [CCRS](https://data.ca.gov/dataset/ccrs) — California crash records (State of California)
+- [ACS](https://www.census.gov/programs-surveys/acs) — Demographics (Census Bureau)
+- [CalEnviroScreen 4.0](https://oehha.ca.gov/calenviroscreen) — Environmental justice scores
+- [NOAA Storm Events](https://www.ncdc.noaa.gov/stormevents/) — Weather data
+- [HPMS](https://www.fhwa.dot.gov/policyinformation/hpms.cfm) — Road miles and traffic volumes
 
 ## Contributing
 
-1. Pick a task from [GitHub Projects](../../projects)
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Make your changes
-4. Open a PR — needs 1 approval to merge
-
-## Data Source
-
-[California Crash Reporting System (CCRS)](https://data.ca.gov/dataset/ccrs) — public data published by the State of California on data.ca.gov.
+Grab an [open issue](../../issues), branch off `main`, write tests, open a PR. CI runs on every push. One approval to merge.
 
 ## License
 

@@ -27,9 +27,6 @@ export default function NavBar() {
           <span className="text-xl font-bold tracking-tighter text-on-surface font-headline">
             CalSight
           </span>
-          <span className="text-[9px] font-bold uppercase tracking-widest text-on-primary-container bg-primary-container px-2 py-0.5 rounded-full">
-            Beta
-          </span>
         </NavLink>
         <nav aria-label="Main navigation" className="hidden lg:flex gap-6 items-center">
           {navLinks.map((link) => (
