@@ -187,6 +187,20 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
           items = total > 0
             ? items.map((d) => ({ ...d, value: Math.round((d.value / total) * 1000) / 10 }))
             : items;
+        } else if (chart.measure === "fatality_rate") {
+          const rawRows = raw[chart.dimension] ?? [];
+          items = items.map((d, i) => {
+            const r = rawRows[i];
+            const crashes = r ? ((r.crash_count as number) ?? 1) : 1;
+            const killed = r ? ((r.total_killed as number) ?? 0) : 0;
+            return { ...d, value: crashes > 0 ? Math.round((killed / crashes) * 10000) / 100 : 0 };
+          });
+        } else if (chart.measure === "yoy_change") {
+          items = items.map((d, i) => {
+            if (i === 0) return { ...d, value: 0 };
+            const prev = items[i - 1].value;
+            return { ...d, value: prev > 0 ? Math.round(((d.value - prev) / prev) * 1000) / 10 : 0 };
+          });
         }
         result[key] = items;
       }

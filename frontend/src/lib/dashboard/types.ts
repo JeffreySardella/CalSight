@@ -7,8 +7,9 @@ export const DIMENSIONS = [
 export type Dimension = (typeof DIMENSIONS)[number];
 
 export const MEASURES = [
-  "count", "killed", "injured", "per_100k_population",
-  "per_10k_licensed_drivers", "per_100_road_miles", "percentage",
+  "count", "killed", "injured", "percentage",
+  "fatality_rate", "yoy_change",
+  "per_100k_population", "per_10k_licensed_drivers", "per_100_road_miles",
 ] as const;
 
 export type Measure = (typeof MEASURES)[number];
@@ -53,10 +54,12 @@ export const MEASURE_LABELS: Record<Measure, string> = {
   count: "Crash Count",
   killed: "Fatalities",
   injured: "Injuries",
+  percentage: "Percentage",
+  fatality_rate: "Fatality Rate",
+  yoy_change: "YoY Change %",
   per_100k_population: "Per 100K Population",
   per_10k_licensed_drivers: "Per 10K Drivers",
   per_100_road_miles: "Per 100 Road Miles",
-  percentage: "Percentage",
 };
 
 const DEFAULT_CHART_TYPE: Partial<Record<Dimension, ChartType>> = {

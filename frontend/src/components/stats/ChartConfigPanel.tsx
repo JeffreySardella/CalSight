@@ -28,6 +28,8 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "killed", label: MEASURE_LABELS.killed },
   { value: "injured", label: MEASURE_LABELS.injured },
   { value: "percentage", label: MEASURE_LABELS.percentage },
+  { value: "fatality_rate", label: MEASURE_LABELS.fatality_rate },
+  { value: "yoy_change", label: MEASURE_LABELS.yoy_change },
 ];
 
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
