@@ -12,15 +12,18 @@ export const CORRELATION_FIELDS: CorrelationField[] = [
   { key: "total_killed", label: "Fatalities", source: "stats" },
   { key: "total_injured", label: "Injuries", source: "stats" },
   { key: "fatality_rate", label: "Fatality Rate", source: "derived" },
-  { key: "poverty_rate", label: "Poverty Rate", source: "demographics" },
-  { key: "median_income", label: "Median Income", source: "demographics" },
-  { key: "population_density", label: "Pop. Density", source: "demographics" },
-  { key: "pct_18_24", label: "% Age 18-24", source: "demographics" },
-  { key: "pct_65_plus", label: "% Age 65+", source: "demographics" },
-  { key: "commute_drive_alone_pct", label: "% Drive Alone", source: "demographics" },
-  { key: "unemployment_rate", label: "Unemployment", source: "unemployment" },
-  { key: "ces_score", label: "EnviroScreen", source: "calenviroscreen" },
-  { key: "traffic_score", label: "Traffic Score", source: "calenviroscreen" },
+  { key: "poverty_rate", label: "Poverty %", source: "demographics" },
+  { key: "median_income", label: "Income", source: "demographics" },
+  { key: "population_density", label: "Density", source: "demographics" },
+  { key: "pct_18_24", label: "Age 18-24", source: "demographics" },
+  { key: "pct_65_plus", label: "Age 65+", source: "demographics" },
+  { key: "pct_no_vehicle", label: "No Vehicle", source: "demographics" },
+  { key: "commute_drive_alone_pct", label: "Drive Alone", source: "demographics" },
+  { key: "commute_bike_pct", label: "Bike %", source: "demographics" },
+  { key: "pct_with_disability", label: "Disability", source: "demographics" },
+  { key: "unemployment_rate", label: "Unemploy.", source: "unemployment" },
+  { key: "ces_score", label: "EnviroScr.", source: "calenviroscreen" },
+  { key: "traffic_score", label: "Traffic", source: "calenviroscreen" },
 ];
 
 function pearsonR(xs: number[], ys: number[]): number {
@@ -83,8 +86,15 @@ export function useCorrelationData() {
         byCounty[code].fatality_rate = cc > 0 ? (tk / cc) * 100 : 0;
       }
 
+      const demoByCounty: Record<string, Record<string, unknown>> = {};
       for (const r of demographics) {
         const code = String(r.county_code ?? "");
+        const existing = demoByCounty[code];
+        if (!existing || (r.poverty_rate != null && (existing.poverty_rate == null || (r.year as number) > (existing.year as number)))) {
+          demoByCounty[code] = r;
+        }
+      }
+      for (const [code, r] of Object.entries(demoByCounty)) {
         if (!byCounty[code]) continue;
         byCounty[code].poverty_rate = r.poverty_rate as number;
         byCounty[code].median_income = r.median_income as number;
@@ -92,6 +102,9 @@ export function useCorrelationData() {
         byCounty[code].pct_18_24 = r.pct_18_24 as number;
         byCounty[code].pct_65_plus = r.pct_65_plus as number;
         byCounty[code].commute_drive_alone_pct = r.commute_drive_alone_pct as number;
+        byCounty[code].commute_bike_pct = r.commute_bike_pct as number;
+        byCounty[code].pct_no_vehicle = r.pct_no_vehicle as number;
+        byCounty[code].pct_with_disability = r.pct_with_disability as number;
       }
 
       for (const r of calenviro) {
