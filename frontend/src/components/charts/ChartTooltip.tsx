@@ -29,7 +29,7 @@ export default function ChartTooltip({ x, y, visible, children, containerRef }: 
   return (
     <div
       ref={tipRef}
-      role="tooltip"
+      aria-hidden="true"
       className="fixed z-50 pointer-events-none bg-surface-container-lowest border border-outline-variant/15 rounded px-3 py-2 text-xs ambient-shadow"
       style={{ left: pos.left, top: pos.top }}
     >

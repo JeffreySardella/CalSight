@@ -158,6 +158,11 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
     if (filters.severities.length) b.severity = filters.severities.map(severityToSlug).join(",");
     if (filters.causes.length) b.cause = filters.causes.join(",");
     if (filters.counties.length) b.county = filters.counties.join(",");
+    if (filters.alcohol) b.alcohol = "true";
+    if (filters.pedestrian) b.pedestrian = "true";
+    if (filters.cyclist) b.cyclist = "true";
+    if (filters.drug) b.drug = "true";
+    if (filters.distracted) b.distracted = "true";
     return b;
   }, [filters]);
 

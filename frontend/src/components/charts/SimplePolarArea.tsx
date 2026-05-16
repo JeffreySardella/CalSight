@@ -11,6 +11,7 @@ interface SimplePolarAreaProps {
   data: PolarItem[];
   height?: number;
   renderTooltip?: (item: PolarItem, idx: number) => React.ReactNode;
+  title?: string;
 }
 
 const COLORS = [
@@ -19,7 +20,7 @@ const COLORS = [
   "#6366f1", "#0284c7",
 ];
 
-export default function SimplePolarArea({ data, height = 220, renderTooltip }: SimplePolarAreaProps) {
+export default function SimplePolarArea({ data, height = 220, renderTooltip, title }: SimplePolarAreaProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
 
@@ -40,7 +41,8 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip }: S
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={height} height={height} className="block">
+      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? "polar-chart-title" : undefined}>
+        {title && <title id="polar-chart-title">{title}</title>}
         {data.map((d, i) => {
           const r = maxVal > 0 ? (d.value / maxVal) * maxR : 0;
           const startAngle = i * sliceAngle - Math.PI / 2;

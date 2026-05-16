@@ -13,6 +13,7 @@ interface SimpleDonutChartProps {
   innerRadius?: number;
   outerRadius?: number;
   renderTooltip?: (item: Segment & { pct: number }, idx: number) => React.ReactNode;
+  title?: string;
 }
 
 function polarToCartesian(cx: number, cy: number, r: number, angle: number) {
@@ -33,6 +34,7 @@ export default function SimpleDonutChart({
   innerRadius = 48,
   outerRadius = 72,
   renderTooltip,
+  title,
 }: SimpleDonutChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -96,7 +98,8 @@ export default function SimpleDonutChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block">
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? "donut-chart-title" : undefined}>
+        {title && <title id="donut-chart-title">{title}</title>}
         {segments.map((seg, i) => (
           <path
             key={seg.item.label}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
@@ -8,11 +8,14 @@ import DashboardModeToggle from "../components/stats/DashboardModeToggle";
 import DataFreshnessBanner from "../components/stats/DataFreshnessBanner";
 import PresetPicker from "../components/stats/PresetPicker";
 import DashboardGrid from "../components/stats/DashboardGrid";
+import InsightBanner from "../components/stats/InsightBanner";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useCorrelationData } from "../hooks/useCorrelationData";
+import { useDashboardKeyboard } from "../hooks/useDashboardKeyboard";
 import CorrelationMatrix from "../components/charts/CorrelationMatrix";
 import VehicleTrends from "../components/stats/VehicleTrends";
+import { encodeDashboard } from "../lib/dashboard/urlCodec";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -23,7 +26,12 @@ export default function StatsPage() {
     severities: [...filters.selectedSeverities],
     causes: [...filters.selectedCauses],
     counties: [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")),
-  }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
+    alcohol: filters.selectedAlcohol,
+    pedestrian: filters.selectedPedestrian,
+    cyclist: filters.selectedCyclist,
+    drug: filters.selectedDrug,
+    distracted: filters.selectedDistracted,
+  }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted]);
   const { data, loading, error } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
   const { dataBySlot, loading: dashLoading, error: dashError } = useDashboardData(dashboard.activeCharts, statsFilters);
@@ -33,9 +41,34 @@ export default function StatsPage() {
   const counties   = filters.selectedCounties;
   const causes     = filters.selectedCauses;
 
+  // Keyboard shortcut: close config panel trigger (incremented to signal DashboardGrid)
+  const [closeConfigTrigger, setCloseConfigTrigger] = useState(0);
+  const handleCloseConfig = useCallback(() => setCloseConfigTrigger((n) => n + 1), []);
+
+  // Dashboard keyboard shortcuts: 1-8 presets, B for builder, Escape to close config
+  useDashboardKeyboard({
+    onSetMode: dashboard.setMode,
+    onSetPreset: dashboard.setPreset,
+    onCloseConfig: handleCloseConfig,
+  });
+
   function handleClearAll() {
     filters.clearFilters();
     setResetKey((k) => k + 1);
+  }
+
+  const [shareCopied, setShareCopied] = useState(false);
+
+  function handleShareUrl() {
+    const encoded = encodeDashboard(dashboard.config);
+    const url = new URL(window.location.href);
+    url.searchParams.set("dashboard", encoded);
+    const shareUrl = url.toString();
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      history.replaceState(null, "", shareUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    });
   }
 
   // Build typed chips so each one knows how to remove itself.
@@ -165,7 +198,7 @@ export default function StatsPage() {
             )}
             {incidentYoYPct != null && (
               <span className={`text-sm font-bold flex items-center ${incidentUp ? "text-error" : "text-primary"}`}>
-                <span className="material-symbols-outlined text-[18px]">
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                   {incidentUp ? "trending_up" : "trending_down"}
                 </span>
                 {incidentUp ? "+" : ""}{incidentYoYPct}%
@@ -211,7 +244,7 @@ export default function StatsPage() {
             )}
             {yoyFatalityChangePct != null && (
               <span className={`text-sm font-bold flex items-center ${fatalityUp ? "text-error" : "text-primary"}`}>
-                <span className="material-symbols-outlined text-[18px]">
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                   {fatalityUp ? "trending_up" : "trending_down"}
                 </span>
               </span>
@@ -223,11 +256,26 @@ export default function StatsPage() {
         </div>
       </section>
 
+      {/* Auto-generated Insight Banner */}
+      <InsightBanner heroMetrics={heroMetrics} loading={loading} />
+
       {/* Dashboard Builder */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <DashboardModeToggle mode={dashboard.config.mode} onChange={dashboard.setMode} />
-          <DataFreshnessBanner />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleShareUrl}
+              className="inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {shareCopied ? "check" : "link"}
+              </span>
+              {shareCopied ? "Copied!" : "Share"}
+            </button>
+            <DataFreshnessBanner />
+          </div>
         </div>
         {dashboard.config.mode === "simple" && (
           <PresetPicker active={dashboard.config.preset} onSelect={dashboard.setPreset} />
@@ -255,6 +303,7 @@ export default function StatsPage() {
             onRemoveChart={dashboard.removeChart}
             onUpdateChart={dashboard.updateChart}
             onMoveChart={dashboard.moveChart}
+            closeConfigTrigger={closeConfigTrigger}
           />
         )}
       </section>

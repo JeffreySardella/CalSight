@@ -7,6 +7,7 @@ interface GaugeItem {
 interface SimpleGaugeProps {
   data: GaugeItem[];
   height?: number;
+  title?: string;
 }
 
 function formatNumber(val: number): string {
@@ -17,7 +18,7 @@ function formatNumber(val: number): string {
 
 const DEFAULT_COLORS = ["#dc2626", "#f59e0b", "#2563eb", "#7c3aed", "#059669", "#6b7280"];
 
-export default function SimpleGauge({ data, height = 180 }: SimpleGaugeProps) {
+export default function SimpleGauge({ data, height = 180, title }: SimpleGaugeProps) {
   if (!data.length) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -66,7 +67,8 @@ export default function SimpleGauge({ data, height = 180 }: SimpleGaugeProps) {
 
   return (
     <div className="w-full" style={{ minHeight: height }}>
-      <svg width="100%" height={height - 20} viewBox={`0 0 ${vw} ${height - 20}`} className="block">
+      <svg width="100%" height={height - 20} viewBox={`0 0 ${vw} ${height - 20}`} className="block" role="img" aria-labelledby={title ? "gauge-chart-title" : undefined}>
+        {title && <title id="gauge-chart-title">{title}</title>}
         <path
           d={`M ${cx - outerR} ${cy} A ${outerR} ${outerR} 0 0 1 ${cx + outerR} ${cy}`}
           fill="none"

@@ -20,6 +20,7 @@ interface SimpleBarChartProps {
   labelFormatter?: (label: string, idx: number, isPeak: boolean) => React.ReactNode;
   showXAxis?: boolean;
   showMeanLine?: boolean;
+  title?: string;
 }
 
 export default function SimpleBarChart({
@@ -33,6 +34,7 @@ export default function SimpleBarChart({
   labelFormatter,
   showXAxis = true,
   showMeanLine = false,
+  title,
 }: SimpleBarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -63,7 +65,8 @@ export default function SimpleBarChart({
     const svgH = Math.max(height, data.length * rowH);
     return (
       <div className="w-full overflow-visible relative" style={{ height: svgH }}>
-        <svg ref={svgRef} width="100%" height={svgH} className="block">
+        <svg ref={svgRef} width="100%" height={svgH} className="block" role="img" aria-labelledby={title ? "bar-chart-title-h" : undefined}>
+          {title && <title id="bar-chart-title-h">{title}</title>}
           {data.map((d, i) => {
             const y = i * rowH + 4;
             const barW = maxVal > 0 ? (svgWidth - labelW - 16) * (d.value / maxVal) : 0;
@@ -99,7 +102,8 @@ export default function SimpleBarChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block">
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? "bar-chart-title-v" : undefined}>
+        {title && <title id="bar-chart-title-v">{title}</title>}
         {data.map((d, i) => {
           const n = data.length;
           const totalW = Math.max(svgWidth - padding.left - padding.right, 0);

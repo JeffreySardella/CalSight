@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAskAi } from "../hooks/useAskAi";
 import { useFilterParams } from "../hooks/useFilterParams";
 import ChatMessage from "../components/ask/ChatMessage";
@@ -40,11 +40,30 @@ export default function AskAiPage() {
   const [inputValue, setInputValue] = useState("");
   const { messages, isLoading, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
   const { selectedCounties, selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted } = useFilterParams();
+  const [searchParams] = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
   const hasMessages = messages.length > 0;
+
+  // Read pre-filled question from URL (e.g. from "Explain this chart" button)
+  const prefillHandled = useRef(false);
+  useEffect(() => {
+    if (prefillHandled.current) return;
+    const q = searchParams.get("q");
+    if (q && !hasMessages) {
+      prefillHandled.current = true;
+      setInputValue(q);
+      // Remove q from URL without adding a history entry
+      window.history.replaceState({}, "", window.location.pathname);
+      // Auto-send after a brief tick so the UI renders the question first
+      setTimeout(() => {
+        sendMessage(q);
+        setInputValue("");
+      }, 0);
+    }
+  }, [searchParams, hasMessages, sendMessage]);
 
   const activeCounty = selectedCounties.size === 1 ? [...selectedCounties][0] : null;
   const activeYear = selectedDateRange?.start

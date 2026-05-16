@@ -12,6 +12,7 @@ interface SimpleTreemapProps {
   height?: number;
   defaultColor?: string;
   renderTooltip?: (item: TreemapItem, idx: number) => React.ReactNode;
+  title?: string;
 }
 
 function squarify(items: { label: string; value: number; color?: string }[], w: number, h: number) {
@@ -74,6 +75,7 @@ export default function SimpleTreemap({
   height = 220,
   defaultColor = "rgb(var(--primary-container))",
   renderTooltip,
+  title,
 }: SimpleTreemapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -102,7 +104,8 @@ export default function SimpleTreemap({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block">
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? "treemap-chart-title" : undefined}>
+        {title && <title id="treemap-chart-title">{title}</title>}
         {rects.map((r, i) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
           const color = r.item.color ?? COLORS[i % COLORS.length] ?? defaultColor;

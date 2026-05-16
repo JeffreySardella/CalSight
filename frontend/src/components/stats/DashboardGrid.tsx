@@ -26,10 +26,12 @@ interface Props {
   onRemoveChart: (id: string) => void;
   onUpdateChart: (id: string, updates: Partial<ChartConfig>) => void;
   onMoveChart: (id: string, direction: "up" | "down") => void;
+  /** Increment to close any open config panel (used by keyboard shortcut) */
+  closeConfigTrigger?: number;
 }
 
 export default function DashboardGrid({
-  charts, dataBySlot, mode, onAddChart, onRemoveChart, onUpdateChart, onMoveChart,
+  charts, dataBySlot, mode, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, closeConfigTrigger,
 }: Props) {
   const [configOpen, setConfigOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -44,6 +46,14 @@ export default function DashboardGrid({
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
+
+  // Close config panel when triggered externally (e.g. Escape keyboard shortcut)
+  useEffect(() => {
+    if (closeConfigTrigger && closeConfigTrigger > 0) {
+      setConfigOpen(false);
+      setEditingId(null);
+    }
+  }, [closeConfigTrigger]);
 
   const isAdvanced = mode === "advanced";
   const editingSlot = editingId ? charts.find((c) => c.id === editingId) : undefined;
@@ -101,6 +111,7 @@ export default function DashboardGrid({
               onMoveDown={() => onMoveChart(slot.id, "down")}
               isFirst={idx === 0}
               isLast={idx === charts.length - 1}
+              enterDelay={idx * 40}
             />
           ),
         )}

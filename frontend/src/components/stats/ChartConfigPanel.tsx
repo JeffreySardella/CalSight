@@ -129,6 +129,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             {SUPPORTS_TREND.has(chartType) && (
               <button
                 onClick={() => toggle("trendLine")}
+                aria-pressed={!!options.trendLine}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
                   options.trendLine ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
@@ -139,6 +140,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             {SUPPORTS_MEAN.has(chartType) && (
               <button
                 onClick={() => toggle("meanLine")}
+                aria-pressed={!!options.meanLine}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
                   options.meanLine ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
@@ -149,6 +151,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             {SUPPORTS_LOG.has(chartType) && (
               <button
                 onClick={() => toggle("logScale")}
+                aria-pressed={!!options.logScale}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
                   options.logScale ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
@@ -159,6 +162,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             {SUPPORTS_CUMULATIVE.has(chartType) && (
               <button
                 onClick={() => toggle("cumulative")}
+                aria-pressed={!!options.cumulative}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
                   options.cumulative ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
@@ -169,6 +173,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             {SUPPORTS_STD.has(chartType) && (
               <button
                 onClick={() => toggle("stdBand")}
+                aria-pressed={!!options.stdBand}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
                   options.stdBand ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
@@ -179,6 +184,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             {SUPPORTS_OUTLIERS.has(chartType) && (
               <button
                 onClick={() => toggle("outliers")}
+                aria-pressed={!!options.outliers}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
                   options.outliers ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
@@ -189,6 +195,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             {SUPPORTS_MA.has(chartType) && (
               <button
                 onClick={() => setOptions((prev) => ({ ...prev, movingAvg: prev.movingAvg ? undefined : 3 }))}
+                aria-pressed={!!options.movingAvg}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
                   options.movingAvg ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}

@@ -41,7 +41,14 @@ export default function StatCard({ data, height = 192 }: StatCardProps) {
               <span className="text-on-surface font-medium">{d.label}</span>
               <span className="text-on-surface-variant">{d.pct}%</span>
             </div>
-            <div className="h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+            <div
+              className="h-1.5 bg-surface-container-high rounded-full overflow-hidden"
+              role="progressbar"
+              aria-valuenow={d.pct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${d.label}: ${d.pct}%`}
+            >
               <div
                 className="h-full bg-primary rounded-full transition-all"
                 style={{ width: `${d.pct}%` }}

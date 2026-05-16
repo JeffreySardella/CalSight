@@ -12,6 +12,7 @@ interface SimpleLollipopProps {
   height?: number;
   defaultColor?: string;
   renderTooltip?: (item: LollipopItem, idx: number) => React.ReactNode;
+  title?: string;
 }
 
 function formatNumber(val: number): string {
@@ -25,6 +26,7 @@ export default function SimpleLollipop({
   height = 192,
   defaultColor = "rgb(var(--primary))",
   renderTooltip,
+  title,
 }: SimpleLollipopProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -54,7 +56,8 @@ export default function SimpleLollipop({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height: svgH }}>
-      <svg ref={svgRef} width="100%" height={svgH} className="block">
+      <svg ref={svgRef} width="100%" height={svgH} className="block" role="img" aria-labelledby={title ? "lollipop-chart-title" : undefined}>
+        {title && <title id="lollipop-chart-title">{title}</title>}
         {data.map((d, i) => {
           const y = i * rowH + rowH / 2 + 4;
           const w = maxVal > 0 ? (d.value / maxVal) * barArea : 0;

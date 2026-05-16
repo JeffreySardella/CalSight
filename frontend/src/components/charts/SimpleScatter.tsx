@@ -17,6 +17,7 @@ interface SimpleScatterProps {
   yLabel?: string;
   color?: string;
   renderTooltip?: (item: ScatterItem, idx: number) => React.ReactNode;
+  title?: string;
 }
 
 function formatNumber(val: number): string {
@@ -37,6 +38,7 @@ export default function SimpleScatter({
   yLabel = "Fatalities",
   color,
   renderTooltip,
+  title,
 }: SimpleScatterProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -76,7 +78,8 @@ export default function SimpleScatter({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block">
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? "scatter-chart-title" : undefined}>
+        {title && <title id="scatter-chart-title">{title}</title>}
         {Array.from({ length: yTicks + 1 }).map((_, i) => {
           const v = Math.round((maxY / yTicks) * i);
           const py = padding.top + chartH - (v / maxY) * chartH;

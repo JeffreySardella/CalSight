@@ -5,10 +5,11 @@ interface Props {
 
 export default function DashboardModeToggle({ mode, onChange }: Props) {
   return (
-    <div role="group" aria-label="Dashboard mode" className="flex rounded-full bg-surface-container-high p-0.5 text-xs font-medium">
+    <div role="radiogroup" aria-label="Dashboard mode" className="flex rounded-full bg-surface-container-high p-0.5 text-xs font-medium">
       <button
         onClick={() => onChange("simple")}
-        aria-pressed={mode === "simple"}
+        role="radio"
+        aria-checked={mode === "simple"}
         className={`px-4 py-2 rounded-full transition-colors ${
           mode === "simple"
             ? "bg-primary text-on-primary"
@@ -19,7 +20,8 @@ export default function DashboardModeToggle({ mode, onChange }: Props) {
       </button>
       <button
         onClick={() => onChange("advanced")}
-        aria-pressed={mode === "advanced"}
+        role="radio"
+        aria-checked={mode === "advanced"}
         className={`px-4 py-2 rounded-full transition-colors ${
           mode === "advanced"
             ? "bg-primary text-on-primary"

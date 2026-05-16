@@ -19,6 +19,7 @@ interface SimpleLineChartProps {
   showStdBand?: boolean;
   showOutliers?: boolean;
   renderTooltip?: (item: LinePoint, idx: number) => React.ReactNode;
+  title?: string;
 }
 
 function formatNumber(val: number): string {
@@ -39,6 +40,7 @@ export default function SimpleLineChart({
   showStdBand = false,
   showOutliers = false,
   renderTooltip,
+  title,
 }: SimpleLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -86,7 +88,8 @@ export default function SimpleLineChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block">
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? "line-chart-title" : undefined}>
+        {title && <title id="line-chart-title">{title}</title>}
         {showYAxis && yTickVals.map((v) => {
           const y = padding.top + chartH - (v / maxVal) * chartH;
           return (

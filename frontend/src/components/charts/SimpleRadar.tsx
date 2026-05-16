@@ -11,6 +11,7 @@ interface SimpleRadarProps {
   height?: number;
   color?: string;
   renderTooltip?: (item: RadarItem, idx: number) => React.ReactNode;
+  title?: string;
 }
 
 export default function SimpleRadar({
@@ -18,6 +19,7 @@ export default function SimpleRadar({
   height = 220,
   color = "rgb(var(--primary))",
   renderTooltip,
+  title,
 }: SimpleRadarProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -55,7 +57,8 @@ export default function SimpleRadar({
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={height} height={height} className="block">
+      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? "radar-chart-title" : undefined}>
+        {title && <title id="radar-chart-title">{title}</title>}
         {Array.from({ length: rings }).map((_, ring) => {
           const r = ((ring + 1) / rings) * maxR;
           const ringPoints = Array.from({ length: n }).map((_, i) => {
