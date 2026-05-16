@@ -1,7 +1,7 @@
 import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
 import SimpleLineChart from "../charts/SimpleLineChart";
-import type { ChartSlot } from "../../lib/dashboard/types";
+import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 
@@ -22,6 +22,30 @@ function buildTitle(slot: ChartSlot): string {
   const dim = DIMENSION_LABELS[slot.dimension];
   if (measure === "Crash Count") return dim;
   return `${measure} by ${dim}`;
+}
+
+const TEXT_DIMS: Dimension[] = ["cause", "weather", "lighting", "collision_type"];
+
+function thinLabelFormatter(total: number, dim: Dimension) {
+  const isText = TEXT_DIMS.includes(dim);
+  const step = total > 16 ? 4 : total > 10 ? 3 : total > 7 ? 2 : 1;
+  const maxLen = isText ? 6 : 20;
+
+  return (label: string, idx: number) => {
+    if (step > 1 && idx % step !== 0 && idx !== total - 1) return null;
+    const display = label.length > maxLen ? label.slice(0, maxLen) + "…" : label;
+    return (
+      <text
+        textAnchor="middle"
+        fontSize={isText ? 9 : 10}
+        fontWeight={600}
+        fill="rgb(var(--on-surface-variant))"
+        fontFamily="'Inter Variable', Inter, sans-serif"
+      >
+        {display}
+      </text>
+    );
+  };
 }
 
 export default function ChartCard({
@@ -68,6 +92,7 @@ export default function ChartCard({
         <SimpleBarChart
           data={data.map((d) => ({ label: d.label, value: d.value, color: d.color }))}
           height={192}
+          labelFormatter={thinLabelFormatter(data.length, slot.dimension)}
         />
       )}
     </div>
