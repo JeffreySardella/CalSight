@@ -230,7 +230,7 @@ export default function AskAiPage() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            className="w-full bg-transparent border-none resize-none overflow-hidden px-2 md:px-3 py-2 md:py-2.5 text-on-surface placeholder:text-outline font-body text-sm"
+            className="w-full bg-transparent border-none resize-none overflow-hidden px-2 md:px-3 py-2 md:py-2.5 text-on-surface placeholder:text-outline font-body text-base md:text-sm"
             placeholder="Ask about crash data..."
             aria-label="Ask a question about California crash data"
             disabled={isLoading}

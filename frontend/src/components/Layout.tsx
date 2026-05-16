@@ -4,6 +4,7 @@ import NavBar from "./NavBar";
 import Footer from "./Footer";
 import BottomTabBar from "./BottomTabBar";
 import { OfflineIndicator } from "./ui/OfflineIndicator";
+import { ErrorBoundary } from "./ui/ErrorBoundary";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Map Explorer — CalSight",
@@ -45,6 +46,7 @@ export default function Layout() {
       </a>
       <NavBar />
       <OfflineIndicator />
+      <ErrorBoundary>
       {isMapPage ? (
         <main id="main-content" className="pt-12 pb-14 md:pt-16 md:pb-0 flex h-dvh overflow-hidden">
           <Outlet />
@@ -63,6 +65,7 @@ export default function Layout() {
           <Footer />
         </div>
       )}
+      </ErrorBoundary>
       <BottomTabBar />
     </>
   );
