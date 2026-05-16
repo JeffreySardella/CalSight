@@ -16,6 +16,14 @@ export type Measure = (typeof MEASURES)[number];
 
 export type ChartType = "bar" | "hbar" | "line" | "area" | "donut" | "treemap" | "gauge" | "stat" | "polar" | "lollipop" | "radar" | "scatter";
 
+export type ChartOptions = {
+  trendLine?: boolean;
+  meanLine?: boolean;
+  logScale?: boolean;
+  cumulative?: boolean;
+  movingAvg?: number;
+};
+
 export type ChartSlot = {
   id: string;
   dimension: Dimension;
@@ -23,6 +31,7 @@ export type ChartSlot = {
   chartType: ChartType;
   splitBy?: Dimension;
   order: number;
+  options?: ChartOptions;
 };
 
 export type PresetKey = "overview" | "time" | "demographics" | "rates" | "dui" | "seasonal";

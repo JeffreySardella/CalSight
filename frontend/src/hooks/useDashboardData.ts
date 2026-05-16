@@ -4,6 +4,7 @@ import { API_BASE } from "../config";
 import type { ChartSlot, Dimension, Measure } from "../lib/dashboard/types";
 import type { StatsFilters } from "./useStats";
 import { formatYearMonth } from "./useFilterParams";
+import { movingAverage } from "../lib/dashboard/stats";
 
 export type ChartDataItem = { label: string; value: number; color?: string; x?: number; y?: number };
 
@@ -179,7 +180,13 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
     const raw = query.data ?? {};
     const result: Record<string, ChartDataItem[]> = {};
     for (const chart of charts) {
-      const key = `${chart.dimension}:${chart.measure}`;
+      const opts = chart.options ?? {};
+      const optStr = [
+        opts.cumulative && "cum",
+        opts.movingAvg && `ma${opts.movingAvg}`,
+        opts.logScale && "log",
+      ].filter(Boolean).join(",");
+      const key = `${chart.dimension}:${chart.measure}${optStr ? `:${optStr}` : ""}`;
       if (!result[key]) {
         let items = transformRows(chart.dimension, chart.measure, raw[chart.dimension] ?? []);
         if (chart.measure === "percentage") {
@@ -196,11 +203,25 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters) {
             return { ...d, value: crashes > 0 ? Math.round((killed / crashes) * 10000) / 100 : 0 };
           });
         } else if (chart.measure === "yoy_change") {
+          const base = items.map(d => d.value);
           items = items.map((d, i) => {
             if (i === 0) return { ...d, value: 0 };
-            const prev = items[i - 1].value;
-            return { ...d, value: prev > 0 ? Math.round(((d.value - prev) / prev) * 1000) / 10 : 0 };
+            const prev = base[i - 1];
+            return { ...d, value: prev > 0 ? Math.round(((base[i] - prev) / prev) * 1000) / 10 : 0 };
           });
+        }
+
+        const opts = chart.options ?? {};
+        if (opts.cumulative) {
+          let sum = 0;
+          items = items.map((d) => { sum += d.value; return { ...d, value: sum }; });
+        }
+        if (opts.movingAvg && opts.movingAvg > 1) {
+          const smoothed = movingAverage(items.map(d => d.value), opts.movingAvg);
+          items = items.map((d, i) => ({ ...d, value: Math.round(smoothed[i] * 10) / 10 }));
+        }
+        if (opts.logScale) {
+          items = items.map((d) => ({ ...d, value: d.value > 0 ? Math.round(Math.log10(d.value) * 100) / 100 : 0 }));
         }
         result[key] = items;
       }

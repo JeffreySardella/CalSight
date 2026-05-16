@@ -1,10 +1,18 @@
 import { useState } from "react";
 import { DIMENSIONS, DIMENSION_LABELS, MEASURE_LABELS, defaultChartType } from "../../lib/dashboard/types";
-import type { Dimension, Measure, ChartType } from "../../lib/dashboard/types";
+import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
+
+interface ChartConfig {
+  dimension: Dimension;
+  measure: Measure;
+  chartType: ChartType;
+  splitBy?: Dimension;
+  options?: ChartOptions;
+}
 
 interface Props {
-  initial?: { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension };
-  onConfirm: (config: { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension }) => void;
+  initial?: ChartConfig;
+  onConfirm: (config: ChartConfig) => void;
   onCancel: () => void;
 }
 
@@ -18,8 +26,8 @@ const CHART_TYPES: { value: ChartType; label: string }[] = [
   { value: "treemap", label: "Treemap" },
   { value: "polar", label: "Polar" },
   { value: "radar", label: "Radar" },
-  { value: "gauge", label: "Gauge" },
   { value: "scatter", label: "Scatter" },
+  { value: "gauge", label: "Gauge" },
   { value: "stat", label: "Stat" },
 ];
 
@@ -32,15 +40,29 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "yoy_change", label: MEASURE_LABELS.yoy_change },
 ];
 
+const SUPPORTS_TREND = new Set<ChartType>(["line", "area", "scatter"]);
+const SUPPORTS_MEAN = new Set<ChartType>(["bar", "line", "area"]);
+const SUPPORTS_LOG = new Set<ChartType>(["bar", "hbar", "lollipop"]);
+const SUPPORTS_CUMULATIVE = new Set<ChartType>(["line", "area"]);
+const SUPPORTS_MA = new Set<ChartType>(["line", "area"]);
+
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
   const [dimension, setDimension] = useState<Dimension>(initial?.dimension ?? "hour");
   const [measure, setMeasure] = useState<Measure>(initial?.measure ?? "count");
   const [chartType, setChartType] = useState<ChartType>(initial?.chartType ?? defaultChartType("hour"));
+  const [options, setOptions] = useState<ChartOptions>(initial?.options ?? {});
 
   function handleDimensionChange(dim: Dimension) {
     setDimension(dim);
     setChartType(defaultChartType(dim));
   }
+
+  function toggle(key: keyof ChartOptions) {
+    setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const hasOptions = SUPPORTS_TREND.has(chartType) || SUPPORTS_MEAN.has(chartType) ||
+    SUPPORTS_LOG.has(chartType) || SUPPORTS_CUMULATIVE.has(chartType) || SUPPORTS_MA.has(chartType);
 
   return (
     <div className="bg-surface-container-lowest rounded-2xl p-4 ambient-shadow space-y-4">
@@ -97,6 +119,64 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
         </div>
       </div>
 
+      {hasOptions && (
+        <div>
+          <div className="text-xs font-medium text-on-surface-variant mb-1.5">Overlays &amp; Transforms</div>
+          <div className="flex flex-wrap gap-1.5">
+            {SUPPORTS_TREND.has(chartType) && (
+              <button
+                onClick={() => toggle("trendLine")}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                  options.trendLine ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                Trend Line
+              </button>
+            )}
+            {SUPPORTS_MEAN.has(chartType) && (
+              <button
+                onClick={() => toggle("meanLine")}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                  options.meanLine ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                Mean Line
+              </button>
+            )}
+            {SUPPORTS_LOG.has(chartType) && (
+              <button
+                onClick={() => toggle("logScale")}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                  options.logScale ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                Log Scale
+              </button>
+            )}
+            {SUPPORTS_CUMULATIVE.has(chartType) && (
+              <button
+                onClick={() => toggle("cumulative")}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                  options.cumulative ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                Cumulative
+              </button>
+            )}
+            {SUPPORTS_MA.has(chartType) && (
+              <button
+                onClick={() => setOptions((prev) => ({ ...prev, movingAvg: prev.movingAvg ? undefined : 3 }))}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                  options.movingAvg ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                Moving Avg
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 pt-2">
         <button
           onClick={onCancel}
@@ -105,7 +185,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
           Cancel
         </button>
         <button
-          onClick={() => onConfirm({ dimension, measure, chartType })}
+          onClick={() => onConfirm({ dimension, measure, chartType, options })}
           className="flex-1 px-4 py-2 rounded-full text-sm font-medium text-on-primary bg-primary hover:opacity-90 transition-opacity"
         >
           {initial ? "Update" : "Add"}

@@ -7,10 +7,16 @@ import ChartConfigPanel from "./ChartConfigPanel";
 import ChartConfigSheet from "./ChartConfigSheet";
 
 function slotKey(slot: ChartSlot): string {
-  return `${slot.dimension}:${slot.measure}`;
+  const opts = slot.options ?? {};
+  const optStr = [
+    opts.cumulative && "cum",
+    opts.movingAvg && `ma${opts.movingAvg}`,
+    opts.logScale && "log",
+  ].filter(Boolean).join(",");
+  return `${slot.dimension}:${slot.measure}${optStr ? `:${optStr}` : ""}`;
 }
 
-type ChartConfig = { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension };
+type ChartConfig = { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension; options?: import("../../lib/dashboard/types").ChartOptions };
 
 interface Props {
   charts: ChartSlot[];
