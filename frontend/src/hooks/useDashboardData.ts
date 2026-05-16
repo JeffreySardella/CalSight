@@ -95,7 +95,7 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
         y: (r.total_killed as number) ?? 0,
       }));
     case "county":
-      return rows
+      return [...rows]
         .sort((a, b) => val(b) - val(a))
         .slice(0, 30)
         .map((r) => ({
@@ -111,7 +111,7 @@ function transformRows(dimension: Dimension, measure: Measure, rows: Record<stri
           value: val(r),
         }));
     case "age_bracket":
-      return rows
+      return [...rows]
         .filter((r) => r.age_bracket !== "unknown")
         .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket as string) - AGE_ORDER.indexOf(b.age_bracket as string))
         .map((r) => ({
