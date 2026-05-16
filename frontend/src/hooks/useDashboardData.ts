@@ -25,7 +25,9 @@ const MONTH_LABEL = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 const DOW_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const SEVERITY_COLORS: Record<string, string> = {
-  Fatal: "#dc2626", Injury: "#f59e0b", "Property Damage Only": "#6b7280",
+  Fatal: "rgb(var(--error))",
+  Injury: "rgb(var(--tertiary))",
+  "Property Damage Only": "rgb(var(--outline-variant))",
 };
 
 function severityToSlug(s: string): string {
@@ -99,7 +101,7 @@ function transformRows(dimension: Dimension, rows: Record<string, unknown>[]): C
     case "lighting":
     case "collision_type":
       return rows.map((r) => ({
-        label: String(r[dimension] ?? "Unknown"),
+        label: String(r.value ?? r[dimension] ?? "Unknown"),
         value: (r.crash_count as number) ?? 0,
       }));
     default:

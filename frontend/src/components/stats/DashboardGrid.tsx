@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ChartSlot, Dimension, Measure, ChartType } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import ChartCard from "./ChartCard";
@@ -23,14 +23,28 @@ export default function DashboardGrid({
 }: Props) {
   const [configOpen, setConfigOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+  const [addKey, setAddKey] = useState(0);
+
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const isAdvanced = mode === "advanced";
   const editingSlot = editingId ? charts.find((c) => c.id === editingId) : undefined;
 
+  const sheetOpen = isMobile && (configOpen || !!editingId);
+  const sheetInitial = editingId ? editingSlot : undefined;
+
   function handleAdd(config: ChartConfig) {
     onAddChart(config);
     setConfigOpen(false);
+    setAddKey((k) => k + 1);
   }
 
   function handleEdit(id: string, config: ChartConfig) {
@@ -38,8 +52,24 @@ export default function DashboardGrid({
     setEditingId(null);
   }
 
+  function handleSheetConfirm(config: ChartConfig) {
+    if (editingId) {
+      handleEdit(editingId, config);
+    } else {
+      handleAdd(config);
+    }
+  }
+
+  function handleSheetCancel() {
+    setConfigOpen(false);
+    setEditingId(null);
+  }
+
   return (
     <>
+      {isAdvanced && charts.length === 0 && !configOpen && (
+        <p className="text-sm text-on-surface-variant mb-2">Build your own dashboard — choose any combination of dimensions and chart types.</p>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {charts.map((slot, idx) =>
           editingId === slot.id && !isMobile ? (
@@ -69,6 +99,7 @@ export default function DashboardGrid({
         )}
         {isAdvanced && configOpen && !isMobile && (
           <ChartConfigPanel
+            key={`add-${addKey}`}
             onConfirm={handleAdd}
             onCancel={() => setConfigOpen(false)}
           />
@@ -76,19 +107,13 @@ export default function DashboardGrid({
       </div>
 
       {isMobile && (
-        <>
-          <ChartConfigSheet
-            open={configOpen}
-            onConfirm={(config) => { handleAdd(config); }}
-            onCancel={() => setConfigOpen(false)}
-          />
-          <ChartConfigSheet
-            open={!!editingId}
-            initial={editingSlot}
-            onConfirm={(config) => { if (editingId) handleEdit(editingId, config); }}
-            onCancel={() => setEditingId(null)}
-          />
-        </>
+        <ChartConfigSheet
+          key={editingId ?? "add"}
+          open={sheetOpen}
+          initial={sheetInitial}
+          onConfirm={handleSheetConfirm}
+          onCancel={handleSheetCancel}
+        />
       )}
     </>
   );

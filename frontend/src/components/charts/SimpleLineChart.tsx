@@ -24,7 +24,7 @@ function formatNumber(val: number): string {
 export default function SimpleLineChart({
   data,
   height = 180,
-  color = "#6b8fa3",
+  color = "rgb(var(--primary))",
   showDots = true,
   showYAxis = true,
   renderTooltip,

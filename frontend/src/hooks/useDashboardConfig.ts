@@ -1,25 +1,45 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { DashboardConfig, ChartSlot, Dimension, Measure, ChartType, PresetKey } from "../lib/dashboard/types";
+import { DIMENSIONS, MEASURES } from "../lib/dashboard/types";
 import { generateId } from "../lib/dashboard/types";
-import { buildPresetCharts } from "../lib/dashboard/presets";
+import { buildPresetCharts, PRESET_KEYS } from "../lib/dashboard/presets";
 import { encodeDashboard, decodeDashboard } from "../lib/dashboard/urlCodec";
 
 const STORAGE_KEY = "calsight-dashboard-v1";
 const URL_PARAM = "dashboard";
 
+const VALID_MODES = new Set(["simple", "advanced"]);
+
+function isValidConfig(p: unknown): p is DashboardConfig {
+  if (!p || typeof p !== "object") return false;
+  const c = p as Record<string, unknown>;
+  if (!VALID_MODES.has(c.mode as string)) return false;
+  if (!PRESET_KEYS.includes(c.preset as PresetKey)) return false;
+  if (!Array.isArray(c.charts)) return false;
+  return c.charts.every(
+    (s: Record<string, unknown>) =>
+      typeof s.id === "string" &&
+      (DIMENSIONS as readonly string[]).includes(s.dimension as string) &&
+      (MEASURES as readonly string[]).includes(s.measure as string) &&
+      ["bar", "line", "donut"].includes(s.chartType as string),
+  );
+}
+
 function loadInitialConfig(): DashboardConfig {
+  if (typeof window === "undefined") return { mode: "simple", preset: "overview", charts: [] };
+
   const params = new URLSearchParams(window.location.search);
   const urlVal = params.get(URL_PARAM);
   if (urlVal) {
     const decoded = decodeDashboard(urlVal);
-    if (decoded) return decoded;
+    if (decoded && isValidConfig(decoded)) return decoded;
   }
 
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored) as DashboardConfig;
-      if (parsed && parsed.mode) return parsed;
+      const parsed = JSON.parse(stored);
+      if (isValidConfig(parsed)) return parsed;
     }
   } catch {}
 
@@ -30,17 +50,21 @@ type NewChart = { dimension: Dimension; measure: Measure; chartType: ChartType; 
 
 export function useDashboardConfig() {
   const [config, setConfig] = useState<DashboardConfig>(loadInitialConfig);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    const id = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    }, 400);
+    return () => clearTimeout(id);
   }, [config]);
 
   const setMode = useCallback((mode: "simple" | "advanced") => {
-    setConfig((prev) => ({
-      ...prev,
-      mode,
-      charts: mode === "advanced" ? prev.charts : prev.charts,
-    }));
+    setConfig((prev) => {
+      if (prev.mode === mode) return prev;
+      return { ...prev, mode };
+    });
   }, []);
 
   const setPreset = useCallback((preset: PresetKey) => {
@@ -89,9 +113,12 @@ export function useDashboardConfig() {
   }, [config.mode, config.preset, config.charts]);
 
   const shareUrl = useMemo(() => {
+    const shareable: DashboardConfig = config.mode === "simple"
+      ? { mode: "simple", preset: config.preset, charts: [] }
+      : config;
     const base = `${window.location.origin}/stats`;
     const params = new URLSearchParams(window.location.search);
-    params.set(URL_PARAM, encodeDashboard(config));
+    params.set(URL_PARAM, encodeDashboard(shareable));
     return `${base}?${params.toString()}`;
   }, [config]);
 

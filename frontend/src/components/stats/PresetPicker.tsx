@@ -16,13 +16,14 @@ export default function PresetPicker({ active, onSelect }: Props) {
           <button
             key={key}
             onClick={() => onSelect(key)}
+            aria-pressed={isActive}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
               isActive
                 ? "bg-primary-container text-on-primary-container"
                 : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
             }`}
           >
-            <span className="material-symbols-outlined text-[18px]">{p.icon}</span>
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">{p.icon}</span>
             {p.label}
           </button>
         );

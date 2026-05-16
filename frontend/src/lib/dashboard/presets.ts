@@ -1,5 +1,4 @@
 import type { ChartSlot, PresetKey } from "./types";
-import { generateId } from "./types";
 
 type PresetDef = {
   label: string;
@@ -44,9 +43,9 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     ],
   },
   rates: {
-    label: "County Rates",
+    label: "Crash Breakdown",
     icon: "table_chart",
-    description: "Per-capita crash rates across counties",
+    description: "Severity, causes, and yearly crash trends",
     slots: [
       { dimension: "severity", measure: "count", chartType: "donut", order: 0 },
       { dimension: "cause", measure: "count", chartType: "bar", order: 1 },
@@ -81,5 +80,6 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
 export const PRESET_KEYS = Object.keys(PRESETS) as PresetKey[];
 
 export function buildPresetCharts(key: PresetKey): ChartSlot[] {
-  return PRESETS[key].slots.map((s) => ({ ...s, id: generateId() }));
+  const preset = PRESETS[key] ?? PRESETS.overview;
+  return preset.slots.map((s, i) => ({ ...s, id: `preset-${key}-${i}` }));
 }
