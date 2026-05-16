@@ -29,7 +29,13 @@ export default function SimpleRadar({
     setHover({ idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
   }, []);
 
-  if (data.length < 3) return null;
+  if (data.length < 3) {
+    return (
+      <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">
+        Radar needs 3+ categories
+      </div>
+    );
+  }
 
   const n = data.length;
   const cx = height / 2;

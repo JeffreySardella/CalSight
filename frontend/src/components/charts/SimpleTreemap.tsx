@@ -106,7 +106,8 @@ export default function SimpleTreemap({
         {rects.map((r, i) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
           const color = r.item.color ?? COLORS[i % COLORS.length] ?? defaultColor;
-          const showLabel = r.w > 44 && r.h > 28;
+          const showName = r.w > 44 && r.h > 20;
+          const showPct = r.w > 30 && r.h > 36;
           return (
             <g key={r.item.label}>
               <rect
@@ -126,30 +127,31 @@ export default function SimpleTreemap({
                 onMouseLeave={() => setHover(null)}
                 className="cursor-pointer transition-opacity"
               />
-              {showLabel && (
-                <>
-                  <text
-                    x={PAD + r.x + 8}
-                    y={PAD + r.y + 18}
-                    fontSize={12}
-                    fontWeight={700}
-                    fill="#fff"
-                    fontFamily="'Inter Variable', Inter, sans-serif"
-                  >
-                    {r.item.label.length > Math.floor(r.w / 7) ? r.item.label.slice(0, Math.floor(r.w / 7) - 1) + "…" : r.item.label}
-                  </text>
-                  <text
-                    x={PAD + r.x + 8}
-                    y={PAD + r.y + 34}
-                    fontSize={13}
-                    fontWeight={800}
-                    fill="#fff"
-                    fillOpacity={0.9}
-                    fontFamily="'Inter Variable', Inter, sans-serif"
-                  >
-                    {pct}%
-                  </text>
-                </>
+              {showName && (
+                <text
+                  x={PAD + r.x + 6}
+                  y={PAD + r.y + 16}
+                  fontSize={11}
+                  fontWeight={700}
+                  fill="#fff"
+                  fontFamily="'Inter Variable', Inter, sans-serif"
+                  clipPath={`inset(0 0 0 0)`}
+                >
+                  {r.item.label.length > Math.floor(r.w / 7) ? r.item.label.slice(0, Math.floor(r.w / 7) - 1) + "…" : r.item.label}
+                </text>
+              )}
+              {showPct && (
+                <text
+                  x={PAD + r.x + 6}
+                  y={PAD + r.y + 30}
+                  fontSize={12}
+                  fontWeight={800}
+                  fill="#fff"
+                  fillOpacity={0.9}
+                  fontFamily="'Inter Variable', Inter, sans-serif"
+                >
+                  {pct}%
+                </text>
               )}
             </g>
           );
