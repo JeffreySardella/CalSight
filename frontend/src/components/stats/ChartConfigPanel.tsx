@@ -47,6 +47,7 @@ const SUPPORTS_CUMULATIVE = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_MA = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_STD = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_OUTLIERS = new Set<ChartType>(["line", "area", "bar"]);
+const SUPPORTS_FORECAST = new Set<ChartType>(["line", "area"]);
 
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
   const [dimension, setDimension] = useState<Dimension>(initial?.dimension ?? "hour");
@@ -201,6 +202,17 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
                 }`}
               >
                 Moving Avg
+              </button>
+            )}
+            {SUPPORTS_FORECAST.has(chartType) && (
+              <button
+                onClick={() => toggle("forecast")}
+                aria-pressed={!!options.forecast}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                  options.forecast ? "bg-tertiary text-on-tertiary border-tertiary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                Forecast
               </button>
             )}
           </div>

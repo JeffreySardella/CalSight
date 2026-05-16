@@ -409,7 +409,10 @@ export default function StatsPage() {
         {correlation.isLoading ? (
           <Skeleton className="h-[500px] rounded-lg" />
         ) : correlation.error ? (
-          <p className="text-error text-sm">Failed to load correlation data.</p>
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-variant">
+            <span className="material-symbols-outlined text-3xl" aria-hidden="true">cloud_off</span>
+            <p className="text-sm">Correlation data unavailable — backend may be offline</p>
+          </div>
         ) : correlation.data ? (
           <CorrelationMatrix
             fields={correlation.data.fields}

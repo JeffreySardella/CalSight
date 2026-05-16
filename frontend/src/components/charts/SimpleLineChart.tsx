@@ -8,6 +8,13 @@ interface LinePoint {
   value: number;
 }
 
+export interface ForecastPoint {
+  label: string;
+  value: number;
+  upper: number;
+  lower: number;
+}
+
 interface SimpleLineChartProps {
   data: LinePoint[];
   height?: number;
@@ -19,6 +26,7 @@ interface SimpleLineChartProps {
   showMeanLine?: boolean;
   showStdBand?: boolean;
   showOutliers?: boolean;
+  forecastData?: ForecastPoint[];
   renderTooltip?: (item: LinePoint, idx: number) => React.ReactNode;
   title?: string;
 }
@@ -39,6 +47,7 @@ export default function SimpleLineChart({
   showTrendLine = false,
   showMeanLine = false,
   showStdBand = false,
+  forecastData,
   showOutliers = false,
   renderTooltip,
   title,
@@ -235,6 +244,41 @@ export default function SimpleLineChart({
             strokeDasharray="4 2"
           />
         )}
+
+        {forecastData && forecastData.length > 0 && (() => {
+          const lastPt = points[points.length - 1];
+          if (!lastPt) return null;
+          const fcMax = Math.max(maxVal, ...forecastData.map(f => f.upper));
+          const yScale = (v: number) => padding.top + chartH - (v / fcMax) * chartH;
+          const stepX = n > 1 ? (points[1].x - points[0].x) : chartW / 4;
+          const fcPts = forecastData.map((f, i) => ({
+            x: lastPt.x + (i + 1) * stepX,
+            yPred: yScale(f.value),
+            yUpper: yScale(f.upper),
+            yLower: yScale(f.lower),
+          }));
+          const bandPoly = [
+            `${lastPt.x},${yScale(data[data.length - 1].value)}`,
+            ...fcPts.map(p => `${p.x},${p.yUpper}`),
+            ...[...fcPts].reverse().map(p => `${p.x},${p.yLower}`),
+            `${lastPt.x},${yScale(data[data.length - 1].value)}`,
+          ].join(" ");
+          const fcPath = [`M ${lastPt.x} ${yScale(data[data.length - 1].value)}`, ...fcPts.map(p => `L ${p.x} ${p.yPred}`)].join(" ");
+          return (
+            <g>
+              <line x1={lastPt.x} x2={lastPt.x} y1={padding.top} y2={padding.top + chartH} stroke="rgb(var(--outline-variant))" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} />
+              <text x={lastPt.x + 4} y={padding.top + 10} fontSize={8} fill="rgb(var(--on-surface-variant))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">FORECAST</text>
+              <polygon points={bandPoly} fill="rgb(var(--tertiary))" fillOpacity={0.1} />
+              <path d={fcPath} fill="none" stroke="rgb(var(--tertiary))" strokeWidth={2} strokeDasharray="8 4" strokeOpacity={0.8} />
+              {fcPts.map((p, i) => (
+                <circle key={`fc-${i}`} cx={p.x} cy={p.yPred} r={3.5} fill="rgb(var(--surface))" stroke="rgb(var(--tertiary))" strokeWidth={1.5} />
+              ))}
+              {fcPts.map((p, i) => (
+                <text key={`fl-${i}`} x={p.x} y={height - padding.bottom + 16} textAnchor="middle" fontSize={9} fontStyle="italic" fill="rgb(var(--tertiary))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">{forecastData[i].label}</text>
+              ))}
+            </g>
+          );
+        })()}
       </svg>
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}

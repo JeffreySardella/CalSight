@@ -103,6 +103,14 @@ export default function SimpleTreemap({
     "#4f46e5", "#0284c7",
   ];
 
+  function textOnColor(hex: string): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const lum = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+    return lum > 0.4 ? "#1a1a1a" : "#ffffff";
+  }
+
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
       <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
@@ -110,6 +118,7 @@ export default function SimpleTreemap({
         {rects.map((r, i) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
           const color = r.item.color ?? COLORS[i % COLORS.length] ?? defaultColor;
+          const textColor = textOnColor(color);
           const showName = r.w > 44 && r.h > 20;
           const showPct = r.w > 30 && r.h > 36;
           return (
@@ -137,7 +146,7 @@ export default function SimpleTreemap({
                   y={PAD + r.y + 16}
                   fontSize={11}
                   fontWeight={700}
-                  fill="#fff"
+                  fill={textColor}
                   fontFamily="'Inter Variable', Inter, sans-serif"
                 >
                   {r.item.label.length > Math.floor(r.w / 7) ? r.item.label.slice(0, Math.floor(r.w / 7) - 1) + "…" : r.item.label}
@@ -149,7 +158,7 @@ export default function SimpleTreemap({
                   y={PAD + r.y + 30}
                   fontSize={12}
                   fontWeight={800}
-                  fill="#fff"
+                  fill={textColor}
                   fillOpacity={0.9}
                   fontFamily="'Inter Variable', Inter, sans-serif"
                 >

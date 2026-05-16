@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
@@ -16,6 +16,8 @@ import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
+import { forecast as computeForecast } from "../../lib/dashboard/stats";
+import type { ForecastPoint } from "../charts/SimpleLineChart";
 
 interface Props {
   slot: ChartSlot;
@@ -104,6 +106,22 @@ function ChartCard({
   const hasData = data.length > 0 && data.some((d) => d.value > 0);
   const isScatter = slot.chartType === "scatter";
   const valueLabel = MEASURE_LABELS[slot.measure];
+
+  const forecastData = useMemo<ForecastPoint[] | undefined>(() => {
+    if (!slot.options?.forecast || data.length < 4) return undefined;
+    const method = slot.options.forecastMethod ?? "linear";
+    const horizon = slot.options.forecastHorizon ?? 3;
+    const values = data.map(d => d.value);
+    const lastLabel = data[data.length - 1]?.label ?? "";
+    const result = computeForecast(values, horizon, method);
+    const isYear = slot.dimension === "year";
+    return result.values.map((v, i) => ({
+      label: isYear ? String(parseInt(lastLabel, 10) + i + 1) : `+${i + 1}`,
+      value: v,
+      upper: result.upper[i],
+      lower: result.lower[i],
+    }));
+  }, [data, slot.options?.forecast, slot.options?.forecastMethod, slot.options?.forecastHorizon, slot.dimension]);
 
   const handleExplainChart = () => {
     const countyPart = selectedCounties.size > 0
@@ -220,6 +238,7 @@ function ChartCard({
           showMeanLine={slot.options?.meanLine ?? false}
           showStdBand={slot.options?.stdBand ?? false}
           showOutliers={slot.options?.outliers ?? false}
+          forecastData={forecastData}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
           title={title}
         />

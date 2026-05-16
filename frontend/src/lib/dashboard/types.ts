@@ -24,6 +24,9 @@ export type ChartOptions = {
   logScale?: boolean;
   cumulative?: boolean;
   movingAvg?: number;
+  forecast?: boolean;
+  forecastHorizon?: number;
+  forecastMethod?: "linear" | "polynomial" | "holt-winters";
 };
 
 export type ChartSlot = {
