@@ -45,10 +45,10 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     icon: "warning",
     description: "Fatal crashes — who dies, where, and trends over time",
     slots: [
-      { dimension: "severity", measure: "killed", chartType: "donut", order: 0 },
-      { dimension: "cause", measure: "killed", chartType: "treemap", order: 1 },
-      { dimension: "year", measure: "killed", chartType: "area", order: 2 },
-      { dimension: "age_bracket", measure: "killed", chartType: "bar", order: 3 },
+      { dimension: "cause", measure: "killed", chartType: "treemap", order: 0 },
+      { dimension: "year", measure: "killed", chartType: "area", order: 1 },
+      { dimension: "age_bracket", measure: "killed", chartType: "lollipop", order: 2 },
+      { dimension: "county", measure: "killed", chartType: "hbar", order: 3 },
     ],
   },
   dui: {
