@@ -85,7 +85,7 @@ export default function SimpleLineChart({
               {points.map((p, i) => (
                 <g key={i}>
                   {showDots && (
-                    <circle cx={p.x} cy={p.y} r={3} fill={color} stroke="white" strokeWidth={1.5} />
+                    <circle cx={p.x} cy={p.y} r={3} fill={color} stroke="rgb(var(--surface))" strokeWidth={1.5} />
                   )}
                   <rect
                     x={p.x - chartW / n / 2}

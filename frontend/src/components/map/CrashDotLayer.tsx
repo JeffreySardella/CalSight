@@ -106,35 +106,35 @@ export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerPro
                   <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: getColor(p.severity), display: "inline-block", border: `2px solid ${borderColor}`, flexShrink: 0 }} />
                   <strong style={{ fontSize: 14 }}>{p.severity ?? "Unknown"}</strong>
                   {p.hit_run && (
-                    <span style={{ fontSize: 10, fontWeight: 700, background: "#fde8e8", color: "#b91c1c", padding: "2px 8px", borderRadius: 10 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: "rgb(var(--error-container))", color: "rgb(var(--on-error-container))", padding: "2px 8px", borderRadius: 10 }}>
                       HIT & RUN
                     </span>
                   )}
                 </div>
 
-                <div style={{ color: "#6b7280", marginBottom: 8, fontSize: 12 }}>{formatDate(p.crash_datetime)}</div>
+                <div style={{ color: "rgb(var(--on-surface-variant))", marginBottom: 8, fontSize: 12 }}>{formatDate(p.crash_datetime)}</div>
 
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <tbody>
                     {p.primary_road && (
                       <tr>
-                        <td style={{ color: "#6b7280", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap", verticalAlign: "top" }}>Road</td>
+                        <td style={{ color: "rgb(var(--on-surface-variant))", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap", verticalAlign: "top" }}>Road</td>
                         <td style={{ paddingBottom: 4 }}>{p.primary_road}</td>
                       </tr>
                     )}
                     <tr>
-                      <td style={{ color: "#6b7280", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap" }}>Cause</td>
+                      <td style={{ color: "rgb(var(--on-surface-variant))", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap" }}>Cause</td>
                       <td style={{ paddingBottom: 4 }}>{formatCause(p.canonical_cause)}</td>
                     </tr>
                     {p.weather && (
                       <tr>
-                        <td style={{ color: "#6b7280", paddingRight: 12, paddingBottom: 4 }}>Weather</td>
+                        <td style={{ color: "rgb(var(--on-surface-variant))", paddingRight: 12, paddingBottom: 4 }}>Weather</td>
                         <td style={{ paddingBottom: 4 }}>{p.weather}</td>
                       </tr>
                     )}
                     {p.lighting && (
                       <tr>
-                        <td style={{ color: "#6b7280", paddingRight: 12, paddingBottom: 4 }}>Lighting</td>
+                        <td style={{ color: "rgb(var(--on-surface-variant))", paddingRight: 12, paddingBottom: 4 }}>Lighting</td>
                         <td style={{ paddingBottom: 4 }}>{p.lighting}</td>
                       </tr>
                     )}
@@ -142,14 +142,14 @@ export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerPro
                 </table>
 
                 {(p.number_killed || p.number_injured) ? (
-                  <div style={{ display: "flex", gap: 16, marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
+                  <div style={{ display: "flex", gap: 16, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgb(var(--outline-variant))" }}>
                     {p.number_killed ? <span style={{ color: DOT_COLORS.fatal, fontWeight: 700, fontSize: 12 }}>{p.number_killed} killed</span> : null}
-                    {p.number_injured ? <span style={{ color: "#92600a", fontWeight: 700, fontSize: 12 }}>{p.number_injured} injured</span> : null}
+                    {p.number_injured ? <span style={{ color: "rgb(var(--tertiary))", fontWeight: 700, fontSize: 12 }}>{p.number_injured} injured</span> : null}
                   </div>
                 ) : null}
 
                 {p.collision_id && (
-                  <div style={{ fontSize: 10, color: "#6b7280", marginTop: 8 }}>
+                  <div style={{ fontSize: 10, color: "rgb(var(--on-surface-variant))", marginTop: 8 }}>
                     Collision #{p.collision_id} · {p.data_source?.toUpperCase()}
                   </div>
                 )}

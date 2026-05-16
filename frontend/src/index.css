@@ -220,14 +220,14 @@
 }
 
 .county-focus-tooltip {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgb(var(--surface-container-low));
   border: none;
   border-radius: 4px;
-  color: white;
+  color: rgb(var(--on-surface));
   font-size: 12px;
   font-weight: 600;
   padding: 4px 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.3);
 }
 
 .county-focus-tooltip::before {
