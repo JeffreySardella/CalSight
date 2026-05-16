@@ -205,8 +205,8 @@ function ChartCard({
       className={`group/card bg-surface-container-lowest chart-card-themed chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2${isSourceChart ? " ring-2 ring-primary" : ""}`}
       style={{ animationDelay: enterDelay && enterDelay > 0 ? `${enterDelay}ms` : undefined }}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex items-center justify-between mb-2 gap-1">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           {editing && dragHandleProps && (
             <span
               {...dragHandleProps}
@@ -222,7 +222,7 @@ function ChartCard({
         <div className="flex flex-wrap items-center gap-0.5">
           <button
             onClick={handleExplainChart}
-            className="min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity flex items-center justify-center"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={`Explain ${title}`}
             title="Explain this chart"
           >

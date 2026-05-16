@@ -19,9 +19,9 @@ export default function ChartNarrative({ narrative }: Props) {
 
   if (!narrative || narrative.confidence === 0) return null;
 
-  const hasMultipleSentences = narrative.sentences.length > 2;
-  const preview = hasMultipleSentences && !expanded
-    ? narrative.sentences.slice(0, 2).join(" ")
+  const hasMore = narrative.sentences.length > 1;
+  const preview = hasMore && !expanded
+    ? narrative.sentences[0]
     : narrative.paragraph;
 
   return (
@@ -36,9 +36,9 @@ export default function ChartNarrative({ narrative }: Props) {
         <div className="flex-1 min-w-0">
           <p className="text-[11px] text-on-surface-variant leading-relaxed">
             {preview}
-            {hasMultipleSentences && !expanded && "..."}
+            {hasMore && !expanded && "..."}
           </p>
-          {hasMultipleSentences && (
+          {hasMore && (
             <button
               type="button"
               onClick={() => setExpanded(!expanded)}
