@@ -25,8 +25,8 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     description: "When crashes happen — hour, day, and month",
     slots: [
       { dimension: "hour", measure: "count", chartType: "bar", order: 0 },
-      { dimension: "day_of_week", measure: "count", chartType: "bar", order: 1 },
-      { dimension: "month", measure: "count", chartType: "bar", order: 2 },
+      { dimension: "day_of_week", measure: "count", chartType: "radar", order: 1 },
+      { dimension: "month", measure: "count", chartType: "area", order: 2 },
     ],
   },
   demographics: {
@@ -67,7 +67,7 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     icon: "local_hospital",
     description: "Injury patterns — when, where, and who gets hurt",
     slots: [
-      { dimension: "month", measure: "injured", chartType: "bar", order: 0 },
+      { dimension: "month", measure: "injured", chartType: "area", order: 0 },
       { dimension: "cause", measure: "injured", chartType: "hbar", order: 1 },
       { dimension: "year", measure: "injured", chartType: "area", order: 2 },
       { dimension: "county", measure: "injured", chartType: "hbar", order: 3 },
