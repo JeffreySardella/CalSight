@@ -640,8 +640,8 @@ export default function StatsPage() {
         <VehicleTrends />
       </section>
 
-      {/* Correlation Explorer */}
-      <section className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
+      {/* Correlation Explorer — hidden in Stories mode */}
+      {!storiesMode && <section className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
         {correlation.isLoading ? (
           <Skeleton className="h-[500px] rounded-lg" />
         ) : correlation.error ? (
@@ -657,7 +657,7 @@ export default function StatsPage() {
             counties={correlation.data.counties}
           />
         ) : null}
-      </section>
+      </section>}
 
       {/* Methodology Footer */}
       <section className="border-t border-outline-variant/15 pt-8 sm:pt-12 pb-10 sm:pb-16">
