@@ -42,6 +42,26 @@ describe("nlqParser", () => {
       expect(result.options.trendLine).toBe(true);
     });
 
+    it("does not treat 'trend line' option as chart type 'line'", () => {
+      const result = parseNlq("crashes over time with trend line");
+      expect(result.chartType).toBeNull();
+      const resolved = resolveNlq(result);
+      expect(resolved!.chartType).toBe("area"); // default for year, not "line"
+    });
+
+    it("still matches 'trend' as a standalone chart type synonym", () => {
+      const result = parseNlq("show me a trend by year");
+      expect(result.chartType).toBe("line");
+    });
+
+    it("does not treat 'mean line' option as chart type 'line'", () => {
+      const result = parseNlq("crashes by county with mean line");
+      expect(result.options.meanLine).toBe(true);
+      expect(result.chartType).toBeNull();
+      const resolved = resolveNlq(result);
+      expect(resolved!.chartType).toBe("hbar"); // default for county
+    });
+
     it("parses cumulative option", () => {
       const result = parseNlq("cumulative fatalities by month");
       expect(result.options.cumulative).toBe(true);

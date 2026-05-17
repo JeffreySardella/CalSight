@@ -31,6 +31,7 @@ import PrintHeader from "../components/stats/PrintHeader";
 import PrintFooter from "../components/stats/PrintFooter";
 import Sparkline from "../components/charts/Sparkline";
 import { useTimelapsePlayer } from "../hooks/useTimelapsePlayer";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import TimelapseControls from "../components/stats/TimelapseControls";
 import StoryReader from "../components/stats/StoryReader";
 import { useDrillDown } from "../hooks/useDrillDown";
@@ -54,11 +55,16 @@ export default function StatsPage() {
   const tlMaxYear = YEARS[YEARS.length - 1] - 1; // Exclude current (incomplete) year
   const timelapse = useTimelapsePlayer(tlMinYear, tlMaxYear);
 
+  // Debounce the timelapse year to avoid overwhelming the API with requests
+  // during rapid animation. The visual year display stays responsive (uses
+  // timelapse.currentYear directly), but API calls only fire after 600ms idle.
+  const debouncedTlYear = useDebouncedValue(timelapse.currentYear, 600);
+
   // When timelapse is active, override the date filter to the animated year
   // When drill_county is set, override the county filter to just that county
   const statsFilters = useMemo(() => {
     const baseRange = timelapseActive
-      ? { start: { year: timelapse.currentYear, month: 1 }, end: { year: timelapse.currentYear, month: 12 } }
+      ? { start: { year: debouncedTlYear, month: 1 }, end: { year: debouncedTlYear, month: 12 } }
       : filters.selectedDateRange;
     const baseCounties = [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-"));
     const drillCountySlug = drillState.county
@@ -75,7 +81,7 @@ export default function StatsPage() {
       drug: filters.selectedDrug,
       distracted: filters.selectedDistracted,
     };
-  }, [timelapseActive, timelapse.currentYear, filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, drillState.county]);
+  }, [timelapseActive, debouncedTlYear, filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, drillState.county]);
   const { data, loading, error } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
   const crossFilterOverrides = useMemo(() => crossFilter.toFilterOverrides(), [crossFilter.toFilterOverrides]);

@@ -74,12 +74,19 @@ function matchFirst(input: string, synonyms: [string, string][]): string | null 
 export function parseNlq(input: string): NlqResult {
   const dimension = matchFirst(input, DIMENSION_SYNONYMS) as Dimension | null;
   const measure = matchFirst(input, MEASURE_SYNONYMS) as Measure | null;
-  const chartType = matchFirst(input, CHART_TYPE_SYNONYMS) as ChartType | null;
 
+  // Parse options first and strip matched text so option phrases like
+  // "trend line" don't accidentally match chart type synonyms like "line".
   const options: ChartOptions = {};
+  let chartTypeInput = input;
   for (const [pattern, opts] of OPTION_PATTERNS) {
-    if (pattern.test(input)) Object.assign(options, opts);
+    if (pattern.test(input)) {
+      Object.assign(options, opts);
+      chartTypeInput = chartTypeInput.replace(pattern, " ");
+    }
   }
+
+  const chartType = matchFirst(chartTypeInput, CHART_TYPE_SYNONYMS) as ChartType | null;
 
   const matched = [dimension, measure, chartType].filter(Boolean).length;
   const confidence = matched >= 2 ? "high" : matched === 1 ? "medium" : "low";

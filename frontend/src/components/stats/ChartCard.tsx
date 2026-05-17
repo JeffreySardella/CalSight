@@ -27,7 +27,7 @@ import type { DragHandleProps } from "../../hooks/useDragReorder";
 import type { CrossFilterAPI } from "../../hooks/useCrossFilter";
 import type { BarHighlight } from "../charts/SimpleBarChart";
 
-const CROSS_FILTER_DIMS: Dimension[] = ["severity", "cause", "county", "year"];
+const CROSS_FILTER_DIMS: Dimension[] = ["severity", "cause", "year"];
 
 interface Props {
   slot: ChartSlot;
@@ -399,8 +399,11 @@ function ChartCard({
             renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
             title={title}
             onBarClick={(item) => {
-              handleCrossFilterClick?.(item.label);
-              onBarClick?.(item.label, slot.dimension);
+              if (slot.dimension === "county") {
+                onBarClick?.(item.label, slot.dimension);
+              } else {
+                handleCrossFilterClick?.(item.label);
+              }
             }}
             getHighlight={getHighlight}
           />
@@ -414,8 +417,11 @@ function ChartCard({
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
           title={title}
           onBarClick={(item) => {
-            handleCrossFilterClick?.(item.label);
-            onBarClick?.(item.label, slot.dimension);
+            if (slot.dimension === "county") {
+              onBarClick?.(item.label, slot.dimension);
+            } else {
+              handleCrossFilterClick?.(item.label);
+            }
           }}
           getHighlight={getHighlight}
         />
