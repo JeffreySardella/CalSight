@@ -160,3 +160,6 @@ docker-compose.override.yml
 .DS_Store
 Thumbs.db
 desktop.ini
+*.png
+.playwright-mcp/
+.claude/
