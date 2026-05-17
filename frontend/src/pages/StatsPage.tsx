@@ -504,7 +504,7 @@ export default function StatsPage() {
               aria-pressed={timelapseActive}
             >
               <span className="material-symbols-outlined text-[16px]">
-                {timelapseActive ? "stop_circle" : "play_circle"}
+                {timelapseActive ? "stop" : "play_arrow"}
               </span>
               Time-Lapse
             </button>

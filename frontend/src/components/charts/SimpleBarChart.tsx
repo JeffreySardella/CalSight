@@ -124,7 +124,8 @@ export default function SimpleBarChart({
           const slotW = totalW / n;
           const barW = slotW * (1 - gap);
           const barX = padding.left + i * slotW + (slotW - barW) / 2;
-          const barH = maxVal > 0 ? (d.value / maxVal) * chartH : 0;
+          const rawBarH = maxVal > 0 ? (d.value / maxVal) * chartH : 0;
+          const barH = rawBarH * progress;
           const barY = padding.top + chartH - barH;
 
           return (
@@ -157,9 +158,7 @@ export default function SimpleBarChart({
                   return hover !== null && hover.idx !== i ? 0.6 : 1;
                 })()}
                 style={{
-                  transformOrigin: `${barX + barW / 2}px ${padding.top + chartH}px`,
-                  transform: `scaleY(${progress})`,
-                  transition: "opacity 0.15s ease",
+                  transition: "opacity 0.15s ease, height 0.3s ease, y 0.3s ease",
                 }}
                 onMouseMove={(e) => handleMouseMove(e, i)}
                 onMouseLeave={() => setHover(null)}

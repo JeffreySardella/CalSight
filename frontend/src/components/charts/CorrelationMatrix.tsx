@@ -133,8 +133,9 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
   const isMobile = windowWidth < 768;
   const cellSize = isMobile ? 24 : 36;
   const labelW = isMobile ? 56 : 76;
+  const topPad = isMobile ? 40 : 56;
   const svgW = labelW + n * cellSize;
-  const svgH = labelW + n * cellSize;
+  const svgH = topPad + labelW + n * cellSize;
 
   return (
     <div className="space-y-3">
@@ -153,15 +154,15 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
       <div className="overflow-x-auto">
         <svg width={svgW} height={svgH} className="block">
           {fields.map((f, i) => (
-            <text key={`row-${i}`} x={labelW - 4} y={labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
+            <text key={`row-${i}`} x={labelW - 4} y={topPad + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
           ))}
           {fields.map((f, j) => (
-            <text key={`col-${j}`} x={labelW + j * cellSize + cellSize / 2} y={labelW - 4} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-45, ${labelW + j * cellSize + cellSize / 2}, ${labelW - 4})`}>{f.label}</text>
+            <text key={`col-${j}`} x={labelW + j * cellSize + cellSize / 2} y={topPad + labelW - 4} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-45, ${labelW + j * cellSize + cellSize / 2}, ${topPad + labelW - 4})`}>{f.label}</text>
           ))}
           {matrix.map((row, i) =>
             row.map((r, j) => {
               const x = labelW + j * cellSize;
-              const y = labelW + i * cellSize;
+              const y = topPad + labelW + i * cellSize;
               const isHovered = hoverCell?.i === i && hoverCell?.j === j;
               const isSelected = selected?.i === i && selected?.j === j;
               return (
