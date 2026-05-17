@@ -138,7 +138,7 @@ export default function SharePanel({ shareUrl, shareText, compact = false }: Sha
       <button
         type="button"
         onClick={handleNativeShare}
-        className={`inline-flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors ${
+        className={`inline-flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface transition-colors min-w-[44px] min-h-[44px] justify-center ${
           compact
             ? "p-2"
             : "text-[11px] font-medium uppercase tracking-wider"

@@ -53,13 +53,13 @@ export default function VehicleTrends() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-headline font-bold text-on-surface">Vehicle Registration Trends</h3>
-        <p className="text-[10px] text-on-surface-variant">California DMV — EV adoption vs total registered vehicles</p>
+        <h2 className="text-sm font-headline font-bold text-on-surface">Vehicle Registration Trends</h2>
+        <p className="text-[11px] text-on-surface-variant">California DMV — EV adoption vs total registered vehicles</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-surface-container rounded-xl p-3 sm:p-4 min-w-0 overflow-hidden">
-          <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold mb-2 truncate">EV Adoption Rate</p>
+          <p className="text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold mb-2 truncate">EV Adoption Rate</p>
           <SimpleLineChart
             data={data.map((d) => ({ label: String(d.year), value: d.evPct }))}
             height={160}
@@ -67,11 +67,12 @@ export default function VehicleTrends() {
             showArea
             showTrendLine
             renderTooltip={(item) => <><p className="font-bold text-on-surface">{item.label}</p><p className="text-on-surface-variant">{item.value.toFixed(1)}%</p></>}
+            title="EV Adoption Rate over time"
           />
         </div>
 
         <div className="bg-surface-container rounded-xl p-3 sm:p-4 min-w-0 overflow-hidden">
-          <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold mb-2 truncate">EV Registrations</p>
+          <p className="text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold mb-2 truncate">EV Registrations</p>
           <SimpleLineChart
             data={data.map((d) => ({ label: String(d.year), value: d.ev }))}
             height={160}
@@ -79,16 +80,18 @@ export default function VehicleTrends() {
             showArea
             showTrendLine
             renderTooltip={(item) => <><p className="font-bold text-on-surface">{item.label}</p><p className="text-on-surface-variant">{item.value >= 1000000 ? `${(item.value/1000000).toFixed(1)}M` : item.value >= 1000 ? `${(item.value/1000).toFixed(0)}K` : item.value.toLocaleString()}</p></>}
+            title="EV Registrations over time"
           />
         </div>
 
         <div className="bg-surface-container rounded-xl p-3 sm:p-4 min-w-0 overflow-hidden">
-          <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold mb-2 truncate">Total Fleet Size</p>
+          <p className="text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold mb-2 truncate">Total Fleet Size</p>
           <SimpleLineChart
             data={data.map((d) => ({ label: String(d.year), value: d.total }))}
             height={160}
             showArea
             renderTooltip={(item) => <><p className="font-bold text-on-surface">{item.label}</p><p className="text-on-surface-variant">{item.value >= 1000000 ? `${(item.value/1000000).toFixed(1)}M` : `${(item.value/1000).toFixed(0)}K`}</p></>}
+            title="Total Fleet Size over time"
           />
         </div>
       </div>
@@ -101,22 +104,22 @@ export default function VehicleTrends() {
             <>
               <div className="bg-surface-container rounded-xl px-3 sm:px-4 py-3 overflow-hidden">
                 <p className="text-xl sm:text-2xl font-headline font-bold text-on-surface truncate">{latest.evPct}%</p>
-                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mt-0.5">EV Share ({latest.year})</p>
+                <p className="text-[11px] text-on-surface-variant uppercase tracking-wider mt-0.5">EV Share ({latest.year})</p>
               </div>
               <div className="bg-surface-container rounded-xl px-3 sm:px-4 py-3 overflow-hidden">
                 <p className="text-xl sm:text-2xl font-headline font-bold text-on-surface truncate">{fmtK(latest.ev)}</p>
-                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mt-0.5">EVs Registered</p>
+                <p className="text-[11px] text-on-surface-variant uppercase tracking-wider mt-0.5">EVs Registered</p>
               </div>
               <div className="bg-surface-container rounded-xl px-3 sm:px-4 py-3 overflow-hidden">
                 <p className="text-xl sm:text-2xl font-headline font-bold text-on-surface truncate">{fmtK(latest.total)}</p>
-                <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mt-0.5">Total Vehicles</p>
+                <p className="text-[11px] text-on-surface-variant uppercase tracking-wider mt-0.5">Total Vehicles</p>
               </div>
               {earliest && (
                 <div className="bg-surface-container rounded-xl px-3 sm:px-4 py-3 overflow-hidden">
                   <p className="text-xl sm:text-2xl font-headline font-bold text-on-surface truncate">
                     {Math.round(latest.ev / Math.max(earliest.ev, 1))}x
                   </p>
-                  <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mt-0.5">Growth since {earliest.year}</p>
+                  <p className="text-[11px] text-on-surface-variant uppercase tracking-wider mt-0.5">Growth since {earliest.year}</p>
                 </div>
               )}
             </>

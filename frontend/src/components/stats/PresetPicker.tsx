@@ -25,7 +25,7 @@ interface Props {
 
 export default function PresetPicker({ active, onSelect }: Props) {
   return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+    <div className="flex gap-2 overflow-x-auto no-scrollbar scroll-fade-r pb-1">
       {PRESET_KEYS.map((key) => {
         const p = PRESETS[key];
         const isActive = key === active;

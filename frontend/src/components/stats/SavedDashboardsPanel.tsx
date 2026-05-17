@@ -91,7 +91,7 @@ export default function SavedDashboardsPanel({ currentConfig, onLoad }: Props) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+        className="inline-flex items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors min-h-[44px] py-2"
         aria-label="Saved dashboards"
         title="Saved dashboards"
       >

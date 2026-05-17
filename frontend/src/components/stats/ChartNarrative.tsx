@@ -42,7 +42,7 @@ export default function ChartNarrative({ narrative }: Props) {
             <button
               type="button"
               onClick={() => setExpanded(!expanded)}
-              className="text-primary text-[10px] font-bold uppercase tracking-wider hover:underline mt-1"
+              className="text-primary text-[10px] font-bold uppercase tracking-wider hover:underline mt-1 min-h-[44px] min-w-[44px] flex items-center"
             >
               {expanded ? "Less" : "More"}
             </button>

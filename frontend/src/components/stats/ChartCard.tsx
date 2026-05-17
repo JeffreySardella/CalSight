@@ -106,7 +106,7 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2" role="list">
       {data.map((d) => (
-        <div key={d.label} className="flex items-center gap-1.5 text-[10px]" role="listitem">
+        <div key={d.label} className="flex items-center gap-1.5 text-[11px]" role="listitem">
           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color ?? "rgb(var(--primary))" }} aria-hidden="true" />
           <span className="text-on-surface-variant">
             {d.label} {total > 0 ? `${Math.round((d.value / total) * 100)}%` : ""}
@@ -223,7 +223,7 @@ function ChartCard({
         {!compact && <div className="flex items-center gap-0.5 flex-shrink-0 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2 sm:bg-surface-container-lowest/95 sm:rounded-lg sm:pl-1">
           <button
             onClick={handleExplainChart}
-            className="p-1.5 sm:p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={`Explain ${title}`}
             title="Explain this chart"
           >
@@ -251,7 +251,7 @@ function ChartCard({
           </button>
           <button
             onClick={() => setShowTable((v) => !v)}
-            className="p-1.5 sm:p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
             aria-label={showTable ? "Show chart" : "View data"}
             title={showTable ? "Show chart" : "View data"}
           >

@@ -50,8 +50,8 @@ export default function AnomalyPanel({ anomalies, defaultCollapsed = false }: Pr
           <span className="material-symbols-outlined text-error text-[18px]" aria-hidden="true">monitoring</span>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-headline font-bold text-on-surface">Anomaly Detection</h3>
-          <p className="text-[10px] text-on-surface-variant">
+          <h2 className="text-sm font-headline font-bold text-on-surface">Anomaly Detection</h2>
+          <p className="text-[11px] text-on-surface-variant">
             {significant > 0
               ? `${significant} significant pattern${significant > 1 ? "s" : ""} detected`
               : `${anomalies.length} pattern${anomalies.length > 1 ? "s" : ""} of interest`}

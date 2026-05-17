@@ -32,8 +32,8 @@ export default function SuggestedCharts({ suggestions, onAdd, defaultCollapsed =
           <span className="material-symbols-outlined text-primary text-[18px]" aria-hidden="true">auto_awesome</span>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-headline font-bold text-on-surface">Suggested Charts</h3>
-          <p className="text-[10px] text-on-surface-variant">
+          <h2 className="text-sm font-headline font-bold text-on-surface">Suggested Charts</h2>
+          <p className="text-[11px] text-on-surface-variant">
             {visible.length} recommendation{visible.length !== 1 ? "s" : ""} based on your dashboard
           </p>
         </div>

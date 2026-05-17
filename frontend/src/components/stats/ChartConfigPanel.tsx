@@ -131,14 +131,14 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
 
       <div>
         <div className="text-xs font-medium text-on-surface-variant mb-1">Chart Type</div>
-        <div role="radiogroup" aria-label="Chart type" className="flex flex-wrap gap-1 bg-surface-container-high rounded-xl p-1">
+        <div role="radiogroup" aria-label="Chart type" className="grid grid-cols-4 gap-1 bg-surface-container-high rounded-xl p-1">
           {CHART_TYPES.map((ct) => (
             <button
               key={ct.value}
               role="radio"
               aria-checked={chartType === ct.value}
               onClick={() => setChartType(ct.value)}
-              className={`flex-1 min-w-[60px] px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+              className={`min-h-[44px] px-2 py-2 rounded-lg text-[11px] font-medium transition-colors ${
                 chartType === ct.value
                   ? "bg-primary text-on-primary"
                   : "text-on-surface-variant hover:text-on-surface"
@@ -158,7 +158,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
               <button
                 onClick={() => toggle("trendLine")}
                 aria-pressed={!!options.trendLine}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`px-3 py-2 min-h-[44px] rounded-full text-[10px] font-medium border transition-colors flex items-center ${
                   options.trendLine ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
               >
@@ -169,7 +169,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
               <button
                 onClick={() => toggle("meanLine")}
                 aria-pressed={!!options.meanLine}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`px-3 py-2 min-h-[44px] rounded-full text-[10px] font-medium border transition-colors flex items-center ${
                   options.meanLine ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
               >
@@ -180,7 +180,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
               <button
                 onClick={() => toggle("logScale")}
                 aria-pressed={!!options.logScale}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`px-3 py-2 min-h-[44px] rounded-full text-[10px] font-medium border transition-colors flex items-center ${
                   options.logScale ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
               >
@@ -191,7 +191,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
               <button
                 onClick={() => toggle("cumulative")}
                 aria-pressed={!!options.cumulative}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`px-3 py-2 min-h-[44px] rounded-full text-[10px] font-medium border transition-colors flex items-center ${
                   options.cumulative ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
               >
@@ -202,7 +202,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
               <button
                 onClick={() => toggle("stdBand")}
                 aria-pressed={!!options.stdBand}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`px-3 py-2 min-h-[44px] rounded-full text-[10px] font-medium border transition-colors flex items-center ${
                   options.stdBand ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
               >
@@ -213,7 +213,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
               <button
                 onClick={() => toggle("outliers")}
                 aria-pressed={!!options.outliers}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`px-3 py-2 min-h-[44px] rounded-full text-[10px] font-medium border transition-colors flex items-center ${
                   options.outliers ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
               >
@@ -224,7 +224,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
               <button
                 onClick={() => setOptions((prev) => ({ ...prev, movingAvg: prev.movingAvg ? undefined : 3 }))}
                 aria-pressed={!!options.movingAvg}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`px-3 py-2 min-h-[44px] rounded-full text-[10px] font-medium border transition-colors flex items-center ${
                   options.movingAvg ? "bg-primary text-on-primary border-primary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
               >
@@ -235,7 +235,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
               <button
                 onClick={() => toggle("forecast")}
                 aria-pressed={!!options.forecast}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-colors ${
+                className={`px-3 py-2 min-h-[44px] rounded-full text-[10px] font-medium border transition-colors flex items-center ${
                   options.forecast ? "bg-tertiary text-on-tertiary border-tertiary" : "border-outline-variant text-on-surface-variant hover:text-on-surface"
                 }`}
               >
@@ -249,7 +249,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
       <div className="flex gap-2 pt-2">
         <button
           onClick={onCancel}
-          className="flex-1 px-4 py-2 rounded-full text-sm font-medium text-on-surface-variant bg-surface-container hover:bg-surface-container-high transition-colors"
+          className="flex-1 px-4 py-2 min-h-[44px] rounded-full text-sm font-medium text-on-surface-variant bg-surface-container hover:bg-surface-container-high transition-colors"
         >
           Cancel
         </button>
@@ -258,7 +258,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             const hasOpts = Object.values(options).some(v => v !== undefined && v !== false);
             onConfirm({ dimension, measure, secondaryMeasure, chartType, options: hasOpts ? options : undefined });
           }}
-          className="flex-1 px-4 py-2 rounded-full text-sm font-medium text-on-primary bg-primary hover:opacity-90 transition-opacity"
+          className="flex-1 px-4 py-2 min-h-[44px] rounded-full text-sm font-medium text-on-primary bg-primary hover:opacity-90 transition-opacity"
         >
           {initial ? "Update" : "Add"}
         </button>

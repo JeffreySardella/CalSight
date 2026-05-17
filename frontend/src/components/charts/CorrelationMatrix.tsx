@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useIsDark } from "../../context/ThemeContext";
@@ -73,7 +73,7 @@ function DetailScatter({ counties, xField, yField, r }: {
 
   return (
     <div className="w-full overflow-visible relative mt-3" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block">
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-label={`Scatter plot: ${xField.label} vs ${yField.label}, r = ${r.toFixed(2)}`}>
         {[0, 1, 2, 3, 4].map((i) => {
           const v = (maxY / 4) * i;
           const py = pad.top + ch - (v / maxY) * ch;
@@ -124,6 +124,7 @@ function DetailScatter({ counties, xField, yField, r }: {
 
 export default function CorrelationMatrix({ fields, matrix, countyCount, counties }: Props) {
   const isDark = useIsDark();
+  const titleId = useId();
   const [hoverCell, setHoverCell] = useState<{ i: number; j: number } | null>(null);
   const [selected, setSelected] = useState<{ i: number; j: number } | null>(null);
   const [windowWidth, setWindowWidth] = useState(() =>
@@ -149,18 +150,20 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h3 className="text-sm font-headline font-bold text-on-surface">Correlation Explorer</h3>
-          <p className="text-[10px] text-on-surface-variant">Pearson r across {countyCount} counties — click any cell to explore</p>
+          <h2 className="text-sm font-headline font-bold text-on-surface">Correlation Explorer</h2>
+          <p className="text-[11px] text-on-surface-variant">Pearson r across {countyCount} counties — click any cell to explore</p>
         </div>
-        <div className="flex items-center gap-2 text-[9px] text-on-surface-variant">
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#991b1b" }} /><span>-1</span></div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: isDark ? "#3f3f46" : "#e5e7eb" }} /><span>0</span></div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#1d4ed8" }} /><span>+1</span></div>
+        <div className="flex items-center gap-2 text-[9px] text-on-surface-variant" aria-label="Legend: -1 (strong negative, red) to +1 (strong positive, blue)" role="img">
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#991b1b" }} aria-hidden="true" /><span>-1</span></div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: isDark ? "#3f3f46" : "#e5e7eb" }} aria-hidden="true" /><span>0</span></div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#1d4ed8" }} aria-hidden="true" /><span>+1</span></div>
         </div>
       </div>
 
       <div style={{ overflowX: "auto", overflowY: "visible" }}>
-        <svg width={svgW} height={svgH} className="block" style={{ overflow: "visible" }}>
+        <svg width={svgW} height={svgH} className="block" style={{ overflow: "visible" }} role="img" aria-labelledby={titleId}>
+          <title id={titleId}>Correlation matrix: Pearson r values across {countyCount} California counties for {n} metrics</title>
+          <desc>A {n} by {n} grid showing pairwise Pearson correlation coefficients between crash, demographic, and environmental metrics. Blue cells indicate positive correlations, red cells indicate negative correlations. Click any cell to view a scatter plot.</desc>
           {/* cells first so labels paint on top */}
           {matrix.map((row, i) =>
             row.map((r, j) => {
@@ -176,7 +179,9 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
                       if (i === j) { setSelected(null); return; }
                       setSelected(selected?.i === i && selected?.j === j ? null : { i, j });
                     }}
-                    className="cursor-pointer" />
+                    className="cursor-pointer"
+                    role="gridcell"
+                    aria-label={`${fields[i].label} vs ${fields[j].label}: r = ${isNaN(r) ? "N/A" : r.toFixed(2)}`} />
                   {cellSize >= 28 && (
                     <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={cellSize >= 36 ? 9 : 7} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
                       {isNaN(r) ? "—" : r.toFixed(2)}

@@ -326,6 +326,11 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  /* Fade right edge of horizontal scroll containers to hint at more content */
+  .scroll-fade-r {
+    mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
+  }
   .chart-card-enter {
     animation: chartCardEnter 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
   }

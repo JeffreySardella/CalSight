@@ -44,8 +44,8 @@ export default function NarrativePanel({ narrative, tone, onToneChange, defaultC
             </span>
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-headline font-bold text-on-surface">Key Findings</h3>
-            <p className="text-[10px] text-on-surface-variant truncate">{filterContext}</p>
+            <h2 className="text-sm font-headline font-bold text-on-surface">Key Findings</h2>
+            <p className="text-[11px] text-on-surface-variant truncate">{filterContext}</p>
           </div>
           <span className="flex items-center gap-1.5 flex-shrink-0">
             {collapsed && (

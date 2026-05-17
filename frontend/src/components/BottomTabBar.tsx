@@ -50,7 +50,7 @@ export default function BottomTabBar() {
                   </span>
                 </span>
                 <span
-                  className={`text-[10px] tracking-widest uppercase ${
+                  className={`text-[11px] tracking-widest uppercase ${
                     isActive ? "font-bold" : "font-medium"
                   }`}
                 >
