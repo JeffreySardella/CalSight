@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFilterParams, CA_COUNTIES } from "../hooks/useFilterParams";
+import { useViewportParams } from "../hooks/useViewportParams";
+import { useLayerParams } from "../hooks/useLayerParams";
 import type { CoordCoverage } from "../hooks/useCoordCoverage";
 import { useMapKeyboard } from "../hooks/useMapKeyboard";
 import { LayersStateProvider, useLayersState } from "../hooks/useLayersState";
@@ -24,6 +26,7 @@ import AiInsightCard from "../components/map/AiInsightCard";
 import Breadcrumb from "../components/map/Breadcrumb";
 import StatewideHeatmapCard from "../components/map/StatewideHeatmapCard";
 import { EmptyState } from "../components/ui/EmptyState";
+import ShareButton from "../components/ui/ShareButton";
 import { useCrashHeatmap, useBatchedHeatmap } from "../hooks/useCrashHeatmap";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
@@ -77,6 +80,10 @@ function MapPageInner() {
     panel: panelParam,
     clearPanel,
   } = useFilterParams();
+
+  // Viewport ↔ URL: initialViewport seeds the camera on mount; writeViewport
+  // mirrors pan/zoom back into the URL so a copied link reproduces the view.
+  const { initialViewport, writeViewport } = useViewportParams();
 
   const [activePanel, setActivePanel] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -234,6 +241,16 @@ function MapPageInner() {
   const handleMapReady = useCallback((map: LeafletMap) => {
     mapRef.current = map;
   }, []);
+
+  // Flush the live viewport into the URL right before a share-link copy, so
+  // the link reflects the current camera even if the debounced sync (250ms)
+  // hasn't fired yet. setSearchParams updates window.location synchronously.
+  const handleShareFlush = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const c = map.getCenter();
+    writeViewport([c.lat, c.lng], map.getZoom());
+  }, [writeViewport]);
 
   const selectingRef = useRef(false);
 
@@ -447,7 +464,18 @@ function MapPageInner() {
       <h1 className="sr-only">California Crash Map Explorer</h1>
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:flex h-full z-40">
-        <IconRail activePanel={activePanel} onPanelToggle={handleToggle} />
+        <IconRail
+          activePanel={activePanel}
+          onPanelToggle={handleToggle}
+          bottomSlot={
+            <ShareButton
+              onBeforeShare={handleShareFlush}
+              showLabel={false}
+              iconClassName="text-[24px]"
+              className="p-3 text-on-surface-variant hover:bg-surface-container-highest rounded-lg transition-colors flex items-center justify-center"
+            />
+          }
+        />
         <div
           className="transition-[width] duration-300 overflow-hidden"
           style={{ width: activePanel && meta ? (activePanel === "filters" ? 400 : 300) : 0 }}
@@ -480,10 +508,18 @@ function MapPageInner() {
           countyDrilldown={useCountyDetail}
           mismatchPoints={otherLayers.coordMismatches ? mismatchHeatmap.points : []}
           tempMarker={tempMarker}
+          initialView={initialViewport}
+          onViewportChange={writeViewport}
         />
 
-        {/* Mobile: filter button (right) */}
-        <div className="absolute top-3 right-3 z-20 md:hidden">
+        {/* Mobile: share + filter buttons (right) */}
+        <div className="absolute top-3 right-3 z-20 md:hidden flex items-center gap-2">
+          <ShareButton
+            onBeforeShare={handleShareFlush}
+            showLabel={false}
+            iconClassName="text-[20px]"
+            className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
+          />
           <button
             onClick={() => setShowMobileFilters(true)}
             className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
@@ -733,8 +769,12 @@ function MapPageInner() {
 }
 
 export default function MapPage() {
+  // Layer state ↔ URL: layerSeed decodes the URL on mount; writeLayerParams
+  // mirrors changes back. Kept here (inside <BrowserRouter>) so the provider
+  // itself stays Router-agnostic.
+  const { layerSeed, writeLayerParams } = useLayerParams();
   return (
-    <LayersStateProvider>
+    <LayersStateProvider urlSeed={layerSeed} onStateChange={writeLayerParams}>
       <MapPageInner />
     </LayersStateProvider>
   );

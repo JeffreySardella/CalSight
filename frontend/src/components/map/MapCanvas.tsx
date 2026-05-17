@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -19,6 +19,7 @@ import CaliforniaMask from "./CaliforniaMask";
 import OverlayMarkers from "./OverlayMarkers";
 import CrashDotLayer from "./CrashDotLayer";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
+import type { ViewportSeed } from "../../hooks/useViewportParams";
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
 import { useHospitals, useSchools } from "../../hooks/useMapOverlays";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
@@ -33,6 +34,54 @@ function ReducedMotionSync() {
     map.options.fadeAnimation = !effectiveReducedMotion;
     map.options.markerZoomAnimation = !effectiveReducedMotion;
   }, [map, effectiveReducedMotion]);
+  return null;
+}
+
+// Delay before the URL starts tracking the viewport — long enough to swallow
+// the moveend/zoomend events Leaflet fires while settling its initial view
+// (and the first invalidateSize), so an untouched map keeps a clean URL.
+const VIEWPORT_SYNC_WARMUP_MS = 700;
+// Coalesce bursts of zoomend (e.g. rapid scroll-wheel ticks) into one write.
+const VIEWPORT_SYNC_DEBOUNCE_MS = 250;
+
+/**
+ * Mirrors the live map viewport into the URL on the trailing edge of pan/zoom.
+ * Write-only: it never reads the URL back into the map, so there is no
+ * pan → setSearchParams → re-render loop. See useViewportParams for the
+ * read-once-on-mount seeding side.
+ */
+function ViewportSync({
+  onChange,
+}: {
+  onChange: (center: [number, number], zoom: number) => void;
+}) {
+  const readyRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const warmup = window.setTimeout(() => {
+      readyRef.current = true;
+    }, VIEWPORT_SYNC_WARMUP_MS);
+    return () => {
+      window.clearTimeout(warmup);
+      if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  useMapEvents({
+    moveend: (e) => scheduleWrite(e.target as LeafletMap),
+    zoomend: (e) => scheduleWrite(e.target as LeafletMap),
+  });
+
+  function scheduleWrite(map: LeafletMap) {
+    if (!readyRef.current) return;
+    if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      const c = map.getCenter();
+      onChange([c.lat, c.lng], map.getZoom());
+    }, VIEWPORT_SYNC_DEBOUNCE_MS);
+  }
+
   return null;
 }
 
@@ -58,6 +107,10 @@ interface MapCanvasProps {
   countyDrilldown?: boolean;
   mismatchPoints?: HeatmapPoint[];
   tempMarker?: [number, number] | null;
+  /** Seeds the initial camera from the URL; read once on mount. */
+  initialView?: ViewportSeed | null;
+  /** Called (debounced) whenever the user pans/zooms, to mirror into the URL. */
+  onViewportChange?: (center: [number, number], zoom: number) => void;
 }
 
 const HEATMAP_MAX_ZOOM: Record<string, number> = {
@@ -161,6 +214,8 @@ export default function MapCanvas({
   countyDrilldown,
   mismatchPoints = [],
   tempMarker,
+  initialView,
+  onViewportChange,
 }: MapCanvasProps) {
   const isDark = useIsDark();
   // CartoDB tile variants — swap between light_* and dark_* so counties
@@ -176,8 +231,8 @@ export default function MapCanvas({
 
   return (
     <MapContainer
-      center={CA_CENTER}
-      zoom={CA_ZOOM}
+      center={initialView?.center ?? CA_CENTER}
+      zoom={initialView?.zoom ?? CA_ZOOM}
       className="h-full w-full z-0"
       zoomControl={false}
       attributionControl={false}
@@ -193,6 +248,7 @@ export default function MapCanvas({
       zoomAnimationThreshold={4}
     >
       <ReducedMotionSync />
+      {onViewportChange && <ViewportSync onChange={onViewportChange} />}
       <TileLayer
         key={baseTileUrl}
         url={baseTileUrl}

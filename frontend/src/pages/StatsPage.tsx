@@ -9,6 +9,7 @@ import { useDataQualityDisclaimer } from "../hooks/useDataQualityDisclaimer";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
+import ShareButton from "../components/ui/ShareButton";
 
 function ChartImg({ label, children }: { label: string; children: React.ReactNode }) {
   return <div role="img" aria-label={label}>{children}</div>;
@@ -253,14 +254,20 @@ export default function StatsPage() {
             ))}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowMobileFilters(true)}
-          className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline flex-shrink-0"
-        >
-          Edit Filters
-          <span className="material-symbols-outlined text-[16px]">tune</span>
-        </button>
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <ShareButton
+            iconClassName="text-[16px]"
+            className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline"
+          />
+          <button
+            type="button"
+            onClick={() => setShowMobileFilters(true)}
+            className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline"
+          >
+            Edit Filters
+            <span className="material-symbols-outlined text-[16px]">tune</span>
+          </button>
+        </div>
       </section>
 
       {/* Hero Metrics Row */}
