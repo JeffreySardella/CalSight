@@ -17,7 +17,9 @@ export type ChartBlock = {
   filterOverrides?: {
     alcohol?: boolean;
     pedestrian?: boolean;
+    counties?: string[];
   };
+  caption?: string;
 };
 
 export type StatCalloutBlock = {
@@ -69,6 +71,8 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "severity",
         measure: "count",
         chartType: "donut",
+        filterOverrides: { counties: ["los-angeles", "san-diego", "san-francisco", "santa-clara", "alameda"] },
+        caption: "Urban counties: high volume, lower fatality share",
       },
       {
         type: "chart",
@@ -76,6 +80,8 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "severity",
         measure: "count",
         chartType: "donut",
+        filterOverrides: { counties: ["siskiyou", "modoc", "lassen", "trinity", "alpine"] },
+        caption: "Rural counties: lower volume, higher fatality share",
       },
       {
         type: "narrative",

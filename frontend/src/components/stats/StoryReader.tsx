@@ -147,6 +147,9 @@ function StoryBlockRenderer({
             editing={false}
             loading={loading}
           />
+          {block.caption && (
+            <p className="text-xs text-on-surface-variant text-center mt-2 italic">{block.caption}</p>
+          )}
         </div>
       );
     }
