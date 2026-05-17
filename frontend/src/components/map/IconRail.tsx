@@ -1,6 +1,10 @@
+import type { ReactNode } from "react";
+
 interface IconRailProps {
   activePanel: string | null;
   onPanelToggle: (panel: string) => void;
+  /** Action item(s) pinned to the bottom of the rail (e.g. Share). */
+  bottomSlot?: ReactNode;
 }
 
 const icons = [
@@ -9,7 +13,7 @@ const icons = [
   { panel: "export", icon: "file_download", label: "Export" },
 ] as const;
 
-export default function IconRail({ activePanel, onPanelToggle }: IconRailProps) {
+export default function IconRail({ activePanel, onPanelToggle, bottomSlot }: IconRailProps) {
   return (
     <aside className="w-20 bg-surface-container flex flex-col items-center py-6 gap-6 h-full flex-shrink-0">
       {icons.map(({ panel, icon, label }) => {
@@ -32,6 +36,7 @@ export default function IconRail({ activePanel, onPanelToggle }: IconRailProps) 
           </button>
         );
       })}
+      {bottomSlot && <div className="mt-auto">{bottomSlot}</div>}
     </aside>
   );
 }

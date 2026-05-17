@@ -5,6 +5,16 @@ import { PALETTES, type PaletteKey } from "../lib/choropleth/palettes";
 export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "coordMismatches" | "coordIncludeRivers" | "incidents" | "countyBoundaries" | "roadTypes" | "schools" | "hospitals";
 export type HeatmapResolution = "raw" | "low" | "medium" | "high";
 
+/** The shareable subset of layer state that round-trips through the URL. See useLayerParams. */
+export type LayerUrlState = {
+  measure: MeasureKey;
+  palette: PaletteKey;
+  choroplethOn: boolean;
+  heatmapResolution: HeatmapResolution;
+  heatmapStatewide: boolean;
+  heatmapCounty: boolean;
+};
+
 const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
   heatmapStatewide: false,
   heatmapCounty: true,
@@ -76,17 +86,31 @@ type LayersState = {
 
 const LayersStateContext = createContext<LayersState | null>(null);
 
-export function LayersStateProvider({ children }: { children: ReactNode }) {
+export function LayersStateProvider({
+  children,
+  urlSeed,
+  onStateChange,
+}: {
+  children: ReactNode;
+  /** Layer state decoded from the URL — wins over localStorage on first mount. */
+  urlSeed?: Partial<LayerUrlState>;
+  /** Called whenever layer state changes, so MapPage can mirror it to the URL. */
+  onStateChange?: (state: LayerUrlState) => void;
+}) {
   const saved = loadSaved();
-  const [choroplethOn, setChoroplethOn] = useState(saved.choroplethOn ?? true);
-  const [measure, setMeasure] = useState<MeasureKey>(saved.measure ?? DEFAULT_MEASURE);
-  const [palette, setPalette] = useState<PaletteKey>(saved.palette ?? "default");
+  const [choroplethOn, setChoroplethOn] = useState(urlSeed?.choroplethOn ?? saved.choroplethOn ?? true);
+  const [measure, setMeasure] = useState<MeasureKey>(urlSeed?.measure ?? saved.measure ?? DEFAULT_MEASURE);
+  const [palette, setPalette] = useState<PaletteKey>(urlSeed?.palette ?? saved.palette ?? "default");
   const [bucketEdges, setBucketEdges] = useState<number[] | null>(null);
   const [otherLayers, setOtherLayers] = useState<Record<OtherLayerKey, boolean>>(() => ({
     ...OTHER_LAYER_DEFAULTS,
     ...saved.otherLayers,
+    ...(urlSeed?.heatmapStatewide !== undefined ? { heatmapStatewide: urlSeed.heatmapStatewide } : {}),
+    ...(urlSeed?.heatmapCounty !== undefined ? { heatmapCounty: urlSeed.heatmapCounty } : {}),
   }));
-  const [heatmapResolution, setHeatmapResolution] = useState<HeatmapResolution>(saved.resolution ?? "low");
+  const [heatmapResolution, setHeatmapResolution] = useState<HeatmapResolution>(
+    urlSeed?.heatmapResolution ?? saved.resolution ?? "low",
+  );
 
   useEffect(() => {
     try {
@@ -94,7 +118,12 @@ export function LayersStateProvider({ children }: { children: ReactNode }) {
         measure, palette, choroplethOn, resolution: heatmapResolution, otherLayers,
       }));
     } catch { /* quota exceeded — ignore */ }
-  }, [measure, palette, choroplethOn, heatmapResolution, otherLayers]);
+    onStateChange?.({
+      measure, palette, choroplethOn, heatmapResolution,
+      heatmapStatewide: otherLayers.heatmapStatewide,
+      heatmapCounty: otherLayers.heatmapCounty,
+    });
+  }, [measure, palette, choroplethOn, heatmapResolution, otherLayers, onStateChange]);
 
   const reset = useCallback(() => {
     setChoroplethOn(true);
