@@ -170,9 +170,11 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
               const isSelected = selected?.i === i && selected?.j === j;
               return (
                 <g key={`${i}-${j}`} onMouseEnter={() => setHoverCell({ i, j })} onMouseLeave={() => setHoverCell(null)}
-                  onClick={() => i !== j && setSelected(selected?.i === i && selected?.j === j ? null : { i, j })} className={i !== j ? "cursor-pointer" : "cursor-default"} style={i === j ? { opacity: 0.5 } : undefined}>
+                  style={i === j ? { opacity: 0.5 } : undefined}>
                   <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={colorForR(r, isDark)}
-                    opacity={isHovered || isSelected ? 1 : 0.85} stroke={isSelected ? "rgb(var(--on-surface))" : isHovered ? "rgb(var(--outline))" : "none"} strokeWidth={isSelected ? 2 : 1} />
+                    opacity={isHovered || isSelected ? 1 : 0.85} stroke={isSelected ? "rgb(var(--on-surface))" : isHovered ? "rgb(var(--outline))" : "none"} strokeWidth={isSelected ? 2 : 1}
+                    onClick={() => i !== j && setSelected(selected?.i === i && selected?.j === j ? null : { i, j })}
+                    className={i !== j ? "cursor-pointer" : "cursor-default"} />
                   {cellSize >= 28 && (
                     <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={cellSize >= 36 ? 9 : 7} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
                       {i === j ? "" : isNaN(r) ? "—" : r.toFixed(2)}
@@ -182,16 +184,16 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
               );
             }),
           )}
-          {/* row labels */}
+          {/* row labels — pointer-events:none so they don't block cell clicks */}
           {fields.map((f, i) => (
-            <text key={`row-${i}`} x={labelW - 4} y={headerH + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
+            <text key={`row-${i}`} x={labelW - 4} y={headerH + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>{f.label}</text>
           ))}
-          {/* column labels — anchored at top edge of cell grid, rotated upward */}
+          {/* column labels — pointer-events:none so they don't block cell clicks */}
           {fields.map((f, j) => {
             const tx = labelW + j * cellSize + cellSize / 2;
             const ty = headerH + labelW - 6;
             return (
-              <text key={`col-${j}`} x={tx} y={ty} textAnchor="start" fontSize={isMobile ? 7 : 9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-55, ${tx}, ${ty})`}>{f.label}</text>
+              <text key={`col-${j}`} x={tx} y={ty} textAnchor="start" fontSize={isMobile ? 7 : 9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-55, ${tx}, ${ty})`} style={{ pointerEvents: "none" }}>{f.label}</text>
             );
           })}
         </svg>
