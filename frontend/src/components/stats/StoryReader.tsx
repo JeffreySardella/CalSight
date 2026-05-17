@@ -1,10 +1,14 @@
 import { useMemo } from "react";
-import type { DataStory, StoryBlock, ChartBlock } from "../../lib/dashboard/stories";
+import type { DataStory, StoryBlock, ChartBlock, StoryContext } from "../../lib/dashboard/stories";
 import type { ChartSlot } from "../../lib/dashboard/types";
 import type { StatsFilters } from "../../hooks/useStats";
 import { useDashboardData } from "../../hooks/useDashboardData";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import ChartCard from "./ChartCard";
+
+function resolveBody(body: string | ((ctx: StoryContext) => string), ctx: StoryContext): string {
+  return typeof body === "function" ? body(ctx) : body;
+}
 
 interface Props {
   story: DataStory;
@@ -26,6 +30,50 @@ export default function StoryReader({ story, onBack }: Props) {
     drug: filters.selectedDrug,
     distracted: filters.selectedDistracted,
   }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted]);
+
+  // Build story context from filter state
+  const storyContext = useMemo<StoryContext>(() => {
+    const countyNames = [...filters.selectedCounties].sort();
+    const hasCountyFilter = countyNames.length > 0;
+    const hasSeverityFilter = filters.selectedSeverities.size > 0;
+    const hasDateFilter = filters.selectedDateRange !== null;
+    const hasInvolvementFilter = filters.selectedAlcohol || filters.selectedPedestrian || filters.selectedCyclist || filters.selectedDrug || filters.selectedDistracted;
+    const hasCauseFilter = filters.selectedCauses.size > 0;
+    return {
+      countyCount: hasCountyFilter ? countyNames.length : 58,
+      countyNames,
+      hasSeverityFilter,
+      severities: [...filters.selectedSeverities],
+      hasDateFilter,
+      isFiltered: hasCountyFilter || hasSeverityFilter || hasDateFilter || hasInvolvementFilter || hasCauseFilter,
+    };
+  }, [filters.selectedCounties, filters.selectedSeverities, filters.selectedDateRange, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, filters.selectedCauses]);
+
+  // Build a human-readable filter summary for the banner
+  const filterSummary = useMemo<string | null>(() => {
+    if (!storyContext.isFiltered) return null;
+    const parts: string[] = [];
+    if (storyContext.countyCount < 58) {
+      if (storyContext.countyCount <= 3) {
+        parts.push(storyContext.countyNames.map((n) => `${n} County`).join(", "));
+      } else {
+        parts.push(`${storyContext.countyCount} counties`);
+      }
+    }
+    if (storyContext.hasSeverityFilter) {
+      parts.push(storyContext.severities.join(", "));
+    }
+    if (storyContext.hasDateFilter) {
+      parts.push("date range");
+    }
+    if (filters.selectedAlcohol) parts.push("alcohol-involved");
+    if (filters.selectedPedestrian) parts.push("pedestrian-involved");
+    if (filters.selectedCyclist) parts.push("cyclist-involved");
+    if (filters.selectedDrug) parts.push("drug-involved");
+    if (filters.selectedDistracted) parts.push("distraction-involved");
+    if (filters.selectedCauses.size > 0) parts.push(`${filters.selectedCauses.size} cause(s)`);
+    return parts.join(" + ");
+  }, [storyContext, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, filters.selectedCauses]);
 
   // Only fetch data for chart blocks WITHOUT filterOverrides via the shared batch call
   const globalChartSlots = useMemo<ChartSlot[]>(() => {
@@ -55,6 +103,14 @@ export default function StoryReader({ story, onBack }: Props) {
         Back to Stories
       </button>
 
+      {/* Filter context banner */}
+      {filterSummary && (
+        <div className="flex items-center gap-2 rounded-lg bg-tertiary-container/30 border border-tertiary/20 px-4 py-2.5 text-sm text-on-surface-variant">
+          <span className="material-symbols-outlined text-[18px] text-tertiary" aria-hidden="true">filter_alt</span>
+          <span>Showing data filtered to: <span className="font-medium text-on-surface">{filterSummary}</span></span>
+        </div>
+      )}
+
       {/* Story header */}
       <header className="space-y-3">
         <h2 className="text-2xl sm:text-3xl font-headline font-bold text-on-surface tracking-tight leading-tight">
@@ -73,6 +129,7 @@ export default function StoryReader({ story, onBack }: Props) {
           dataBySlot={dataBySlot}
           loading={loading}
           baseFilters={statsFilters}
+          storyContext={storyContext}
         />
       ))}
     </article>
@@ -84,11 +141,13 @@ function StoryBlockRenderer({
   dataBySlot,
   loading,
   baseFilters,
+  storyContext,
 }: {
   block: StoryBlock;
   dataBySlot: Record<string, import("../../hooks/useDashboardData").ChartDataItem[]>;
   loading: boolean;
   baseFilters: StatsFilters;
+  storyContext: StoryContext;
 }) {
   switch (block.type) {
     case "narrative":
@@ -100,7 +159,7 @@ function StoryBlockRenderer({
             {block.heading}
           </h3>
           <p className="font-serif text-on-surface-variant text-sm sm:text-base leading-[1.8] tracking-[0.01em]">
-            {block.body}
+            {resolveBody(block.body, storyContext)}
           </p>
         </div>
       );

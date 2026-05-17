@@ -1,9 +1,18 @@
 import type { Dimension, Measure, ChartType } from "./types";
 
+export type StoryContext = {
+  countyCount: number;
+  countyNames: string[]; // human-readable names
+  hasSeverityFilter: boolean;
+  severities: string[];
+  hasDateFilter: boolean;
+  isFiltered: boolean; // any filter active
+};
+
 export type NarrativeBlock = {
   type: "narrative";
   heading: string;
-  body: string;
+  body: string | ((ctx: StoryContext) => string);
   isThesis?: boolean;
 };
 
@@ -49,7 +58,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "A tale of two road networks",
-        body: "California's 58 counties span dense urban grids and remote mountain highways. The crash data reveals two fundamentally different safety landscapes: urban counties with high volume but lower severity, and rural counties where every crash is more likely to kill.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `${ctx.countyNames[0]} County's crash data reveals where this region falls on the urban-rural safety spectrum: urban areas with high volume but lower severity, or rural zones where every crash is more likely to kill.`
+          : ctx.isFiltered
+          ? `Across ${ctx.countyCount} selected counties, the crash data reveals two fundamentally different safety landscapes: urban counties with high volume but lower severity, and rural counties where every crash is more likely to kill.`
+          : `California's 58 counties span dense urban grids and remote mountain highways. The crash data reveals two fundamentally different safety landscapes: urban counties with high volume but lower severity, and rural counties where every crash is more likely to kill.`,
         isThesis: true,
       },
       {
@@ -99,7 +112,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Alcohol follows a predictable rhythm",
-        body: "DUI crashes are not random. They follow a precise temporal pattern that repeats week after week, year after year. Understanding this clock is the first step toward intervention: if we know when and where crashes will happen, we can position resources before they do.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `In ${ctx.countyNames[0]} County, DUI crashes are not random. They follow a precise temporal pattern that repeats week after week, year after year. Understanding this clock is the first step toward local intervention.`
+          : ctx.isFiltered
+          ? `Across ${ctx.countyCount} selected counties, DUI crashes are not random. They follow a precise temporal pattern that repeats week after week. Understanding this clock is the first step toward intervention: if we know when and where crashes will happen, we can position resources before they do.`
+          : `DUI crashes are not random. They follow a precise temporal pattern that repeats week after week, year after year. Understanding this clock is the first step toward intervention: if we know when and where crashes will happen, we can position resources before they do.`,
         isThesis: true,
       },
       {
@@ -148,7 +165,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Two decades of data, one complicated story",
-        body: "Since the early 2000s, California has invested billions in road safety, vehicle technology has advanced dramatically, and awareness campaigns have proliferated. But has it actually worked? The answer depends on which metric you examine and how you define success.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `Since the early 2000s, ${ctx.countyNames[0]} County has seen shifts in road safety investment, vehicle technology, and awareness campaigns. But has it actually worked locally? The answer depends on which metric you examine and how you define success.`
+          : ctx.isFiltered
+          ? `Since the early 2000s, the ${ctx.countyCount} selected counties have seen billions invested in road safety while vehicle technology advanced dramatically. But has it actually worked? The answer depends on which metric you examine and how you define success.`
+          : `Since the early 2000s, California has invested billions in road safety, vehicle technology has advanced dramatically, and awareness campaigns have proliferated. But has it actually worked? The answer depends on which metric you examine and how you define success.`,
         isThesis: true,
       },
       {
@@ -198,7 +219,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Poverty kills on the road too",
-        body: "Traffic violence is not equally distributed. Counties with higher poverty rates consistently report higher crash fatality rates, creating a feedback loop where economically disadvantaged communities bear both the financial and human cost of dangerous roads. The correlation is strong, persistent, and demands policy attention.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `In ${ctx.countyNames[0]} County, traffic violence reflects the broader pattern: poverty and crash fatality rates are linked, creating a feedback loop where economically disadvantaged communities bear both the financial and human cost of dangerous roads.`
+          : ctx.isFiltered
+          ? `Across ${ctx.countyCount} selected counties, traffic violence is not equally distributed. Counties with higher poverty rates consistently report higher crash fatality rates, creating a feedback loop where economically disadvantaged communities bear both the financial and human cost of dangerous roads.`
+          : `Traffic violence is not equally distributed. Counties with higher poverty rates consistently report higher crash fatality rates, creating a feedback loop where economically disadvantaged communities bear both the financial and human cost of dangerous roads. The correlation is strong, persistent, and demands policy attention.`,
         isThesis: true,
       },
       {
@@ -244,7 +269,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Quiet cars, louder consequences",
-        body: "California leads the nation in electric vehicle adoption, but a troubling pattern has emerged: as EV registrations climb, pedestrian fatalities have risen in parallel. The near-silent operation of EVs at low speeds, combined with heavier vehicle weights and instant torque, may be contributing to a new category of road danger for the most vulnerable users.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `${ctx.countyNames[0]} County mirrors a statewide trend: as EV registrations climb, pedestrian fatalities have risen in parallel. The near-silent operation of EVs at low speeds, combined with heavier vehicle weights and instant torque, may be contributing to a new category of road danger.`
+          : ctx.isFiltered
+          ? `Across ${ctx.countyCount} selected counties, a troubling pattern has emerged: as EV registrations climb, pedestrian fatalities have risen in parallel. The near-silent operation of EVs at low speeds, combined with heavier vehicle weights, may be contributing to a new category of road danger for the most vulnerable users.`
+          : `California leads the nation in electric vehicle adoption, but a troubling pattern has emerged: as EV registrations climb, pedestrian fatalities have risen in parallel. The near-silent operation of EVs at low speeds, combined with heavier vehicle weights and instant torque, may be contributing to a new category of road danger for the most vulnerable users.`,
         isThesis: true,
       },
       {
@@ -287,7 +316,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Empty commutes, safer roads?",
-        body: "The post-2020 shift to remote work removed millions of California commuters from rush-hour traffic. The safety dividend was immediate and measurable — but only in counties with large white-collar workforces. Blue-collar and service-economy counties saw no benefit, widening the safety gap between communities.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `The post-2020 shift to remote work reshaped ${ctx.countyNames[0]} County's rush-hour traffic. Whether the safety dividend materialized here depends on the local workforce composition — white-collar counties saw immediate gains while service-economy areas saw none.`
+          : ctx.isFiltered
+          ? `The post-2020 shift to remote work removed commuters from rush-hour traffic across ${ctx.countyCount} selected counties. The safety dividend was immediate and measurable — but only in counties with large white-collar workforces. Service-economy counties saw no benefit.`
+          : `The post-2020 shift to remote work removed millions of California commuters from rush-hour traffic. The safety dividend was immediate and measurable — but only in counties with large white-collar workforces. Blue-collar and service-economy counties saw no benefit, widening the safety gap between communities.`,
         isThesis: true,
       },
       {
@@ -338,7 +371,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Inexperience meets infrastructure",
-        body: "Drivers aged 18-24 represent roughly 12% of licensed drivers in California but account for 28% of at-fault crashes. This 2.3x over-representation is not simply about recklessness — it reflects inexperience interacting with road designs that assume expert-level situational awareness, particularly at night and on high-speed arterials.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `In ${ctx.countyNames[0]} County, drivers aged 18-24 are massively over-represented as at-fault in crashes. This is not simply about recklessness — it reflects inexperience interacting with road designs that assume expert-level situational awareness, particularly at night and on high-speed arterials.`
+          : ctx.isFiltered
+          ? `Across ${ctx.countyCount} selected counties, drivers aged 18-24 are massively over-represented as at-fault in crashes. This 2.3x over-representation reflects inexperience interacting with road designs that assume expert-level situational awareness, particularly at night and on high-speed arterials.`
+          : `Drivers aged 18-24 represent roughly 12% of licensed drivers in California but account for 28% of at-fault crashes. This 2.3x over-representation is not simply about recklessness — it reflects inexperience interacting with road designs that assume expert-level situational awareness, particularly at night and on high-speed arterials.`,
         isThesis: true,
       },
       {
@@ -395,7 +432,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Summer roads, deadly roads",
-        body: "Every year, California enters a predictable fatality surge from July through October. More daylight hours mean more driving, vacation travel fills highways with unfamiliar drivers, and motorcycle ridership peaks. October consistently claims the most lives — a grim harvest that repeats year after year with disturbing regularity.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `Every year, ${ctx.countyNames[0]} County enters a predictable fatality surge from July through October. More daylight hours mean more driving, vacation travel fills highways with unfamiliar drivers, and motorcycle ridership peaks. October consistently claims the most lives.`
+          : ctx.isFiltered
+          ? `Every year, the ${ctx.countyCount} selected counties enter a predictable fatality surge from July through October. Vacation travel fills highways with unfamiliar drivers, motorcycle ridership peaks, and October consistently claims the most lives — a grim harvest that repeats with disturbing regularity.`
+          : `Every year, California enters a predictable fatality surge from July through October. More daylight hours mean more driving, vacation travel fills highways with unfamiliar drivers, and motorcycle ridership peaks. October consistently claims the most lives — a grim harvest that repeats year after year with disturbing regularity.`,
         isThesis: true,
       },
       {
@@ -445,7 +486,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Pollution and crashes share the same ZIP codes",
-        body: "California's CalEnviroScreen identifies communities burdened by pollution, poverty, and health risks. These same communities also bear a disproportionate traffic crash burden. The correlation between environmental disadvantage scores and crash fatality rates reveals that traffic violence is yet another dimension of environmental injustice — the roads that carry pollution through these neighborhoods also kill their residents.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `In ${ctx.countyNames[0]} County, CalEnviroScreen-identified disadvantaged communities bear a disproportionate traffic crash burden. The roads that carry pollution through these neighborhoods also kill their residents — traffic violence is yet another dimension of environmental injustice.`
+          : ctx.isFiltered
+          ? `Across ${ctx.countyCount} selected counties, CalEnviroScreen-identified communities burdened by pollution, poverty, and health risks also bear a disproportionate traffic crash burden. The correlation between environmental disadvantage and crash fatality rates reveals that traffic violence is yet another dimension of environmental injustice.`
+          : `California's CalEnviroScreen identifies communities burdened by pollution, poverty, and health risks. These same communities also bear a disproportionate traffic crash burden. The correlation between environmental disadvantage scores and crash fatality rates reveals that traffic violence is yet another dimension of environmental injustice — the roads that carry pollution through these neighborhoods also kill their residents.`,
         isThesis: true,
       },
       {
@@ -486,7 +531,11 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "When enforcement changes, crashes respond",
-        body: "California's approach to traffic enforcement has evolved significantly — from DUI crackdowns in the 2000s to speed camera pilots in recent years. Each major enforcement shift leaves a measurable signature in the crash data. The evidence is clear: sustained enforcement works, but its effects fade when political will wanes or resources shift elsewhere.",
+        body: (ctx) => ctx.countyCount === 1
+          ? `${ctx.countyNames[0]} County's traffic enforcement has evolved significantly — from DUI crackdowns in the 2000s to speed camera pilots in recent years. Each enforcement shift leaves a measurable signature in the crash data. Sustained enforcement works, but its effects fade when resources shift elsewhere.`
+          : ctx.isFiltered
+          ? `Across ${ctx.countyCount} selected counties, the approach to traffic enforcement has evolved significantly. Each major enforcement shift leaves a measurable signature in the crash data. The evidence is clear: sustained enforcement works, but its effects fade when political will wanes.`
+          : `California's approach to traffic enforcement has evolved significantly — from DUI crackdowns in the 2000s to speed camera pilots in recent years. Each major enforcement shift leaves a measurable signature in the crash data. The evidence is clear: sustained enforcement works, but its effects fade when political will wanes or resources shift elsewhere.`,
         isThesis: true,
       },
       {
