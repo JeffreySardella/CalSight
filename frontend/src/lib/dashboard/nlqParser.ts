@@ -53,6 +53,7 @@ const OPTION_PATTERNS: [RegExp, Partial<ChartOptions>][] = [
   [/\bmean\s*line\b/i, { meanLine: true }],
   [/\bstd\s*band\b|standard\s*deviation/i, { stdBand: true }],
   [/\boutlier/i, { outliers: true }],
+  [/\bforecast\b/i, { forecast: true }],
 ];
 
 export interface NlqResult {
@@ -111,4 +112,5 @@ export const SUGGESTIONS = [
   "crashes by cause as a treemap",
   "year over year change by month",
   "crashes by day of week as a radar",
+  "fatalities by year with forecast",
 ];

@@ -331,6 +331,22 @@
   }
 }
 
+/* ── Thin dark-mode scrollbar for chart overflow containers ── */
+.chart-card-themed ::-webkit-scrollbar {
+  width: 4px;
+}
+.chart-card-themed ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chart-card-themed ::-webkit-scrollbar-thumb {
+  background: rgb(var(--on-surface-variant) / 0.25);
+  border-radius: 2px;
+}
+.chart-card-themed {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--on-surface-variant) / 0.25) transparent;
+}
+
 /* ── Drag-and-drop reorder ── */
 .drag-active [data-drag-id] {
   transition: transform 0.2s ease, opacity 0.2s ease;

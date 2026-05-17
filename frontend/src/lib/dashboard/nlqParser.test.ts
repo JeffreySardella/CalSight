@@ -67,6 +67,13 @@ describe("nlqParser", () => {
       expect(result.options.cumulative).toBe(true);
     });
 
+    it("parses forecast option", () => {
+      const result = parseNlq("fatalities by year with forecast");
+      expect(result.options.forecast).toBe(true);
+      expect(result.dimension).toBe("year");
+      expect(result.measure).toBe("killed");
+    });
+
     it("returns low confidence for gibberish", () => {
       const result = parseNlq("hello world");
       expect(result.confidence).toBe("low");

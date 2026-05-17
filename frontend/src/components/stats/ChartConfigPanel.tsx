@@ -254,7 +254,10 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
           Cancel
         </button>
         <button
-          onClick={() => onConfirm({ dimension, measure, secondaryMeasure, chartType, options })}
+          onClick={() => {
+            const hasOpts = Object.values(options).some(v => v !== undefined && v !== false);
+            onConfirm({ dimension, measure, secondaryMeasure, chartType, options: hasOpts ? options : undefined });
+          }}
           className="flex-1 px-4 py-2 rounded-full text-sm font-medium text-on-primary bg-primary hover:opacity-90 transition-opacity"
         >
           {initial ? "Update" : "Add"}

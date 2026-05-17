@@ -72,7 +72,12 @@ export default function SimpleLineChart({
 
   if (!data.length) return null;
 
-  const maxVal = Math.max(...data.map((d) => d.value), 1);
+  const dataMax = Math.max(...data.map((d) => d.value), 1);
+  // When forecast is enabled, scale the Y axis to include forecast upper bounds
+  // so the actual data line and forecast band share a single consistent scale.
+  const maxVal = forecastData && forecastData.length > 0
+    ? Math.max(dataMax, ...forecastData.map(f => f.upper))
+    : dataMax;
   const yAxisW = showYAxis ? 54 : 0;
   const padding = { top: 16, right: 16, bottom: 32, left: yAxisW + 8 };
   const chartH = height - padding.top - padding.bottom;
@@ -245,8 +250,9 @@ export default function SimpleLineChart({
         {forecastData && forecastData.length > 0 && (() => {
           const lastPt = points[points.length - 1];
           if (!lastPt) return null;
-          const fcMax = Math.max(maxVal, ...forecastData.map(f => f.upper));
-          const yScale = (v: number) => padding.top + chartH - (v / fcMax) * chartH;
+          // maxVal already includes forecast upper bounds (computed above),
+          // so we use the same scale as the main data line.
+          const yScale = (v: number) => padding.top + chartH - (v / maxVal) * chartH;
           const stepX = n > 1 ? (points[1].x - points[0].x) : chartW / 4;
           const maxX = svgWidth - padding.right;
           const fcPts = forecastData.map((f, i) => ({
