@@ -76,7 +76,7 @@ export default function SimpleLineChart({
   const yAxisW = showYAxis ? 54 : 0;
   const padding = { top: 16, right: 16, bottom: 32, left: yAxisW + 8 };
   const chartH = height - padding.top - padding.bottom;
-  const chartW = svgWidth - padding.left - padding.right;
+  const chartW = Math.max(svgWidth - padding.left - padding.right, 0);
   const n = data.length;
 
   const yTicks = 4;
@@ -145,8 +145,8 @@ export default function SimpleLineChart({
             <rect
               x={p.x - (n >= 2 ? chartW / n / 2 : 20)}
               y={padding.top}
-              width={n >= 2 ? chartW / n : 40}
-              height={chartH}
+              width={Math.max(n >= 2 ? chartW / n : 40, 1)}
+              height={Math.max(chartH, 0)}
               fill="transparent"
               onMouseMove={(e) => handleMouseMove(e, i)}
               onMouseLeave={() => setHover(null)}
@@ -189,8 +189,8 @@ export default function SimpleLineChart({
             <rect
               x={padding.left}
               y={yUpper}
-              width={chartW}
-              height={yLower - yUpper}
+              width={Math.max(chartW, 0)}
+              height={Math.max(yLower - yUpper, 0)}
               fill="rgb(var(--primary))"
               fillOpacity={0.08}
               rx={4}

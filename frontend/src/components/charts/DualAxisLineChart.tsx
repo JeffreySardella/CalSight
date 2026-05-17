@@ -75,7 +75,7 @@ export default function DualAxisLineChart({
   const yAxisRightW = 52;
   const padding = { top: 16, right: yAxisRightW + 8, bottom: 36, left: yAxisLeftW + 8 };
   const chartH = height - padding.top - padding.bottom;
-  const chartW = svgWidth - padding.left - padding.right;
+  const chartW = Math.max(svgWidth - padding.left - padding.right, 0);
   const n = data.length;
   const yTicks = 4;
 
@@ -288,8 +288,8 @@ export default function DualAxisLineChart({
             <rect
               x={xPos(i) - (n >= 2 ? chartW / n / 2 : 20)}
               y={padding.top}
-              width={n >= 2 ? chartW / n : 40}
-              height={chartH}
+              width={Math.max(n >= 2 ? chartW / n : 40, 1)}
+              height={Math.max(chartH, 0)}
               fill="transparent"
               onMouseMove={(e) => handleMouseMove(e, i)}
               onMouseLeave={() => setHover(null)}
