@@ -175,7 +175,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
                     opacity={isHovered || isSelected ? 1 : 0.85} stroke={isSelected ? "rgb(var(--on-surface))" : isHovered ? "rgb(var(--outline))" : "none"} strokeWidth={isSelected ? 2 : 1} />
                   {cellSize >= 28 && (
                     <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={cellSize >= 36 ? 9 : 7} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif">
-                      {i === j ? "" : r.toFixed(2)}
+                      {i === j ? "" : isNaN(r) ? "—" : r.toFixed(2)}
                     </text>
                   )}
                 </g>
