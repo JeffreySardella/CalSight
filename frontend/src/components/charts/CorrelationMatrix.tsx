@@ -169,15 +169,17 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
               const isHovered = hoverCell?.i === i && hoverCell?.j === j;
               const isSelected = selected?.i === i && selected?.j === j;
               return (
-                <g key={`${i}-${j}`} onMouseEnter={() => setHoverCell({ i, j })} onMouseLeave={() => setHoverCell(null)}
-                  style={i === j ? { opacity: 0.5 } : undefined}>
+                <g key={`${i}-${j}`} onMouseEnter={() => setHoverCell({ i, j })} onMouseLeave={() => setHoverCell(null)}>
                   <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={colorForR(r, isDark)}
                     opacity={isHovered || isSelected ? 1 : 0.85} stroke={isSelected ? "rgb(var(--on-surface))" : isHovered ? "rgb(var(--outline))" : "none"} strokeWidth={isSelected ? 2 : 1}
-                    onClick={() => i !== j && setSelected(selected?.i === i && selected?.j === j ? null : { i, j })}
-                    className={i !== j ? "cursor-pointer" : "cursor-default"} />
+                    onClick={() => {
+                      if (i === j) { setSelected(null); return; }
+                      setSelected(selected?.i === i && selected?.j === j ? null : { i, j });
+                    }}
+                    className="cursor-pointer" />
                   {cellSize >= 28 && (
                     <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={cellSize >= 36 ? 9 : 7} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
-                      {i === j ? "" : isNaN(r) ? "—" : r.toFixed(2)}
+                      {isNaN(r) ? "—" : r.toFixed(2)}
                     </text>
                   )}
                 </g>
