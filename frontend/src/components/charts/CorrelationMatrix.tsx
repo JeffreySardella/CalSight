@@ -186,9 +186,13 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
             <text key={`row-${i}`} x={labelW - 4} y={topPad + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
           ))}
           {/* column labels last so they render above cells */}
-          {fields.map((f, j) => (
-            <text key={`col-${j}`} x={labelW + j * cellSize + cellSize / 2} y={topPad + labelW - 4} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-45, ${labelW + j * cellSize + cellSize / 2}, ${topPad + labelW - 4})`}>{f.label}</text>
-          ))}
+          {fields.map((f, j) => {
+            const tx = labelW + j * cellSize + cellSize / 2;
+            const ty = topPad - 4;
+            return (
+              <text key={`col-${j}`} x={tx} y={ty} textAnchor="start" fontSize={isMobile ? 7 : 9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-55, ${tx}, ${ty})`}>{f.label}</text>
+            );
+          })}
         </svg>
       </div>
 
