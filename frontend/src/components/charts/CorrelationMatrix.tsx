@@ -170,7 +170,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
               const isSelected = selected?.i === i && selected?.j === j;
               return (
                 <g key={`${i}-${j}`} onMouseEnter={() => setHoverCell({ i, j })} onMouseLeave={() => setHoverCell(null)}
-                  onClick={() => i !== j && setSelected(selected?.i === i && selected?.j === j ? null : { i, j })} className="cursor-pointer">
+                  onClick={() => i !== j && setSelected(selected?.i === i && selected?.j === j ? null : { i, j })} className={i !== j ? "cursor-pointer" : "cursor-default"} style={i === j ? { opacity: 0.5 } : undefined}>
                   <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={colorForR(r, isDark)}
                     opacity={isHovered || isSelected ? 1 : 0.85} stroke={isSelected ? "rgb(var(--on-surface))" : isHovered ? "rgb(var(--outline))" : "none"} strokeWidth={isSelected ? 2 : 1} />
                   {cellSize >= 28 && (
