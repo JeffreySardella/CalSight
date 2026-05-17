@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { DataStory, StoryBlock, ChartBlock } from "../../lib/dashboard/stories";
 import type { ChartSlot } from "../../lib/dashboard/types";
+import type { StatsFilters } from "../../hooks/useStats";
 import { useDashboardData } from "../../hooks/useDashboardData";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import ChartCard from "./ChartCard";
@@ -13,24 +14,8 @@ interface Props {
 export default function StoryReader({ story, onBack }: Props) {
   const filters = useFilterParams();
 
-  // Build ChartSlot[] from chart blocks so we can use useDashboardData
-  const chartSlots = useMemo<ChartSlot[]>(() => {
-    return story.blocks
-      .filter((b): b is ChartBlock => b.type === "chart")
-      .map((b, i) => ({
-        id: b.id,
-        dimension: b.dimension,
-        measure: b.measure,
-        chartType: b.chartType,
-        order: i,
-        options: b.options,
-      }));
-  }, [story.blocks]);
-
-  // Build a filters object respecting per-block filter overrides
-  // For now, we use the global filters as the base and override for the whole story
-  // (individual block overrides are handled by separate queries if needed)
-  const statsFilters = useMemo(() => ({
+  // Base filters from global filter state
+  const statsFilters = useMemo<StatsFilters>(() => ({
     dateRange: filters.selectedDateRange,
     severities: [...filters.selectedSeverities],
     causes: [...filters.selectedCauses],
@@ -42,7 +27,21 @@ export default function StoryReader({ story, onBack }: Props) {
     distracted: filters.selectedDistracted,
   }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted]);
 
-  const { dataBySlot, loading } = useDashboardData(chartSlots, statsFilters);
+  // Only fetch data for chart blocks WITHOUT filterOverrides via the shared batch call
+  const globalChartSlots = useMemo<ChartSlot[]>(() => {
+    return story.blocks
+      .filter((b): b is ChartBlock => b.type === "chart" && !b.filterOverrides)
+      .map((b, i) => ({
+        id: b.id,
+        dimension: b.dimension,
+        measure: b.measure,
+        chartType: b.chartType,
+        order: i,
+        options: b.options,
+      }));
+  }, [story.blocks]);
+
+  const { dataBySlot, loading } = useDashboardData(globalChartSlots, statsFilters);
 
   return (
     <article className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
@@ -73,6 +72,7 @@ export default function StoryReader({ story, onBack }: Props) {
           block={block}
           dataBySlot={dataBySlot}
           loading={loading}
+          baseFilters={statsFilters}
         />
       ))}
     </article>
@@ -83,10 +83,12 @@ function StoryBlockRenderer({
   block,
   dataBySlot,
   loading,
+  baseFilters,
 }: {
   block: StoryBlock;
   dataBySlot: Record<string, import("../../hooks/useDashboardData").ChartDataItem[]>;
   loading: boolean;
+  baseFilters: StatsFilters;
 }) {
   switch (block.type) {
     case "narrative":
@@ -121,6 +123,11 @@ function StoryBlockRenderer({
       );
 
     case "chart": {
+      // Charts with filterOverrides get their own data fetch
+      if (block.filterOverrides) {
+        return <OverriddenChartBlock block={block} baseFilters={baseFilters} />;
+      }
+
       const slot: ChartSlot = {
         id: block.id,
         dimension: block.dimension,
@@ -129,7 +136,6 @@ function StoryBlockRenderer({
         order: 0,
         options: block.options,
       };
-      // Build the same key that useDashboardData uses
       const opts = block.options ?? {};
       const optStr = [
         (opts as Record<string, unknown>).cumulative && "cum",
@@ -157,4 +163,62 @@ function StoryBlockRenderer({
     default:
       return null;
   }
+}
+
+/**
+ * A chart block that fetches its own data using per-block filterOverrides
+ * merged with the global base filters. This is a separate component so each
+ * overridden chart has its own stable useDashboardData hook call.
+ */
+function OverriddenChartBlock({
+  block,
+  baseFilters,
+}: {
+  block: ChartBlock;
+  baseFilters: StatsFilters;
+}) {
+  const overrides = block.filterOverrides!;
+
+  // Merge base filters with this block's overrides
+  const mergedFilters = useMemo<StatsFilters>(() => ({
+    ...baseFilters,
+    ...(overrides.counties !== undefined && { counties: overrides.counties }),
+    ...(overrides.alcohol !== undefined && { alcohol: overrides.alcohol }),
+    ...(overrides.pedestrian !== undefined && { pedestrian: overrides.pedestrian }),
+  }), [baseFilters, overrides]);
+
+  const chartSlots = useMemo<ChartSlot[]>(() => [{
+    id: block.id,
+    dimension: block.dimension,
+    measure: block.measure,
+    chartType: block.chartType,
+    order: 0,
+    options: block.options,
+  }], [block.id, block.dimension, block.measure, block.chartType, block.options]);
+
+  const { dataBySlot, loading } = useDashboardData(chartSlots, mergedFilters);
+
+  const slot: ChartSlot = chartSlots[0];
+  const opts = block.options ?? {};
+  const optStr = [
+    (opts as Record<string, unknown>).cumulative && "cum",
+    (opts as Record<string, unknown>).movingAvg && `ma${(opts as Record<string, unknown>).movingAvg}`,
+    (opts as Record<string, unknown>).logScale && "log",
+  ].filter(Boolean).join(",");
+  const key = `${block.dimension}:${block.measure}${optStr ? `:${optStr}` : ""}`;
+  const data = dataBySlot[key] ?? [];
+
+  return (
+    <div className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 ambient-shadow overflow-hidden">
+      <ChartCard
+        slot={slot}
+        data={data}
+        editing={false}
+        loading={loading}
+      />
+      {block.caption && (
+        <p className="text-xs text-on-surface-variant text-center mt-2 italic">{block.caption}</p>
+      )}
+    </div>
+  );
 }
