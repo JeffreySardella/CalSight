@@ -185,10 +185,10 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
           {fields.map((f, i) => (
             <text key={`row-${i}`} x={labelW - 4} y={topPad + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
           ))}
-          {/* column labels last so they render above cells */}
+          {/* column labels — anchored at top edge of cell grid, rotated upward */}
           {fields.map((f, j) => {
             const tx = labelW + j * cellSize + cellSize / 2;
-            const ty = topPad - 4;
+            const ty = topPad + labelW - 6;
             return (
               <text key={`col-${j}`} x={tx} y={ty} textAnchor="start" fontSize={isMobile ? 7 : 9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-55, ${tx}, ${ty})`}>{f.label}</text>
             );
