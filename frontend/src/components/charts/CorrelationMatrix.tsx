@@ -140,9 +140,9 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
   const isMobile = windowWidth < 768;
   const cellSize = isMobile ? 24 : 36;
   const labelW = isMobile ? 64 : 84;
-  const topPad = isMobile ? 60 : 80;
+  const headerH = isMobile ? 60 : 80;
   const svgW = labelW + n * cellSize;
-  const svgH = topPad + labelW + n * cellSize;
+  const svgH = headerH + labelW + n * cellSize;
 
   return (
     <div className="space-y-3">
@@ -158,13 +158,13 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
         </div>
       </div>
 
-      <div className="overflow-x-auto overflow-y-visible">
+      <div className="overflow-x-auto">
         <svg width={svgW} height={svgH} className="block overflow-visible">
           {/* cells first so labels paint on top */}
           {matrix.map((row, i) =>
             row.map((r, j) => {
               const x = labelW + j * cellSize;
-              const y = topPad + labelW + i * cellSize;
+              const y = headerH + labelW + i * cellSize;
               const isHovered = hoverCell?.i === i && hoverCell?.j === j;
               const isSelected = selected?.i === i && selected?.j === j;
               return (
@@ -183,12 +183,12 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
           )}
           {/* row labels */}
           {fields.map((f, i) => (
-            <text key={`row-${i}`} x={labelW - 4} y={topPad + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
+            <text key={`row-${i}`} x={labelW - 4} y={headerH + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
           ))}
           {/* column labels — anchored at top edge of cell grid, rotated upward */}
           {fields.map((f, j) => {
             const tx = labelW + j * cellSize + cellSize / 2;
-            const ty = topPad + labelW - 6;
+            const ty = headerH + labelW - 6;
             return (
               <text key={`col-${j}`} x={tx} y={ty} textAnchor="start" fontSize={isMobile ? 7 : 9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-55, ${tx}, ${ty})`}>{f.label}</text>
             );
