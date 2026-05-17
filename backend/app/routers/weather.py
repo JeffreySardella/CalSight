@@ -1,6 +1,8 @@
 """NOAA monthly weather data per county."""
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
@@ -11,11 +13,15 @@ from app.schemas.weather import WeatherOut
 
 router = APIRouter(tags=["weather"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
 _FIVE_MIN = "public, max-age=300"
 
 
 @router.get("/weather", response_model=list[WeatherOut])
+@_limiter.limit("30/minute")
 def list_weather(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),

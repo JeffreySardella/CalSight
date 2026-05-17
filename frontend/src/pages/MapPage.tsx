@@ -39,6 +39,7 @@ import { findCountyAtPoint } from "../lib/geo/pointInCounty";
 import UnifiedSearchBar from "../components/map/UnifiedSearchBar";
 import FilteredUrlPrompt from "../components/map/FilteredUrlPrompt";
 import IntroOverlay from "../components/map/IntroOverlay";
+import MetaTags from "../components/seo/MetaTags";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -461,6 +462,11 @@ function MapPageInner() {
 
   return (
     <>
+      <MetaTags
+        title="Map Explorer — CalSight"
+        description="Interactive choropleth map of California traffic crashes. Explore crash density, severity, and trends by county with heatmap overlays and AI-powered insights."
+        path="/"
+      />
       <h1 className="sr-only">California Crash Map Explorer</h1>
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:flex h-full z-40">

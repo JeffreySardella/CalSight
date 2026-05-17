@@ -33,7 +33,9 @@ Cache
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -44,9 +46,13 @@ from app.schemas.context import CountyInsightCardOut, StatewideInsightOut
 
 router = APIRouter(tags=["insights"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
 
 @router.get("/insights/statewide", response_model=StatewideInsightOut)
+@_limiter.limit("30/minute")
 def get_random_statewide_insight(
+    request: Request,
     response: Response,
     year: int | None = Query(None, description="Filter by year; omit for any year"),
     db: Session = Depends(get_db),
@@ -63,7 +69,9 @@ def get_random_statewide_insight(
 
 
 @router.get("/insight-cards/random", response_model=CountyInsightCardOut)
+@_limiter.limit("30/minute")
 def get_random_county_insight_card(
+    request: Request,
     response: Response,
     county: str = Query(..., description="County slug, e.g. 'los-angeles'"),
     year: int | None = Query(None),
@@ -85,7 +93,9 @@ def get_random_county_insight_card(
 
 
 @router.get("/insights/{county_slug}")
+@_limiter.limit("30/minute")
 def get_insight(
+    request: Request,
     county_slug: str,
     response: Response,
     year: int | None = Query(None, description="Insight year; defaults to latest available"),

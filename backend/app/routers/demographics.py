@@ -1,6 +1,8 @@
 """Census ACS demographics per county × year."""
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
@@ -11,9 +13,13 @@ from app.schemas.demographics import DemographicOut
 
 router = APIRouter(tags=["demographics"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
 
 @router.get("/demographics", response_model=list[DemographicOut])
+@_limiter.limit("30/minute")
 def list_demographics(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),

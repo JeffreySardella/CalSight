@@ -13,6 +13,7 @@ import {
   PERSIST_MAX_AGE,
 } from "./lib/queryPersistence";
 import Layout from "./components/Layout";
+import AdminGuard from "./components/AdminGuard";
 
 const MapPage = lazy(() => import("./pages/MapPage"));
 const StatsPage = lazy(() => import("./pages/StatsPage"));
@@ -46,7 +47,7 @@ export default function App() {
                 <Route path="about" element={<AboutPage />} />
                 <Route path="ask" element={<AskAiPage />} />
                 <Route path="privacy" element={<PrivacyPage />} />
-                <Route path="admin/etl" element={<AdminEtlPage />} />
+                <Route path="admin/etl" element={<AdminGuard><AdminEtlPage /></AdminGuard>} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>

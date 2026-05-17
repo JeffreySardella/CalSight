@@ -1,7 +1,9 @@
 """Context endpoints: unemployment, vehicles, licensed-drivers, data-quality,
 insights."""
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
@@ -26,11 +28,15 @@ from app.schemas.context import (
 
 router = APIRouter(tags=["context"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
 _FIVE_MIN = "public, max-age=300"
 
 
 @router.get("/unemployment", response_model=list[UnemploymentOut])
+@_limiter.limit("30/minute")
 def list_unemployment(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),
@@ -56,7 +62,9 @@ def list_unemployment(
 
 
 @router.get("/vehicles", response_model=list[VehicleRegistrationOut])
+@_limiter.limit("30/minute")
 def list_vehicles(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),
@@ -80,7 +88,9 @@ def list_vehicles(
 
 
 @router.get("/licensed-drivers", response_model=list[LicensedDriverOut])
+@_limiter.limit("30/minute")
 def list_licensed_drivers(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),
@@ -102,7 +112,9 @@ def list_licensed_drivers(
 
 
 @router.get("/data-quality", response_model=list[DataQualityStatOut])
+@_limiter.limit("30/minute")
 def list_data_quality(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     year: int | None = Query(None),
@@ -142,7 +154,9 @@ def list_data_quality(
 
 
 @router.get("/insights", response_model=list[CountyInsightOut])
+@_limiter.limit("30/minute")
 def list_insights(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),
@@ -166,7 +180,9 @@ def list_insights(
 
 
 @router.get("/insight-cards", response_model=list[CountyInsightCardOut])
+@_limiter.limit("30/minute")
 def list_insight_cards(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),

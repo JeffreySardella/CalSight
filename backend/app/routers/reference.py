@@ -1,7 +1,9 @@
 """Reference data endpoints: counties, hospitals, schools, road-miles,
 calenviroscreen, traffic-volumes, speed-limits."""
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.cities_match import normalize_name
@@ -32,11 +34,15 @@ from app.schemas.reference import (
 
 router = APIRouter(tags=["reference"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
 _ONE_HOUR = "public, max-age=3600"
 
 
 @router.get("/counties", response_model=list[CountyOut])
+@_limiter.limit("10/minute")
 def list_counties(
+    request: Request,
     response: Response,
     include_geojson: bool = Query(True, description="Include decoded GeoJSON in each row."),
     db: Session = Depends(get_db),
@@ -55,7 +61,9 @@ def list_counties(
 
 
 @router.get("/cities", response_model=list[CityOut])
+@_limiter.limit("30/minute")
 def list_cities(
+    request: Request,
     response: Response,
     county: str | None = Query(None, description="County slug filter, e.g. 'los-angeles'."),
     search: str | None = Query(None, description="Case-insensitive prefix match on the normalized name."),
@@ -86,7 +94,9 @@ def list_cities(
 
 
 @router.get("/hospitals", response_model=list[HospitalOut])
+@_limiter.limit("30/minute")
 def list_hospitals(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     trauma_only: bool = Query(False),
@@ -105,7 +115,9 @@ def list_hospitals(
 
 
 @router.get("/schools", response_model=PaginatedResponse[SchoolOut])
+@_limiter.limit("30/minute")
 def list_schools(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     school_type: str | None = Query(None),
@@ -136,7 +148,9 @@ def list_schools(
 
 
 @router.get("/calenviroscreen", response_model=list[CalenviroScreenOut])
+@_limiter.limit("30/minute")
 def list_calenviroscreen(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     db: Session = Depends(get_db),
@@ -152,7 +166,9 @@ def list_calenviroscreen(
 
 
 @router.get("/road-miles", response_model=list[RoadMileOut])
+@_limiter.limit("30/minute")
 def list_road_miles(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     f_system: int | None = Query(None, ge=1, le=7),
@@ -171,7 +187,9 @@ def list_road_miles(
 
 
 @router.get("/traffic-volumes", response_model=list[TrafficVolumeOut])
+@_limiter.limit("30/minute")
 def list_traffic_volumes(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     db: Session = Depends(get_db),
@@ -187,7 +205,9 @@ def list_traffic_volumes(
 
 
 @router.get("/speed-limits", response_model=list[SpeedLimitOut])
+@_limiter.limit("30/minute")
 def list_speed_limits(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     db: Session = Depends(get_db),

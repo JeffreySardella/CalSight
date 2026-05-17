@@ -95,6 +95,7 @@ from app.routers.ask import router as ask_router  # noqa: E402
 from app.routers.insights import router as insights_router  # noqa: E402
 from app.routers.meta import router as meta_router  # noqa: E402
 from app.routers.reference import router as reference_router  # noqa: E402
+from app.routers.admin import router as admin_router  # noqa: E402
 from app.routers.etl import router as etl_router  # noqa: E402
 from app.routers.stats import router as stats_router  # noqa: E402
 from app.routers.weather import router as weather_router  # noqa: E402
@@ -110,6 +111,7 @@ app.include_router(stats_router, prefix="/api")
 app.include_router(meta_router, prefix="/api")
 app.include_router(insights_router, prefix="/api")
 app.include_router(ask_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 app.include_router(etl_router, prefix="/api")
 app.include_router(pipeline_health_router, prefix="/api")
 app.include_router(weather_router, prefix="/api")

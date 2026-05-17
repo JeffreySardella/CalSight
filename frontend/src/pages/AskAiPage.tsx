@@ -5,6 +5,7 @@ import { useFilterParams } from "../hooks/useFilterParams";
 import ChatMessage from "../components/ask/ChatMessage";
 import SuggestionChips from "../components/ask/SuggestionChips";
 import ThinkingIndicator from "../components/ask/ThinkingIndicator";
+import MetaTags from "../components/seo/MetaTags";
 
 function buildGuidedTopics(county: string | null, year: string | null) {
   const area = county || "California";
@@ -129,6 +130,11 @@ export default function AskAiPage() {
 
   return (
     <div className="flex flex-col h-full max-w-[840px] mx-auto w-full">
+      <MetaTags
+        title="Ask AI — CalSight"
+        description="Ask natural-language questions about California crash data and get AI-powered analysis with charts, comparisons, and trend breakdowns."
+        path="/ask"
+      />
       {/* STICKY HEADER */}
       <div className="flex-none flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-outline-variant bg-surface z-10">
         <div className="min-w-0">

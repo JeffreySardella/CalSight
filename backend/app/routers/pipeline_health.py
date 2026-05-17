@@ -17,8 +17,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
@@ -26,6 +28,8 @@ from app.database import get_db
 from app.models import EtlRun
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
+
+_limiter = Limiter(key_func=get_remote_address)
 
 
 class PipelineHealth(BaseModel):
@@ -56,7 +60,9 @@ class DbMetrics(BaseModel):
 
 
 @router.get("/health")
+@_limiter.limit("10/minute")
 def pipeline_health(
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ) -> dict:
@@ -162,24 +168,30 @@ def pipeline_health(
     ).model_dump()
 
 
+# Hardcoded allowlist of materialized view names. Only these identifiers
+# may be interpolated into SQL queries. This prevents SQL injection even if
+# the iteration source is later changed to accept external input.
+_ALLOWED_MATVIEWS = frozenset([
+    "mv_crashes_by_year",
+    "mv_crashes_by_cause",
+    "mv_crashes_by_hour",
+    "mv_crashes_by_month",
+    "mv_crash_victims_by_demographics",
+    "mv_at_fault_parties_by_demographics",
+    "mv_crash_rates",
+    "mv_crashes_wide",
+])
+
+
 @router.get("/matviews")
+@_limiter.limit("10/minute")
 def matview_status(
+    request: Request,
     db: Session = Depends(get_db),
 ) -> list[dict]:
     """Status of all materialized views — row counts and population state."""
-    views = [
-        "mv_crashes_by_year",
-        "mv_crashes_by_cause",
-        "mv_crashes_by_hour",
-        "mv_crashes_by_month",
-        "mv_crash_victims_by_demographics",
-        "mv_at_fault_parties_by_demographics",
-        "mv_crash_rates",
-        "mv_crashes_wide",
-    ]
-
     results = []
-    for view in views:
+    for view in _ALLOWED_MATVIEWS:
         try:
             populated = db.execute(text(
                 "SELECT relispopulated FROM pg_class WHERE relname = :v"
@@ -187,7 +199,12 @@ def matview_status(
 
             row_count = 0
             if populated:
-                row_count = db.execute(text(f"SELECT COUNT(*) FROM {view}")).scalar()
+                # Safe: `view` comes from _ALLOWED_MATVIEWS (hardcoded frozenset).
+                # PG identifiers cannot be parameterized, so we validate via the
+                # allowlist and double-quote the identifier as defense-in-depth.
+                row_count = db.execute(
+                    text(f'SELECT COUNT(*) FROM "{view}"')
+                ).scalar()
 
             results.append(MatviewStatus(
                 name=view,
@@ -207,7 +224,9 @@ def matview_status(
 
 
 @router.get("/db-metrics")
+@_limiter.limit("10/minute")
 def db_metrics(
+    request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
     """Database performance metrics for capacity planning."""

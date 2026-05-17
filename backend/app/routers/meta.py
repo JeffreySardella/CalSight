@@ -1,6 +1,8 @@
 """Meta endpoints: data freshness, API metadata, coord validation audit."""
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
@@ -12,9 +14,12 @@ from app.schemas.meta import SourceFreshness
 
 router = APIRouter(tags=["meta"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
 
 @router.get("/meta/data-freshness", response_model=dict[str, SourceFreshness])
-def data_freshness(response: Response, db: Session = Depends(get_db)):
+@_limiter.limit("30/minute")
+def data_freshness(request: Request, response: Response, db: Session = Depends(get_db)):
     """Latest successful ETL run per source (for the 'data as of' pill).
 
     Backed by `etl_runs`. Returns a dict keyed by source name.
@@ -45,7 +50,8 @@ def data_freshness(response: Response, db: Session = Depends(get_db)):
 
 
 @router.get("/meta/coord-validation")
-def coord_validation_summary(response: Response, db: Session = Depends(get_db)):
+@_limiter.limit("30/minute")
+def coord_validation_summary(request: Request, response: Response, db: Session = Depends(get_db)):
     """Summary stats for coordinate validation — how many valid/mismatched/unchecked."""
     response.headers["Cache-Control"] = "public, max-age=60"
     row = db.query(
@@ -63,7 +69,9 @@ def coord_validation_summary(response: Response, db: Session = Depends(get_db)):
 
 
 @router.get("/meta/coord-mismatches")
+@_limiter.limit("30/minute")
 def coord_mismatches(
+    request: Request,
     response: Response,
     county: str | None = Query(None),
     limit: int = Query(200, ge=1, le=2000),

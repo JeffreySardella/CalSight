@@ -17,8 +17,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
@@ -26,6 +28,8 @@ from app.database import get_db
 from app.models import EtlRun
 
 router = APIRouter(tags=["freshness"])
+
+_limiter = Limiter(key_func=get_remote_address)
 
 
 class SourceFreshness(BaseModel):
@@ -74,7 +78,9 @@ _STALENESS_THRESHOLDS = {
 
 
 @router.get("/freshness")
+@_limiter.limit("60/minute")
 def get_freshness(
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ) -> list[dict]:
@@ -133,7 +139,9 @@ def get_freshness(
 
 
 @router.get("/freshness/summary")
+@_limiter.limit("60/minute")
 def get_freshness_summary(
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ) -> dict:

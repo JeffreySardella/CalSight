@@ -84,7 +84,7 @@ export default function StatsPage() {
       distracted: filters.selectedDistracted,
     };
   }, [timelapseActive, throttledTlYear, filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, drillState.county]);
-  const { data, loading, error } = useStats(statsFilters);
+  const { data, loading, error, refetch: statsRefetch } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
   const crossFilterOverrides = useMemo(() => crossFilter.toFilterOverrides(), [crossFilter.toFilterOverrides]);
   const { dataBySlot, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboardData(dashboard.activeCharts, statsFilters, crossFilterOverrides);
@@ -313,6 +313,23 @@ export default function StatsPage() {
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {loading ? "Loading statistics..." : error ? "Error loading statistics." : "Statistics loaded."}
       </div>
+      {/* Stats API error banner */}
+      {error && !loading && (
+        <div role="alert" className="flex items-center gap-3 bg-error-container/30 rounded-lg px-4 py-3">
+          <span className="material-symbols-outlined text-[20px] text-error" aria-hidden="true">cloud_off</span>
+          <div className="flex-1">
+            <p className="text-error text-sm font-semibold">Unable to load statistics</p>
+            <p className="text-on-surface-variant text-xs mt-0.5">The server may be temporarily unavailable. Please try again.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => statsRefetch()}
+            className="px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-bold hover:opacity-90 transition-opacity"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-fade-r w-full md:w-auto min-w-0">
@@ -457,6 +474,31 @@ export default function StatsPage() {
 
       {/* Auto-generated Insight Banner */}
       <InsightBanner heroMetrics={heroMetrics} loading={loading} />
+
+      {/* Overall empty state when filters return zero results */}
+      {!loading && !error && data && totalIncidents === 0 && (
+        <section
+          role="status"
+          className="flex flex-col items-center justify-center py-12 px-6 bg-surface-container-lowest rounded-2xl ambient-shadow text-center space-y-4"
+        >
+          <span className="material-symbols-outlined text-[48px] text-on-surface-variant/40" aria-hidden="true">
+            filter_list_off
+          </span>
+          <h2 className="text-lg font-headline font-bold text-on-surface">
+            No crashes match your current filters
+          </h2>
+          <p className="text-sm text-on-surface-variant max-w-md">
+            Try broadening your search by removing date, severity, or cause filters.
+          </p>
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="px-5 py-2.5 bg-primary text-on-primary rounded-full font-semibold text-sm hover:opacity-90 transition-opacity"
+          >
+            Clear All Filters
+          </button>
+        </section>
+      )}
 
       {!dashLoading && anomalyResult.all.length > 0 && (
         <AnomalyPanel anomalies={anomalyResult.all} defaultCollapsed />
