@@ -63,6 +63,7 @@ const config: Config = {
         headline: ["'Public Sans Variable'", "Public Sans", "sans-serif"],
         body: ["'Inter Variable'", "Inter", "sans-serif"],
         label: ["'Inter Variable'", "Inter", "sans-serif"],
+        serif: ["'Libre Baskerville'", "Georgia", "Cambria", "'Times New Roman'", "Times", "serif"],
       },
       // Do NOT override borderRadius — use Tailwind defaults
     },

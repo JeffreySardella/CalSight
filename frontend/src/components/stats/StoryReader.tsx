@@ -44,7 +44,7 @@ export default function StoryReader({ story, onBack }: Props) {
   const { dataBySlot, loading } = useDashboardData(globalChartSlots, statsFilters);
 
   return (
-    <article className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
+    <article className="max-w-2xl mx-auto space-y-8 sm:space-y-10">
       {/* Back button */}
       <button
         type="button"
@@ -52,15 +52,15 @@ export default function StoryReader({ story, onBack }: Props) {
         className="inline-flex items-center gap-1.5 text-primary text-sm font-medium hover:underline transition-colors min-h-[44px]"
       >
         <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
-        Back to Dashboard
+        Back to Stories
       </button>
 
       {/* Story header */}
-      <header className="space-y-2">
-        <h2 className="text-2xl sm:text-3xl font-headline font-bold text-on-surface tracking-tight">
+      <header className="space-y-3">
+        <h2 className="text-2xl sm:text-3xl font-headline font-bold text-on-surface tracking-tight leading-tight">
           {story.title}
         </h2>
-        <p className="text-on-surface-variant text-sm sm:text-base leading-relaxed">
+        <p className="text-on-surface-variant text-sm sm:text-base leading-relaxed font-serif italic">
           {story.subtitle}
         </p>
       </header>
@@ -94,12 +94,12 @@ function StoryBlockRenderer({
     case "narrative":
       return (
         <div
-          className={`space-y-2 ${block.isThesis ? "border-l-4 border-primary pl-4 sm:pl-5 py-1" : ""}`}
+          className={`space-y-2 ${block.isThesis ? "border-l-4 border-tertiary pl-4 sm:pl-5 py-2" : ""}`}
         >
           <h3 className="text-lg sm:text-xl font-headline font-semibold text-on-surface">
             {block.heading}
           </h3>
-          <p className="font-serif text-on-surface-variant text-sm sm:text-base leading-[1.8]">
+          <p className="font-serif text-on-surface-variant text-sm sm:text-base leading-[1.8] tracking-[0.01em]">
             {block.body}
           </p>
         </div>
@@ -152,9 +152,10 @@ function StoryBlockRenderer({
             data={data}
             editing={false}
             loading={loading}
+            compact
           />
           {block.caption && (
-            <p className="text-xs text-on-surface-variant text-center mt-2 italic">{block.caption}</p>
+            <p className="text-xs text-on-surface-variant text-center mt-3 italic font-serif">{block.caption}</p>
           )}
         </div>
       );
@@ -215,9 +216,10 @@ function OverriddenChartBlock({
         data={data}
         editing={false}
         loading={loading}
+        compact
       />
       {block.caption && (
-        <p className="text-xs text-on-surface-variant text-center mt-2 italic">{block.caption}</p>
+        <p className="text-xs text-on-surface-variant text-center mt-3 italic font-serif">{block.caption}</p>
       )}
     </div>
   );

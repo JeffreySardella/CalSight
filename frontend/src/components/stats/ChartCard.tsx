@@ -35,6 +35,7 @@ interface Props {
   secondaryData?: ChartDataItem[];
   editing: boolean;
   loading?: boolean;
+  compact?: boolean;
   onEdit?: () => void;
   onRemove?: () => void;
   onMoveUp?: () => void;
@@ -117,7 +118,7 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
 }
 
 function ChartCard({
-  slot, data, secondaryData, editing, loading, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay, dragHandleProps, narrativeResult, crossFilter, onBarClick,
+  slot, data, secondaryData, editing, loading, compact, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay, dragHandleProps, narrativeResult, crossFilter, onBarClick,
 }: Props) {
   const [showTable, setShowTable] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -205,7 +206,7 @@ function ChartCard({
       className={`group/card bg-surface-container-lowest chart-card-themed chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2${isSourceChart ? " ring-2 ring-primary" : ""}`}
       style={{ animationDelay: enterDelay && enterDelay > 0 ? `${enterDelay}ms` : undefined }}
     >
-      <div className="flex items-center justify-between mb-2 gap-1">
+      <div className={`flex items-center justify-between gap-1${compact ? " mb-1" : " mb-2"}`}>
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           {editing && dragHandleProps && (
             <span
@@ -217,9 +218,9 @@ function ChartCard({
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
             </span>
           )}
-          <h3 className="text-sm font-headline font-bold text-on-surface leading-tight truncate">{title}</h3>
+          <h3 className={`font-headline font-bold text-on-surface leading-tight truncate${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{title}</h3>
         </div>
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+        {!compact && <div className="flex items-center gap-0.5 flex-shrink-0 sm:hidden sm:group-hover/card:flex">
           <button
             onClick={handleExplainChart}
             className="p-1.5 sm:p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
@@ -278,7 +279,7 @@ function ChartCard({
               </button>
             </>
           )}
-        </div>
+        </div>}
       </div>
 
       {loading ? (
