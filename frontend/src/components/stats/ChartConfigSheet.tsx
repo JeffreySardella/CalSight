@@ -4,8 +4,8 @@ import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dash
 
 interface Props {
   open: boolean;
-  initial?: { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension; options?: ChartOptions };
-  onConfirm: (config: { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension; options?: ChartOptions }) => void;
+  initial?: { dimension: Dimension; measure: Measure; secondaryMeasure?: Measure; chartType: ChartType; splitBy?: Dimension; options?: ChartOptions };
+  onConfirm: (config: { dimension: Dimension; measure: Measure; secondaryMeasure?: Measure; chartType: ChartType; splitBy?: Dimension; options?: ChartOptions }) => void;
   onCancel: () => void;
 }
 

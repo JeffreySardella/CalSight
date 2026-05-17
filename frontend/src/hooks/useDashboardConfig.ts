@@ -47,7 +47,7 @@ function loadInitialConfig(): DashboardConfig {
   return { mode: "simple", preset: "overview", charts: [] };
 }
 
-type NewChart = { dimension: Dimension; measure: Measure; chartType: ChartType; splitBy?: Dimension; options?: ChartOptions };
+type NewChart = { dimension: Dimension; measure: Measure; secondaryMeasure?: Measure; chartType: ChartType; splitBy?: Dimension; options?: ChartOptions };
 
 export function useDashboardConfig() {
   const [config, setConfig] = useState<DashboardConfig>(loadInitialConfig);
