@@ -217,9 +217,9 @@ function ChartCard({
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
             </span>
           )}
-          <h3 className="text-sm font-headline font-bold text-on-surface leading-tight">{title}</h3>
+          <h3 className="text-sm font-headline font-bold text-on-surface leading-tight truncate">{title}</h3>
         </div>
-        <div className="flex flex-wrap items-center gap-0.5">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             onClick={handleExplainChart}
             className="p-1.5 sm:p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"

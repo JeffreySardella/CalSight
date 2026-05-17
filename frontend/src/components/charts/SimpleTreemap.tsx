@@ -132,10 +132,7 @@ export default function SimpleTreemap({
                 fill={color}
                 fillOpacity={hover !== null && hover.idx !== r.idx ? 0.4 : 1}
                 onMouseMove={(e) => {
-                  const svg = svgRef.current;
-                  if (!svg) return;
-                  const rect = svg.getBoundingClientRect();
-                  setHover({ idx: r.idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
+                  setHover({ idx: r.idx, x: e.clientX, y: e.clientY });
                 }}
                 onMouseLeave={() => setHover(null)}
                 className="cursor-pointer transition-opacity"

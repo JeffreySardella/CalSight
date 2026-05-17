@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
+import { useIsDark } from "../../context/ThemeContext";
 
 interface Props {
   fields: CorrelationField[];
@@ -9,18 +10,23 @@ interface Props {
   counties?: CountyRow[];
 }
 
-function colorForR(r: number): string {
+function colorForR(r: number, isDark: boolean): string {
   if (r >= 0.7) return "#1d4ed8";
   if (r >= 0.4) return "#3b82f6";
   if (r >= 0.2) return "#93c5fd";
-  if (r > -0.2) return "#e5e7eb";
+  if (r > -0.2) return isDark ? "#3f3f46" : "#e5e7eb";
   if (r > -0.4) return "#fca5a5";
   if (r > -0.7) return "#ef4444";
   return "#991b1b";
 }
 
-function textColorForR(r: number): string {
-  return Math.abs(r) >= 0.4 ? "#fff" : "rgb(var(--on-surface))";
+function textColorForR(r: number, isDark: boolean): string {
+  // Strong correlation: white text on saturated blue/red backgrounds
+  if (Math.abs(r) >= 0.4) return "#ffffff";
+  // Weak positive/negative: colored bg is mid-tone, use dark text for contrast
+  if (Math.abs(r) >= 0.2) return "#1f1f23";
+  // Near-zero: neutral bg adapts to mode
+  return isDark ? "#e4e4e7" : "#1f1f23";
 }
 
 function fmt(v: number): string {
@@ -117,6 +123,7 @@ function DetailScatter({ counties, xField, yField, r }: {
 }
 
 export default function CorrelationMatrix({ fields, matrix, countyCount, counties }: Props) {
+  const isDark = useIsDark();
   const [hoverCell, setHoverCell] = useState<{ i: number; j: number } | null>(null);
   const [selected, setSelected] = useState<{ i: number; j: number } | null>(null);
   const [windowWidth, setWindowWidth] = useState(() =>
@@ -132,8 +139,8 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
   const n = fields.length;
   const isMobile = windowWidth < 768;
   const cellSize = isMobile ? 24 : 36;
-  const labelW = isMobile ? 56 : 76;
-  const topPad = isMobile ? 40 : 56;
+  const labelW = isMobile ? 64 : 84;
+  const topPad = isMobile ? 48 : 64;
   const svgW = labelW + n * cellSize;
   const svgH = topPad + labelW + n * cellSize;
 
@@ -146,19 +153,14 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
         </div>
         <div className="flex items-center gap-2 text-[9px] text-on-surface-variant">
           <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#991b1b" }} /><span>-1</span></div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#e5e7eb" }} /><span>0</span></div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: isDark ? "#3f3f46" : "#e5e7eb" }} /><span>0</span></div>
           <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#1d4ed8" }} /><span>+1</span></div>
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <svg width={svgW} height={svgH} className="block">
-          {fields.map((f, i) => (
-            <text key={`row-${i}`} x={labelW - 4} y={topPad + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
-          ))}
-          {fields.map((f, j) => (
-            <text key={`col-${j}`} x={labelW + j * cellSize + cellSize / 2} y={topPad + labelW - 4} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-45, ${labelW + j * cellSize + cellSize / 2}, ${topPad + labelW - 4})`}>{f.label}</text>
-          ))}
+        <svg width={svgW} height={svgH} className="block overflow-visible">
+          {/* cells first so labels paint on top */}
           {matrix.map((row, i) =>
             row.map((r, j) => {
               const x = labelW + j * cellSize;
@@ -168,10 +170,10 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
               return (
                 <g key={`${i}-${j}`} onMouseEnter={() => setHoverCell({ i, j })} onMouseLeave={() => setHoverCell(null)}
                   onClick={() => i !== j && setSelected(selected?.i === i && selected?.j === j ? null : { i, j })} className="cursor-pointer">
-                  <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={colorForR(r)}
+                  <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={colorForR(r, isDark)}
                     opacity={isHovered || isSelected ? 1 : 0.85} stroke={isSelected ? "rgb(var(--on-surface))" : isHovered ? "rgb(var(--outline))" : "none"} strokeWidth={isSelected ? 2 : 1} />
                   {cellSize >= 28 && (
-                    <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={cellSize >= 36 ? 9 : 7} fontWeight={700} fill={textColorForR(r)} fontFamily="'Inter Variable', Inter, sans-serif">
+                    <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={cellSize >= 36 ? 9 : 7} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif">
                       {i === j ? "" : r.toFixed(2)}
                     </text>
                   )}
@@ -179,6 +181,14 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
               );
             }),
           )}
+          {/* row labels */}
+          {fields.map((f, i) => (
+            <text key={`row-${i}`} x={labelW - 4} y={topPad + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{f.label}</text>
+          ))}
+          {/* column labels last so they render above cells */}
+          {fields.map((f, j) => (
+            <text key={`col-${j}`} x={labelW + j * cellSize + cellSize / 2} y={topPad + labelW - 4} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-45, ${labelW + j * cellSize + cellSize / 2}, ${topPad + labelW - 4})`}>{f.label}</text>
+          ))}
         </svg>
       </div>
 
@@ -188,7 +198,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
           {" × "}
           <span className="font-bold text-on-surface">{fields[hoverCell.j].label}</span>
           {" = "}
-          <span className="font-bold" style={{ color: colorForR(matrix[hoverCell.i][hoverCell.j]) }}>r = {matrix[hoverCell.i][hoverCell.j].toFixed(2)}</span>
+          <span className="font-bold" style={{ color: Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.2 ? colorForR(matrix[hoverCell.i][hoverCell.j], isDark) : undefined }}>r = {matrix[hoverCell.i][hoverCell.j].toFixed(2)}</span>
           {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.7 && " (strong)"}
           {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.4 && Math.abs(matrix[hoverCell.i][hoverCell.j]) < 0.7 && " (moderate)"}
         </p>

@@ -49,10 +49,7 @@ export default function SimpleDonutChart({
   const { progress } = useChartAnimation(svgRef);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    setHover({ idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
   if (!data.length) return null;
@@ -108,7 +105,7 @@ export default function SimpleDonutChart({
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={vw} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+      <svg ref={svgRef} width={vw} height={height} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}>
         {title && <title id={titleId}>{title}</title>}
         {segments.map((seg, i) => {
           const isHovered = hover?.idx === i;

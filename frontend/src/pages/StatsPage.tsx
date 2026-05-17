@@ -154,7 +154,7 @@ export default function StatsPage() {
 
   // Build typed chips so each one knows how to remove itself.
   // "All X" chips open the filter panel instead of removing — they have no onRemove.
-  type Chip = { label: string; onRemove?: () => void; onOpen?: () => void };
+  type Chip = { label: string; onRemove?: () => void; onOpen?: () => void; variant?: "default" | "tertiary" };
 
   const openFilters = () => setShowMobileFilters(true);
 
@@ -197,7 +197,7 @@ export default function StatsPage() {
   ];
 
   const crossFilterChips: Chip[] = crossFilter.state.selection
-    ? [{ label: `Cross-filter: ${DIMENSION_LABELS[crossFilter.state.selection.dimension]}`, onRemove: () => crossFilter.clearCrossFilter() }]
+    ? [{ label: `Cross-filter: ${DIMENSION_LABELS[crossFilter.state.selection.dimension]}`, onRemove: () => crossFilter.clearCrossFilter(), variant: "tertiary" }]
     : [];
 
   const chips: Chip[] = [
@@ -307,16 +307,20 @@ export default function StatsPage() {
       </div>
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full md:w-auto">
+        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full md:w-auto min-w-0">
           <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mr-2 flex-shrink-0">
             Filters:
           </span>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
             {chips.map((chip) => (
               chip.onRemove ? (
                 <span
                   key={chip.label}
-                  className="inline-flex items-center gap-1 bg-surface-container-highest px-3 py-1 rounded-full text-xs font-medium text-on-surface whitespace-nowrap"
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                    chip.variant === "tertiary"
+                      ? "bg-tertiary/15 text-tertiary border border-tertiary/30"
+                      : "bg-surface-container-highest text-on-surface"
+                  }`}
                 >
                   {chip.label}
                   <button
@@ -355,7 +359,7 @@ export default function StatsPage() {
       {/* Hero Metrics Row */}
       <section aria-label="Key metrics summary" className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Total Incidents */}
-        <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 sm:p-6 ambient-shadow">
           <div className="flex items-start justify-between mb-4">
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
               Total Incidents
@@ -387,9 +391,9 @@ export default function StatsPage() {
         </div>
 
         {/* KSI Rate */}
-        <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 sm:p-6 ambient-shadow">
           <div className="flex items-start justify-between mb-4">
-            <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
+            <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest leading-tight">
               KSI Rate / 100K Pop.
             </p>
             {!loading && sparkKsi.length >= 2 && (
@@ -409,7 +413,7 @@ export default function StatsPage() {
         </div>
 
         {/* YoY Fatality Change */}
-        <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 sm:p-6 ambient-shadow">
           <div className="flex items-start justify-between mb-4">
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
               YoY Fatality Change
@@ -429,10 +433,11 @@ export default function StatsPage() {
               </h2>
             )}
             {yoyFatalityChangePct != null && (
-              <span className={`text-sm font-bold flex items-center ${fatalityUp ? "text-error" : "text-primary"}`}>
+              <span className={`text-sm font-bold flex items-center gap-0.5 ${fatalityUp ? "text-error" : "text-primary"}`}>
                 <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                   {fatalityUp ? "trending_up" : "trending_down"}
                 </span>
+                <span className="text-xs">{fatalityUp ? "worse" : "improved"}</span>
               </span>
             )}
           </div>
@@ -446,11 +451,11 @@ export default function StatsPage() {
       <InsightBanner heroMetrics={heroMetrics} loading={loading} />
 
       {!dashLoading && anomalyResult.all.length > 0 && (
-        <AnomalyPanel anomalies={anomalyResult.all} />
+        <AnomalyPanel anomalies={anomalyResult.all} defaultCollapsed />
       )}
 
       {narrative && (
-        <NarrativePanel narrative={narrative} tone={tone} onToneChange={setTone} />
+        <NarrativePanel narrative={narrative} tone={tone} onToneChange={setTone} defaultCollapsed />
       )}
 
       {!dashLoading && suggestions.length > 0 && (
@@ -460,12 +465,13 @@ export default function StatsPage() {
             if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
             dashboard.addChart(cfg);
           }}
+          defaultCollapsed
         />
       )}
 
       {/* Dashboard Builder */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center justify-between gap-2 flex-wrap md:flex-nowrap">
           <DashboardModeToggle
             mode={storiesMode ? "stories" : dashboard.config.mode}
             onChange={(m) => {
@@ -478,7 +484,7 @@ export default function StatsPage() {
               }
             }}
           />
-          <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 flex-shrink-0 flex-wrap md:flex-nowrap">
             <SavedDashboardsPanel
               currentConfig={dashboard.config}
               onLoad={dashboard.setConfig}
@@ -622,12 +628,12 @@ export default function StatsPage() {
       </section>
 
       {/* Vehicle Trends */}
-      <section className="bg-surface-container-lowest rounded-2xl p-5 md:p-8 ambient-shadow">
+      <section className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
         <VehicleTrends />
       </section>
 
       {/* Correlation Explorer */}
-      <section className="bg-surface-container-lowest rounded-2xl p-5 md:p-8 ambient-shadow overflow-hidden">
+      <section className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
         {correlation.isLoading ? (
           <Skeleton className="h-[500px] rounded-lg" />
         ) : correlation.error ? (
@@ -646,10 +652,10 @@ export default function StatsPage() {
       </section>
 
       {/* Methodology Footer */}
-      <section className="border-t border-outline-variant/15 pt-12 pb-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-[10px] leading-relaxed uppercase tracking-widest font-medium text-on-surface-variant">
+      <section className="border-t border-outline-variant/15 pt-8 sm:pt-12 pb-10 sm:pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-12 text-[11px] leading-relaxed uppercase tracking-wider font-medium text-on-surface-variant">
           <div className="space-y-4">
-            <h4 className="font-bold text-on-surface text-[11px]">Data Sources</h4>
+            <h4 className="font-bold text-on-surface text-xs">Data Sources</h4>
             <p>
               Crash records from the Statewide Integrated Traffic Records
               System (SWITRS, 2001&ndash;2015) and the California Crash Records
@@ -661,7 +667,7 @@ export default function StatsPage() {
             </p>
           </div>
           <div className="space-y-4">
-            <h4 className="font-bold text-on-surface text-[11px]">California Public Records Act</h4>
+            <h4 className="font-bold text-on-surface text-xs">California Public Records Act</h4>
             <p>
               SWITRS and CCRS data are public records under CA Gov Code
               &sect; 6250. Source data available at data.chp.ca.gov. This

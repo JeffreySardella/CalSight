@@ -30,12 +30,12 @@ export default function InsightBanner({ heroMetrics, loading }: InsightBannerPro
     <div
       role="status"
       aria-live="polite"
-      className="flex items-center gap-3 bg-surface-container-low border-l-2 border-primary rounded-lg px-4 py-3"
+      className="flex items-center gap-3 bg-surface-container-low border-l-2 border-primary rounded-lg px-4 py-3 overflow-hidden"
     >
-      <span className="material-symbols-outlined text-primary text-[20px]" aria-hidden="true">
+      <span className="material-symbols-outlined text-primary text-[20px] flex-shrink-0" aria-hidden="true">
         auto_awesome
       </span>
-      <p className="text-on-surface text-sm font-medium">{sentence}</p>
+      <p className="text-on-surface text-sm font-medium min-w-0 break-words">{sentence}</p>
     </div>
   );
 }

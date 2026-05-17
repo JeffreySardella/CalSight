@@ -67,17 +67,14 @@ export default function SimpleLineChart({
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGCircleElement | SVGRectElement>, idx: number) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    setHover({ idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
   if (!data.length) return null;
 
   const maxVal = Math.max(...data.map((d) => d.value), 1);
-  const yAxisW = showYAxis ? 50 : 0;
-  const padding = { top: 12, right: 12, bottom: 32, left: yAxisW + 8 };
+  const yAxisW = showYAxis ? 54 : 0;
+  const padding = { top: 16, right: 16, bottom: 32, left: yAxisW + 8 };
   const chartH = height - padding.top - padding.bottom;
   const chartW = svgWidth - padding.left - padding.right;
   const n = data.length;
@@ -104,14 +101,14 @@ export default function SimpleLineChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}>
         {title && <title id={titleId}>{title}</title>}
         {showYAxis && yTickVals.map((v) => {
           const y = padding.top + chartH - (v / maxVal) * chartH;
           return (
             <g key={v}>
-              <line x1={padding.left} x2="100%" y1={y} y2={y} stroke="rgb(var(--outline-variant))" strokeOpacity={0.2} />
-              <text x={padding.left - 6} y={y + 3} textAnchor="end" fontSize={10} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
+              <line x1={padding.left} x2={svgWidth - padding.right} y1={y} y2={y} stroke="rgb(var(--outline-variant))" strokeOpacity={0.2} />
+              <text x={Math.max(padding.left - 6, 2)} y={y + 3} textAnchor="end" fontSize={10} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
                 {formatNumber(v)}
               </text>
             </g>
@@ -226,7 +223,7 @@ export default function SimpleLineChart({
           return (
             <g>
               <line x1={points[0].x} x2={points[points.length - 1].x} y1={y0} y2={yN} stroke="rgb(var(--tertiary))" strokeWidth={1.5} strokeDasharray="8 4" strokeOpacity={0.7} />
-              <text x={padding.left + chartW - 4} y={yN - 6} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--tertiary))" fillOpacity={0.8} fontFamily="'Inter Variable', Inter, sans-serif">
+              <text x={Math.min(padding.left + chartW - 4, svgWidth - padding.right)} y={Math.max(yN - 6, padding.top + 10)} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--tertiary))" fillOpacity={0.8} fontFamily="'Inter Variable', Inter, sans-serif">
                 R²={reg.r2.toFixed(2)}
               </text>
             </g>
@@ -251,8 +248,9 @@ export default function SimpleLineChart({
           const fcMax = Math.max(maxVal, ...forecastData.map(f => f.upper));
           const yScale = (v: number) => padding.top + chartH - (v / fcMax) * chartH;
           const stepX = n > 1 ? (points[1].x - points[0].x) : chartW / 4;
+          const maxX = svgWidth - padding.right;
           const fcPts = forecastData.map((f, i) => ({
-            x: lastPt.x + (i + 1) * stepX,
+            x: Math.min(lastPt.x + (i + 1) * stepX, maxX),
             yPred: yScale(f.value),
             yUpper: yScale(f.upper),
             yLower: yScale(f.lower),

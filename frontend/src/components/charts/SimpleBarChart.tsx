@@ -58,10 +58,7 @@ export default function SimpleBarChart({
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGRectElement>, idx: number) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    setHover({ idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
   if (!data.length) return null;
@@ -83,7 +80,7 @@ export default function SimpleBarChart({
             const hlOpacity = hl === "dimmed" ? 0.3 : 1;
             return (
               <g key={d.label}>
-                <text x={0} y={y + barH / 2 + 4} fontSize={10} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
+                <text x={0} y={y + barH / 2 + 4} fontSize={10} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" textLength={d.label.length * 6 > labelW - 8 ? labelW - 8 : undefined} lengthAdjust="spacingAndGlyphs">
                   {d.label}
                 </text>
                 <rect
@@ -111,12 +108,12 @@ export default function SimpleBarChart({
     );
   }
 
-  const padding = { top: 24, right: 8, bottom: showXAxis ? 28 : 4, left: 8 };
+  const padding = { top: 28, right: 8, bottom: showXAxis ? 32 : 4, left: 8 };
   const chartH = height - padding.top - padding.bottom;
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? `${titleId}-v` : undefined}>
+      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible" role="img" aria-labelledby={title ? `${titleId}-v` : undefined}>
         {title && <title id={`${titleId}-v`}>{title}</title>}
         {data.map((d, i) => {
           const n = data.length;
@@ -176,6 +173,8 @@ export default function SimpleBarChart({
                       fontWeight={600}
                       fill="rgb(var(--on-surface-variant))"
                       fontFamily="'Inter Variable', Inter, sans-serif"
+                      textLength={barW > 0 && d.label.length * 6 > barW ? barW : undefined}
+                      lengthAdjust="spacingAndGlyphs"
                     >
                       {d.label}
                     </text>
@@ -191,7 +190,7 @@ export default function SimpleBarChart({
           return (
             <g>
               <line x1={padding.left} x2={padding.left + svgWidth - padding.left - padding.right} y1={yM} y2={yM} stroke="rgb(var(--error))" strokeWidth={1} strokeDasharray="6 3" strokeOpacity={0.6} />
-              <text x={svgWidth - padding.right + 2} y={yM + 3} fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
+              <text x={svgWidth - padding.right - 2} y={yM - 4} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
             </g>
           );
         })()}

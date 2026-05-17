@@ -48,22 +48,20 @@ export default function SimpleLollipop({
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent, idx: number) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    setHover({ idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
   if (!data.length) return null;
   const maxVal = Math.max(...data.map((d) => d.value), 1);
-  const labelW = 80;
-  const barArea = Math.max(svgWidth - labelW - 40, 0);
+  const labelW = 84;
+  const valueW = 48;
+  const barArea = Math.max(svgWidth - labelW - valueW, 0);
   const rowH = Math.min(28, (height - 8) / data.length);
   const svgH = Math.max(height, data.length * rowH + 8);
 
   return (
     <div className="w-full overflow-visible relative" style={{ height: svgH }}>
-      <svg ref={svgRef} width="100%" height={svgH} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+      <svg ref={svgRef} width="100%" height={svgH} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}>
         {title && <title id={titleId}>{title}</title>}
         {data.map((d, i) => {
           const y = i * rowH + rowH / 2 + 4;
@@ -91,7 +89,7 @@ export default function SimpleLollipop({
                 fill="rgb(var(--on-surface-variant))"
                 fontFamily="'Inter Variable', Inter, sans-serif"
               >
-                {d.label.length > 12 ? d.label.slice(0, 11) + "…" : d.label}
+                {d.label.length > 14 ? d.label.slice(0, 13) + "…" : d.label}
               </text>
               <line
                 x1={labelW}
@@ -108,7 +106,7 @@ export default function SimpleLollipop({
                 r={isHovered ? 6 : 4}
                 fill={color}
               />
-              {labelW + w + 10 > svgWidth - 36 ? (
+              {labelW + w + 10 > svgWidth - valueW ? (
                 <text
                   x={labelW + w - 10}
                   y={y + 3}

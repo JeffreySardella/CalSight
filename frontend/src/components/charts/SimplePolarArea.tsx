@@ -26,10 +26,7 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
   const titleId = useId();
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    setHover({ idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
   if (!data.length) return null;

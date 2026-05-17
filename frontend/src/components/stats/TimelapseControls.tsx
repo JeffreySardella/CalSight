@@ -41,7 +41,7 @@ export default function TimelapseControls({
           type="button"
           onClick={() => onSeek(currentYear - 1)}
           disabled={currentYear <= minYear}
-          className="p-2 rounded-full text-on-surface-variant hover:text-on-surface disabled:opacity-30 transition-colors"
+          className="p-2.5 rounded-full text-on-surface-variant hover:text-on-surface disabled:opacity-30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Previous year"
         >
           <span className="material-symbols-outlined text-[24px]">skip_previous</span>
@@ -62,7 +62,7 @@ export default function TimelapseControls({
           type="button"
           onClick={() => onSeek(currentYear + 1)}
           disabled={currentYear >= maxYear}
-          className="p-2 rounded-full text-on-surface-variant hover:text-on-surface disabled:opacity-30 transition-colors"
+          className="p-2.5 rounded-full text-on-surface-variant hover:text-on-surface disabled:opacity-30 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Next year"
         >
           <span className="material-symbols-outlined text-[24px]">skip_next</span>
@@ -70,8 +70,8 @@ export default function TimelapseControls({
       </div>
 
       {/* Year scrubber */}
-      <div className="w-full max-w-md flex items-center gap-3">
-        <span className="text-xs text-on-surface-variant tabular-nums">{minYear}</span>
+      <div className="w-full max-w-md flex items-center gap-2 sm:gap-3 px-1">
+        <span className="text-[10px] sm:text-xs text-on-surface-variant tabular-nums flex-shrink-0">{minYear}</span>
         <input
           type="range"
           min={minYear}
@@ -82,11 +82,11 @@ export default function TimelapseControls({
           className="flex-1 h-2 rounded-full appearance-none bg-surface-container-highest cursor-pointer accent-primary"
           aria-label="Seek year"
         />
-        <span className="text-xs text-on-surface-variant tabular-nums">{maxYear}</span>
+        <span className="text-[10px] sm:text-xs text-on-surface-variant tabular-nums flex-shrink-0">{maxYear}</span>
       </div>
 
       {/* Speed chips */}
-      <div className="flex items-center gap-2" role="radiogroup" aria-label="Playback speed">
+      <div className="flex items-center gap-2 flex-wrap justify-center w-full max-w-md" role="radiogroup" aria-label="Playback speed">
         {SPEEDS.map((s) => (
           <button
             key={s}
@@ -94,7 +94,7 @@ export default function TimelapseControls({
             role="radio"
             aria-checked={speed === s}
             onClick={() => onSetSpeed(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            className={`px-4 py-2.5 rounded-full text-xs font-medium transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
               speed === s
                 ? "bg-primary text-on-primary"
                 : "bg-surface-container-high text-on-surface-variant hover:text-on-surface"

@@ -72,6 +72,7 @@ export default function NlqQueryBar({ onAddChart }: Props) {
         <input
           ref={inputRef}
           type="text"
+          role="combobox"
           value={value}
           onChange={(e) => { setValue(e.target.value); setShowSuggestions(true); setSelectedIdx(-1); }}
           onFocus={() => setShowSuggestions(true)}
@@ -101,7 +102,7 @@ export default function NlqQueryBar({ onAddChart }: Props) {
           {parsed.dimension && <span className="px-1.5 py-0.5 bg-primary-container/30 rounded">{DIMENSION_LABELS[parsed.dimension]}</span>}
           {parsed.measure && <span className="px-1.5 py-0.5 bg-tertiary-container/30 rounded">{MEASURE_LABELS[parsed.measure]}</span>}
           {parsed.chartType && <span className="px-1.5 py-0.5 bg-secondary-container/30 rounded">{parsed.chartType}</span>}
-          <span className={`ml-auto ${parsed.confidence === "high" ? "text-green-600" : parsed.confidence === "medium" ? "text-yellow-600" : "text-red-500"}`}>
+          <span className={`ml-auto font-semibold ${parsed.confidence === "high" ? "text-primary" : parsed.confidence === "medium" ? "text-tertiary" : "text-error"}`}>
             {parsed.confidence}
           </span>
         </div>

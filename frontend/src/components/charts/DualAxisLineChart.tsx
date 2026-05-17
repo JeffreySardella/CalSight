@@ -66,10 +66,7 @@ export default function DualAxisLineChart({
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGRectElement>, idx: number) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    setHover({ idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
   if (!data.length) return null;

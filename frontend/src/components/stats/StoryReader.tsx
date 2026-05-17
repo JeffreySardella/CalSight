@@ -45,12 +45,12 @@ export default function StoryReader({ story, onBack }: Props) {
   const { dataBySlot, loading } = useDashboardData(chartSlots, statsFilters);
 
   return (
-    <article className="max-w-2xl mx-auto space-y-8">
+    <article className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
       {/* Back button */}
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex items-center gap-1.5 text-primary text-sm font-medium hover:underline transition-colors"
+        className="inline-flex items-center gap-1.5 text-primary text-sm font-medium hover:underline transition-colors min-h-[44px]"
       >
         <span className="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
         Back to Dashboard
@@ -58,10 +58,10 @@ export default function StoryReader({ story, onBack }: Props) {
 
       {/* Story header */}
       <header className="space-y-2">
-        <h2 className="text-3xl font-headline font-bold text-on-surface tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-headline font-bold text-on-surface tracking-tight">
           {story.title}
         </h2>
-        <p className="text-on-surface-variant text-base leading-relaxed">
+        <p className="text-on-surface-variant text-sm sm:text-base leading-relaxed">
           {story.subtitle}
         </p>
       </header>
@@ -92,12 +92,12 @@ function StoryBlockRenderer({
     case "narrative":
       return (
         <div
-          className={`space-y-2 ${block.isThesis ? "border-l-4 border-primary pl-5 py-1" : ""}`}
+          className={`space-y-2 ${block.isThesis ? "border-l-4 border-primary pl-4 sm:pl-5 py-1" : ""}`}
         >
-          <h3 className="text-xl font-headline font-semibold text-on-surface">
+          <h3 className="text-lg sm:text-xl font-headline font-semibold text-on-surface">
             {block.heading}
           </h3>
-          <p className="font-serif text-on-surface-variant text-base leading-[1.8]">
+          <p className="font-serif text-on-surface-variant text-sm sm:text-base leading-[1.8]">
             {block.body}
           </p>
         </div>
@@ -105,8 +105,8 @@ function StoryBlockRenderer({
 
     case "stat-callout":
       return (
-        <div className="bg-primary-container/20 rounded-xl px-6 py-5 text-center space-y-1">
-          <p className="text-4xl font-headline font-bold text-primary tracking-tight">
+        <div className="bg-primary-container/20 rounded-xl px-4 sm:px-6 py-4 sm:py-5 text-center space-y-1">
+          <p className="text-3xl sm:text-4xl font-headline font-bold text-primary tracking-tight break-words">
             {block.value}
           </p>
           <p className="text-sm font-semibold text-on-surface">
@@ -140,7 +140,7 @@ function StoryBlockRenderer({
       const data = dataBySlot[key] ?? [];
 
       return (
-        <div className="bg-surface-container-lowest rounded-2xl p-5 ambient-shadow">
+        <div className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 ambient-shadow overflow-hidden">
           <ChartCard
             slot={slot}
             data={data}
