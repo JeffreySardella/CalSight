@@ -57,29 +57,31 @@ logger = logging.getLogger(__name__)
 # All times in UTC. The server is on Proxmox LXC 100 (Pacific time = UTC-7/8).
 # 3 AM Pacific = 10 AM UTC (winter) / 11 AM UTC (summer).
 
+ETL_TIMEZONE = os.getenv("ETL_TIMEZONE", "America/Los_Angeles")
+
 SCHEDULES = {
     # Daily crash data refresh — CHP updates the CCRS CKAN dataset overnight
     "daily_crashes": {
-        "cron": "0 10 * * *",  # 3 AM Pacific
+        "cron": "0 3 * * *",  # 3 AM Pacific
         "jobs": None,  # None = all non-static jobs (respects dependency order)
         "description": "Full daily pipeline: crashes, parties, victims, backfill, matviews",
     },
     # Weekly full refresh — includes monthly sources that might have updated
     "weekly_full": {
-        "cron": "0 8 * * 0",  # Sunday 1 AM Pacific
+        "cron": "0 1 * * 0",  # Sunday 1 AM Pacific
         "jobs": None,
         "force_refresh": True,
         "description": "Weekly forced refresh of all sources",
     },
     # Database maintenance — VACUUM ANALYZE after the daily load finishes
     "maintenance": {
-        "cron": "0 14 * * *",  # 7 AM Pacific (after daily ETL settles)
+        "cron": "0 7 * * *",  # 7 AM Pacific (after daily ETL settles)
         "jobs": ["vacuum"],
         "description": "VACUUM ANALYZE on hot tables and matviews",
     },
     # Backup — pg_dump nightly
     "backup": {
-        "cron": "0 6 * * *",  # 11 PM Pacific (low traffic)
+        "cron": "0 23 * * *",  # 11 PM Pacific (low traffic)
         "description": "PostgreSQL backup with 7-day rotation",
     },
 }
@@ -295,7 +297,7 @@ def main() -> int:
     # Daily crash pipeline
     scheduler.add_job(
         run_daily_pipeline,
-        CronTrigger.from_crontab(SCHEDULES["daily_crashes"]["cron"]),
+        CronTrigger.from_crontab(SCHEDULES["daily_crashes"]["cron"], timezone=ETL_TIMEZONE),
         id="daily_crashes",
         replace_existing=True,
         misfire_grace_time=3600,
@@ -304,7 +306,7 @@ def main() -> int:
     # Weekly full refresh
     scheduler.add_job(
         run_weekly_pipeline,
-        CronTrigger.from_crontab(SCHEDULES["weekly_full"]["cron"]),
+        CronTrigger.from_crontab(SCHEDULES["weekly_full"]["cron"], timezone=ETL_TIMEZONE),
         id="weekly_full",
         replace_existing=True,
         misfire_grace_time=3600,
@@ -315,7 +317,7 @@ def main() -> int:
         lambda: run_pipeline(
             build_default_registry(), triggered_by="schedule", only=["vacuum"]
         ),
-        CronTrigger.from_crontab(SCHEDULES["maintenance"]["cron"]),
+        CronTrigger.from_crontab(SCHEDULES["maintenance"]["cron"], timezone=ETL_TIMEZONE),
         id="maintenance",
         replace_existing=True,
     )
@@ -324,7 +326,7 @@ def main() -> int:
     if not args.no_backup:
         scheduler.add_job(
             run_backup,
-            CronTrigger.from_crontab(SCHEDULES["backup"]["cron"]),
+            CronTrigger.from_crontab(SCHEDULES["backup"]["cron"], timezone=ETL_TIMEZONE),
             id="backup",
             replace_existing=True,
         )
