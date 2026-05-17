@@ -180,7 +180,6 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
                       setSelected(selected?.i === i && selected?.j === j ? null : { i, j });
                     }}
                     className="cursor-pointer"
-                    role="gridcell"
                     aria-label={`${fields[i].label} vs ${fields[j].label}: r = ${isNaN(r) ? "N/A" : r.toFixed(2)}`} />
                   {cellSize >= 28 && (
                     <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={cellSize >= 36 ? 9 : 7} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
