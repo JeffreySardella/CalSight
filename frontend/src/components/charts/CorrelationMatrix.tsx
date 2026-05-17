@@ -140,7 +140,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
   const isMobile = windowWidth < 768;
   const cellSize = isMobile ? 24 : 36;
   const labelW = isMobile ? 64 : 84;
-  const topPad = isMobile ? 48 : 64;
+  const topPad = isMobile ? 60 : 80;
   const svgW = labelW + n * cellSize;
   const svgH = topPad + labelW + n * cellSize;
 
@@ -158,7 +158,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-visible">
         <svg width={svgW} height={svgH} className="block overflow-visible">
           {/* cells first so labels paint on top */}
           {matrix.map((row, i) =>
