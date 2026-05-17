@@ -66,6 +66,7 @@ export default function VehicleTrends() {
             color="#059669"
             showArea
             showTrendLine
+            renderTooltip={(item) => <><p className="font-bold text-on-surface">{item.label}</p><p className="text-on-surface-variant">{item.value.toFixed(1)}%</p></>}
           />
         </div>
 
@@ -77,6 +78,7 @@ export default function VehicleTrends() {
             color="#2563eb"
             showArea
             showTrendLine
+            renderTooltip={(item) => <><p className="font-bold text-on-surface">{item.label}</p><p className="text-on-surface-variant">{item.value >= 1000000 ? `${(item.value/1000000).toFixed(1)}M` : item.value >= 1000 ? `${(item.value/1000).toFixed(0)}K` : item.value.toLocaleString()}</p></>}
           />
         </div>
 
@@ -86,6 +88,7 @@ export default function VehicleTrends() {
             data={data.map((d) => ({ label: String(d.year), value: d.total }))}
             height={160}
             showArea
+            renderTooltip={(item) => <><p className="font-bold text-on-surface">{item.label}</p><p className="text-on-surface-variant">{item.value >= 1000000 ? `${(item.value/1000000).toFixed(1)}M` : `${(item.value/1000).toFixed(0)}K`}</p></>}
           />
         </div>
       </div>
