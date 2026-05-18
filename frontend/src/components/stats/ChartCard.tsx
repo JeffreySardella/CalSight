@@ -206,8 +206,9 @@ function ChartCard({
       className={`group/card bg-surface-container-lowest chart-card-themed chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2${isSourceChart ? " ring-2 ring-primary" : ""}`}
       style={{ animationDelay: enterDelay && enterDelay > 0 ? `${enterDelay}ms` : undefined }}
     >
-      <div className={`relative flex items-center gap-1${compact ? " mb-1" : " mb-2"}`}>
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+      {/* Title — always full width, never truncated */}
+      <div className={compact ? "mb-1" : "mb-2"}>
+        <div className="flex items-center gap-1.5">
           {editing && dragHandleProps && (
             <span
               {...dragHandleProps}
@@ -218,9 +219,13 @@ function ChartCard({
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
             </span>
           )}
-          <h3 className={`font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant truncate" : " text-sm"}`} title={title}>{title}</h3>
+          <h3 className={`font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{title}</h3>
         </div>
-        {!compact && <div className="flex items-center gap-0.5 flex-shrink-0 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2 sm:bg-surface-container-lowest/95 sm:rounded-lg sm:pl-1">
+      </div>
+
+      {/* Action buttons — absolutely positioned top-right, only visible on hover */}
+      <div className="relative">
+        {!compact && <div className="absolute right-0 -top-8 z-10 flex items-center gap-0.5 bg-surface-container-lowest/95 rounded-lg px-1 opacity-0 group-hover/card:opacity-100 focus-within:opacity-100 transition-opacity">
           <button
             onClick={handleExplainChart}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
