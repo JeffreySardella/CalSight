@@ -664,20 +664,21 @@ function MapPageInner() {
           />
         )}
         {heatmapEnabled && (heatmap.isLoading || (useCountyDetail && (countyHeatmap.isLoading || countyHeatmap.hasMore) && !countyHeatmap.error)) && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+          <div className="absolute top-14 md:top-3 left-1/2 -translate-x-1/2 z-20">
             <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2.5 rounded-xl ghost-border shadow-lg min-w-[220px]">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
                 <span className="text-xs font-medium text-on-surface-variant">Loading crash data…</span>
               </div>
               <div className="w-full h-1.5 bg-outline/15 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-                  style={{ width: useCountyDetail && countyHeatmap.totalCrashes > 0
-                    ? `${Math.min(100, (countyHeatmap.points.length / countyHeatmap.totalCrashes) * 100)}%`
-                    : "0%"
-                  }}
-                />
+                {useCountyDetail && countyHeatmap.totalCrashes > 0 ? (
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(100, (countyHeatmap.points.length / countyHeatmap.totalCrashes) * 100)}%` }}
+                  />
+                ) : (
+                  <div className="h-full w-1/3 bg-primary rounded-full animate-pulse" />
+                )}
               </div>
               {useCountyDetail && countyHeatmap.totalCrashes > 0 && (
                 <p className="text-[10px] text-on-surface-variant/60 mt-1 text-center">
