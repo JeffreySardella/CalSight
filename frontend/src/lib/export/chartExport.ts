@@ -46,18 +46,26 @@ export async function exportChartPng(
   let svgString = serializer.serializeToString(svgEl);
   svgString = resolveVarColors(svgString);
 
-  // Ensure the SVG has explicit width/height for the canvas draw.
+  // Use a minimum export width so mobile charts don't produce tiny PNGs.
   const rect = svgEl.getBoundingClientRect();
-  const w = rect.width;
-  const h = rect.height;
+  const MIN_EXPORT_W = 600;
+  const w = Math.max(rect.width, MIN_EXPORT_W);
+  const scale = w / rect.width;
+  const h = rect.height * scale;
 
   // Inject xmlns if missing (XMLSerializer usually includes it, but just in case).
   if (!svgString.includes("xmlns")) {
     svgString = svgString.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
   }
 
-  // For print quality, use 3x scaling (300 DPI equivalent at ~100px/inch base).
-  // For screen, clamp to 2x for retina displays.
+  // Force minimum dimensions in the serialized SVG so it renders at export size
+  svgString = svgString
+    .replace(/width="[^"]*"/, `width="${w}"`)
+    .replace(/height="[^"]*"/, `height="${h}"`);
+  if (!svgString.includes('width=')) {
+    svgString = svgString.replace('<svg', `<svg width="${w}" height="${h}"`);
+  }
+
   const dpr = options?.printQuality
     ? 3
     : Math.min(window.devicePixelRatio || 1, 2);
@@ -67,7 +75,6 @@ export async function exportChartPng(
   canvas.height = h * dpr;
   const ctx = canvas.getContext("2d")!;
 
-  // White background so transparent areas don't export as black.
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.scale(dpr, dpr);
