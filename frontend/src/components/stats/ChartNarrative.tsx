@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChartNarrativeResult } from "../../hooks/useNarrativeInsights";
+import type { StatFact } from "../../lib/dashboard/narrativeEngine";
 
 interface Props {
   narrative: ChartNarrativeResult | null;
@@ -51,7 +52,7 @@ export default function ChartNarrative({ narrative }: Props) {
           {/* Statistical fact badges (shown when expanded) */}
           {expanded && narrative.facts.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
-              {narrative.facts.slice(0, 4).map((fact, idx) => (
+              {narrative.facts.slice(0, 4).map((fact: StatFact, idx: number) => (
                 <span
                   key={idx}
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${

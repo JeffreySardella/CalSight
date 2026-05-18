@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import func, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -167,7 +167,6 @@ def check_date_range(
         )
 
     now = datetime.utcnow()
-    max_year = expected_max_year or now.year
 
     # Check for future dates
     if max_date > now:

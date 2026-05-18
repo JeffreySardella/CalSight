@@ -26,7 +26,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import os
 import subprocess
@@ -126,7 +125,7 @@ def run_daily_pipeline():
         send_alert(
             AlertLevel.INFO,
             f"Daily ETL complete: {succeeded} succeeded, {unchanged} unchanged",
-            f"All jobs completed successfully.",
+            "All jobs completed successfully.",
         )
 
     return results
@@ -141,7 +140,6 @@ def run_weekly_pipeline():
     registry = build_default_registry()
     results = run_pipeline(registry, triggered_by="schedule", force_refresh=True)
 
-    succeeded = sum(1 for r in results if r.status == "success")
     failed = sum(1 for r in results if r.status == "error")
 
     if failed > 0:

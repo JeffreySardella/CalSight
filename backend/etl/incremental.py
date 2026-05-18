@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Crash, CrashParty, CrashVictim

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { DashboardNarrative, NarrativeTone } from "../../hooks/useNarrativeInsights";
+import type { KeyFinding } from "../../lib/dashboard/narrativeEngine";
 
 interface Props {
   narrative: DashboardNarrative;
@@ -104,7 +105,7 @@ export default function NarrativePanel({ narrative, tone, onToneChange, defaultC
 
           {/* Findings list */}
           <ul className="space-y-2">
-            {displayed.map((finding, idx) => (
+            {displayed.map((finding: KeyFinding, idx: number) => (
               <li
                 key={`${finding.sourceChart}-${idx}`}
                 className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-surface-container-low min-w-0"
