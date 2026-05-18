@@ -24,8 +24,8 @@ export default function Layout() {
     document.title = PAGE_TITLES[location.pathname] || "CalSight — California Crash Data Explorer";
   }, [location.pathname]);
 
-  // Scroll to hash anchor when navigating (e.g., /about#data-sources)
-  // Only scroll on pathname or hash changes — not search param changes
+  // Scroll to hash anchor when navigating — keyed on pathname+hash, ignoring search params
+  const scrollKey = location.pathname + location.hash;
   useEffect(() => {
     if (location.hash) {
       const el = document.getElementById(location.hash.slice(1));
@@ -33,7 +33,7 @@ export default function Layout() {
         setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 100);
       }
     }
-  }, [location.pathname, location.hash]);
+  }, [scrollKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
