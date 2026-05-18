@@ -67,6 +67,9 @@ export default function MobileFilterSheet({
 
       {/* Mobile: bottom sheet. Desktop: centered modal */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={currentTab.label}
         className={`absolute bg-surface-container-lowest max-h-[80vh] flex flex-col transition-[transform,opacity] duration-300 ease-out will-change-transform
           bottom-0 left-0 right-0 rounded-t-xl
           md:bottom-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:w-[480px] md:max-w-[90vw] md:ambient-shadow
@@ -84,6 +87,7 @@ export default function MobileFilterSheet({
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-2 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
           >
             <span className="material-symbols-outlined">close</span>

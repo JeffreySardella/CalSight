@@ -57,7 +57,7 @@ def list_parties_for_crash(
 
     Example: `/api/crashes/2573749/parties?data_source=ccrs`
     """
-    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    response.headers["Cache-Control"] = "no-store"
     rows = (
         db.query(CrashParty)
         .filter(
@@ -86,7 +86,7 @@ def list_victims_for_crash(
 
     `data_source` is required (see /api/crashes/{collision_id}/parties).
     """
-    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    response.headers["Cache-Control"] = "no-store"
     rows = (
         db.query(CrashVictim)
         .filter(
@@ -163,7 +163,7 @@ def list_parties(
     `total` is always null here — counting party rows across millions
     is too slow without indexes. Use `/api/stats?group_by=...` for totals.
     """
-    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    response.headers["Cache-Control"] = "no-store"
 
     age_min_v, age_max_v = _parse_age_range(age_min, age_max)
     gender_set = _parse_gender(gender)
@@ -245,7 +245,7 @@ def list_victims(
 
     `total` is always null — see /api/parties for rationale.
     """
-    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    response.headers["Cache-Control"] = "no-store"
 
     age_min_v, age_max_v = _parse_age_range(age_min, age_max)
     gender_set = _parse_gender(gender)

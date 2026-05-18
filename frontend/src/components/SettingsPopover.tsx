@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme, type Theme } from "../context/ThemeContext";
-import { useLiteMode, type LiteModeSetting } from "../context/LiteModeContext";
-import { useAccessibility, type MotionPref } from "../context/AccessibilityContext";
+import { useAccessibility } from "../context/AccessibilityContext";
 import ThemeCustomizer from "./settings/ThemeCustomizer";
 
 const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
@@ -10,17 +9,6 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
   { value: "system", label: "System", icon: "monitor" },
 ];
 
-const PERF_OPTIONS: { value: LiteModeSetting; label: string }[] = [
-  { value: "auto", label: "Auto" },
-  { value: "on", label: "On" },
-  { value: "off", label: "Off" },
-];
-
-const MOTION_OPTIONS: { value: MotionPref; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "on", label: "Reduce" },
-  { value: "off", label: "Off" },
-];
 
 const CHIP_ACTIVE = "bg-primary-container text-on-primary-container";
 const CHIP_INACTIVE = "text-on-surface-variant hover:text-on-surface";
@@ -34,8 +22,7 @@ type SettingsTab = "general" | "appearance";
 
 export default function SettingsPopover({ onClose, containerRef }: SettingsPopoverProps) {
   const { theme, setTheme } = useTheme();
-  const { setting: liteSetting, setSetting: setLiteSetting, isLite } = useLiteMode();
-  const { motion, setMotion, highContrast, setHighContrast, effectiveReducedMotion } = useAccessibility();
+  const { highContrast, setHighContrast } = useAccessibility();
   const popoverRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<SettingsTab>("general");
 
@@ -71,6 +58,19 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
       ref={popoverRef}
       className="fixed bottom-0 left-0 right-0 z-[61] w-full rounded-t-2xl bg-surface-container-low backdrop-blur-xl ghost-border ambient-shadow p-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] space-y-4 max-h-[85vh] overflow-y-auto md:absolute md:bottom-auto md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 md:rounded-xl md:rounded-t-xl md:pb-4"
     >
+      {/* Mobile drag handle */}
+      <div className="flex justify-center md:hidden py-1">
+        <div className="w-10 h-1 rounded-full bg-on-surface-variant/30" />
+      </div>
+
+      {/* Header with close button */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-headline font-bold text-on-surface">Settings</h2>
+        <button onClick={onClose} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors" aria-label="Close settings">
+          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+        </button>
+      </div>
+
       {/* Tab switcher */}
       <div className="flex gap-1 rounded-lg bg-surface-container p-1">
         <button
@@ -116,36 +116,6 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
             </div>
           </div>
 
-          {/* Performance */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-                Performance
-              </span>
-              {isLite && (
-                <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary-container px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              )}
-            </div>
-            <div className="flex gap-1 rounded-lg bg-surface-container p-1">
-              {PERF_OPTIONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setLiteSetting(value)}
-                  className={`flex-1 flex items-center justify-center rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                    liteSetting === value ? CHIP_ACTIVE : CHIP_INACTIVE
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="text-[9px] text-on-surface-variant mt-2 leading-relaxed">
-              Reduces blur and animations for slower devices. Auto detects your hardware.
-            </p>
-          </div>
-
           <div className="border-t border-outline-variant/20" />
 
           {/* High Contrast */}
@@ -169,36 +139,6 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
             </div>
             <p className="text-[9px] text-on-surface-variant mt-1.5 leading-relaxed">
               Darkens secondary text and strengthens borders.
-            </p>
-          </div>
-
-          {/* Reduced Motion */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
-                Reduce Motion
-              </span>
-              {effectiveReducedMotion && (
-                <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary-container px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              )}
-            </div>
-            <div className="flex gap-1 rounded-lg bg-surface-container p-1">
-              {MOTION_OPTIONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setMotion(value)}
-                  className={`flex-1 flex items-center justify-center rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                    motion === value ? CHIP_ACTIVE : CHIP_INACTIVE
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="text-[9px] text-on-surface-variant mt-2 leading-relaxed">
-              Stops animations and map zoom transitions. System follows your OS setting.
             </p>
           </div>
 

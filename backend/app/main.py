@@ -37,6 +37,24 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
 
+class NullByteSanitizationMiddleware(BaseHTTPMiddleware):
+    """Reject requests containing null bytes in the URL or query string.
+
+    Null bytes (%00) in query parameters cause unhandled exceptions in
+    downstream parsing (e.g. int(), str.split()). ZAP DAST flagged 7
+    endpoints returning 500 for this. We return 400 early instead.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        raw_url = str(request.url)
+        if "\x00" in raw_url or "%00" in raw_url.upper():
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "Request contains invalid null byte characters."},
+            )
+        return await call_next(request)
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: StarletteResponse = await call_next(request)
@@ -48,6 +66,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(NullByteSanitizationMiddleware)
 
 from slowapi import Limiter  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
