@@ -43,7 +43,7 @@ function ColorInput({ label, description, value, onChange }: {
 }) {
   const [r, g, b] = value.split(" ").map(Number);
   const hex = `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   function handleChange(hexValue: string) {
     const parsed = hexValue.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
