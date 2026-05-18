@@ -135,16 +135,20 @@ export default function SimpleTreemap({
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
           const color = r.item.color ?? defaultColor;
           const textColor = textOnColor(color);
-          const showName = r.w > 44 && r.h > 20;
-          const showPct = r.w > 30 && r.h > 36;
+          const cellW = Math.max(r.w - 2, 0);
+          const cellH = Math.max(r.h - 2, 0);
+          const fontSize = cellW < 50 || cellH < 24 ? 8 : cellW < 80 ? 9 : 11;
+          const maxChars = Math.max(2, Math.floor(cellW / (fontSize * 0.65)));
+          const showName = cellW > 20 && cellH > 14;
+          const showPct = cellW > 24 && cellH > (fontSize + 16);
           return (
             <g key={r.item.label}>
               <rect
                 x={PAD + r.x + 1}
                 y={PAD + r.y + 1}
-                width={Math.max(r.w - 2, 0)}
-                height={Math.max(r.h - 2, 0)}
-                rx={4}
+                width={cellW}
+                height={cellH}
+                rx={3}
                 fill={color}
                 fillOpacity={hover !== null && hover.idx !== r.idx ? 0.4 : 1}
                 onMouseMove={(e) => {
@@ -155,25 +159,27 @@ export default function SimpleTreemap({
               />
               {showName && (
                 <text
-                  x={PAD + r.x + 6}
-                  y={PAD + r.y + 16}
-                  fontSize={11}
+                  x={PAD + r.x + 4}
+                  y={PAD + r.y + fontSize + 3}
+                  fontSize={fontSize}
                   fontWeight={700}
                   fill={textColor}
                   fontFamily="'Inter Variable', Inter, sans-serif"
+                  style={{ pointerEvents: "none" }}
                 >
-                  {r.item.label.length > Math.floor(r.w / 7) ? r.item.label.slice(0, Math.floor(r.w / 7) - 1) + "…" : r.item.label}
+                  {r.item.label.length > maxChars ? r.item.label.slice(0, maxChars - 1) + "…" : r.item.label}
                 </text>
               )}
               {showPct && (
                 <text
-                  x={PAD + r.x + 6}
-                  y={PAD + r.y + 30}
-                  fontSize={12}
+                  x={PAD + r.x + 4}
+                  y={PAD + r.y + fontSize * 2 + 5}
+                  fontSize={fontSize + 1}
                   fontWeight={800}
                   fill={textColor}
                   fillOpacity={0.9}
                   fontFamily="'Inter Variable', Inter, sans-serif"
+                  style={{ pointerEvents: "none" }}
                 >
                   {pct}%
                 </text>
