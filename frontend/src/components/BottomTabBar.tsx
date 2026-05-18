@@ -20,6 +20,7 @@ export default function BottomTabBar() {
           <NavLink
             key={tab.to}
             to={qs ? `${tab.to}?${qs}` : tab.to}
+            replace
             end={tab.to === "/"}
             className={({ isActive }) =>
               `flex flex-col items-center gap-1 transition-colors ${
