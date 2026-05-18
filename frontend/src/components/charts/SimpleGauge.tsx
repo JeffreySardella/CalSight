@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { useDesignTokens } from "../../hooks/useDesignTokens";
 
 interface GaugeItem {
   label: string;
@@ -18,10 +19,12 @@ function formatNumber(val: number): string {
   return val.toLocaleString();
 }
 
-const DEFAULT_COLORS = ["#dc2626", "#f59e0b", "#2563eb", "#7c3aed", "#059669", "#6b7280"];
+const FALLBACK_COLORS = ["#dc2626", "#f59e0b", "#2563eb", "#7c3aed", "#059669", "#6b7280"];
 
 export default function SimpleGauge({ data, height = 180, title }: SimpleGaugeProps) {
   const titleId = useId();
+  const tokens = useDesignTokens();
+  const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : FALLBACK_COLORS;
   if (!data.length) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -62,7 +65,7 @@ export default function SimpleGauge({ data, height = 180, title }: SimpleGaugePr
 
     return {
       path,
-      color: d.color ?? DEFAULT_COLORS[i % DEFAULT_COLORS.length],
+      color: d.color ?? paletteColors[i % paletteColors.length],
       label: d.label,
       pct: Math.round(pct * 100),
     };

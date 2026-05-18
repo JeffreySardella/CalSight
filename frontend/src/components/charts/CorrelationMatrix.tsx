@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useId } from "react";
 import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useIsDark } from "../../context/ThemeContext";
+import { useDesignTokens } from "../../hooks/useDesignTokens";
+import { correlationColor, correlationDotColor, type CorrelationTokens } from "../../lib/theme/tokens";
 
 export interface CorrelationActiveFilters {
   severity?: string[];
@@ -22,14 +24,8 @@ interface Props {
   activeFilters?: CorrelationActiveFilters;
 }
 
-function colorForR(r: number, isDark: boolean): string {
-  if (r >= 0.7) return "#1d4ed8";
-  if (r >= 0.4) return "#3b82f6";
-  if (r >= 0.2) return "#93c5fd";
-  if (r > -0.2) return isDark ? "#3f3f46" : "#e5e7eb";
-  if (r > -0.4) return "#fca5a5";
-  if (r > -0.7) return "#ef4444";
-  return "#991b1b";
+function colorForR(r: number, _isDark: boolean, tokens: CorrelationTokens): string {
+  return correlationColor(r, tokens);
 }
 
 function textColorForR(r: number, isDark: boolean): string {
@@ -49,11 +45,12 @@ function fmt(v: number): string {
   return v.toFixed(2);
 }
 
-function DetailScatter({ counties, xField, yField, r }: {
+function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
   counties: CountyRow[];
   xField: CorrelationField;
   yField: CorrelationField;
   r: number;
+  correlationTokens: CorrelationTokens;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [svgW, setSvgW] = useState(500);
@@ -116,7 +113,7 @@ function DetailScatter({ counties, xField, yField, r }: {
           const isH = hover === i;
           return (
             <g key={i}>
-              <circle cx={px} cy={py} r={isH ? 6 : 4} fill={r >= 0 ? "#2563eb" : "#dc2626"} fillOpacity={isH ? 0.95 : 0.6}
+              <circle cx={px} cy={py} r={isH ? 6 : 4} fill={correlationDotColor(r, correlationTokens)} fillOpacity={isH ? 0.95 : 0.6}
                 onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} className="cursor-pointer" />
               {isH && (
                 <text x={px + 8} y={py - 4} fontSize={9} fontWeight={700} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
@@ -153,6 +150,7 @@ function buildFilterSubtitle(f?: CorrelationActiveFilters): string {
 
 export default function CorrelationMatrix({ fields, matrix, countyCount, counties, activeFilters }: Props) {
   const isDark = useIsDark();
+  const tokens = useDesignTokens();
   const titleId = useId();
   const [hoverCell, setHoverCell] = useState<{ i: number; j: number } | null>(null);
   const [selected, setSelected] = useState<{ i: number; j: number } | null>(null);
@@ -184,9 +182,9 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
           <p className="text-[10px] text-on-surface-variant/70 mt-0.5">Correlating: {buildFilterSubtitle(activeFilters)}</p>
         </div>
         <div className="flex items-center gap-2 text-[9px] text-on-surface-variant" aria-label="Legend: -1 (strong negative, red) to +1 (strong positive, blue)" role="img">
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#991b1b" }} aria-hidden="true" /><span>-1</span></div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: isDark ? "#3f3f46" : "#e5e7eb" }} aria-hidden="true" /><span>0</span></div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#1d4ed8" }} aria-hidden="true" /><span>+1</span></div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: tokens.correlation.negativeStrong }} aria-hidden="true" /><span>-1</span></div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: tokens.correlation.neutral }} aria-hidden="true" /><span>0</span></div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: tokens.correlation.positiveStrong }} aria-hidden="true" /><span>+1</span></div>
         </div>
       </div>
 
@@ -203,7 +201,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
               const isSelected = selected?.i === i && selected?.j === j;
               return (
                 <g key={`${i}-${j}`} role="img" aria-label={`${fields[i].label} vs ${fields[j].label}: r = ${isNaN(r) ? "N/A" : r.toFixed(2)}`} onMouseEnter={() => setHoverCell({ i, j })} onMouseLeave={() => setHoverCell(null)}>
-                  <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={colorForR(r, isDark)}
+                  <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={colorForR(r, isDark, tokens.correlation)}
                     opacity={isHovered || isSelected ? 1 : 0.85} stroke={isSelected ? "rgb(var(--on-surface))" : isHovered ? "rgb(var(--outline))" : "none"} strokeWidth={isSelected ? 2 : 1}
                     onClick={() => {
                       if (i === j) { setSelected(null); return; }
@@ -240,7 +238,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
           {" × "}
           <span className="font-bold text-on-surface">{fields[hoverCell.j].label}</span>
           {" = "}
-          <span className="font-bold" style={{ color: Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.2 ? colorForR(matrix[hoverCell.i][hoverCell.j], isDark) : undefined }}>r = {matrix[hoverCell.i][hoverCell.j].toFixed(2)}</span>
+          <span className="font-bold" style={{ color: Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.2 ? colorForR(matrix[hoverCell.i][hoverCell.j], isDark, tokens.correlation) : undefined }}>r = {matrix[hoverCell.i][hoverCell.j].toFixed(2)}</span>
           {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.7 && " (strong)"}
           {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.4 && Math.abs(matrix[hoverCell.i][hoverCell.j]) < 0.7 && " (moderate)"}
         </p>
@@ -270,6 +268,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
             xField={fields[selected.i]}
             yField={fields[selected.j]}
             r={matrix[selected.i][selected.j]}
+            correlationTokens={tokens.correlation}
           />
         </div>
       )}

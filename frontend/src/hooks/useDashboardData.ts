@@ -26,9 +26,9 @@ const MONTH_LABEL = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 const DOW_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const SEVERITY_COLORS: Record<string, string> = {
-  Fatal: "rgb(var(--error))",
-  Injury: "rgb(var(--tertiary))",
-  "Property Damage Only": "rgb(var(--outline-variant))",
+  Fatal: "var(--color-severity-fatal, rgb(var(--error)))",
+  Injury: "var(--color-severity-injury, rgb(var(--tertiary)))",
+  "Property Damage Only": "var(--color-severity-pdo, rgb(var(--outline-variant)))",
 };
 
 function severityToSlug(s: string): string {

@@ -22,6 +22,7 @@ import { PRESET_THEMES, getDefaultCustomization } from "../lib/theme/presets";
 import { getChartPalette } from "../lib/theme/palettes";
 import { injectThemeCss } from "../lib/theme/cssInjector";
 import { loadCustomization, saveCustomization, exportTheme, importTheme } from "../lib/theme/persistence";
+import { useIsDark } from "./ThemeContext";
 
 interface CustomThemeContextValue {
   /** Current full customization state */
@@ -69,19 +70,15 @@ const CustomThemeContext = createContext<CustomThemeContextValue | undefined>(un
 export function CustomThemeProvider({ children }: { children: React.ReactNode }) {
   const [customization, setCustomization] = useState<ThemeCustomization>(loadCustomization);
   const isFirstRender = useRef(true);
+  const isDark = useIsDark();
 
-  // Inject CSS on mount and whenever customization changes
+  // Inject CSS on mount and whenever customization or dark mode changes.
+  // Always inject so that design token CSS vars are available globally,
+  // even when the default preset is active. The isDark dependency ensures
+  // tokens re-resolve when the user switches between light/dark mode.
   useEffect(() => {
-    // Don't inject if using default preset with no modifications
-    const isDefault = customization.activePreset === "default" &&
-      Object.keys(customization.customVars).length === 0;
-
-    if (isDefault) {
-      injectThemeCss(null);
-    } else {
-      injectThemeCss(customization);
-    }
-  }, [customization]);
+    injectThemeCss(customization);
+  }, [customization, isDark]);
 
   // Persist to localStorage (debounced to avoid thrashing during rapid changes)
   useEffect(() => {

@@ -7,6 +7,7 @@ import type { HeatmapResolution } from "../../hooks/useLayersState";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
+import { useDesignTokens } from "../../hooks/useDesignTokens";
 
 const BASE_RADIUS: Record<HeatmapResolution, number> = {
   raw: 8,
@@ -127,34 +128,23 @@ export function useHeatLayer(
   return layerRef;
 }
 
-const FATAL_GRADIENTS: Record<PaletteKey, Record<number, string>> = {
-  default: {
+/**
+ * Build fatal heatmap gradient from design tokens instead of hardcoded values.
+ */
+function buildFatalGradient(fatalLow: string, fatalMid: string, fatalHigh: string): Record<number, string> {
+  return {
     0: "transparent",
-    0.3: "rgba(255, 80, 60, 0.4)",
-    0.6: "rgba(220, 40, 30, 0.7)",
-    1.0: "rgba(180, 20, 15, 1)",
-  },
-  warm: {
-    0: "transparent",
-    0.3: "rgba(255, 80, 60, 0.4)",
-    0.6: "rgba(220, 40, 30, 0.7)",
-    1.0: "rgba(180, 20, 15, 1)",
-  },
-  cool: {
-    0: "transparent",
-    0.3: "rgba(255, 80, 60, 0.4)",
-    0.6: "rgba(220, 40, 30, 0.7)",
-    1.0: "rgba(180, 20, 15, 1)",
-  },
-  colorblind: {
-    0: "transparent",
-    0.3: "rgba(220, 38, 38, 0.4)",
-    0.6: "rgba(220, 38, 38, 0.7)",
-    1.0: "rgba(185, 28, 28, 1)",
-  },
-};
+    0.3: fatalLow,
+    0.6: fatalMid,
+    1.0: fatalHigh,
+  };
+}
 
-function useFatalLayer(points: HeatmapPoint[], resolution: HeatmapResolution, palette: PaletteKey) {
+function useFatalLayer(
+  points: HeatmapPoint[],
+  resolution: HeatmapResolution,
+  fatalGradient: Record<number, string>,
+) {
   const map = useMap();
   const layerRef = useRef<L.HeatLayer | null>(null);
 
@@ -176,7 +166,7 @@ function useFatalLayer(points: HeatmapPoint[], resolution: HeatmapResolution, pa
       blur: 4,
       max: 1,
       minOpacity: 0.4,
-      gradient: FATAL_GRADIENTS[palette],
+      gradient: fatalGradient,
     });
 
     layer.addTo(map);
@@ -216,7 +206,7 @@ function useFatalLayer(points: HeatmapPoint[], resolution: HeatmapResolution, pa
         layerRef.current = null;
       }
     };
-  }, [map, points, resolution, palette]);
+  }, [map, points, resolution, fatalGradient]);
 }
 
 interface CrashHeatmapProps {
@@ -227,7 +217,13 @@ interface CrashHeatmapProps {
 
 export default memo(function CrashHeatmap({ points, resolution, palette }: CrashHeatmapProps) {
   const isDark = useIsDark();
+  const tokens = useDesignTokens();
+  const fatalGradient = buildFatalGradient(
+    tokens.map.fatalLow,
+    tokens.map.fatalMid,
+    tokens.map.fatalHigh,
+  );
   useHeatLayer(points, resolution, palette, isDark);
-  useFatalLayer(points, resolution, palette);
+  useFatalLayer(points, resolution, fatalGradient);
   return null;
 });

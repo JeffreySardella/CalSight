@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
+import { useDesignTokens } from "../../hooks/useDesignTokens";
 
 interface ScatterItem {
   label: string;
@@ -26,7 +27,8 @@ function formatNumber(val: number): string {
   return val.toLocaleString();
 }
 
-const COLORS = [
+/** Fallback palette used only when design tokens aren't available */
+const FALLBACK_COLORS = [
   "#2563eb", "#dc2626", "#059669", "#7c3aed", "#d97706",
   "#0891b2", "#e11d48", "#4f46e5", "#0d9488", "#ca8a04",
 ];
@@ -42,6 +44,8 @@ export default function SimpleScatter({
 }: SimpleScatterProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const tokens = useDesignTokens();
+  const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : FALLBACK_COLORS;
   const [svgWidth, setSvgWidth] = useState(400);
   const titleId = useId();
 
@@ -132,7 +136,7 @@ export default function SimpleScatter({
           const px = padding.left + (points[i].xVal / maxX) * chartW;
           const py = padding.top + chartH - (points[i].yVal / maxY) * chartH;
           const isHovered = hover?.idx === i;
-          const dotColor = d.color ?? color ?? COLORS[i % COLORS.length];
+          const dotColor = d.color ?? color ?? paletteColors[i % paletteColors.length];
           const r = isHovered ? 7 : Math.max(4, Math.min(8, (d.value / data.reduce((s, dd) => s + dd.value, 0)) * 60));
           return (
             <circle

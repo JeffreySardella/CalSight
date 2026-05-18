@@ -4,6 +4,7 @@ import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 import { useLiteMode } from "../../context/LiteModeContext";
+import { useDesignTokens } from "../../hooks/useDesignTokens";
 
 interface CrashDotLayerProps {
   points: HeatmapPoint[];
@@ -11,12 +12,12 @@ interface CrashDotLayerProps {
   palette: PaletteKey;
 }
 
-const DOT_COLORS = { fatal: "#dc2626", injury: "#f59e0b", pdo: "#6b7280" };
+interface DotColors { fatal: string; injury: string; pdo: string }
 
-function getColor(severity: string | null | undefined): string {
-  if (severity === "Fatal") return DOT_COLORS.fatal;
-  if (severity === "Injury") return DOT_COLORS.injury;
-  return DOT_COLORS.pdo;
+function getColor(severity: string | null | undefined, colors: DotColors): string {
+  if (severity === "Fatal") return colors.fatal;
+  if (severity === "Injury") return colors.injury;
+  return colors.pdo;
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -40,6 +41,8 @@ export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerPro
   const map = useMap();
   const isDark = useIsDark();
   const { isLite } = useLiteMode();
+  const tokens = useDesignTokens();
+  const dotColors: DotColors = tokens.severity;
   const [zoom, setZoom] = useState(map.getZoom());
   const [center, setCenter] = useState(map.getCenter());
   const maxDots = isLite ? 400 : 800;
@@ -68,7 +71,7 @@ export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerPro
   return (
     <>
       {visible.map((p, i) => {
-        const color = getColor(p.severity);
+        const color = getColor(p.severity, dotColors);
         return (
           <CircleMarker
             key={`${p.collision_id ?? i}-${p.lat}-${p.lng}`}
@@ -103,7 +106,7 @@ export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerPro
             <Popup offset={[0, -4]} maxWidth={Math.min(260, window.innerWidth - 40)} autoPan={false}>
               <div style={{ minWidth: 180, maxWidth: 240, fontSize: 12, lineHeight: 1.5 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-                  <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: getColor(p.severity), display: "inline-block", border: `2px solid ${borderColor}`, flexShrink: 0 }} />
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: getColor(p.severity, dotColors), display: "inline-block", border: `2px solid ${borderColor}`, flexShrink: 0 }} />
                   <strong style={{ fontSize: 14 }}>{p.severity ?? "Unknown"}</strong>
                   {p.hit_run && (
                     <span style={{ fontSize: 10, fontWeight: 700, background: "rgb(var(--error-container))", color: "rgb(var(--on-error-container))", padding: "2px 8px", borderRadius: 10 }}>
@@ -143,7 +146,7 @@ export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerPro
 
                 {(p.number_killed || p.number_injured) ? (
                   <div style={{ display: "flex", gap: 16, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgb(var(--outline-variant))" }}>
-                    {p.number_killed ? <span style={{ color: DOT_COLORS.fatal, fontWeight: 700, fontSize: 12 }}>{p.number_killed} killed</span> : null}
+                    {p.number_killed ? <span style={{ color: dotColors.fatal, fontWeight: 700, fontSize: 12 }}>{p.number_killed} killed</span> : null}
                     {p.number_injured ? <span style={{ color: "rgb(var(--tertiary))", fontWeight: 700, fontSize: 12 }}>{p.number_injured} injured</span> : null}
                   </div>
                 ) : null}

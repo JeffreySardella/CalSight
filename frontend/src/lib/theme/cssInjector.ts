@@ -12,6 +12,7 @@
  */
 
 import type { ThemeCustomization, CardStyle, Density, TypeScale } from "./types";
+import { getTokens } from "./tokens";
 
 const STYLE_ID = "calsight-theme-overrides";
 
@@ -166,6 +167,40 @@ export function buildCssOverrides(customization: ThemeCustomization): string {
 
   // Typography
   Object.assign(vars, typeScaleVars(customization.typeScale));
+
+  // Design tokens — inject semantic color tokens derived from the active palette
+  const isDark = document.documentElement.classList.contains("dark");
+  const tokens = getTokens(customization.chart.palette, isDark, customization.chart.customColors);
+
+  // Severity tokens
+  vars["--color-severity-fatal"] = tokens.severity.fatal;
+  vars["--color-severity-injury"] = tokens.severity.injury;
+  vars["--color-severity-pdo"] = tokens.severity.pdo;
+
+  // Correlation tokens
+  vars["--color-correlation-pos"] = tokens.correlation.positive;
+  vars["--color-correlation-pos-strong"] = tokens.correlation.positiveStrong;
+  vars["--color-correlation-pos-weak"] = tokens.correlation.positiveWeak;
+  vars["--color-correlation-neg"] = tokens.correlation.negative;
+  vars["--color-correlation-neg-strong"] = tokens.correlation.negativeStrong;
+  vars["--color-correlation-neg-weak"] = tokens.correlation.negativeWeak;
+  vars["--color-correlation-neutral"] = tokens.correlation.neutral;
+
+  // Chart categorical palette tokens (up to 10 colors)
+  tokens.chart.categorical.forEach((color, i) => {
+    vars[`--color-chart-${i + 1}`] = color;
+  });
+
+  // Map tokens
+  tokens.map.choropleth.forEach((color, i) => {
+    vars[`--color-map-choropleth-${i + 1}`] = color;
+  });
+  vars["--color-map-heat-low"] = tokens.map.heatLow;
+  vars["--color-map-heat-mid"] = tokens.map.heatMid;
+  vars["--color-map-heat-high"] = tokens.map.heatHigh;
+  vars["--color-map-fatal-low"] = tokens.map.fatalLow;
+  vars["--color-map-fatal-mid"] = tokens.map.fatalMid;
+  vars["--color-map-fatal-high"] = tokens.map.fatalHigh;
 
   // Arbitrary user overrides
   for (const [key, value] of Object.entries(customization.customVars)) {
