@@ -1,7 +1,7 @@
 {
   "ci": {
     "collect": {
-      "url": ["http://localhost:3000/stats"],
+      "url": ["http://localhost:3000/"],
       "startServerCommand": "npx serve -s dist -p 3000",
       "startServerReadyPattern": "Accepting connections",
       "numberOfRuns": 1,

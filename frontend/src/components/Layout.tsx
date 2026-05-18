@@ -25,16 +25,15 @@ export default function Layout() {
   }, [location.pathname]);
 
   // Scroll to hash anchor when navigating (e.g., /about#data-sources)
+  // Only scroll on pathname or hash changes — not search param changes
   useEffect(() => {
     if (location.hash) {
       const el = document.getElementById(location.hash.slice(1));
       if (el) {
         setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 100);
       }
-    } else {
-      window.scrollTo(0, 0);
     }
-  }, [location]);
+  }, [location.pathname, location.hash]);
 
   return (
     <>

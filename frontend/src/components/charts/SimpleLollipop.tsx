@@ -51,6 +51,16 @@ export default function SimpleLollipop({
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || !data.length) return;
+    const rect = svg.getBoundingClientRect();
+    const touchY = e.touches[0].clientY - rect.top;
+    const rH = Math.min(28, (rect.height - 8) / data.length);
+    const idx = Math.max(0, Math.min(data.length - 1, Math.floor((touchY - 4) / rH)));
+    setHover({ idx, x: e.touches[0].clientX, y: e.touches[0].clientY });
+  }, [data.length]);
+
   if (!data.length) return null;
   const maxVal = Math.max(...data.map((d) => d.value), 1);
   const labelW = 84;
@@ -61,7 +71,8 @@ export default function SimpleLollipop({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height: svgH }}>
-      <svg ref={svgRef} width="100%" height={svgH} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}>
+      <svg ref={svgRef} width="100%" height={svgH} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+        onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {data.map((d, i) => {
           const y = i * rowH + rowH / 2 + 4;

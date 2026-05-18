@@ -52,6 +52,24 @@ export default function SimpleDonutChart({
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
+  const segAnglesRef = useRef<{ start: number; end: number }[]>([]);
+
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || !data.length) return;
+    const rect = svg.getBoundingClientRect();
+    const tx = e.touches[0].clientX - rect.left - rect.width / 2;
+    const ty = e.touches[0].clientY - rect.top - rect.height / 2;
+    let angle = (Math.atan2(ty, tx) * 180 / Math.PI + 90 + 360) % 360;
+    for (let i = 0; i < segAnglesRef.current.length; i++) {
+      const seg = segAnglesRef.current[i];
+      if (angle >= seg.start && angle < seg.end) {
+        setHover({ idx: i, x: e.touches[0].clientX, y: e.touches[0].clientY });
+        return;
+      }
+    }
+  }, [data.length]);
+
   if (!data.length) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -100,12 +118,19 @@ export default function SimpleDonutChart({
 
     cumAngle = end + padAngle;
   }
+  segAnglesRef.current = segments.map((_, i) => {
+    const total360 = 360 - padAngle * data.length;
+    const sweep = (data[i].value / total) * total360;
+    const start = segments.slice(0, i).reduce((a, _, j) => a + (data[j].value / total) * total360 + padAngle, 0);
+    return { start, end: start + sweep };
+  });
 
   const withPct = data.map((d) => ({ ...d, pct: Math.round((d.value / total) * 100) }));
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={vw} height={height} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}>
+      <svg ref={svgRef} width={vw} height={height} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+        onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {segments.map((seg, i) => {
           const isHovered = hover?.idx === i;
