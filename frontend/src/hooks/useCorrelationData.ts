@@ -1,5 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import { formatYearMonth, type DateRangeFilter } from "./useFilterParams";
+
+export type CorrelationFilters = {
+  severity?: string[];
+  alcohol?: boolean;
+  pedestrian?: boolean;
+  cyclist?: boolean;
+  drug?: boolean;
+  distracted?: boolean;
+  dateRange?: DateRangeFilter | null;
+};
 
 export type CorrelationField = {
   key: string;
@@ -15,17 +26,12 @@ export const CORRELATION_FIELDS: CorrelationField[] = [
   { key: "poverty_rate", label: "Poverty %", source: "demographics" },
   { key: "median_income", label: "Income", source: "demographics" },
   { key: "population_density", label: "Density", source: "demographics" },
-  { key: "pct_white", label: "White %", source: "demographics" },
-  { key: "pct_black", label: "Black %", source: "demographics" },
-  { key: "pct_hispanic", label: "Hispanic %", source: "demographics" },
-  { key: "pct_asian", label: "Asian %", source: "demographics" },
   { key: "pct_18_24", label: "Age 18-24", source: "demographics" },
   { key: "pct_65_plus", label: "Age 65+", source: "demographics" },
   { key: "pct_no_vehicle", label: "No Vehicle", source: "demographics" },
   { key: "commute_drive_alone_pct", label: "Drive Alone", source: "demographics" },
   { key: "commute_bike_pct", label: "Bike %", source: "demographics" },
   { key: "pct_with_disability", label: "Disability", source: "demographics" },
-  { key: "pct_foreign_born", label: "Foreign Born", source: "demographics" },
   { key: "unemployment_rate", label: "Unemploy.", source: "unemployment" },
   { key: "ces_score", label: "EnviroScr.", source: "calenviroscreen" },
   { key: "traffic_score", label: "Traffic", source: "calenviroscreen" },
@@ -78,15 +84,30 @@ async function safeFetchJson<T = Record<string, unknown>[]>(
   }
 }
 
-export function useCorrelationData() {
+export function useCorrelationData(filters?: CorrelationFilters) {
+  // Build the batch body for crash stats — applies crash-level filters but never county
+  const batchBody: Record<string, string> = {};
+  if (filters?.dateRange?.start) batchBody.start = formatYearMonth(filters.dateRange.start);
+  if (filters?.dateRange?.end) batchBody.end = formatYearMonth(filters.dateRange.end);
+  if (filters?.severity?.length) batchBody.severity = filters.severity.map((s) => s.toLowerCase().replace(/ /g, "-")).join(",");
+  if (filters?.alcohol) batchBody.alcohol = "true";
+  if (filters?.pedestrian) batchBody.pedestrian = "true";
+  if (filters?.cyclist) batchBody.cyclist = "true";
+  if (filters?.drug) batchBody.drug = "true";
+  if (filters?.distracted) batchBody.distracted = "true";
+
+  // Stable cache key incorporating active filters
+  const filterKey = JSON.stringify(batchBody);
+
   return useQuery({
-    queryKey: ["correlation-matrix"],
+    queryKey: ["correlation-matrix", filterKey],
     queryFn: async () => {
       // Stats is required — it provides the base county rows
+      // Only crash-level filters applied; county is omitted so we get all 58
       const statsRes = await fetch(`${API_BASE}/api/stats/batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groups: ["county"] }),
+        body: JSON.stringify({ groups: ["county"], ...batchBody }),
       });
       if (!statsRes.ok) {
         throw new Error("Failed to fetch crash stats for correlation matrix");

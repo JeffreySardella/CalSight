@@ -3,11 +3,23 @@ import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useIsDark } from "../../context/ThemeContext";
 
+export interface CorrelationActiveFilters {
+  severity?: string[];
+  alcohol?: boolean;
+  pedestrian?: boolean;
+  cyclist?: boolean;
+  drug?: boolean;
+  distracted?: boolean;
+  startDate?: string;
+  endDate?: string;
+}
+
 interface Props {
   fields: CorrelationField[];
   matrix: number[][];
   countyCount: number;
   counties?: CountyRow[];
+  activeFilters?: CorrelationActiveFilters;
 }
 
 function colorForR(r: number, isDark: boolean): string {
@@ -122,7 +134,24 @@ function DetailScatter({ counties, xField, yField, r }: {
   );
 }
 
-export default function CorrelationMatrix({ fields, matrix, countyCount, counties }: Props) {
+function buildFilterSubtitle(f?: CorrelationActiveFilters): string {
+  if (!f) return "All crashes statewide (no filters)";
+  const parts: string[] = [];
+  if (f.severity?.length) parts.push(f.severity.join(", ") + " crashes");
+  if (f.alcohol) parts.push("Alcohol-involved");
+  if (f.pedestrian) parts.push("Pedestrian-involved");
+  if (f.cyclist) parts.push("Cyclist-involved");
+  if (f.drug) parts.push("Drug-involved");
+  if (f.distracted) parts.push("Distracted-driving");
+  if (f.startDate || f.endDate) {
+    const range = [f.startDate ?? "earliest", f.endDate ?? "latest"].join(" – ");
+    parts.push(range);
+  }
+  if (parts.length === 0) return "All crashes statewide (no filters)";
+  return parts.join(", ");
+}
+
+export default function CorrelationMatrix({ fields, matrix, countyCount, counties, activeFilters }: Props) {
   const isDark = useIsDark();
   const titleId = useId();
   const [hoverCell, setHoverCell] = useState<{ i: number; j: number } | null>(null);
@@ -152,6 +181,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
         <div>
           <h2 className="text-sm font-headline font-bold text-on-surface">Correlation Explorer</h2>
           <p className="text-[11px] text-on-surface-variant">Pearson r across {countyCount} counties — click any cell to explore</p>
+          <p className="text-[10px] text-on-surface-variant/70 mt-0.5">Correlating: {buildFilterSubtitle(activeFilters)}</p>
         </div>
         <div className="flex items-center gap-2 text-[9px] text-on-surface-variant" aria-label="Legend: -1 (strong negative, red) to +1 (strong positive, blue)" role="img">
           <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#991b1b" }} aria-hidden="true" /><span>-1</span></div>

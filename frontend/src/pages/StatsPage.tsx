@@ -107,7 +107,16 @@ export default function StatsPage() {
     anomalies: anomalyResult.all,
     enabled: !dashLoading,
   });
-  const correlation = useCorrelationData();
+  const correlationFilters = useMemo(() => ({
+    severity: statsFilters.severities.length ? statsFilters.severities : undefined,
+    alcohol: statsFilters.alcohol,
+    pedestrian: statsFilters.pedestrian,
+    cyclist: statsFilters.cyclist,
+    drug: statsFilters.drug,
+    distracted: statsFilters.distracted,
+    dateRange: statsFilters.dateRange,
+  }), [statsFilters.severities, statsFilters.alcohol, statsFilters.pedestrian, statsFilters.cyclist, statsFilters.drug, statsFilters.distracted, statsFilters.dateRange]);
+  const correlation = useCorrelationData(correlationFilters);
   const dateRange  = filters.selectedDateRange;
   const severities = filters.selectedSeverities;
   const counties   = filters.selectedCounties;
@@ -704,6 +713,16 @@ export default function StatsPage() {
             matrix={correlation.data.matrix}
             countyCount={correlation.data.countyCount}
             counties={correlation.data.counties}
+            activeFilters={{
+              severity: statsFilters.severities.length ? statsFilters.severities : undefined,
+              alcohol: statsFilters.alcohol,
+              pedestrian: statsFilters.pedestrian,
+              cyclist: statsFilters.cyclist,
+              drug: statsFilters.drug,
+              distracted: statsFilters.distracted,
+              startDate: statsFilters.dateRange?.start ? formatYearMonth(statsFilters.dateRange.start) : undefined,
+              endDate: statsFilters.dateRange?.end ? formatYearMonth(statsFilters.dateRange.end) : undefined,
+            }}
           />
         ) : null}
       </section>}
