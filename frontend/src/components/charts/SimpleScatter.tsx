@@ -61,6 +61,26 @@ export default function SimpleScatter({
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || !data.length) return;
+    const rect = svg.getBoundingClientRect();
+    const tx = e.touches[0].clientX - rect.left;
+    const ty = e.touches[0].clientY - rect.top;
+    let closest = 0, minDist = Infinity;
+    for (let i = 0; i < data.length; i++) {
+      const xVal = data[i].x ?? data[i].value;
+      const yVal = data[i].y ?? 0;
+      const mX = Math.max(...data.map(d => d.x ?? d.value), 1);
+      const mY = Math.max(...data.map(d => d.y ?? 0), 1);
+      const px = 56 + (xVal / mX) * (rect.width - 56 - 16);
+      const py = 16 + (rect.height - 16 - 36) - (yVal / mY) * (rect.height - 16 - 36);
+      const d = (tx - px) ** 2 + (ty - py) ** 2;
+      if (d < minDist) { minDist = d; closest = i; }
+    }
+    setHover({ idx: closest, x: e.touches[0].clientX, y: e.touches[0].clientY });
+  }, [data]);
+
   if (!data.length) return null;
 
   const points = data.map((d) => ({
@@ -78,9 +98,17 @@ export default function SimpleScatter({
   const xTicks = 4;
   const yTicks = 4;
 
+  const scatterR2 = points.length >= 3 ? linearRegressionXY(points.map(p => ({ x: p.xVal, y: p.yVal }))).r2 : null;
+
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+      {scatterR2 !== null && (
+        <span className="absolute top-1 right-1 z-10 text-[9px] font-bold text-on-surface-variant bg-surface-container/80 rounded px-1.5 py-0.5">
+          R²={scatterR2.toFixed(2)}
+        </span>
+      )}
+      <svg ref={svgRef} width="100%" height={height} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+        onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: yTicks + 1 }).map((_, i) => {
           const v = Math.round((maxY / yTicks) * i);
@@ -123,12 +151,7 @@ export default function SimpleScatter({
           const y0 = padding.top + chartH - (Math.max(0, Math.min(y0Val, maxY)) / maxY) * chartH;
           const yN = padding.top + chartH - (Math.max(0, Math.min(yNVal, maxY)) / maxY) * chartH;
           return (
-            <g>
-              <line x1={x0} x2={xN} y1={y0} y2={yN} stroke="rgb(var(--error))" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.5} />
-              <text x={xN - 4} y={yN - 8} textAnchor="end" fontSize={9} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">
-                R²={reg.r2.toFixed(2)}
-              </text>
-            </g>
+            <line x1={x0} x2={xN} y1={y0} y2={yN} stroke="rgb(var(--error))" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.5} />
           );
         })()}
 
