@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy import desc, func, text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db

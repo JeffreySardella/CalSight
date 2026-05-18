@@ -117,11 +117,13 @@ export default function ShortcutCheatSheet({
       className="fixed inset-0 z-[9998] flex items-center justify-center p-4"
       role="presentation"
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
 
       {/* Dialog */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         ref={dialogRef}
         role="dialog"
@@ -130,6 +132,7 @@ export default function ShortcutCheatSheet({
         tabIndex={-1}
         className="relative w-full max-w-3xl max-h-[80vh] bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/20 overflow-hidden focus:outline-none animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/10">

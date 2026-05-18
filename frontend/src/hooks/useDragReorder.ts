@@ -199,6 +199,7 @@ export function useDragReorder({
     setAnnouncement(`Picked up chart at position ${index + 1} of ${items.length}. Use arrow keys or drop to reorder.`);
   }, [enabled, items.length]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDragEnd = useCallback((_e: React.DragEvent) => {
     stopAutoScroll();
     handleActivatedRef.current = false;
@@ -232,6 +233,7 @@ export function useDragReorder({
     e.preventDefault();
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDragLeave = useCallback((_e: React.DragEvent) => {
     // Only clear if leaving the container entirely - handled by checking relatedTarget
   }, []);
@@ -242,6 +244,7 @@ export function useDragReorder({
   }, [stopAutoScroll]);
 
   // Handle activation (pointer down on handle)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handlePointerDown = useCallback((_id: string) => {
     handleActivatedRef.current = true;
   }, []);

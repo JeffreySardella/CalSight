@@ -86,17 +86,20 @@ export default function CommandPalette({
       className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh]"
       role="presentation"
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
 
       {/* Palette container */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
         className="relative w-full max-w-lg mx-4 bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/20 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Search input */}
         <div className="flex items-center px-4 border-b border-outline-variant/10">
@@ -144,6 +147,7 @@ export default function CommandPalette({
                     : "text-on-surface-variant hover:bg-surface-container-high"
                 }`}
                 onClick={() => onExecute(cmd)}
+                onKeyDown={(e) => { if (e.key === "Enter") onExecute(cmd); }}
                 onMouseEnter={() => onSelect(i)}
               >
                 {cmd.icon && (

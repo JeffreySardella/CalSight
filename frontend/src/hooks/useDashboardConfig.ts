@@ -42,7 +42,7 @@ function loadInitialConfig(): DashboardConfig {
       const parsed = JSON.parse(stored);
       if (isValidConfig(parsed)) return parsed;
     }
-  } catch {}
+  } catch { /* corrupted localStorage */ }
 
   return { mode: "simple", preset: "overview", charts: [] };
 }

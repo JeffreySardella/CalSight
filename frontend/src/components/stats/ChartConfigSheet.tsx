@@ -29,7 +29,9 @@ export default function ChartConfigSheet({ open, initial, onConfirm, onCancel }:
       aria-label={initial ? "Edit chart" : "Add chart"}
       className="fixed inset-0 z-[60] lg:hidden"
     >
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div className="absolute inset-0 bg-inverse-surface/30" onClick={onCancel} />
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
         ref={panelRef}
         tabIndex={-1}

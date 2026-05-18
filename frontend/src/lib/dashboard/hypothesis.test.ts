@@ -430,7 +430,7 @@ describe("bonferroniCorrection", () => {
       { pValue: 0.01 },
       { pValue: 0.03 },
       { pValue: 0.08 },
-    ] as any[];
+    ] as { pValue: number }[];
     const corrected = bonferroniCorrection(mockResults);
     expect(corrected.correctedPValues[0]).toBeCloseTo(0.03); // 0.01 * 3
     expect(corrected.correctedPValues[1]).toBeCloseTo(0.09); // 0.03 * 3
@@ -442,7 +442,7 @@ describe("bonferroniCorrection", () => {
     const mockResults = [
       { pValue: 0.5 },
       { pValue: 0.8 },
-    ] as any[];
+    ] as { pValue: number }[];
     const corrected = bonferroniCorrection(mockResults);
     expect(corrected.correctedPValues[0]).toBe(1);
     expect(corrected.correctedPValues[1]).toBe(1);
@@ -455,7 +455,7 @@ describe("bonferroniCorrection", () => {
       { pValue: 0.02 },   // 0.10 after correction — not significant
       { pValue: 0.04 },   // 0.20 after correction — not significant
       { pValue: 0.5 },    // 1.0 after correction — not significant
-    ] as any[];
+    ] as { pValue: number }[];
     const corrected = bonferroniCorrection(mockResults);
     expect(corrected.significantCount).toBe(1); // Only the first survives
   });
@@ -469,7 +469,7 @@ describe("fdrCorrection", () => {
       { pValue: 0.03 },
       { pValue: 0.04 },
       { pValue: 0.5 },
-    ] as any[];
+    ] as { pValue: number }[];
     const bonf = bonferroniCorrection(mockResults);
     const fdr = fdrCorrection(mockResults);
     expect(fdr.significantCount).toBeGreaterThanOrEqual(bonf.significantCount);
@@ -480,7 +480,7 @@ describe("fdrCorrection", () => {
       { pValue: 0.01 },
       { pValue: 0.04 },
       { pValue: 0.02 },
-    ] as any[];
+    ] as { pValue: number }[];
     const fdr = fdrCorrection(mockResults);
     // Adjusted p for index 0 (smallest raw p) should be <= adjusted p for index 1
     expect(fdr.correctedPValues[0]).toBeLessThanOrEqual(fdr.correctedPValues[1]);
@@ -489,7 +489,7 @@ describe("fdrCorrection", () => {
   it("all corrected values are between 0 and 1", () => {
     const mockResults = Array.from({ length: 20 }, (_, i) => ({
       pValue: (i + 1) / 100,
-    })) as any[];
+    })) as { pValue: number }[];
     const fdr = fdrCorrection(mockResults);
     for (const p of fdr.correctedPValues) {
       expect(p).toBeGreaterThanOrEqual(0);

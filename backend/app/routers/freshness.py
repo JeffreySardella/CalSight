@@ -14,7 +14,7 @@ All data comes from the etl_runs table — no extra bookkeeping needed.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request, Response

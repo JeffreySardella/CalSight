@@ -9,6 +9,7 @@ import DataFreshnessBanner from "../components/stats/DataFreshnessBanner";
 import PresetPicker from "../components/stats/PresetPicker";
 import DashboardGrid from "../components/stats/DashboardGrid";
 import InsightBanner from "../components/stats/InsightBanner";
+import { useFunFacts } from "../hooks/useFunFacts";
 import { useDashboardConfig } from "../hooks/useDashboardConfig";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { useCorrelationData } from "../hooks/useCorrelationData";
@@ -221,6 +222,10 @@ export default function StatsPage() {
   const { totalIncidents, incidentYoYPct, ksiRatePer100k, yoyFatalityChangePct } = heroMetrics;
   const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
   const fatalityUp = yoyFatalityChangePct != null && yoyFatalityChangePct > 0;
+
+  // Fun facts — prefer county-specific when a single county is selected
+  const funFactsCounty = counties.size === 1 ? [...counties][0] : null;
+  const { facts: funFacts } = useFunFacts(funFactsCounty, 5);
 
   // Sparkline data: last 10 years of trends for hero metric cards
   const sparkIncidents = useMemo(() => {
@@ -473,7 +478,7 @@ export default function StatsPage() {
       </section>
 
       {/* Auto-generated Insight Banner */}
-      <InsightBanner heroMetrics={heroMetrics} loading={loading} />
+      <InsightBanner heroMetrics={heroMetrics} loading={loading} funFacts={funFacts} />
 
       {/* Overall empty state when filters return zero results */}
       {!loading && !error && data && totalIncidents === 0 && (

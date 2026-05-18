@@ -162,15 +162,18 @@ export default function QuickAddChart({ isOpen, onClose, onAdd }: Props) {
       className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh]"
       role="presentation"
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
 
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Quick add chart"
         className="relative w-full max-w-md mx-4 bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/20 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Progress */}
         <div className="px-4 pt-4 pb-2">
@@ -240,6 +243,7 @@ export default function QuickAddChart({ isOpen, onClose, onAdd }: Props) {
                   : "text-on-surface-variant hover:bg-surface-container-high"
               }`}
               onClick={() => confirm(opt.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") confirm(opt.value); }}
               onMouseEnter={() => setSelectedIdx(i)}
             >
               {opt.icon && (

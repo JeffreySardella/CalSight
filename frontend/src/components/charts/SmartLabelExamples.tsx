@@ -275,7 +275,6 @@ export function renderScatterLabels(
 export function renderTreemapLabels(
   labels: TreemapLabelResult[],
   originalLabels: string[],
-  _padX?: number,
 ): React.ReactNode {
   return labels.map((label, i) => (
     <g key={`tl-${i}`}>

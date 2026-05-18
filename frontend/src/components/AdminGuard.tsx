@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { API_BASE } from "../config";
 
 const STORAGE_KEY = "calsight-admin-key";
@@ -15,6 +15,13 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!authenticated) {
+      inputRef.current?.focus();
+    }
+  }, [authenticated]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,11 +63,11 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
           Enter the admin key to access this page.
         </p>
         <input
+          ref={inputRef}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Admin key"
-          autoFocus
           className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {error && (
