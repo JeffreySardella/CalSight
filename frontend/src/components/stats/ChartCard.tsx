@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from "react";
+import React, { useRef, useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
@@ -118,6 +118,59 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
   );
 }
 
+function MobileMenu({ onExplain, onExportPng, onExportCsv, onToggleTable, showTable }: {
+  onExplain: () => void;
+  onExportPng: () => void;
+  onExportCsv: () => void;
+  onToggleTable: () => void;
+  showTable: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function close(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  return (
+    <div className="relative sm:hidden" ref={menuRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high transition-colors"
+        aria-label="Chart actions"
+        aria-expanded={open}
+      >
+        <span className="material-symbols-outlined text-[20px]" aria-hidden="true">more_vert</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 bg-surface-container-low rounded-xl shadow-lg border border-outline-variant/20 py-1 min-w-[160px]">
+          <button onClick={() => { onExplain(); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-high transition-colors">
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">auto_awesome</span>
+            Explain
+          </button>
+          <button onClick={() => { onToggleTable(); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-high transition-colors">
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">{showTable ? "bar_chart" : "table_chart"}</span>
+            {showTable ? "Show Chart" : "View Data"}
+          </button>
+          <button onClick={() => { onExportPng(); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-high transition-colors">
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">file_download</span>
+            Download PNG
+          </button>
+          <button onClick={() => { onExportCsv(); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-high transition-colors">
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">download</span>
+            Download CSV
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChartCard({
   slot, data, secondaryData, editing, loading, compact, onEdit, onRemove, onMoveUp, onMoveDown, isFirst, isLast, enterDelay, dragHandleProps, narrativeResult, crossFilter, onBarClick,
 }: Props) {
@@ -213,7 +266,7 @@ function ChartCard({
       className={`group/card chart-card-themed chart-card-enter focus:outline-2 focus:outline-primary/50 focus:outline-offset-2${isSourceChart ? " ring-2 ring-primary" : ""}`}
       style={{ animationDelay: enterDelay && enterDelay > 0 ? `${enterDelay}ms` : undefined }}
     >
-      {/* Title — always full width, never truncated */}
+      {/* Title row with mobile menu button */}
       <div className={compact ? "mb-1" : "mb-2"}>
         <div className="flex items-center gap-1.5">
           {editing && dragHandleProps && (
@@ -226,50 +279,32 @@ function ChartCard({
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
             </span>
           )}
-          <h3 className={`font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{title}</h3>
+          <h3 className={`flex-1 font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{title}</h3>
+          {/* Mobile: always-visible kebab menu */}
+          {!compact && (
+            <MobileMenu
+              onExplain={handleExplainChart}
+              onExportPng={handleExportPng}
+              onExportCsv={handleExportCsv}
+              onToggleTable={() => setShowTable((v) => !v)}
+              showTable={showTable}
+            />
+          )}
         </div>
       </div>
 
-      {/* Action buttons — absolutely positioned top-right, only visible on hover */}
-      <div className="relative">
+      {/* Desktop: action buttons visible on hover */}
+      <div className="relative hidden sm:block">
         {!compact && <div className="absolute right-0 -top-8 z-10 flex items-center gap-0.5 bg-surface-container-lowest/95 rounded-lg px-1 opacity-0 group-hover/card:opacity-100 focus-within:opacity-100 transition-opacity">
-          <button
-            onClick={handleExplainChart}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
-            aria-label={`Explain ${title}`}
-            title="Explain this chart"
-          >
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
-              auto_awesome
-            </span>
+          <button onClick={handleExplainChart} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Explain ${title}`} title="Explain this chart">
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">auto_awesome</span>
           </button>
-          <button
-            onClick={handleExportPng}
-            className="hidden sm:flex min-h-[44px] min-w-[44px] p-2.5 rounded-full hover:bg-surface-container-high text-on-surface-variant sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity items-center justify-center"
-            aria-label={`Download ${title} as PNG`}
-            title="Download PNG"
-          >
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
-              file_download
-            </span>
+          <button onClick={handleExportPng} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Download ${title} as PNG`} title="Download PNG">
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">file_download</span>
           </button>
-          <button
-            onClick={handleExportCsv}
-            className="hidden sm:flex min-h-[44px] min-w-[44px] px-1.5 py-1 rounded-full hover:bg-surface-container-high text-on-surface-variant text-[11px] font-bold leading-none sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity items-center justify-center"
-            aria-label={`Download ${title} as CSV`}
-            title="Download CSV"
-          >
-            CSV
-          </button>
-          <button
-            onClick={() => setShowTable((v) => !v)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 focus:opacity-100 transition-opacity"
-            aria-label={showTable ? "Show chart" : "View data"}
-            title={showTable ? "Show chart" : "View data"}
-          >
-            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-              {showTable ? "bar_chart" : "table_chart"}
-            </span>
+          <button onClick={handleExportCsv} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant text-[11px] font-bold leading-none opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Download ${title} as CSV`} title="Download CSV">CSV</button>
+          <button onClick={() => setShowTable((v) => !v)} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant opacity-0 group-hover/card:opacity-100 focus:opacity-100 transition-opacity" aria-label={showTable ? "Show chart" : "View data"} title={showTable ? "Show chart" : "View data"}>
+            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">{showTable ? "bar_chart" : "table_chart"}</span>
           </button>
           {editing && (
             <>
