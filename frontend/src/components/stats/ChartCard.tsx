@@ -20,6 +20,7 @@ import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import { useFilterParams } from "../../hooks/useFilterParams";
+import { useCustomTheme } from "../../context/CustomThemeContext";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
@@ -124,6 +125,7 @@ function ChartCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { selectedCounties } = useFilterParams();
+  const { chartColors } = useCustomTheme();
   const title = buildTitle(slot);
 
   // Cross-filter: determine if this chart's dimension supports brushing
@@ -146,6 +148,11 @@ function ChartCard({
       return values.includes(item.label) ? "selected" : "dimmed";
     };
   }, [crossFilter?.state.selection, slot.dimension]);
+  // Apply chart palette colors to data items that don't already have a color
+  const coloredData = useMemo(() =>
+    data.map((d, i) => d.color ? d : { ...d, color: chartColors[i % chartColors.length] }),
+  [data, chartColors]);
+
   const hasData = data.length > 0 && data.some((d) => d.value > 0);
   const isScatter = slot.chartType === "scatter";
   const valueLabel = MEASURE_LABELS[slot.measure];
@@ -296,14 +303,14 @@ function ChartCard({
       ) : slot.chartType === "donut" ? (
         <>
           <SimpleDonutChart
-            data={data.map((d) => ({ label: d.label, value: d.value, color: d.color ?? "rgb(var(--primary))" }))}
+            data={coloredData.map((d) => ({ label: d.label, value: d.value, color: d.color ?? "rgb(var(--primary))" }))}
             height={140}
             renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
             title={title}
             onSegmentClick={handleCrossFilterClick ? (item) => handleCrossFilterClick(item.label) : undefined}
             getHighlight={getHighlight ? (item) => getHighlight(item) : undefined}
           />
-          <DonutLegend data={data} />
+          <DonutLegend data={coloredData} />
         </>
       ) : (slot.chartType === "line" || slot.chartType === "area") && hasDualAxis ? (
         <DualAxisLineChart
@@ -358,7 +365,7 @@ function ChartCard({
         />
       ) : slot.chartType === "polar" ? (
         <SimplePolarArea
-          data={data.map((d) => ({ ...d, color: d.color }))}
+          data={coloredData.map((d) => ({ ...d, color: d.color }))}
           height={220}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
           title={title}
@@ -383,14 +390,14 @@ function ChartCard({
         />
       ) : slot.chartType === "treemap" ? (
         <SimpleTreemap
-          data={data.map((d) => ({ ...d, color: d.color }))}
+          data={coloredData.map((d) => ({ ...d, color: d.color }))}
           height={260}
           renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
           title={title}
         />
       ) : slot.chartType === "gauge" ? (
         <SimpleGauge
-          data={data.map((d) => ({ ...d, color: d.color }))}
+          data={coloredData.map((d) => ({ ...d, color: d.color }))}
           height={180}
           title={title}
         />

@@ -97,12 +97,6 @@ export default function SimpleTreemap({
   const PAD = 2;
   const rects = squarify(data, svgWidth - PAD * 2, height - PAD * 2);
 
-  const COLORS = [
-    "#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706",
-    "#dc2626", "#6366f1", "#0d9488", "#ca8a04", "#e11d48",
-    "#4f46e5", "#0284c7",
-  ];
-
   function textOnColor(hex: string): string {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -115,9 +109,9 @@ export default function SimpleTreemap({
     <div className="w-full overflow-visible relative" style={{ height }}>
       <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
         {title && <title id={titleId}>{title}</title>}
-        {rects.map((r, i) => {
+        {rects.map((r) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
-          const color = r.item.color ?? COLORS[i % COLORS.length] ?? defaultColor;
+          const color = r.item.color ?? defaultColor;
           const textColor = textOnColor(color);
           const showName = r.w > 44 && r.h > 20;
           const showPct = r.w > 30 && r.h > 36;

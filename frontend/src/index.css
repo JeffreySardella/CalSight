@@ -188,6 +188,7 @@
     backdrop-filter: var(--card-backdrop);
     -webkit-backdrop-filter: var(--card-backdrop);
   }
+
 }
 
 /* Bottom padding that accounts for the tab bar + iPhone safe area */

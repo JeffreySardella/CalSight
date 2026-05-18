@@ -15,7 +15,6 @@ import type {
   ChartPaletteKey,
   CardStyle,
   Density,
-  TypeScale,
 } from "../../lib/theme/types";
 
 const CHIP_ACTIVE = "bg-primary-container text-on-primary-container";
@@ -32,12 +31,6 @@ const DENSITY_OPTIONS: { value: Density; label: string }[] = [
   { value: "compact", label: "Compact" },
   { value: "comfortable", label: "Comfortable" },
   { value: "spacious", label: "Spacious" },
-];
-
-const TYPE_SCALE_OPTIONS: { value: TypeScale; label: string }[] = [
-  { value: "small", label: "S" },
-  { value: "default", label: "M" },
-  { value: "large", label: "L" },
 ];
 
 const PALETTE_KEYS: ChartPaletteKey[] = [
@@ -131,7 +124,6 @@ export default function ThemeCustomizer() {
     setChartPalette,
     setCardStyle,
     setDensity,
-    setTypeScale,
     exportCurrentTheme,
     importThemeFile,
     reset,
@@ -258,25 +250,10 @@ export default function ThemeCustomizer() {
         </div>
       </section>
 
-      {/* Typography scale */}
-      <section>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-2">
-          Text Size
-        </span>
-        <div className="flex gap-1 rounded-lg bg-surface-container p-1 w-fit">
-          {TYPE_SCALE_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setTypeScale(value)}
-              className={`w-9 flex items-center justify-center rounded-md py-1.5 text-xs font-medium transition-colors ${
-                customization.typeScale === value ? CHIP_ACTIVE : CHIP_INACTIVE
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </section>
+      {/* TODO: Typography scale — disabled until chart SVGs and Tailwind utilities
+       * can respect --type-* CSS variables. Requires refactoring inline fontSize
+       * attributes in SVG chart components and replacing fixed Tailwind text classes
+       * with variable-driven values. */}
 
       <div className="border-t border-outline-variant/20" />
 
