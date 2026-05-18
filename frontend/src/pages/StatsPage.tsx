@@ -676,7 +676,7 @@ export default function StatsPage() {
             )}
             <DrillBreadcrumb drillState={drillState} onDrillUp={drillUp} />
             <DashboardGrid
-              charts={singleCountyActive ? dashboard.activeCharts.filter(c => c.dimension !== "county") : dashboard.activeCharts}
+              charts={singleCountyActive ? dashboard.activeCharts.filter(c => !(c.dimension === "county" && (c.chartType === "bar" || c.chartType === "hbar"))) : dashboard.activeCharts}
               dataBySlot={dataBySlot}
               mode={dashboard.config.mode}
               loading={dashLoading}
