@@ -57,7 +57,7 @@ export default function VehicleTrends() {
         <p className="text-[11px] text-on-surface-variant">California DMV — EV adoption vs total registered vehicles</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         <div className="bg-surface-container rounded-xl p-3 sm:p-4 min-w-0 overflow-hidden">
           <p className="text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold mb-2 truncate">EV Adoption Rate</p>
           <SimpleLineChart
@@ -96,7 +96,7 @@ export default function VehicleTrends() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-center">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-center">
         {data.length > 0 && (() => {
           const latest = data[data.length - 1];
           const earliest = data.find((d) => d.ev > 0);
