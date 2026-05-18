@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { ChartNarrativeResult } from "../../hooks/useNarrativeInsights";
-import type { StatFact } from "../../lib/dashboard/narrativeEngine";
 
 interface Props {
   narrative: ChartNarrativeResult | null;
@@ -49,33 +48,6 @@ export default function ChartNarrative({ narrative }: Props) {
             </button>
           )}
 
-          {/* Statistical fact badges — hidden for now (confusing without interactivity) */}
-          {false && expanded && narrative.facts.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {narrative.facts.slice(0, 4).map((fact: StatFact, idx: number) => (
-                <span
-                  key={idx}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                    fact.strength === "strong"
-                      ? "bg-error/10 text-error"
-                      : fact.strength === "moderate"
-                        ? "bg-tertiary/10 text-tertiary"
-                        : "bg-surface-container-high text-on-surface-variant"
-                  }`}
-                >
-                  {fact.type === "peak" && "Peak"}
-                  {fact.type === "trough" && "Trough"}
-                  {fact.type === "trend" && "Trend"}
-                  {fact.type === "concentration" && "Concentrated"}
-                  {fact.type === "dominance" && "Dominant"}
-                  {fact.type === "comparison" && "Comparison"}
-                  {fact.type === "volatility" && "Volatile"}
-                  {fact.type === "outlier" && "Outlier"}
-                  {fact.type === "change_point" && "Shift"}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
