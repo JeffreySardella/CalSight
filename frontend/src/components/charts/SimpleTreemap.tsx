@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId } from "react";
+import { useState, useRef, useEffect, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 
 interface TreemapItem {
@@ -91,11 +91,32 @@ export default function SimpleTreemap({
     return () => ro.disconnect();
   }, []);
 
+  const rectsRef = useRef<{ x: number; y: number; w: number; h: number; idx: number }[]>([]);
+
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || !rectsRef.current.length) return;
+    const rect = svg.getBoundingClientRect();
+    const tx = e.touches[0].clientX - rect.left;
+    const ty = e.touches[0].clientY - rect.top;
+    let closest = 0, minDist = Infinity;
+    for (const r of rectsRef.current) {
+      const cx = r.x + r.w / 2;
+      const cy = r.y + r.h / 2;
+      const d = (tx - cx) ** 2 + (ty - cy) ** 2;
+      if (d < minDist) { minDist = d; closest = r.idx; }
+    }
+    setHover({ idx: closest, x: e.touches[0].clientX, y: e.touches[0].clientY });
+  }, []);
+
   if (!data.length) return null;
 
+  // Scale height based on item count so small items at the bottom aren't cut off
+  const effectiveHeight = Math.max(height, data.length > 8 ? 300 : data.length > 5 ? 260 : height);
   const total = data.reduce((s, d) => s + d.value, 0);
   const PAD = 2;
-  const rects = squarify(data, svgWidth - PAD * 2, height - PAD * 2);
+  const rects = squarify(data, svgWidth - PAD * 2, effectiveHeight - PAD * 2);
+  rectsRef.current = rects.map(r => ({ x: PAD + r.x, y: PAD + r.y, w: r.w, h: r.h, idx: r.idx }));
 
   function textOnColor(hex: string): string {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -106,8 +127,9 @@ export default function SimpleTreemap({
   }
 
   return (
-    <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+    <div className="w-full overflow-visible relative" style={{ height: effectiveHeight }}>
+      <svg ref={svgRef} width="100%" height={effectiveHeight} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+        onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {rects.map((r) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
