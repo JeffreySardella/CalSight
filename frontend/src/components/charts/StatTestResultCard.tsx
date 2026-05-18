@@ -36,7 +36,7 @@ export default function StatTestResultCard({ result, compact = false }: Props) {
       </div>
 
       {/* Key Statistics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <StatBox label="Test Statistic" value={formatStat(result.statistic, 3)} />
         <StatBox label="p-value" value={formatStat(result.pValue)} highlight={result.pValue < 0.05} />
         {result.effectSize != null && (
