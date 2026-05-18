@@ -46,10 +46,12 @@ interface Props {
   crossFilter?: CrossFilterAPI;
   /** Called when a bar is clicked in a chart (for drill-down) */
   onBarClick?: (label: string, dimension: Dimension) => void;
+  /** Clear all builder charts */
+  onClearCharts?: () => void;
 }
 
 export default function DashboardGrid({
-  charts, dataBySlot, mode, loading, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, onReorderChart, closeConfigTrigger, getChartNarrative, crossFilter, onBarClick,
+  charts, dataBySlot, mode, loading, onAddChart, onRemoveChart, onUpdateChart, onMoveChart, onReorderChart, closeConfigTrigger, getChartNarrative, crossFilter, onBarClick, onClearCharts,
 }: Props) {
   const [configOpen, setConfigOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -198,6 +200,18 @@ export default function DashboardGrid({
           />
         )}
       </div>
+
+      {isAdvanced && charts.length > 0 && onClearCharts && (
+        <div className="flex justify-end mt-2">
+          <button
+            onClick={() => { onClearCharts(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-error text-[11px] font-bold hover:bg-error-container/20 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[14px]" aria-hidden="true">delete</span>
+            Clear All Charts
+          </button>
+        </div>
+      )}
 
       {isMobile && (
         <ChartConfigSheet

@@ -187,25 +187,28 @@ export default function SimpleBarChart({
                 onClick={() => onBarClick?.(d, i)}
                 className="cursor-pointer"
               />
-              {showXAxis && (
-                <g transform={`translate(${barX + barW / 2}, ${height - padding.bottom + 14})`}>
-                  {labelFormatter ? (
-                    labelFormatter(d.label, i, !!d.peakLabel)
-                  ) : (
-                    <text
-                      textAnchor="middle"
-                      fontSize={10}
-                      fontWeight={600}
-                      fill="rgb(var(--on-surface-variant))"
-                      fontFamily="'Inter Variable', Inter, sans-serif"
-                      textLength={barW > 0 && d.label.length * 6 > barW ? barW : undefined}
-                      lengthAdjust="spacingAndGlyphs"
-                    >
-                      {d.label}
-                    </text>
-                  )}
-                </g>
-              )}
+              {showXAxis && (() => {
+                const skipInterval = slotW < 28 ? Math.ceil(28 / slotW) : 1;
+                if (i % skipInterval !== 0) return null;
+                return (
+                  <g transform={`translate(${barX + barW / 2}, ${height - padding.bottom + 14})`}>
+                    {labelFormatter ? (
+                      labelFormatter(d.label, i, !!d.peakLabel)
+                    ) : (
+                      <text
+                        textAnchor={slotW < 20 ? "end" : "middle"}
+                        fontSize={slotW < 24 ? 8 : 10}
+                        fontWeight={600}
+                        fill="rgb(var(--on-surface-variant))"
+                        fontFamily="'Inter Variable', Inter, sans-serif"
+                        transform={slotW < 20 ? "rotate(-45)" : undefined}
+                      >
+                        {d.label}
+                      </text>
+                    )}
+                  </g>
+                );
+              })()}
             </g>
           );
         })}

@@ -691,6 +691,7 @@ export default function StatsPage() {
               getChartNarrative={getChartNarrative}
               crossFilter={crossFilter}
               onBarClick={handleBarClick}
+              onClearCharts={dashboard.clearCharts}
             />
           </>
         )}

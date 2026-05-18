@@ -123,13 +123,13 @@ export default function SimpleLineChart({
   const trendR2 = showTrendLine && points.length >= 2 ? linearRegression(data.map(d => d.value)).r2 : null;
 
   return (
-    <div className="w-full overflow-visible relative" style={{ height }}>
+    <div className="w-full relative" style={{ height }}>
       {trendR2 !== null && (
         <span className="absolute bottom-8 right-1 z-10 text-[9px] font-bold text-on-surface-variant bg-surface-container/80 rounded px-1.5 py-0.5">
           R²={trendR2.toFixed(2)}
         </span>
       )}
-      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+      <svg ref={svgRef} width="100%" height={height} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {showYAxis && yTickVals.map((v) => {
@@ -215,15 +215,21 @@ export default function SimpleLineChart({
           const yUpper = padding.top + chartH - (Math.min(m + sd, maxVal) / maxVal) * chartH;
           const yLower = padding.top + chartH - (Math.max(m - sd, 0) / maxVal) * chartH;
           return (
-            <rect
-              x={padding.left}
-              y={yUpper}
-              width={Math.max(chartW, 0)}
-              height={Math.max(yLower - yUpper, 0)}
-              fill="rgb(var(--primary))"
-              fillOpacity={0.08}
-              rx={4}
-            />
+            <g>
+              <rect
+                x={padding.left}
+                y={yUpper}
+                width={Math.max(chartW, 0)}
+                height={Math.max(yLower - yUpper, 0)}
+                fill="rgb(var(--on-surface-variant))"
+                fillOpacity={0.1}
+                rx={4}
+              />
+              <line x1={padding.left} x2={padding.left + chartW} y1={yUpper} y2={yUpper} stroke="rgb(var(--on-surface-variant))" strokeWidth={0.75} strokeDasharray="4 3" strokeOpacity={0.4} />
+              <line x1={padding.left} x2={padding.left + chartW} y1={yLower} y2={yLower} stroke="rgb(var(--on-surface-variant))" strokeWidth={0.75} strokeDasharray="4 3" strokeOpacity={0.4} />
+              <text x={padding.left + 4} y={yUpper - 3} fontSize={7} fill="rgb(var(--on-surface-variant))" fillOpacity={0.6} fontFamily="'Inter Variable', Inter, sans-serif">+1σ</text>
+              <text x={padding.left + 4} y={yLower + 10} fontSize={7} fill="rgb(var(--on-surface-variant))" fillOpacity={0.6} fontFamily="'Inter Variable', Inter, sans-serif">-1σ</text>
+            </g>
           );
         })()}
 
@@ -233,13 +239,10 @@ export default function SimpleLineChart({
           const sd = calcStddev(vals);
           return points.map((p, i) => {
             const z = sd > 0 ? Math.abs((data[i].value - m) / sd) : 0;
-            if (z < 2) return null;
+            if (z < 1.5) return null;
             return (
               <g key={`outlier-${i}`}>
-                <circle cx={p.x} cy={p.y} r={8} fill="none" stroke="rgb(var(--error))" strokeWidth={1.5} strokeDasharray="3 2" />
-                <text x={p.x} y={p.y - 12} textAnchor="middle" fontSize={8} fontWeight={700} fill="rgb(var(--error))" fontFamily="'Inter Variable', Inter, sans-serif">
-                  {z.toFixed(1)}σ
-                </text>
+                <circle cx={p.x} cy={p.y} r={10} fill="rgb(var(--error))" fillOpacity={0.1} stroke="rgb(var(--error))" strokeWidth={2} />
               </g>
             );
           });
@@ -250,7 +253,7 @@ export default function SimpleLineChart({
           const y0 = padding.top + chartH - ((reg.intercept) / maxVal) * chartH;
           const yN = padding.top + chartH - ((reg.slope * (n - 1) + reg.intercept) / maxVal) * chartH;
           return (
-            <line x1={points[0].x} x2={points[points.length - 1].x} y1={y0} y2={yN} stroke="rgb(var(--tertiary))" strokeWidth={1.5} strokeDasharray="8 4" strokeOpacity={0.7} />
+            <line x1={points[0].x} x2={points[points.length - 1].x} y1={y0} y2={yN} stroke="rgb(var(--error))" strokeWidth={1.5} strokeDasharray="8 4" strokeOpacity={0.6} />
           );
         })()}
 
@@ -291,13 +294,13 @@ export default function SimpleLineChart({
             <g>
               <line x1={lastPt.x} x2={lastPt.x} y1={padding.top} y2={padding.top + chartH} stroke="rgb(var(--outline-variant))" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} />
               <text x={lastPt.x + 4} y={padding.top + 10} fontSize={8} fill="rgb(var(--on-surface-variant))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">FORECAST</text>
-              <polygon points={bandPoly} fill="rgb(var(--tertiary))" fillOpacity={0.1} />
-              <path d={fcPath} fill="none" stroke="rgb(var(--tertiary))" strokeWidth={2} strokeDasharray="8 4" strokeOpacity={0.8} />
+              <polygon points={bandPoly} fill="var(--color-chart-3, #14b8a6)" fillOpacity={0.08} />
+              <path d={fcPath} fill="none" stroke="var(--color-chart-3, #14b8a6)" strokeWidth={2} strokeDasharray="8 4" strokeOpacity={0.8} />
               {fcPts.map((p, i) => (
-                <circle key={`fc-${i}`} cx={p.x} cy={p.yPred} r={3.5} fill="rgb(var(--surface))" stroke="rgb(var(--tertiary))" strokeWidth={1.5} />
+                <circle key={`fc-${i}`} cx={p.x} cy={p.yPred} r={3.5} fill="rgb(var(--surface))" stroke="var(--color-chart-3, #14b8a6)" strokeWidth={1.5} />
               ))}
               {fcPts.map((p, i) => (
-                <text key={`fl-${i}`} x={p.x} y={height - padding.bottom + 16} textAnchor="middle" fontSize={9} fontStyle="italic" fill="rgb(var(--tertiary))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">{forecastData[i].label}</text>
+                <text key={`fl-${i}`} x={p.x} y={height - padding.bottom + 16} textAnchor="middle" fontSize={9} fontStyle="italic" fill="var(--color-chart-3, #14b8a6)" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">{forecastData[i].label}</text>
               ))}
             </g>
           );

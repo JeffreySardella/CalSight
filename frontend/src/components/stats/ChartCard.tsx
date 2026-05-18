@@ -118,12 +118,15 @@ function DonutLegend({ data }: { data: ChartDataItem[] }) {
   );
 }
 
-function MobileMenu({ onExplain, onExportPng, onExportCsv, onToggleTable, showTable }: {
+function MobileMenu({ onExplain, onExportPng, onExportCsv, onToggleTable, showTable, onEdit, onRemove, editing }: {
   onExplain: () => void;
   onExportPng: () => void;
   onExportCsv: () => void;
   onToggleTable: () => void;
   showTable: boolean;
+  onEdit?: () => void;
+  onRemove?: () => void;
+  editing?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -165,8 +168,81 @@ function MobileMenu({ onExplain, onExportPng, onExportCsv, onToggleTable, showTa
             <span className="material-symbols-outlined text-[16px]" aria-hidden="true">download</span>
             Download CSV
           </button>
+          {editing && onEdit && (
+            <>
+              <div className="border-t border-outline-variant/20 my-1" />
+              <button onClick={() => { onEdit(); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-on-surface hover:bg-surface-container-high transition-colors">
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">tune</span>
+                Edit Chart
+              </button>
+            </>
+          )}
+          {editing && onRemove && (
+            <button onClick={() => { onRemove(); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-error hover:bg-error-container/20 transition-colors">
+              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+              Remove Chart
+            </button>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function OverlayLegend({ data, options, forecastData }: {
+  data: ChartDataItem[];
+  options: Record<string, unknown>;
+  forecastData?: ForecastPoint[] | null;
+}) {
+  const items: { color: string; label: string }[] = [];
+  if (options.trendLine) {
+    const vals = data.map(d => d.value);
+    const n = vals.length;
+    if (n >= 2) {
+      const xMean = (n - 1) / 2;
+      const yMean = vals.reduce((s, v) => s + v, 0) / n;
+      let num = 0, den = 0;
+      for (let i = 0; i < n; i++) { num += (i - xMean) * (vals[i] - yMean); den += (i - xMean) ** 2; }
+      const slope = den ? num / den : 0;
+      const intercept = yMean - slope * xMean;
+      const predicted = vals.map((_, i) => intercept + slope * i);
+      const ssRes = vals.reduce((s, v, i) => s + (v - predicted[i]) ** 2, 0);
+      const ssTot = vals.reduce((s, v) => s + (v - yMean) ** 2, 0);
+      const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+      items.push({ color: "rgb(var(--error))", label: `Trend Line (R²=${r2.toFixed(2)})` });
+    }
+  }
+  if (options.meanLine) {
+    const mean = data.length > 0 ? data.reduce((s, d) => s + d.value, 0) / data.length : 0;
+    items.push({ color: "rgb(var(--error))", label: `Mean: ${mean >= 1000 ? `${(mean / 1000).toFixed(1)}K` : Math.round(mean).toLocaleString()}` });
+  }
+  if (options.stdBand) items.push({ color: "rgb(var(--on-surface-variant))", label: "±1σ Band" });
+  if (options.outliers) {
+    const vals = data.map(d => d.value);
+    const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const std = Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length);
+    const outlierNames = data.filter(d => Math.abs(d.value - mean) > 1.5 * std).map(d => d.label);
+    if (outlierNames.length > 0) {
+      const names = outlierNames.length <= 3 ? outlierNames.join(", ") : `${outlierNames.slice(0, 3).join(", ")} +${outlierNames.length - 3}`;
+      items.push({ color: "rgb(var(--error))", label: `Outliers: ${names}` });
+    }
+  }
+  if (forecastData?.length) {
+    const fmtVal = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : Math.round(v).toLocaleString();
+    const parts = forecastData.map(f => `${f.label}: ${fmtVal(f.value)}`);
+    items.push({ color: "var(--color-chart-3, #14b8a6)", label: `Forecast — ${parts.join(", ")}` });
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 px-1">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-1.5 text-[10px] text-on-surface-variant">
+          <div className="w-4 h-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+          <span>{item.label}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -290,6 +366,9 @@ function ChartCard({
               onExportCsv={handleExportCsv}
               onToggleTable={() => setShowTable((v) => !v)}
               showTable={showTable}
+              onEdit={onEdit}
+              onRemove={onRemove}
+              editing={editing}
             />
           )}
         </div>
@@ -370,9 +449,14 @@ function ChartCard({
           title={title}
         />
       ) : slot.chartType === "line" || slot.chartType === "area" ? (
+        <>
         <SimpleLineChart
           data={data}
-          height={192}
+          height={(() => {
+            const opts = slot.options ?? {};
+            const overlays = [opts.trendLine, opts.meanLine, opts.stdBand, opts.outliers, opts.forecastMethod].filter(Boolean).length;
+            return overlays >= 3 ? 320 : overlays >= 1 ? 260 : 192;
+          })()}
           showArea={slot.chartType === "area"}
           showDots={slot.chartType === "line"}
           showTrendLine={slot.options?.trendLine ?? false}
@@ -383,19 +467,15 @@ function ChartCard({
           renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
           title={title}
         />
+        <OverlayLegend data={data} options={slot.options ?? {}} forecastData={forecastData} />
+        </>
       ) : slot.chartType === "scatter" ? (
         <SimpleScatter
-          data={data}
+          data={data.map((d, i) => ({ ...d, x: i, y: d.value }))}
           height={260}
-          xLabel="Crashes"
-          yLabel="Fatalities"
-          renderTooltip={(item) => item ? (
-            <>
-              <p className="font-headline font-bold text-on-surface">{item.label}</p>
-              <p className="text-on-surface-variant mt-0.5">{fmtValue(item.x ?? 0)} crashes</p>
-              <p className="text-on-surface-variant">{fmtValue(item.y ?? 0)} fatalities</p>
-            </>
-          ) : null}
+          xLabel={DIMENSION_LABELS[slot.dimension] ?? slot.dimension}
+          yLabel={valueLabel}
+          renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
           title={title}
         />
       ) : slot.chartType === "polar" ? (

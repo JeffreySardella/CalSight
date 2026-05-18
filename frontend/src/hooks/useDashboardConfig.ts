@@ -129,6 +129,10 @@ export function useDashboardConfig() {
     return [...config.charts].sort((a, b) => a.order - b.order);
   }, [config.mode, config.preset, config.charts]);
 
+  const clearCharts = useCallback(() => {
+    setConfig((prev) => ({ ...prev, charts: [] }));
+  }, []);
+
   return {
     config,
     setConfig,
@@ -140,5 +144,6 @@ export function useDashboardConfig() {
     updateChart,
     moveChart,
     reorderChart,
+    clearCharts,
   };
 }

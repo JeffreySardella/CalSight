@@ -42,13 +42,16 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
 ];
 
 const SUPPORTS_DUAL_AXIS = new Set<ChartType>(["line", "area"]);
-const SUPPORTS_TREND = new Set<ChartType>(["line", "area", "scatter"]);
+// scatter always draws its own regression line unconditionally — no toggle needed
+const SUPPORTS_TREND = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_MEAN = new Set<ChartType>(["bar", "line", "area"]);
-const SUPPORTS_LOG = new Set<ChartType>(["bar", "hbar", "lollipop"]);
-const SUPPORTS_CUMULATIVE = new Set<ChartType>(["line", "area"]);
-const SUPPORTS_MA = new Set<ChartType>(["line", "area"]);
+// logScale, cumulative, movingAvg are not implemented in any chart component
+const SUPPORTS_LOG = new Set<ChartType>([]);
+const SUPPORTS_CUMULATIVE = new Set<ChartType>([]);
+const SUPPORTS_MA = new Set<ChartType>([]);
 const SUPPORTS_STD = new Set<ChartType>(["line", "area"]);
-const SUPPORTS_OUTLIERS = new Set<ChartType>(["line", "area", "bar"]);
+// outliers marker is only implemented in SimpleLineChart, not SimpleBarChart
+const SUPPORTS_OUTLIERS = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_FORECAST = new Set<ChartType>(["line", "area"]);
 
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
@@ -231,7 +234,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
                 Moving Avg
               </button>
             )}
-            {SUPPORTS_FORECAST.has(chartType) && (
+            {SUPPORTS_FORECAST.has(chartType) && dimension === "year" && (
               <button
                 onClick={() => toggle("forecast")}
                 aria-pressed={!!options.forecast}

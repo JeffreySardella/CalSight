@@ -70,9 +70,18 @@ function squarify(items: { label: string; value: number; color?: string }[], w: 
   return rects;
 }
 
+function textOnColor(hex: string): string {
+  if (!hex.startsWith("#") || hex.length < 7) return "#ffffff";
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const lum = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+  return lum > 0.4 ? "#1a1a1a" : "#ffffff";
+}
+
 export default function SimpleTreemap({
   data,
-  height = 220,
+  height = 280,
   defaultColor = "rgb(var(--primary))",
   renderTooltip,
   title,
@@ -111,76 +120,71 @@ export default function SimpleTreemap({
 
   if (!data.length) return null;
 
-  // Scale height based on item count so small items at the bottom aren't cut off
-  const effectiveHeight = Math.max(height, data.length > 8 ? 300 : data.length > 5 ? 260 : height);
   const total = data.reduce((s, d) => s + d.value, 0);
   const PAD = 2;
-  const rects = squarify(data, svgWidth - PAD * 2, effectiveHeight - PAD * 2);
+
+  const useStacked = data.length > 10;
+  const MIN_ROW = 24;
+  const sorted = [...data].sort((a, b) => b.value - a.value);
+
+  let rects: { x: number; y: number; w: number; h: number; item: TreemapItem; idx: number }[];
+  let effectiveH = height;
+  if (useStacked) {
+    const w = svgWidth - PAD * 2;
+    // First pass: compute actual row heights with minimum enforced
+    const rows = sorted.map((item) => {
+      const natural = total > 0 ? (item.value / total) * height : MIN_ROW;
+      return Math.max(MIN_ROW, natural);
+    });
+    effectiveH = Math.max(height, rows.reduce((s, h) => s + h, 0));
+    // Second pass: build rects with the correct total height
+    let y = 0;
+    rects = sorted.map((item, i) => {
+      const h = rows[i];
+      const r = { x: 0, y, w, h, item, idx: data.indexOf(item) };
+      y += h;
+      return r;
+    });
+  } else {
+    rects = squarify(data, svgWidth - PAD * 2, effectiveH - PAD * 2);
+  }
   rectsRef.current = rects.map(r => ({ x: PAD + r.x, y: PAD + r.y, w: r.w, h: r.h, idx: r.idx }));
 
-  function textOnColor(hex: string): string {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    const lum = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
-    return lum > 0.4 ? "#1a1a1a" : "#ffffff";
-  }
-
   return (
-    <div className="w-full overflow-visible relative" style={{ height: effectiveHeight }}>
-      <svg ref={svgRef} width="100%" height={effectiveHeight} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+    <div className="w-full overflow-visible relative" style={{ height: effectiveH }}>
+      <svg ref={svgRef} width="100%" height={effectiveH} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {rects.map((r) => {
           const pct = total > 0 ? Math.round((r.item.value / total) * 100) : 0;
           const color = r.item.color ?? defaultColor;
-          const textColor = textOnColor(color);
           const cellW = Math.max(r.w - 2, 0);
           const cellH = Math.max(r.h - 2, 0);
-          const fontSize = cellW < 50 || cellH < 24 ? 8 : cellW < 80 ? 9 : 11;
-          const maxChars = Math.max(2, Math.floor(cellW / (fontSize * 0.65)));
-          const showName = cellW > 20 && cellH > 14;
-          const showPct = cellW > 24 && cellH > (fontSize + 16);
+          const fitsLabel = cellW > 28 && cellH > 16;
+          const fitsPct = cellW > 28 && cellH > 30;
+          const fs = Math.min(11, Math.max(7, Math.floor(Math.min(cellW, cellH) / 4)));
+          const maxChars = Math.max(2, Math.floor(cellW / (fs * 0.6)));
+          const tc = textOnColor(color);
           return (
-            <g key={r.item.label}>
+            <g key={`${r.item.label}-${r.idx}`}>
               <rect
-                x={PAD + r.x + 1}
-                y={PAD + r.y + 1}
-                width={cellW}
-                height={cellH}
-                rx={3}
+                x={PAD + r.x + 1} y={PAD + r.y + 1}
+                width={cellW} height={cellH} rx={3}
                 fill={color}
                 fillOpacity={hover !== null && hover.idx !== r.idx ? 0.4 : 1}
-                onMouseMove={(e) => {
-                  setHover({ idx: r.idx, x: e.clientX, y: e.clientY });
-                }}
+                onMouseMove={(e) => setHover({ idx: r.idx, x: e.clientX, y: e.clientY })}
                 onMouseLeave={() => setHover(null)}
                 className="cursor-pointer transition-opacity"
               />
-              {showName && (
-                <text
-                  x={PAD + r.x + 4}
-                  y={PAD + r.y + fontSize + 3}
-                  fontSize={fontSize}
-                  fontWeight={700}
-                  fill={textColor}
-                  fontFamily="'Inter Variable', Inter, sans-serif"
-                  style={{ pointerEvents: "none" }}
-                >
+              {fitsLabel && (
+                <text x={PAD + r.x + 4} y={PAD + r.y + fs + 2} fontSize={fs} fontWeight={700} fill={tc}
+                  fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
                   {r.item.label.length > maxChars ? r.item.label.slice(0, maxChars - 1) + "…" : r.item.label}
                 </text>
               )}
-              {showPct && (
-                <text
-                  x={PAD + r.x + 4}
-                  y={PAD + r.y + fontSize * 2 + 5}
-                  fontSize={fontSize + 1}
-                  fontWeight={800}
-                  fill={textColor}
-                  fillOpacity={0.9}
-                  fontFamily="'Inter Variable', Inter, sans-serif"
-                  style={{ pointerEvents: "none" }}
-                >
+              {fitsPct && (
+                <text x={PAD + r.x + 4} y={PAD + r.y + fs * 2 + 3} fontSize={fs} fontWeight={800} fill={tc}
+                  fillOpacity={0.85} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
                   {pct}%
                 </text>
               )}
@@ -189,7 +193,7 @@ export default function SimpleTreemap({
         })}
       </svg>
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-        {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
+        {hover !== null && data[hover.idx] && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
     </div>
   );
