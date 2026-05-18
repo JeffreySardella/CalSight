@@ -9,5 +9,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./test-setup.ts"],
     css: false,
+    exclude: ["tests/**", "node_modules/**"],
   },
 });
