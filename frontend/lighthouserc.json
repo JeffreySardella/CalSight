@@ -2,9 +2,6 @@
   "ci": {
     "collect": {
       "url": ["http://localhost:3000/"],
-      "startServerCommand": "npx serve -s dist -p 3000",
-      "startServerReadyPattern": "Local:",
-      "startServerReadyTimeout": 15000,
       "numberOfRuns": 1,
       "settings": {
         "chromeFlags": "--no-sandbox --headless --disable-gpu",
