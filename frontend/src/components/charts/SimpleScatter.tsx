@@ -103,7 +103,7 @@ export default function SimpleScatter({
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
       {scatterR2 !== null && (
-        <span className="absolute top-1 right-1 z-10 text-[9px] font-bold text-on-surface-variant bg-surface-container/80 rounded px-1.5 py-0.5">
+        <span className="absolute bottom-8 right-1 z-10 text-[9px] font-bold text-on-surface-variant bg-surface-container/80 rounded px-1.5 py-0.5">
           R²={scatterR2.toFixed(2)}
         </span>
       )}
