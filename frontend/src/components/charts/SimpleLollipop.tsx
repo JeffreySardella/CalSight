@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useId } from "react";
+﻿import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { useTextScale } from "../../hooks/useTextScale";
 
@@ -73,7 +73,7 @@ export default function SimpleLollipop({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height: svgH }}>
-      <svg ref={svgRef} width="100%" height={svgH} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+      <svg ref={svgRef} width="100%" height={svgH} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {data.map((d, i) => {

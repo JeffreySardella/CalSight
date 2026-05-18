@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId } from "react";
+﻿import { useState, useRef, useEffect, useId } from "react";
 import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useIsDark } from "../../context/ThemeContext";
@@ -85,7 +85,7 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
 
   return (
     <div className="w-full overflow-visible relative mt-3" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block touch-none" role="img" aria-label={`Scatter plot: ${xField.label} vs ${yField.label}, r = ${r.toFixed(2)}`}
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-label={`Scatter plot: ${xField.label} vs ${yField.label}, r = ${r.toFixed(2)}`}
         onTouchMove={(e) => {
           const svg = svgRef.current;
           if (!svg || !points.length) return;

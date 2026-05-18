@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useId } from "react";
+﻿import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { useTextScale } from "../../hooks/useTextScale";
 
@@ -72,7 +72,7 @@ export default function SimpleRadar({
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={height} height={height} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: rings }).map((_, ring) => {

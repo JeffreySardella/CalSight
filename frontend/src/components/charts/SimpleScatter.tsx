@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useId } from "react";
+﻿import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
@@ -109,7 +109,7 @@ export default function SimpleScatter({
           R²={scatterR2.toFixed(2)}
         </span>
       )}
-      <svg ref={svgRef} width="100%" height={height} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: yTicks + 1 }).map((_, i) => {

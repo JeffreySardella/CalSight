@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useId } from "react";
+﻿import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { mean as calcMean } from "../../lib/dashboard/stats";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
@@ -139,7 +139,7 @@ export default function SimpleBarChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? `${titleId}-v` : undefined}
+      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible" role="img" aria-labelledby={title ? `${titleId}-v` : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={`${titleId}-v`}>{title}</title>}
         {data.map((d, i) => {

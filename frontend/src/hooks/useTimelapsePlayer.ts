@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-export type TimelapseSpeed = 0.5 | 1 | 2 | 4;
+export type TimelapseSpeed = 0.25 | 0.5 | 0.75 | 1;
 
 interface TimelapseState {
   currentYear: number;
@@ -13,7 +13,7 @@ interface TimelapseState {
   reset: () => void;
 }
 
-const MS_PER_YEAR_BASE = 1500; // 1x speed = 1 year per 1500ms
+const MS_PER_YEAR_BASE = 3000; // 1x speed = 1 year per 3s (gives API time to respond)
 
 export function useTimelapsePlayer(minYear: number, maxYear: number): TimelapseState {
   const [currentYear, setCurrentYear] = useState(minYear);

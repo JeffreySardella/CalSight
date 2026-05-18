@@ -729,11 +729,8 @@
   svg {
     shape-rendering: crispEdges;
     text-rendering: optimizeLegibility;
-    /* Scale SVG viewBox content to fill available width for crispness */
     width: 100% !important;
     height: auto !important;
-    min-height: 140px;
-    max-height: 200px;
   }
 
   svg text,
@@ -756,6 +753,11 @@
   svg .grid-line {
     stroke: #e0e0e0 !important;
     stroke-width: 0.5px !important;
+  }
+
+  /* ── Layout: single column for print ── */
+  .grid {
+    grid-template-columns: 1fr !important;
   }
 
   /* ── Page Break Management ── */
@@ -996,6 +998,13 @@ body.print-mode .chart-config-panel,
 body.print-mode .add-chart-card {
   display: none !important;
 }
+body.print-mode section:empty,
+body.print-mode [aria-label="Anomaly detection"],
+body.print-mode [aria-label="Key findings"],
+body.print-mode [aria-label="Suggested charts"],
+body.print-mode [aria-label="Natural language query"] {
+  display: none !important;
+}
 
 /* Force light mode */
 body.print-mode {
@@ -1039,6 +1048,9 @@ body.print-mode .group\/card {
   page-break-inside: avoid;
   break-inside: avoid;
   margin-bottom: 8px;
+}
+body.print-mode .grid {
+  grid-template-columns: 1fr !important;
 }
 
 body.print-mode section {

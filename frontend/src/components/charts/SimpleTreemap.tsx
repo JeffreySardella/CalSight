@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useId } from "react";
+﻿import { useState, useRef, useEffect, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { useTextScale } from "../../hooks/useTextScale";
 
@@ -154,7 +154,7 @@ export default function SimpleTreemap({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height: effectiveH }}>
-      <svg ref={svgRef} width="100%" height={effectiveH} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+      <svg ref={svgRef} width="100%" height={effectiveH} className="block" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {rects.map((r) => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useId } from "react";
+﻿import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
 
@@ -129,7 +129,7 @@ export default function SimpleDonutChart({
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={vw} height={height} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+      <svg ref={svgRef} width={vw} height={height} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {segments.map((seg, i) => {
