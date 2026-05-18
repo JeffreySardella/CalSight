@@ -49,8 +49,8 @@ export default function ChartNarrative({ narrative }: Props) {
             </button>
           )}
 
-          {/* Statistical fact badges (shown when expanded) */}
-          {expanded && narrative.facts.length > 0 && (
+          {/* Statistical fact badges — hidden for now (confusing without interactivity) */}
+          {false && expanded && narrative.facts.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {narrative.facts.slice(0, 4).map((fact: StatFact, idx: number) => (
                 <span

@@ -634,6 +634,7 @@ export default function StatsPage() {
                 speed={timelapse.speed}
                 minYear={tlMinYear}
                 maxYear={tlMaxYear}
+                loading={dashLoading}
                 onPlay={timelapse.play}
                 onPause={timelapse.pause}
                 onSeek={timelapse.seek}

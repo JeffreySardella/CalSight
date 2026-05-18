@@ -6,6 +6,7 @@ interface Props {
   speed: TimelapseSpeed;
   minYear: number;
   maxYear: number;
+  loading?: boolean;
   onPlay: () => void;
   onPause: () => void;
   onSeek: (year: number) => void;
@@ -20,6 +21,7 @@ export default function TimelapseControls({
   speed,
   minYear,
   maxYear,
+  loading,
   onPlay,
   onPause,
   onSeek,
@@ -49,6 +51,7 @@ export default function TimelapseControls({
 
         <button
           type="button"
+          disabled={loading && !isPlaying}
           onClick={isPlaying ? onPause : onPlay}
           className="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center hover:opacity-90 transition-opacity"
           aria-label={isPlaying ? "Pause" : "Play"}
