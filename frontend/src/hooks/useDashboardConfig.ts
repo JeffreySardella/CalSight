@@ -73,8 +73,11 @@ export function useDashboardConfig() {
     setConfig((prev) => ({ ...prev, preset, mode: "simple" }));
   }, []);
 
+  const MAX_CHARTS = 12;
+
   const addChart = useCallback((chart: NewChart) => {
     setConfig((prev) => {
+      if (prev.charts.length >= MAX_CHARTS) return prev;
       const order = prev.charts.length;
       const slot: ChartSlot = { ...chart, id: generateId(), order };
       return { ...prev, charts: [...prev.charts, slot] };

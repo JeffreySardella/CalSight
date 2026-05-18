@@ -182,8 +182,13 @@ export default function DashboardGrid({
             </div>
           );
         })}
-        {isAdvanced && !configOpen && (
+        {isAdvanced && !configOpen && charts.length < 12 && (
           <AddChartCard onClick={() => setConfigOpen(true)} />
+        )}
+        {isAdvanced && !configOpen && charts.length >= 12 && (
+          <div className="flex items-center justify-center p-6 rounded-xl border-2 border-dashed border-outline-variant/30 text-on-surface-variant text-xs font-medium">
+            Maximum 12 charts reached
+          </div>
         )}
         {isAdvanced && configOpen && !isMobile && (
           <ChartConfigPanel
