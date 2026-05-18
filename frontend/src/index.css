@@ -181,12 +181,13 @@
 
   /* Chart card with theme-aware styling via CSS custom properties */
   .chart-card-themed {
-    border-radius: var(--card-radius);
-    padding: var(--density-card-padding);
-    box-shadow: var(--card-shadow);
-    border: var(--card-border);
-    backdrop-filter: var(--card-backdrop);
-    -webkit-backdrop-filter: var(--card-backdrop);
+    border-radius: var(--card-radius, 1rem);
+    padding: var(--density-card-padding, 1rem);
+    box-shadow: var(--card-shadow, 0 10px 32px -4px rgba(0,0,0,0.04));
+    border: var(--card-border, none);
+    backdrop-filter: var(--card-backdrop, none);
+    -webkit-backdrop-filter: var(--card-backdrop, none);
+    background-color: rgb(var(--surface-container-lowest) / var(--card-bg-opacity, 1));
   }
 
 }

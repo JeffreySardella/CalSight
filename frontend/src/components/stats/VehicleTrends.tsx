@@ -63,7 +63,7 @@ export default function VehicleTrends() {
           <SimpleLineChart
             data={data.map((d) => ({ label: String(d.year), value: d.evPct }))}
             height={160}
-            color="#059669"
+            color="var(--color-chart-3, #059669)"
             showArea
             showTrendLine
             renderTooltip={(item) => <><p className="font-bold text-on-surface">{item.label}</p><p className="text-on-surface-variant">{item.value.toFixed(1)}%</p></>}
@@ -76,7 +76,7 @@ export default function VehicleTrends() {
           <SimpleLineChart
             data={data.map((d) => ({ label: String(d.year), value: d.ev }))}
             height={160}
-            color="#2563eb"
+            color="var(--color-chart-1, #2563eb)"
             showArea
             showTrendLine
             renderTooltip={(item) => <><p className="font-bold text-on-surface">{item.label}</p><p className="text-on-surface-variant">{item.value >= 1000000 ? `${(item.value/1000000).toFixed(1)}M` : item.value >= 1000 ? `${(item.value/1000).toFixed(0)}K` : item.value.toLocaleString()}</p></>}

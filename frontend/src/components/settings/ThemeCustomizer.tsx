@@ -1,34 +1,74 @@
 /**
  * ThemeCustomizer — settings panel for visual customization.
  *
- * Four working controls: preset themes, color palette (flows to charts + map),
- * card style, and density. All changes apply in real-time via CSS variable
- * injection through the CustomThemeContext.
+ * Controls: preset themes, 3 semantic colors (mapped to severity/correlation/heatmap),
+ * color palette (categorical chart colors + map), card style, and density.
+ * All changes apply in real-time via CSS variable injection.
  */
 
-import { useRef } from "react";
+import { useState, useRef } from "react";
 import { useCustomTheme } from "../../context/CustomThemeContext";
 import { PRESET_LABELS, PRESET_KEYS } from "../../lib/theme/presets";
-import { CHART_PALETTES } from "../../lib/theme/palettes";
+import { CHART_PALETTES, PALETTE_SEVERITY } from "../../lib/theme/palettes";
 import type {
   PresetThemeKey,
   ChartPaletteKey,
-  Density,
+  CardStyle,
 } from "../../lib/theme/types";
+
+function hexToRgb(hex: string): string {
+  const h = hex.replace("#", "");
+  return `${parseInt(h.slice(0, 2), 16)} ${parseInt(h.slice(2, 4), 16)} ${parseInt(h.slice(4, 6), 16)}`;
+}
 
 const CHIP_ACTIVE = "bg-primary-container text-on-primary-container";
 const CHIP_INACTIVE = "text-on-surface-variant hover:text-on-surface";
 
-
-const DENSITY_OPTIONS: { value: Density; label: string }[] = [
-  { value: "compact", label: "Compact" },
-  { value: "comfortable", label: "Comfortable" },
-  { value: "spacious", label: "Spacious" },
+const CARD_STYLES: { value: CardStyle; label: string; icon: string }[] = [
+  { value: "elevated", label: "Elevated", icon: "layers" },
+  { value: "minimal", label: "Minimal", icon: "crop_square" },
+  { value: "bordered", label: "Bordered", icon: "border_all" },
+  { value: "glass", label: "Glass", icon: "blur_on" },
 ];
 
 const PALETTE_KEYS: ChartPaletteKey[] = [
   "default", "warm", "cool", "ocean", "forest", "sunset", "colorblind", "monochrome",
 ];
+
+function ColorInput({ label, description, value, onChange }: {
+  label: string;
+  description: string;
+  value: string;
+  onChange: (rgb: string) => void;
+}) {
+  const [r, g, b] = value.split(" ").map(Number);
+  const hex = `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  function handleChange(hexValue: string) {
+    const parsed = hexValue.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+    if (!parsed) return;
+    const rgb = `${parseInt(parsed[1], 16)} ${parseInt(parsed[2], 16)} ${parseInt(parsed[3], 16)}`;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onChange(rgb), 80);
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={hex}
+        onChange={(e) => handleChange(e.target.value)}
+        className="w-7 h-7 rounded-md border border-outline-variant/30 cursor-pointer p-0"
+        title={label}
+      />
+      <div>
+        <span className="text-[10px] text-on-surface font-bold block">{label}</span>
+        <span className="text-[8px] text-on-surface-variant">{description}</span>
+      </div>
+    </div>
+  );
+}
 
 function PalettePreview({ paletteKey, isActive, onClick }: {
   paletteKey: ChartPaletteKey;
@@ -65,23 +105,36 @@ export default function ThemeCustomizer() {
   const {
     customization,
     applyPreset,
+    setColors,
     setChartPalette,
-    setDensity,
+    setCardStyle,
     exportCurrentTheme,
     importThemeFile,
     reset,
     isModified,
   } = useCustomTheme();
 
-  const importStatusRef = useRef<"idle" | "success" | "error">("idle");
+  function handlePaletteChange(key: ChartPaletteKey) {
+    setChartPalette(key);
+    if (key !== "custom") {
+      const sev = PALETTE_SEVERITY[key];
+      setColors({
+        error: hexToRgb(sev.fatal),
+        tertiary: hexToRgb(sev.injury),
+        primary: hexToRgb(sev.pdo),
+      });
+    }
+  }
+
+  const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const success = await importThemeFile(file);
-    importStatusRef.current = success ? "success" : "error";
-    setTimeout(() => { importStatusRef.current = "idle"; }, 2000);
+    setImportStatus(success ? "success" : "error");
+    setTimeout(() => setImportStatus("idle"), 2000);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -119,21 +172,32 @@ export default function ThemeCustomizer() {
 
       <div className="border-t border-outline-variant/20" />
 
-      {/* Color palette — applies to charts, map, and all data visualizations */}
+      {/* 3 semantic colors — drive severity, correlation, and heatmap */}
       <section>
         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-2">
-          Color Palette
+          Severity Colors
         </span>
-        <p className="text-[9px] text-on-surface-variant mb-2">
-          Changes chart colors, map overlays, and severity indicators across the entire app.
-        </p>
+        <div className="space-y-2">
+          <ColorInput label="Fatal" description="Fatal crashes, danger indicators" value={customization.colors.error} onChange={(v) => setColors({ error: v })} />
+          <ColorInput label="Injury" description="Injury crashes, warnings" value={customization.colors.tertiary} onChange={(v) => setColors({ tertiary: v })} />
+          <ColorInput label="PDO / General" description="Property damage, buttons, links" value={customization.colors.primary} onChange={(v) => setColors({ primary: v })} />
+        </div>
+      </section>
+
+      <div className="border-t border-outline-variant/20" />
+
+      {/* Chart palette */}
+      <section>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-2">
+          Chart Palette
+        </span>
         <div className="grid grid-cols-4 gap-1">
           {PALETTE_KEYS.map((key) => (
             <PalettePreview
               key={key}
               paletteKey={key}
               isActive={customization.chart.palette === key}
-              onClick={() => setChartPalette(key)}
+              onClick={() => handlePaletteChange(key)}
             />
           ))}
         </div>
@@ -141,21 +205,22 @@ export default function ThemeCustomizer() {
 
       <div className="border-t border-outline-variant/20" />
 
-      {/* Density */}
+      {/* Card style */}
       <section>
         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-2">
-          Density
+          Card Style
         </span>
-        <div className="flex gap-1 rounded-lg bg-surface-container p-1">
-          {DENSITY_OPTIONS.map(({ value, label }) => (
+        <div className="flex gap-1">
+          {CARD_STYLES.map((style) => (
             <button
-              key={value}
-              onClick={() => setDensity(value)}
-              className={`flex-1 flex items-center justify-center rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
-                customization.density === value ? CHIP_ACTIVE : CHIP_INACTIVE
+              key={style.value}
+              onClick={() => setCardStyle(style.value)}
+              className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                customization.cardStyle === style.value ? CHIP_ACTIVE : CHIP_INACTIVE
               }`}
             >
-              {label}
+              <span className="material-symbols-outlined text-[18px]">{style.icon}</span>
+              <span className="text-[9px] font-medium">{style.label}</span>
             </button>
           ))}
         </div>
@@ -190,6 +255,12 @@ export default function ThemeCustomizer() {
           <span className="material-symbols-outlined text-[14px]">restart_alt</span>
           Reset
         </button>
+        {importStatus === "success" && (
+          <span className="text-[9px] text-primary font-bold self-center">Imported!</span>
+        )}
+        {importStatus === "error" && (
+          <span className="text-[9px] text-error font-bold self-center">Invalid file</span>
+        )}
       </section>
     </div>
   );

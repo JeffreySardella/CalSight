@@ -36,8 +36,9 @@ export function useDesignTokens(choroplethColors?: readonly string[]): DesignTok
       isDark,
       customization.chart.customColors,
       choroplethColors,
+      customization.colors,
     ),
-    [customization.chart.palette, customization.chart.customColors, isDark, choroplethColors],
+    [customization.chart.palette, customization.chart.customColors, isDark, choroplethColors, customization.colors],
   );
 }
 

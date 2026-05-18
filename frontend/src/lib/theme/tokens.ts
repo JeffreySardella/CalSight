@@ -16,7 +16,34 @@
  */
 
 import type { ChartPaletteKey } from "./types";
-import { getChartPalette } from "./palettes";
+import { getChartPalette, getPaletteSeverity } from "./palettes";
+
+export interface ThemeColors {
+  primary: string;
+  tertiary: string;
+  error: string;
+}
+
+function rgbToHex(rgb: string): string {
+  const [r, g, b] = rgb.split(" ").map(Number);
+  return `#${[r, g, b].map((c) => Math.max(0, Math.min(255, c)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function lighten(hex: string, amount: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `#${[r, g, b].map((c) => Math.min(255, Math.round(c + (255 - c) * amount)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function darken(hex: string, amount: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `#${[r, g, b].map((c) => Math.max(0, Math.round(c * (1 - amount))).toString(16).padStart(2, "0")).join("")}`;
+}
 
 export interface SeverityTokens {
   fatal: string;
@@ -59,98 +86,74 @@ export interface DesignTokens {
   chart: ChartTokens;
 }
 
-/**
- * Severity defaults — semantically meaningful colors that convey danger level.
- * These have sensible defaults regardless of the active chart palette.
- */
-const SEVERITY_LIGHT: SeverityTokens = {
-  fatal: "#dc2626",
-  injury: "#f59e0b",
-  pdo: "#6b7280",
-};
-
-const SEVERITY_DARK: SeverityTokens = {
-  fatal: "#ef4444",
-  injury: "#fbbf24",
-  pdo: "#9ca3af",
-};
-
-/**
- * Correlation color scale — blue for positive, red for negative.
- * Maintains the semantic meaning of blue=positive, red=negative.
- */
-const CORRELATION_LIGHT: CorrelationTokens = {
-  positive: "#3b82f6",
-  positiveStrong: "#1d4ed8",
-  positiveWeak: "#93c5fd",
-  negative: "#ef4444",
-  negativeStrong: "#991b1b",
-  negativeWeak: "#fca5a5",
-  neutral: "#e5e7eb",
-};
-
-const CORRELATION_DARK: CorrelationTokens = {
-  positive: "#60a5fa",
-  positiveStrong: "#3b82f6",
-  positiveWeak: "#1e40af",
-  negative: "#f87171",
-  negativeStrong: "#ef4444",
-  negativeWeak: "#7f1d1d",
-  neutral: "#3f3f46",
-};
-
-/**
- * Map heatmap gradient defaults. These are intentionally warm-red since
- * they represent crash density / severity — "danger" semantics.
- */
-const MAP_HEATMAP_LIGHT = {
-  heatLow: "rgba(255, 237, 160, 0.4)",
-  heatMid: "rgba(252, 141, 98, 0.7)",
-  heatHigh: "rgba(227, 26, 28, 0.9)",
-  fatalLow: "rgba(255, 80, 60, 0.4)",
-  fatalMid: "rgba(220, 40, 30, 0.7)",
-  fatalHigh: "rgba(180, 20, 15, 1)",
-};
-
-const MAP_HEATMAP_DARK = {
-  heatLow: "rgba(255, 237, 160, 0.3)",
-  heatMid: "rgba(252, 141, 98, 0.6)",
-  heatHigh: "rgba(239, 68, 68, 0.95)",
-  fatalLow: "rgba(255, 100, 80, 0.4)",
-  fatalMid: "rgba(239, 68, 68, 0.7)",
-  fatalHigh: "rgba(220, 38, 38, 1)",
-};
 
 /**
  * Resolve all design tokens for the given palette and mode.
  *
- * @param paletteKey - The active chart palette key from settings
- * @param isDark - Whether dark mode is active
- * @param customColors - Custom palette colors (used when paletteKey is "custom")
- * @param choroplethColors - Optional override for the choropleth scale (from the map palette system)
+ * The 3 theme colors (primary/tertiary/error) drive severity + correlation:
+ *   error    → fatal severity, correlation negative
+ *   tertiary → injury severity
+ *   primary  → PDO severity, correlation positive
  */
 export function getTokens(
   paletteKey: ChartPaletteKey,
   isDark: boolean,
   customColors?: string[],
   choroplethColors?: readonly string[],
+  themeColors?: ThemeColors,
 ): DesignTokens {
   const categorical = getChartPalette(paletteKey, customColors);
-
-  // For the choropleth, use the provided map palette if available,
-  // otherwise derive a 5-stop scale from the categorical palette.
   const choropleth = choroplethColors ?? deriveChoroplethScale(categorical);
 
+  // Severity colors come from the palette — each palette has hand-picked
+  // fatal/injury/pdo colors. Custom theme colors override if provided.
+  const paletteSev = getPaletteSeverity(paletteKey);
+  const fatalHex = themeColors ? rgbToHex(themeColors.error) : paletteSev.fatal;
+  const injuryHex = themeColors ? rgbToHex(themeColors.tertiary) : paletteSev.injury;
+  const pdoHex = themeColors ? rgbToHex(themeColors.primary) : paletteSev.pdo;
+
+  const severity: SeverityTokens = isDark
+    ? { fatal: lighten(fatalHex, 0.2), injury: lighten(injuryHex, 0.2), pdo: lighten(pdoHex, 0.3) }
+    : { fatal: fatalHex, injury: injuryHex, pdo: pdoHex };
+
+  const correlation: CorrelationTokens = isDark
+    ? {
+        positive: lighten(pdoHex, 0.3),
+        positiveStrong: lighten(pdoHex, 0.15),
+        positiveWeak: darken(pdoHex, 0.3),
+        negative: lighten(fatalHex, 0.2),
+        negativeStrong: lighten(fatalHex, 0.1),
+        negativeWeak: darken(fatalHex, 0.4),
+        neutral: "#3f3f46",
+      }
+    : {
+        positive: lighten(pdoHex, 0.2),
+        positiveStrong: pdoHex,
+        positiveWeak: lighten(pdoHex, 0.5),
+        negative: lighten(fatalHex, 0.1),
+        negativeStrong: fatalHex,
+        negativeWeak: lighten(fatalHex, 0.45),
+        neutral: "#e5e7eb",
+      };
+
+  // Heatmap gradient derived from the fatal color
+  const fR = parseInt(fatalHex.replace("#", "").slice(0, 2), 16);
+  const fG = parseInt(fatalHex.replace("#", "").slice(2, 4), 16);
+  const fB = parseInt(fatalHex.replace("#", "").slice(4, 6), 16);
+  const heatmap = {
+    heatLow: `rgba(${fR}, ${fG}, ${fB}, ${isDark ? 0.12 : 0.15})`,
+    heatMid: `rgba(${fR}, ${fG}, ${fB}, ${isDark ? 0.45 : 0.5})`,
+    heatHigh: `rgba(${fR}, ${fG}, ${fB}, ${isDark ? 0.95 : 0.9})`,
+    fatalLow: `rgba(${fR}, ${fG}, ${fB}, 0.3)`,
+    fatalMid: `rgba(${fR}, ${fG}, ${fB}, 0.6)`,
+    fatalHigh: `rgba(${fR}, ${fG}, ${fB}, 1)`,
+  };
+
   return {
-    severity: isDark ? SEVERITY_DARK : SEVERITY_LIGHT,
-    correlation: isDark ? CORRELATION_DARK : CORRELATION_LIGHT,
-    map: {
-      choropleth,
-      ...(isDark ? MAP_HEATMAP_DARK : MAP_HEATMAP_LIGHT),
-    },
-    chart: {
-      categorical,
-    },
+    severity,
+    correlation,
+    map: { choropleth, ...heatmap },
+    chart: { categorical },
   };
 }
 

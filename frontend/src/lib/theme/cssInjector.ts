@@ -17,18 +17,32 @@ import { getTokens } from "./tokens";
 const STYLE_ID = "calsight-theme-overrides";
 
 /**
- * From a base RGB string like "87 95 107", generate lighter/darker variants
- * for container and on-container tokens.
+ * From a base RGB string like "87 95 107", generate container/on-container
+ * variants that work for the current mode.
  */
-function deriveContainerColors(baseRgb: string): { container: string; onContainer: string } {
+function deriveContainerColors(baseRgb: string, isDark: boolean): { container: string; onContainer: string } {
   const [r, g, b] = baseRgb.split(" ").map(Number);
-  // Container: lighten by mixing toward white (80% white)
+  if (isDark) {
+    // Dark mode: container is a very dark tint of the base color
+    const container = [
+      Math.round(r * 0.2),
+      Math.round(g * 0.2),
+      Math.round(b * 0.2),
+    ].join(" ");
+    // On-container: lighter version for readable text
+    const onContainer = [
+      Math.min(255, Math.round(r + (255 - r) * 0.6)),
+      Math.min(255, Math.round(g + (255 - g) * 0.6)),
+      Math.min(255, Math.round(b + (255 - b) * 0.6)),
+    ].join(" ");
+    return { container, onContainer };
+  }
+  // Light mode: container is a very light tint
   const container = [
     Math.round(r + (255 - r) * 0.75),
     Math.round(g + (255 - g) * 0.75),
     Math.round(b + (255 - b) * 0.75),
   ].join(" ");
-  // On-container: darken slightly from base
   const onContainer = [
     Math.round(r * 0.85),
     Math.round(g * 0.85),
@@ -44,33 +58,33 @@ function cardStyleVars(style: CardStyle): Record<string, string> {
   switch (style) {
     case "minimal":
       return {
-        "--card-radius": "0.75rem",
+        "--card-radius": "0.5rem",
         "--card-shadow": "none",
         "--card-border": "none",
-        "--card-bg-opacity": "0.5",
+        "--card-bg-opacity": "0",
         "--card-backdrop": "none",
       };
     case "bordered":
       return {
         "--card-radius": "0.75rem",
         "--card-shadow": "none",
-        "--card-border": "1px solid rgb(var(--outline-variant) / 0.3)",
+        "--card-border": "2px solid rgb(var(--outline-variant) / 0.5)",
         "--card-bg-opacity": "1",
         "--card-backdrop": "none",
       };
     case "glass":
       return {
-        "--card-radius": "1.25rem",
-        "--card-shadow": "0 8px 32px -4px rgba(var(--shadow-rgb), 0.06)",
-        "--card-border": "1px solid rgb(var(--outline-variant) / 0.1)",
-        "--card-bg-opacity": "0.7",
-        "--card-backdrop": "blur(12px) saturate(1.5)",
+        "--card-radius": "1.5rem",
+        "--card-shadow": "0 8px 32px -4px rgba(var(--shadow-rgb), 0.1)",
+        "--card-border": "1px solid rgb(var(--outline-variant) / 0.15)",
+        "--card-bg-opacity": "0.6",
+        "--card-backdrop": "blur(16px) saturate(1.8)",
       };
     case "elevated":
     default:
       return {
         "--card-radius": "1rem",
-        "--card-shadow": "0 10px 32px -4px rgba(var(--shadow-rgb), 0.04)",
+        "--card-shadow": "0 4px 24px -2px rgba(var(--shadow-rgb), 0.12)",
         "--card-border": "none",
         "--card-bg-opacity": "1",
         "--card-backdrop": "none",
@@ -150,12 +164,13 @@ export function buildCssOverrides(customization: ThemeCustomization): string {
   vars["--tertiary"] = tertiary;
   vars["--error"] = error;
 
-  // Derive container/on-container
-  const pDerived = deriveContainerColors(primary);
+  // Derive container/on-container (dark-mode-aware)
+  const isDarkForContainers = document.documentElement.classList.contains("dark");
+  const pDerived = deriveContainerColors(primary, isDarkForContainers);
   vars["--primary-container"] = pDerived.container;
   vars["--on-primary-container"] = pDerived.onContainer;
 
-  const tDerived = deriveContainerColors(tertiary);
+  const tDerived = deriveContainerColors(tertiary, isDarkForContainers);
   vars["--tertiary-container"] = tDerived.container;
   vars["--on-tertiary-container"] = tDerived.onContainer;
 
@@ -170,7 +185,7 @@ export function buildCssOverrides(customization: ThemeCustomization): string {
 
   // Design tokens — inject semantic color tokens derived from the active palette
   const isDark = document.documentElement.classList.contains("dark");
-  const tokens = getTokens(customization.chart.palette, isDark, customization.chart.customColors);
+  const tokens = getTokens(customization.chart.palette, isDark, customization.chart.customColors, undefined, customization.colors);
 
   // Severity tokens
   vars["--color-severity-fatal"] = tokens.severity.fatal;

@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import os
 from enum import Enum
+from urllib.parse import urlparse
 
 import httpx
 
@@ -93,9 +94,10 @@ def _build_payload(url: str, level: AlertLevel, title: str, body: str) -> dict:
     emoji = _EMOJI[level]
     full_title = f"{emoji} CalSight ETL: {title}"
 
-    if "discord.com" in url:
+    host = (urlparse(url).hostname or "").lower()
+    if host == "discord.com" or host.endswith(".discord.com"):
         return _discord_payload(level, full_title, body)
-    elif "hooks.slack.com" in url:
+    elif host == "hooks.slack.com":
         return _slack_payload(full_title, body)
     else:
         # Generic — try Slack format (most webhooks accept it)

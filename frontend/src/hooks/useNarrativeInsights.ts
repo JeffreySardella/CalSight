@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 import type { ChartDataItem } from "./useDashboardData";
-import type { ChartSlot } from "../lib/dashboard/types";
+import { DIMENSION_LABELS, MEASURE_LABELS, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
 import type { Anomaly } from "../lib/dashboard/anomaly";
 import type { StatsFilters } from "./useStats";
 import {
@@ -94,7 +94,13 @@ export function useNarrativeInsights({
   const filterDesc = useMemo(() => filtersToDescription(filters), [filters]);
 
   const chartMeta = useMemo(
-    () => charts.map(c => ({ id: c.id, dimension: c.dimension, measure: c.measure })),
+    () => charts.map(c => ({
+      id: c.id,
+      dimension: c.dimension,
+      measure: c.measure,
+      dimensionLabel: DIMENSION_LABELS[c.dimension as Dimension] ?? c.dimension,
+      measureLabel: MEASURE_LABELS[c.measure as Measure] ?? c.measure,
+    })),
     [charts],
   );
 
@@ -118,7 +124,12 @@ export function useNarrativeInsights({
       const key = slotKey(chart);
       const data = dataBySlot[key];
       if (!data || data.length === 0) return null;
-      return generateChartNarrative(data, chart.dimension, chart.measure, tone);
+      return generateChartNarrative(
+        data,
+        DIMENSION_LABELS[chart.dimension as Dimension] ?? chart.dimension,
+        MEASURE_LABELS[chart.measure as Measure] ?? chart.measure,
+        tone,
+      );
     },
     [enabled, narrative, charts, dataBySlot, tone],
   );

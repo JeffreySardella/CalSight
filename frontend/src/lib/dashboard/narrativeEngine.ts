@@ -225,7 +225,7 @@ export function generateChartNarrative(
 
 export function generateDashboardNarrative(
   dataBySlot: Record<string, ChartDataItem[]>,
-  chartMeta: { id: string; dimension: string; measure: string }[],
+  chartMeta: { id: string; dimension: string; measure: string; dimensionLabel?: string; measureLabel?: string }[],
   anomalies: Anomaly[],
   filters: FilterDescription,
   tone: NarrativeTone,
@@ -239,7 +239,7 @@ export function generateDashboardNarrative(
     const data = dataBySlot[key];
     if (!data || data.length === 0) continue;
 
-    const narrative = generateChartNarrative(data, meta.dimension, meta.measure, tone);
+    const narrative = generateChartNarrative(data, meta.dimensionLabel ?? meta.dimension, meta.measureLabel ?? meta.measure, tone);
     chartNarratives.set(meta.id, narrative);
 
     // Extract key findings from high-confidence charts
@@ -272,7 +272,15 @@ export function generateDashboardNarrative(
     });
   }
 
-  // Sort findings by priority (descending)
+  // Deduplicate by text content and sort by priority
+  const seen = new Set<string>();
+  const deduped = keyFindings.filter(f => {
+    if (seen.has(f.text)) return false;
+    seen.add(f.text);
+    return true;
+  });
+  keyFindings.length = 0;
+  keyFindings.push(...deduped);
   keyFindings.sort((a, b) => b.priority - a.priority);
 
   const filterContext = buildFilterContext(filters);

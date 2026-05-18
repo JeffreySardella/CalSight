@@ -1,16 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { API_BASE } from "../config";
 
-const STORAGE_KEY = "calsight-admin-key";
+const STORAGE_KEY = "calsight-admin-authenticated";
 
 /**
- * Route guard for admin pages. Checks localStorage for a stored admin key.
- * If no key is stored (or verification fails), renders a password prompt
- * that verifies against the backend ETL_API_KEY via GET /api/admin/verify.
+ * Route guard for admin pages. Stores only a boolean flag in localStorage
+ * (never the actual key) to remember authentication state across sessions.
  */
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(() => {
-    return !!localStorage.getItem(STORAGE_KEY);
+    return localStorage.getItem(STORAGE_KEY) === "true";
   });
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -33,7 +32,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
         `${API_BASE}/api/admin/verify?key=${encodeURIComponent(password)}`
       );
       if (res.ok) {
-        localStorage.setItem(STORAGE_KEY, password);
+        localStorage.setItem(STORAGE_KEY, "true");
         setAuthenticated(true);
       } else {
         const data = await res.json().catch(() => null);

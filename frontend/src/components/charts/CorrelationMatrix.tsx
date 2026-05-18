@@ -111,12 +111,15 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
           const px = pad.left + (p.x / maxX) * cw;
           const py = pad.top + ch - (p.y / maxY) * ch;
           const isH = hover === i;
+          const nearRight = px > pad.left + cw * 0.7;
+          const nearTop = py < pad.top + 20;
           return (
             <g key={i}>
-              <circle cx={px} cy={py} r={isH ? 6 : 4} fill={correlationDotColor(r, correlationTokens)} fillOpacity={isH ? 0.95 : 0.6}
+              <circle cx={px} cy={py} r={isH ? 6 : 3.5} fill={correlationDotColor(r, correlationTokens)} fillOpacity={isH ? 0.95 : 0.55}
+                stroke="rgb(var(--surface))" strokeWidth={0.75}
                 onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} className="cursor-pointer" />
               {isH && (
-                <text x={px + 8} y={py - 4} fontSize={9} fontWeight={700} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
+                <text x={nearRight ? px - 8 : px + 8} y={nearTop ? py + 14 : py - 6} textAnchor={nearRight ? "end" : "start"} fontSize={10} fontWeight={700} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
                   {p.name}
                 </text>
               )}

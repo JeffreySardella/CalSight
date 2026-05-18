@@ -8,15 +8,22 @@
  */
 
 import type { ThemeCustomization, PresetThemeKey } from "./types";
+import { PALETTE_SEVERITY } from "./palettes";
+
+function sevToRgb(hex: string): string {
+  const h = hex.replace("#", "");
+  return `${parseInt(h.slice(0, 2), 16)} ${parseInt(h.slice(2, 4), 16)} ${parseInt(h.slice(4, 6), 16)}`;
+}
+
+function sevColors(paletteKey: keyof typeof PALETTE_SEVERITY) {
+  const s = PALETTE_SEVERITY[paletteKey];
+  return { primary: sevToRgb(s.pdo), tertiary: sevToRgb(s.injury), error: sevToRgb(s.fatal) };
+}
 
 /** Default — matches existing MD3 tokens in index.css */
 const DEFAULT_THEME: ThemeCustomization = {
   activePreset: "default",
-  colors: {
-    primary: "87 95 107",
-    tertiary: "91 93 120",
-    error: "159 64 61",
-  },
+  colors: sevColors("default"),
   chart: {
     palette: "default",
     customColors: [],
@@ -30,11 +37,7 @@ const DEFAULT_THEME: ThemeCustomization = {
 /** Professional — muted navy/slate, bordered cards, clean lines */
 const PROFESSIONAL_THEME: ThemeCustomization = {
   activePreset: "professional",
-  colors: {
-    primary: "30 58 95",
-    tertiary: "71 85 105",
-    error: "185 28 28",
-  },
+  colors: sevColors("cool"),
   chart: {
     palette: "cool",
     customColors: [],
@@ -48,11 +51,7 @@ const PROFESSIONAL_THEME: ThemeCustomization = {
 /** Academic — deep purple/indigo, minimal cards, spacious */
 const ACADEMIC_THEME: ThemeCustomization = {
   activePreset: "academic",
-  colors: {
-    primary: "79 70 229",
-    tertiary: "109 40 217",
-    error: "190 18 60",
-  },
+  colors: sevColors("colorblind"),
   chart: {
     palette: "colorblind",
     customColors: [],
@@ -66,11 +65,7 @@ const ACADEMIC_THEME: ThemeCustomization = {
 /** Playful — vibrant pink/teal, glassmorphism, warm palette */
 const PLAYFUL_THEME: ThemeCustomization = {
   activePreset: "playful",
-  colors: {
-    primary: "217 70 239",
-    tertiary: "6 182 212",
-    error: "244 63 94",
-  },
+  colors: sevColors("sunset"),
   chart: {
     palette: "sunset",
     customColors: [],
@@ -84,11 +79,7 @@ const PLAYFUL_THEME: ThemeCustomization = {
 /** High Contrast — maximum readability, stark black/white anchors */
 const HIGH_CONTRAST_THEME: ThemeCustomization = {
   activePreset: "high-contrast",
-  colors: {
-    primary: "0 0 0",
-    tertiary: "30 64 175",
-    error: "185 28 28",
-  },
+  colors: sevColors("colorblind"),
   chart: {
     palette: "colorblind",
     customColors: [],
@@ -102,11 +93,7 @@ const HIGH_CONTRAST_THEME: ThemeCustomization = {
 /** Midnight — deep navy surfaces, electric accents */
 const MIDNIGHT_THEME: ThemeCustomization = {
   activePreset: "midnight",
-  colors: {
-    primary: "99 102 241",
-    tertiary: "14 165 233",
-    error: "251 113 133",
-  },
+  colors: sevColors("ocean"),
   chart: {
     palette: "ocean",
     customColors: [],
@@ -120,11 +107,7 @@ const MIDNIGHT_THEME: ThemeCustomization = {
 /** Nature — earth greens and warm browns */
 const NATURE_THEME: ThemeCustomization = {
   activePreset: "nature",
-  colors: {
-    primary: "21 128 61",
-    tertiary: "120 113 108",
-    error: "194 65 12",
-  },
+  colors: sevColors("forest"),
   chart: {
     palette: "forest",
     customColors: [],
