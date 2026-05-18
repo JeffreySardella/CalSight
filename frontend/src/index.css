@@ -159,10 +159,54 @@
   body {
     @apply bg-surface text-on-surface font-body antialiased;
     @apply selection:bg-tertiary-container selection:text-on-tertiary-container;
+    font-size: var(--type-body-size, 0.8125rem);
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline;
+    font-size: var(--type-heading-size, 0.875rem);
+  }
+}
+
+/* ── Typography scale sizing classes ──
+ * These apply the CSS variable sizes set by typeScaleVars() in cssInjector.ts.
+ * Use .ts-heading / .ts-body / .ts-label for text that should respond to
+ * the user's text size preference. font-headline / font-body remain
+ * font-family-only utilities from Tailwind. */
+.ts-heading {
+  font-size: var(--type-heading-size, 0.875rem);
+}
+.ts-body {
+  font-size: var(--type-body-size, 0.8125rem);
+}
+.ts-label {
+  font-size: var(--type-label-size, 0.625rem);
+}
+
+/* Apply scale factor to text within the stats dashboard.
+ * Tailwind utilities like text-3xl use fixed rem values that ignore CSS
+ * variable font-size on ancestors. To make them scale, we override the root
+ * rem base (html font-size) proportionally. Instead, we target specific
+ * elements within .type-scaled containers using transform: scale() would
+ * break layout. The cleanest approach: override font-size on the key
+ * classes using calc() with the scale factor. */
+.type-scaled .hero-value {
+  font-size: calc(1.875rem * var(--type-scale-factor, 1));
+}
+@media (min-width: 640px) {
+  .type-scaled .hero-value {
+    font-size: calc(2.25rem * var(--type-scale-factor, 1));
+  }
+}
+.type-scaled .insight-text {
+  font-size: calc(0.875rem * var(--type-scale-factor, 1));
+}
+.type-scaled .narrative-text {
+  font-size: calc(0.6875rem * var(--type-scale-factor, 1));
+}
+@media (min-width: 640px) {
+  .type-scaled .narrative-text {
+    font-size: calc(0.75rem * var(--type-scale-factor, 1));
   }
 }
 

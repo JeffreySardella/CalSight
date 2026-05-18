@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface ScatterItem {
   label: string;
@@ -48,6 +49,7 @@ export default function SimpleScatter({
   const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : FALLBACK_COLORS;
   const [svgWidth, setSvgWidth] = useState(400);
   const titleId = useId();
+  const ts = useTextScale();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -116,7 +118,7 @@ export default function SimpleScatter({
           return (
             <g key={`y-${i}`}>
               <line x1={padding.left} x2={padding.left + chartW} y1={py} y2={py} stroke="rgb(var(--outline-variant))" strokeOpacity={0.15} />
-              <text x={padding.left - 8} y={py + 3} textAnchor="end" fontSize={9} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
+              <text x={padding.left - 8} y={py + 3} textAnchor="end" fontSize={9 * ts} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
                 {formatNumber(v)}
               </text>
             </g>
@@ -128,17 +130,17 @@ export default function SimpleScatter({
           return (
             <g key={`x-${i}`}>
               <line x1={px} x2={px} y1={padding.top} y2={padding.top + chartH} stroke="rgb(var(--outline-variant))" strokeOpacity={0.1} />
-              <text x={px} y={height - padding.bottom + 16} textAnchor="middle" fontSize={9} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
+              <text x={px} y={height - padding.bottom + 16} textAnchor="middle" fontSize={9 * ts} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
                 {formatNumber(v)}
               </text>
             </g>
           );
         })}
 
-        <text x="50%" y={height - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
+        <text x="50%" y={height - 4} textAnchor="middle" fontSize={9 * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
           {xLabel}
         </text>
-        <text x={12} y={height / 2} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-90, 12, ${height / 2})`}>
+        <text x={12} y={height / 2} textAnchor="middle" fontSize={9 * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-90, 12, ${height / 2})`}>
           {yLabel}
         </text>
 
@@ -191,7 +193,7 @@ export default function SimpleScatter({
               x={showLeft ? px - 10 : lx}
               y={py - 2}
               textAnchor={showLeft ? "end" : "start"}
-              fontSize={10}
+              fontSize={10 * ts}
               fontWeight={700}
               fill="rgb(var(--on-surface))"
               fontFamily="'Inter Variable', Inter, sans-serif"

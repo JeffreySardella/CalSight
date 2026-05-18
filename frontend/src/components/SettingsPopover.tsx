@@ -66,8 +66,8 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
       {/* Header with close button */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-headline font-bold text-on-surface">Settings</h2>
-        <button onClick={onClose} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full hover:bg-surface-container-high text-on-surface-variant transition-colors" aria-label="Close settings">
-          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+        <button onClick={onClose} className="px-3 py-1.5 rounded-full text-primary text-sm font-bold hover:bg-primary/10 transition-colors min-h-[36px]" aria-label="Close settings">
+          Done
         </button>
       </div>
 

@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface GaugeItem {
   label: string;
@@ -25,6 +26,7 @@ export default function SimpleGauge({ data, height = 180, title }: SimpleGaugePr
   const titleId = useId();
   const tokens = useDesignTokens();
   const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : FALLBACK_COLORS;
+  const ts = useTextScale();
   if (!data.length) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -84,10 +86,10 @@ export default function SimpleGauge({ data, height = 180, title }: SimpleGaugePr
         {arcs.map((arc, i) => (
           <path key={i} d={arc.path} fill={arc.color} />
         ))}
-        <text x={cx} y={cy - 12} textAnchor="middle" fontSize={26} fontWeight={800} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
+        <text x={cx} y={cy - 12} textAnchor="middle" fontSize={26 * ts} fontWeight={800} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
           {formatNumber(total)}
         </text>
-        <text x={cx} y={cy + 6} textAnchor="middle" fontSize={10} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" letterSpacing={2}>
+        <text x={cx} y={cy + 6} textAnchor="middle" fontSize={10 * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" letterSpacing={2}>
           TOTAL
         </text>
       </svg>

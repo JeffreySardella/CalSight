@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface RadarItem {
   label: string;
@@ -24,6 +25,7 @@ export default function SimpleRadar({
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const titleId = useId();
+  const ts = useTextScale();
 
   const handleMouseMove = useCallback((e: React.MouseEvent, idx: number) => {
     setHover({ idx, x: e.clientX, y: e.clientY });
@@ -120,7 +122,7 @@ export default function SimpleRadar({
               y={ly}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={9}
+              fontSize={9 * ts}
               fontWeight={600}
               fill="rgb(var(--on-surface-variant))"
               fontFamily="'Inter Variable', Inter, sans-serif"

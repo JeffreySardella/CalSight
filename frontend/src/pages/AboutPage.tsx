@@ -122,20 +122,73 @@ export default function AboutPage() {
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h2 className="font-headline text-xl font-bold text-on-surface">California State Agencies</h2>
-              <p className="text-sm text-on-surface-variant mt-1">DMV, Caltrans, OEHHA, CDE, OSHPD</p>
+              <h2 className="font-headline text-xl font-bold text-on-surface">Caltrans</h2>
+              <p className="text-sm text-on-surface-variant mt-1">Traffic Volumes &amp; Road Classification</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
-                <li>CA DMV vehicle registrations (2019-2026)</li>
-                <li>CA DMV licensed driver counts (2008-2024)</li>
-                <li>Caltrans AADT traffic volumes for state highways</li>
-                <li>CalEnviroScreen 4.0 environmental justice scores</li>
-                <li>CDE school locations statewide</li>
-                <li>OSHPD/HCAI hospital locations</li>
+                <li>AADT annual average daily traffic counts for all state highway segments</li>
+                <li>Public Road Functional Classification — road miles by county and road type</li>
               </ul>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~34,000 rows combined</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~413 rows combined</p>
+              <a href="https://data.ca.gov/dataset/public-road-functional-classification" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">Caltrans on data.ca.gov</a>
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
+            <div>
+              <h2 className="font-headline text-xl font-bold text-on-surface">CalEnviroScreen 4.0</h2>
+              <p className="text-sm text-on-surface-variant mt-1">Environmental Justice Scores — OEHHA</p>
+              <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
+                Population-weighted county scores aggregated from ~8,000 census tracts. Includes CES composite score, pollution burden, PM2.5, ozone, diesel particulate matter, traffic proximity, poverty, unemployment, linguistic isolation, and housing burden.
+              </p>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">58 county records</p>
               <a href="https://oehha.ca.gov/calenviroscreen" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">CalEnviroScreen on OEHHA</a>
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
+            <div>
+              <h2 className="font-headline text-xl font-bold text-on-surface">California DMV</h2>
+              <p className="text-sm text-on-surface-variant mt-1">Vehicle &amp; Driver Registrations</p>
+              <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
+                <li>Vehicle Fuel Type Count by Zip Code (2019–2026) — total vehicles and EV registrations per county. Used for Vehicle Registration Trends and EV analysis.</li>
+                <li>Driver Licenses Outstanding by County (2008–2024) — licensed driver counts for exposure-adjusted crash rates.</li>
+              </ul>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~1,433 rows combined</p>
+              <a href="https://data.ca.gov/dataset/vehicle-fuel-type-count-by-zip-code" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">DMV vehicles on data.ca.gov</a>
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
+            <div>
+              <h2 className="font-headline text-xl font-bold text-on-surface">CA Dept. of Education</h2>
+              <p className="text-sm text-on-surface-variant mt-1">California Public Schools 2024-25 — CDE</p>
+              <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
+                9,932 active school locations statewide with coordinates, school type, county, and city. Published annually by CDE via data.ca.gov. Used for school-zone overlay markers on the map.
+              </p>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">9,932 active schools</p>
+              <a href="https://data.ca.gov/dataset/california-public-schools" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">CDE schools on data.ca.gov</a>
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
+            <div>
+              <h2 className="font-headline text-xl font-bold text-on-surface">CA HCAI</h2>
+              <p className="text-sm text-on-surface-variant mt-1">Licensed Healthcare Facilities — formerly OSHPD</p>
+              <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
+                ~560 General Acute Care, Acute Psychiatric, and Children's Hospitals with coordinates, bed capacity, and trauma center level. Published monthly by HCAI via data.ca.gov. Used for hospital overlay markers on the map.
+              </p>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~560 hospital records</p>
+              <a href="https://data.ca.gov/dataset/licensed-and-certified-healthcare-facility-listing" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">HCAI facilities on data.ca.gov</a>
             </div>
           </div>
 

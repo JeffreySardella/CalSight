@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface PolarItem {
   label: string;
@@ -27,6 +28,7 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
   const titleId = useId();
   const tokens = useDesignTokens();
   const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : FALLBACK_COLORS;
+  const ts = useTextScale();
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
     setHover({ idx, x: e.clientX, y: e.clientY });
@@ -70,7 +72,7 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
             />
           );
         })}
-        {data.map((d, i) => {
+        {data.length <= 10 && data.map((d, i) => {
           const r = maxVal > 0 ? (d.value / maxVal) * maxR : 0;
           const midAngle = i * sliceAngle - Math.PI / 2 + sliceAngle / 2;
           const labelR = Math.min(r * 0.6, maxR * 0.55);
@@ -84,7 +86,7 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
               y={ly}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={9}
+              fontSize={9 * ts}
               fontWeight={700}
               fill="#fff"
               fontFamily="'Inter Variable', Inter, sans-serif"

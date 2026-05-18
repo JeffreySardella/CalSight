@@ -95,7 +95,7 @@ export default function InsightBanner({ heroMetrics, loading, funFacts = [] }: I
             Did You Know?
           </span>
         )}
-        <p className="text-on-surface text-sm font-medium min-w-0 break-words">{current.text}</p>
+        <p className="text-on-surface text-sm font-medium min-w-0 break-words insight-text">{current.text}</p>
       </div>
       {slides.length > 1 && (
         <div className="flex items-center gap-1 flex-shrink-0">

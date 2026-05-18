@@ -18,14 +18,16 @@ export default function StatCard({ data, height = 192 }: StatCardProps) {
   if (!data.length) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
-  const top = [...data].sort((a, b) => b.value - a.value).slice(0, 3);
-  const topPcts = top.map((d) => ({
+  const sorted = [...data].sort((a, b) => b.value - a.value);
+  const displayed = sorted.slice(0, 8);
+  const remaining = sorted.length - displayed.length;
+  const topPcts = displayed.map((d) => ({
     ...d,
     pct: total > 0 ? Math.round((d.value / total) * 100) : 0,
   }));
 
   return (
-    <div className="flex flex-col items-center justify-center gap-3" style={{ height }}>
+    <div className="flex flex-col items-center justify-center gap-3" style={{ minHeight: height }}>
       <div className="text-center">
         <p className="text-4xl font-headline font-bold text-on-surface tracking-tight">
           {formatNumber(total)}
@@ -34,7 +36,7 @@ export default function StatCard({ data, height = 192 }: StatCardProps) {
           total across {data.length} categories
         </p>
       </div>
-      <div className="w-full max-w-[200px] space-y-2 mt-2">
+      <div className="w-full max-w-[240px] space-y-2 mt-2">
         {topPcts.map((d) => (
           <div key={d.label}>
             <div className="flex justify-between text-[10px] mb-0.5">
@@ -56,6 +58,9 @@ export default function StatCard({ data, height = 192 }: StatCardProps) {
             </div>
           </div>
         ))}
+        {remaining > 0 && (
+          <p className="text-[9px] text-on-surface-variant text-center mt-1">+{remaining} more</p>
+        )}
       </div>
     </div>
   );

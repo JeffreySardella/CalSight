@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { mean as calcMean } from "../../lib/dashboard/stats";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface BarItem {
   label: string;
@@ -48,6 +49,7 @@ export default function SimpleBarChart({
   const [svgWidth, setSvgWidth] = useState(300);
   const titleId = useId();
   const { progress } = useChartAnimation(svgRef);
+  const ts = useTextScale();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -104,7 +106,7 @@ export default function SimpleBarChart({
             const hlOpacity = hl === "dimmed" ? 0.3 : 1;
             return (
               <g key={d.label}>
-                <text x={0} y={y + barH / 2 + 4} fontSize={10} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" textLength={d.label.length * 6 > labelW - 8 ? labelW - 8 : undefined} lengthAdjust="spacingAndGlyphs">
+                <text x={0} y={y + barH / 2 + 4} fontSize={10 * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" textLength={d.label.length * 6 > labelW - 8 ? labelW - 8 : undefined} lengthAdjust="spacingAndGlyphs">
                   {d.label}
                 </text>
                 <rect
@@ -158,7 +160,7 @@ export default function SimpleBarChart({
                   y={barY - 4}
                   textAnchor="middle"
                   fill={d.color ?? defaultColor}
-                  fontSize={8}
+                  fontSize={8 * ts}
                   fontWeight={700}
                   fontFamily="'Inter Variable', Inter, sans-serif"
                   letterSpacing={1}
@@ -197,7 +199,7 @@ export default function SimpleBarChart({
                     ) : (
                       <text
                         textAnchor={slotW < 20 ? "end" : "middle"}
-                        fontSize={slotW < 24 ? 8 : 10}
+                        fontSize={(slotW < 24 ? 8 : 10) * ts}
                         fontWeight={600}
                         fill="rgb(var(--on-surface-variant))"
                         fontFamily="'Inter Variable', Inter, sans-serif"
@@ -218,7 +220,7 @@ export default function SimpleBarChart({
           return (
             <g>
               <line x1={padding.left} x2={padding.left + svgWidth - padding.left - padding.right} y1={yM} y2={yM} stroke="rgb(var(--error))" strokeWidth={1} strokeDasharray="6 3" strokeOpacity={0.6} />
-              <text x={svgWidth - padding.right - 2} y={yM - 4} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
+              <text x={svgWidth - padding.right - 2} y={yM - 4} textAnchor="end" fontSize={8 * ts} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
             </g>
           );
         })()}

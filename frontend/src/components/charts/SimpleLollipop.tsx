@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface LollipopItem {
   label: string;
@@ -38,6 +39,7 @@ export default function SimpleLollipop({
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const [svgWidth, setSvgWidth] = useState(300);
   const titleId = useId();
+  const ts = useTextScale();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -95,7 +97,7 @@ export default function SimpleLollipop({
                 x={labelW - 6}
                 y={y + 3}
                 textAnchor="end"
-                fontSize={10}
+                fontSize={10 * ts}
                 fontWeight={600}
                 fill="rgb(var(--on-surface-variant))"
                 fontFamily="'Inter Variable', Inter, sans-serif"
@@ -122,7 +124,7 @@ export default function SimpleLollipop({
                   x={labelW + w - 10}
                   y={y + 3}
                   textAnchor="end"
-                  fontSize={9}
+                  fontSize={9 * ts}
                   fontWeight={700}
                   fill="rgb(var(--on-surface-variant))"
                   fontFamily="'Inter Variable', Inter, sans-serif"
@@ -133,7 +135,7 @@ export default function SimpleLollipop({
                 <text
                   x={labelW + w + 10}
                   y={y + 3}
-                  fontSize={9}
+                  fontSize={9 * ts}
                   fontWeight={700}
                   fill="rgb(var(--on-surface-variant))"
                   fontFamily="'Inter Variable', Inter, sans-serif"

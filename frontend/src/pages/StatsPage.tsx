@@ -316,7 +316,7 @@ export default function StatsPage() {
   }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main">
+    <div className="max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main type-scaled">
       <PrintHeader filters={printFilters} />
       <MetaTags
         title={`Statistics Dashboard — CalSight`}
@@ -414,7 +414,7 @@ export default function StatsPage() {
             {loading ? (
               <Skeleton className="h-10 w-40" />
             ) : (
-              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`Total incidents: ${totalIncidents != null ? totalIncidents.toLocaleString() : "unavailable"}`}>
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`Total incidents: ${totalIncidents != null ? totalIncidents.toLocaleString() : "unavailable"}`}>
                 {totalIncidents != null ? totalIncidents.toLocaleString() : "—"}
               </p>
             )}
@@ -445,7 +445,7 @@ export default function StatsPage() {
           {loading ? (
             <Skeleton className="h-10 w-24" />
           ) : (
-            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`KSI rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
+            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`KSI rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
               {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
             </p>
           )}
@@ -468,7 +468,7 @@ export default function StatsPage() {
             {loading ? (
               <Skeleton className="h-10 w-32" />
             ) : (
-              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`Year over year fatality change: ${yoyFatalityChangePct != null ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%` : "unavailable"}`}>
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`Year over year fatality change: ${yoyFatalityChangePct != null ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%` : "unavailable"}`}>
                 {yoyFatalityChangePct != null
                   ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%`
                   : "—"}

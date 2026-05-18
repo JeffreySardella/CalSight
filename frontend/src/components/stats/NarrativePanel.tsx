@@ -116,7 +116,7 @@ export default function NarrativePanel({ narrative, tone, onToneChange, defaultC
                 >
                   {ICON_MAP[finding.icon] ?? "insights"}
                 </span>
-                <p className="text-[11px] sm:text-xs font-medium text-on-surface leading-relaxed break-words min-w-0">
+                <p className="text-[11px] sm:text-xs font-medium text-on-surface leading-relaxed break-words min-w-0 narrative-text">
                   {finding.text}
                 </p>
               </li>

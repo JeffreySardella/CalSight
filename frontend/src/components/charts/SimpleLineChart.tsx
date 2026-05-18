@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { linearRegression, mean as calcMean, stddev as calcStddev } from "../../lib/dashboard/stats";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface LinePoint {
   label: string;
@@ -57,6 +58,7 @@ export default function SimpleLineChart({
   const [svgWidth, setSvgWidth] = useState(400);
   const titleId = useId();
   const { progress } = useChartAnimation(svgRef);
+  const ts = useTextScale();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -137,7 +139,7 @@ export default function SimpleLineChart({
           return (
             <g key={v}>
               <line x1={padding.left} x2={svgWidth - padding.right} y1={y} y2={y} stroke="rgb(var(--outline-variant))" strokeOpacity={0.2} />
-              <text x={Math.max(padding.left - 6, 2)} y={y + 3} textAnchor="end" fontSize={10} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
+              <text x={Math.max(padding.left - 6, 2)} y={y + 3} textAnchor="end" fontSize={10 * ts} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
                 {formatNumber(v)}
               </text>
             </g>
@@ -186,7 +188,7 @@ export default function SimpleLineChart({
                 x={p.x}
                 y={height - padding.bottom + 16}
                 textAnchor="middle"
-                fontSize={10}
+                fontSize={10 * ts}
                 fill="rgb(var(--on-surface-variant))"
                 fontFamily="'Inter Variable', Inter, sans-serif"
               >
@@ -203,7 +205,7 @@ export default function SimpleLineChart({
           return (
             <g>
               <line x1={padding.left} x2={padding.left + chartW} y1={yM} y2={yM} stroke="rgb(var(--error))" strokeWidth={1} strokeDasharray="6 3" strokeOpacity={0.6} />
-              <text x={padding.left + chartW - 4} y={yM + 3} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
+              <text x={padding.left + chartW - 4} y={yM + 3} textAnchor="end" fontSize={8 * ts} fontWeight={700} fill="rgb(var(--error))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">AVG</text>
             </g>
           );
         })()}
@@ -227,8 +229,8 @@ export default function SimpleLineChart({
               />
               <line x1={padding.left} x2={padding.left + chartW} y1={yUpper} y2={yUpper} stroke="rgb(var(--on-surface-variant))" strokeWidth={0.75} strokeDasharray="4 3" strokeOpacity={0.4} />
               <line x1={padding.left} x2={padding.left + chartW} y1={yLower} y2={yLower} stroke="rgb(var(--on-surface-variant))" strokeWidth={0.75} strokeDasharray="4 3" strokeOpacity={0.4} />
-              <text x={padding.left + 4} y={yUpper - 3} fontSize={7} fill="rgb(var(--on-surface-variant))" fillOpacity={0.6} fontFamily="'Inter Variable', Inter, sans-serif">+1σ</text>
-              <text x={padding.left + 4} y={yLower + 10} fontSize={7} fill="rgb(var(--on-surface-variant))" fillOpacity={0.6} fontFamily="'Inter Variable', Inter, sans-serif">-1σ</text>
+              <text x={padding.left + 4} y={yUpper - 3} fontSize={7 * ts} fill="rgb(var(--on-surface-variant))" fillOpacity={0.6} fontFamily="'Inter Variable', Inter, sans-serif">+1σ</text>
+              <text x={padding.left + 4} y={yLower + 10} fontSize={7 * ts} fill="rgb(var(--on-surface-variant))" fillOpacity={0.6} fontFamily="'Inter Variable', Inter, sans-serif">-1σ</text>
             </g>
           );
         })()}
@@ -293,14 +295,14 @@ export default function SimpleLineChart({
           return (
             <g>
               <line x1={lastPt.x} x2={lastPt.x} y1={padding.top} y2={padding.top + chartH} stroke="rgb(var(--outline-variant))" strokeWidth={1} strokeDasharray="4 4" strokeOpacity={0.5} />
-              <text x={lastPt.x + 4} y={padding.top + 10} fontSize={8} fill="rgb(var(--on-surface-variant))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">FORECAST</text>
+              <text x={lastPt.x + 4} y={padding.top + 10} fontSize={8 * ts} fill="rgb(var(--on-surface-variant))" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">FORECAST</text>
               <polygon points={bandPoly} fill="var(--color-chart-3, #14b8a6)" fillOpacity={0.08} />
               <path d={fcPath} fill="none" stroke="var(--color-chart-3, #14b8a6)" strokeWidth={2} strokeDasharray="8 4" strokeOpacity={0.8} />
               {fcPts.map((p, i) => (
                 <circle key={`fc-${i}`} cx={p.x} cy={p.yPred} r={3.5} fill="rgb(var(--surface))" stroke="var(--color-chart-3, #14b8a6)" strokeWidth={1.5} />
               ))}
               {fcPts.map((p, i) => (
-                <text key={`fl-${i}`} x={p.x} y={height - padding.bottom + 16} textAnchor="middle" fontSize={9} fontStyle="italic" fill="var(--color-chart-3, #14b8a6)" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">{forecastData[i].label}</text>
+                <text key={`fl-${i}`} x={p.x} y={height - padding.bottom + 16} textAnchor="middle" fontSize={9 * ts} fontStyle="italic" fill="var(--color-chart-3, #14b8a6)" fillOpacity={0.7} fontFamily="'Inter Variable', Inter, sans-serif">{forecastData[i].label}</text>
               ))}
             </g>
           );

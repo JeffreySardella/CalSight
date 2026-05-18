@@ -17,20 +17,27 @@ interface Props {
   onCancel: () => void;
 }
 
-const CHART_TYPES: { value: ChartType; label: string }[] = [
+const CHART_TYPES: { value: ChartType; label: string; maxItems?: number }[] = [
   { value: "bar", label: "Bar" },
   { value: "hbar", label: "H-Bar" },
   { value: "lollipop", label: "Lollipop" },
   { value: "line", label: "Line" },
   { value: "area", label: "Area" },
-  { value: "donut", label: "Donut" },
+  { value: "donut", label: "Donut", maxItems: 10 },
   { value: "treemap", label: "Treemap" },
-  { value: "polar", label: "Polar" },
-  { value: "radar", label: "Radar" },
+  { value: "polar", label: "Polar", maxItems: 10 },
+  { value: "radar", label: "Radar", maxItems: 12 },
   { value: "scatter", label: "Scatter" },
-  { value: "gauge", label: "Gauge" },
+  { value: "gauge", label: "Gauge", maxItems: 8 },
   { value: "stat", label: "Stat" },
 ];
+
+const DIMENSION_CARDINALITY: Record<string, number> = {
+  hour: 24, day_of_week: 7, month: 12, year: 15,
+  cause: 12, severity: 3, county: 58,
+  gender: 3, age_bracket: 8, at_fault_gender: 3, at_fault_age_bracket: 8,
+  weather: 6, lighting: 5, collision_type: 8,
+};
 
 const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "count", label: MEASURE_LABELS.count },
@@ -135,7 +142,10 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
       <div>
         <div className="text-xs font-medium text-on-surface-variant mb-1">Chart Type</div>
         <div role="radiogroup" aria-label="Chart type" className="grid grid-cols-4 gap-1 bg-surface-container-high rounded-xl p-1">
-          {CHART_TYPES.map((ct) => (
+          {CHART_TYPES.filter((ct) => {
+            const count = DIMENSION_CARDINALITY[dimension] ?? 10;
+            return !ct.maxItems || count <= ct.maxItems;
+          }).map((ct) => (
             <button
               key={ct.value}
               role="radio"
