@@ -139,7 +139,7 @@ export function getTokens(
 
   // For the choropleth, use the provided map palette if available,
   // otherwise derive a 5-stop scale from the categorical palette.
-  const choropleth = choroplethColors ?? deriveChoroplethScale(categorical, isDark);
+  const choropleth = choroplethColors ?? deriveChoroplethScale(categorical);
 
   return {
     severity: isDark ? SEVERITY_DARK : SEVERITY_LIGHT,
@@ -158,7 +158,7 @@ export function getTokens(
  * Derive a 5-color choropleth scale from the categorical palette.
  * Picks evenly-spaced colors from the palette array.
  */
-function deriveChoroplethScale(palette: readonly string[], _isDark: boolean): readonly string[] {
+function deriveChoroplethScale(palette: readonly string[]): readonly string[] {
   if (palette.length >= 5) {
     const step = (palette.length - 1) / 4;
     return [
