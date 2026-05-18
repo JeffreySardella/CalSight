@@ -1,115 +1,181 @@
-import { useState, useEffect, useMemo } from "react";
-import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES } from "../hooks/useFilterParams";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES, YEARS } from "../hooks/useFilterParams";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
-import SimpleBarChart from "../components/charts/SimpleBarChart";
-import SimpleDonutChart from "../components/charts/SimpleDonutChart";
 import { useStats } from "../hooks/useStats";
-import { useDataQualityDisclaimer } from "../hooks/useDataQualityDisclaimer";
 import { Skeleton } from "../components/ui/Skeleton";
-import { EmptyState } from "../components/ui/EmptyState";
-import { ErrorState } from "../components/ui/ErrorState";
-import ShareButton from "../components/ui/ShareButton";
-
-function ChartImg({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div role="img" aria-label={label}>{children}</div>;
-}
-
-function DataQualityNote({ text }: { text: string }) {
-  return (
-    <div className="flex items-start gap-1.5 bg-surface-container-high rounded-md px-2.5 py-1.5 mb-3 text-[10px] text-on-surface-variant leading-snug">
-      <span className="material-symbols-outlined text-[13px] mt-px flex-shrink-0">info</span>
-      <span>{text}</span>
-    </div>
-  );
-}
-
-function token(name: string) {
-  return `rgb(${getComputedStyle(document.documentElement).getPropertyValue(name).trim()})`;
-}
-
-function ChartTip({ title, lines }: { title: string; lines: string[] }) {
-  return (
-    <>
-      <p className="font-headline font-bold text-on-surface">{title}</p>
-      {lines.map((l, i) => <p key={i} className="text-on-surface-variant mt-0.5">{l}</p>)}
-    </>
-  );
-}
+import DashboardModeToggle from "../components/stats/DashboardModeToggle";
+import DataFreshnessBanner from "../components/stats/DataFreshnessBanner";
+import PresetPicker from "../components/stats/PresetPicker";
+import DashboardGrid from "../components/stats/DashboardGrid";
+import InsightBanner from "../components/stats/InsightBanner";
+import { useFunFacts } from "../hooks/useFunFacts";
+import { useDashboardConfig } from "../hooks/useDashboardConfig";
+import { useDashboardData } from "../hooks/useDashboardData";
+import { useCorrelationData } from "../hooks/useCorrelationData";
+import { useDashboardKeyboard } from "../hooks/useDashboardKeyboard";
+import CorrelationMatrix from "../components/charts/CorrelationMatrix";
+import VehicleTrends from "../components/stats/VehicleTrends";
+import { encodeDashboard } from "../lib/dashboard/urlCodec";
+import SavedDashboardsPanel from "../components/stats/SavedDashboardsPanel";
+import NlqQueryBar from "../components/stats/NlqQueryBar";
+import MetaTags, { buildOgImageUrl } from "../components/seo/MetaTags";
+import { buildDatasetSchema, buildBreadcrumbSchema } from "../components/seo/JsonLd";
+import SharePanel, { buildShareUrl } from "../components/seo/SharePanel";
+import AnomalyPanel from "../components/stats/AnomalyPanel";
+import NarrativePanel from "../components/stats/NarrativePanel";
+import SuggestedCharts from "../components/stats/SuggestedCharts";
+import { detectAllAnomalies } from "../lib/dashboard/anomaly";
+import { useNarrativeInsights } from "../hooks/useNarrativeInsights";
+import { useChartSuggestions } from "../hooks/useChartSuggestions";
+import PrintHeader from "../components/stats/PrintHeader";
+import PrintFooter from "../components/stats/PrintFooter";
+import Sparkline from "../components/charts/Sparkline";
+import { useTimelapsePlayer } from "../hooks/useTimelapsePlayer";
+import { useThrottledValue } from "../hooks/useDebouncedValue";
+import TimelapseControls from "../components/stats/TimelapseControls";
+import StoryReader from "../components/stats/StoryReader";
+import { useDrillDown } from "../hooks/useDrillDown";
+import DrillBreadcrumb from "../components/stats/DrillBreadcrumb";
+import { DIMENSION_LABELS } from "../lib/dashboard/types";
+import { DATA_STORIES, getStoryById } from "../lib/dashboard/stories";
+import { useCrossFilter } from "../hooks/useCrossFilter";
 
 export default function StatsPage() {
-  const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 768px)").matches);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px)");
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [timelapseActive, setTimelapseActive] = useState(false);
+  const [storiesMode, setStoriesMode] = useState(false);
+  const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
   const filters = useFilterParams();
-  const statsFilters = useMemo(() => ({
-    dateRange: filters.selectedDateRange,
-    severities: [...filters.selectedSeverities],
-    causes: [...filters.selectedCauses],
-    counties: [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")),
-  }), [filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties]);
-  const { data, loading, error, refetch } = useStats(statsFilters);
-  const dqDisclaimers = useDataQualityDisclaimer(
-    filters.selectedDateRange,
-    [...filters.selectedCounties],
-  );
-  const [, forceUpdate] = useState(false);
-  useEffect(() => {
-    const observer = new MutationObserver(() => forceUpdate((v) => !v));
-    observer.observe(document.documentElement, { attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
+  const { drillState, drillToCounty, drillUp, resetDrill } = useDrillDown();
+  const crossFilter = useCrossFilter();
 
-  const isDark = document.documentElement.classList.contains("dark");
-  const { clrPrimary, clrPrimaryContainer, clrOnSurface, clrOnSurfaceVariant, clrError, clrTertiary } = useMemo(() => ({
-    clrPrimary: token("--primary"),
-    clrPrimaryContainer: token("--primary-container"),
-    clrOnSurface: token("--on-surface"),
-    clrOnSurfaceVariant: token("--on-surface-variant"),
-    clrError: token("--error"),
-    clrTertiary: token("--tertiary"),
-  }), [isDark]);
+  // Time-lapse player
+  const tlMinYear = YEARS[0];
+  const tlMaxYear = YEARS[YEARS.length - 1] - 1; // Exclude current (incomplete) year
+  const timelapse = useTimelapsePlayer(tlMinYear, tlMaxYear);
 
-  const causeColorMap: Record<string, string> = isDark
-    ? {
-        "DUI": "#a368a0", "Speeding": "#c27862", "Lane Change": "#6b8fa3",
-        "Right of Way": "#7ba088", "Improper Turn": "#b89a6b", "Tailgating": "#8e7cc3",
-        "Signal Violation": "#c28a8a", "Pedestrian": "#6baab5", "Unsafe Backing": "#a0a06b",
-        "Other": "#8b8b9a", "Uncategorized": "#6b8f6b",
-      }
-    : {
-        "DUI": "#7e3794", "Speeding": "#b45309", "Lane Change": "#4a7a8c",
-        "Right of Way": "#3d7a5c", "Improper Turn": "#8a6d3b", "Tailgating": "#5b4fa0",
-        "Signal Violation": "#994444", "Pedestrian": "#2d7d8a", "Unsafe Backing": "#6b6b2e",
-        "Other": "#78716c", "Uncategorized": "#4a7a52",
-      };
+  // Throttle the timelapse year to avoid overwhelming the API with requests
+  // during rapid animation. The visual year display stays responsive (uses
+  // timelapse.currentYear directly), but API calls fire at most once per 2s.
+  // This lets charts update periodically during playback without flooding
+  // the backend (which returns 429 under rapid-fire requests).
+  const throttledTlYear = useThrottledValue(timelapse.currentYear, 2000);
 
-  const severityColorMap: Record<string, string> = isDark
-    ? { "Fatal": "#ef4444", "Injury": "#fbbf24", "Property Damage Only": "#9ca3af" }
-    : { "Fatal": "#dc2626", "Injury": "#f59e0b", "Property Damage Only": "#6b7280" };
-
-  const causeColor = (label: string) => causeColorMap[label] ?? clrOnSurfaceVariant;
-  const severityColor = (label: string) => severityColorMap[label] ?? clrOnSurfaceVariant;
-
+  // When timelapse is active, override the date filter to the animated year
+  // When drill_county is set, override the county filter to just that county
+  const statsFilters = useMemo(() => {
+    const baseRange = timelapseActive
+      ? { start: { year: throttledTlYear, month: 1 }, end: { year: throttledTlYear, month: 12 } }
+      : filters.selectedDateRange;
+    const baseCounties = [...filters.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-"));
+    const drillCountySlug = drillState.county
+      ? drillState.county.toLowerCase().replace(/ /g, "-")
+      : null;
+    return {
+      dateRange: baseRange,
+      severities: [...filters.selectedSeverities],
+      causes: [...filters.selectedCauses],
+      counties: drillCountySlug ? [drillCountySlug] : baseCounties,
+      alcohol: filters.selectedAlcohol,
+      pedestrian: filters.selectedPedestrian,
+      cyclist: filters.selectedCyclist,
+      drug: filters.selectedDrug,
+      distracted: filters.selectedDistracted,
+    };
+  }, [timelapseActive, throttledTlYear, filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, drillState.county]);
+  const singleCountyActive = !!drillState.county || filters.selectedCounties.size === 1;
+  const { data, loading, error, refetch: statsRefetch } = useStats(statsFilters);
+  const dashboard = useDashboardConfig();
+  const crossFilterOverrides = useMemo(() => crossFilter.toFilterOverrides(), [crossFilter.toFilterOverrides]);
+  const { dataBySlot, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboardData(dashboard.activeCharts, statsFilters, crossFilterOverrides);
+  const anomalyResult = useMemo(() => {
+    if (dashLoading || Object.keys(dataBySlot).length === 0) return { byChart: {}, all: [] };
+    return detectAllAnomalies(dataBySlot, dashboard.activeCharts);
+  }, [dataBySlot, dashboard.activeCharts, dashLoading]);
+  const { narrative, getChartNarrative, tone, setTone } = useNarrativeInsights({
+    dataBySlot,
+    charts: dashboard.activeCharts,
+    anomalies: anomalyResult.all,
+    filters: statsFilters,
+    enabled: !dashLoading,
+  });
+  const suggestions = useChartSuggestions({
+    activeCharts: dashboard.activeCharts,
+    dataBySlot,
+    filters: statsFilters,
+    anomalies: anomalyResult.all,
+    enabled: !dashLoading,
+  });
+  const correlationFilters = useMemo(() => ({
+    severity: statsFilters.severities.length ? statsFilters.severities : undefined,
+    alcohol: statsFilters.alcohol,
+    pedestrian: statsFilters.pedestrian,
+    cyclist: statsFilters.cyclist,
+    drug: statsFilters.drug,
+    distracted: statsFilters.distracted,
+    dateRange: statsFilters.dateRange,
+  }), [statsFilters.severities, statsFilters.alcohol, statsFilters.pedestrian, statsFilters.cyclist, statsFilters.drug, statsFilters.distracted, statsFilters.dateRange]);
+  const correlation = useCorrelationData(correlationFilters);
   const dateRange  = filters.selectedDateRange;
   const severities = filters.selectedSeverities;
   const counties   = filters.selectedCounties;
   const causes     = filters.selectedCauses;
 
+  // Geo drill-down: click county bar → filter to that county (desktop only)
+  const isMobileDevice = typeof window !== "undefined" && window.innerWidth < 640;
+  const handleBarClick = useCallback((label: string, dimension: string) => {
+    if (isMobileDevice) return;
+    if (dimension === "county") {
+      const slug = label.toLowerCase().replace(/ /g, "-");
+      drillToCounty(slug);
+    }
+  }, [drillToCounty, isMobileDevice]);
+
+  // Keyboard shortcut: close config panel trigger (incremented to signal DashboardGrid)
+  const [closeConfigTrigger, setCloseConfigTrigger] = useState(0);
+  const handleCloseConfig = useCallback(() => setCloseConfigTrigger((n) => n + 1), []);
+
+  // Dashboard keyboard shortcuts: 1-8 presets, B for builder, Escape to close config
+  useDashboardKeyboard({
+    onSetMode: dashboard.setMode,
+    onSetPreset: dashboard.setPreset,
+    onCloseConfig: handleCloseConfig,
+  });
+
+  // Clear drill state and cross-filter when preset changes
+  const handlePresetSelect = useCallback((key: Parameters<typeof dashboard.setPreset>[0]) => {
+    resetDrill();
+    crossFilter.clearCrossFilter();
+    dashboard.setPreset(key);
+  }, [resetDrill, crossFilter, dashboard]);
+
   function handleClearAll() {
     filters.clearFilters();
+    resetDrill();
+    crossFilter.clearCrossFilter();
     setResetKey((k) => k + 1);
+  }
+
+  const [printPreview, setPrintPreview] = useState(false);
+
+  useEffect(() => {
+    if (printPreview) {
+      document.body.classList.add("print-mode");
+    } else {
+      document.body.classList.remove("print-mode");
+    }
+    return () => document.body.classList.remove("print-mode");
+  }, [printPreview]);
+
+  function handlePrint() {
+    window.print();
   }
 
   // Build typed chips so each one knows how to remove itself.
   // "All X" chips open the filter panel instead of removing — they have no onRemove.
-  type Chip = { label: string; onRemove?: () => void; onOpen?: () => void };
+  type Chip = { label: string; onRemove?: () => void; onOpen?: () => void; variant?: "default" | "tertiary" };
 
   const openFilters = () => setShowMobileFilters(true);
 
@@ -151,91 +217,159 @@ export default function StatsPage() {
     ...(filters.selectedDistracted ? [{ label: "Distracted", onRemove: () => filters.toggleDistracted() }] : []),
   ];
 
+  const crossFilterChips: Chip[] = crossFilter.state.selection
+    ? [{ label: `Cross-filter: ${DIMENSION_LABELS[crossFilter.state.selection.dimension]}`, onRemove: () => crossFilter.clearCrossFilter(), variant: "tertiary" }]
+    : [];
+
   const chips: Chip[] = [
     ...countyChips,
     ...yearChips,
     ...causeChips,
     ...severityChips,
     ...involvementChips,
+    ...crossFilterChips,
   ];
 
-  const hourlyData     = data?.hourlyData     ?? [];
-  const yearlyData     = data?.yearlyData     ?? [];
-  const causesData     = data?.causesData     ?? [];
-  const severityData   = data?.severityData   ?? [];
-  const genderData             = data?.genderData             ?? [];
-  const ageBracketData         = data?.ageBracketData         ?? [];
-  const atFaultGenderData      = data?.atFaultGenderData      ?? [];
-  const atFaultAgeBracketData  = data?.atFaultAgeBracketData  ?? [];
-  const monthlyData    = data?.monthlyData    ?? [];
-  const dayOfWeekData  = data?.dayOfWeekData  ?? [];
-  const rateData       = data?.rateData       ?? [];
-  const heroMetrics    = data?.heroMetrics    ?? {};
-
+  const heroMetrics = data?.heroMetrics ?? {};
   const { totalIncidents, incidentYoYPct, ksiRatePer100k, yoyFatalityChangePct } = heroMetrics;
-
-  const peakHourIndex = hourlyData.length
-    ? hourlyData.reduce((maxIdx, d, i, arr) => (d.count > arr[maxIdx].count ? i : maxIdx), 0)
-    : 0;
-  const peakYear = yearlyData.length
-    ? yearlyData.reduce((a, b) => (b.count > a.count ? b : a)).year
-    : 0;
-  const causeTotal    = causesData.reduce((sum, d) => sum + d.count, 0);
-  const causesWithPct = causesData.map((d) => ({
-    ...d,
-    pct: causeTotal > 0 ? Math.round((d.count / causeTotal) * 100) : 0,
-  }));
-
-  const peakMonthIndex = monthlyData.length
-    ? monthlyData.reduce((maxIdx, d, i, arr) => (d.count > arr[maxIdx].count ? i : maxIdx), 0)
-    : 0;
-  const peakDowIndex = dayOfWeekData.length
-    ? dayOfWeekData.reduce((maxIdx, d, i, arr) => (d.count > arr[maxIdx].count ? i : maxIdx), 0)
-    : 0;
-
-  const sortedRateData = useMemo(() => {
-    if (!rateData.length) return [];
-    return [...rateData].sort((a, b) => {
-      if (a.county_name !== b.county_name) return a.county_name.localeCompare(b.county_name);
-      if (a.year !== b.year) return b.year - a.year;
-      return a.severity.localeCompare(b.severity);
-    });
-  }, [rateData]);
-
-  const sevTotal    = severityData.reduce((sum, d) => sum + d.count, 0);
-  const sevWithPct  = severityData.map((d) => ({
-    ...d,
-    pct: sevTotal > 0 ? Math.round((d.count / sevTotal) * 100) : 0,
-  }));
-
   const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
   const fatalityUp = yoyFatalityChangePct != null && yoyFatalityChangePct > 0;
 
+  // Fun facts — prefer county-specific when a single county is selected
+  const funFactsCounty = counties.size === 1 ? [...counties][0] : null;
+  const { facts: funFacts } = useFunFacts(funFactsCounty, 5);
+
+  // Sparkline data: last 10 years of trends for hero metric cards
+  const sparkIncidents = useMemo(() => {
+    const yearly = data?.yearlyData ?? [];
+    return yearly.slice(-10).map((d) => d.count);
+  }, [data?.yearlyData]);
+  const sparkFatalities = useMemo(() => {
+    const yearly = data?.yearlyData ?? [];
+    return yearly.slice(-10).map((d) => d.killed);
+  }, [data?.yearlyData]);
+  const sparkKsi = useMemo(() => {
+    const yearly = data?.yearlyData ?? [];
+    return yearly.slice(-10).map((d) => d.killed + d.injured);
+  }, [data?.yearlyData]);
+
+  // SEO: dynamic meta tags and OG image based on current dashboard state
+  const ogImage = useMemo(() => buildOgImageUrl({
+    preset: dashboard.config.preset,
+    counties: [...counties].map(c => c.toLowerCase().replace(/ /g, "-")),
+    metric: totalIncidents != null ? totalIncidents.toLocaleString() : undefined,
+    metricLabel: "Total Incidents",
+    trend: incidentYoYPct != null ? (incidentYoYPct >= 0 ? "up" : "down") : undefined,
+  }), [dashboard.config.preset, counties, totalIncidents, incidentYoYPct]);
+
+  const seoDescription = useMemo(() => {
+    const parts = ["California crash statistics"];
+    if (counties.size > 0 && counties.size <= 3) {
+      parts.push(`for ${[...counties].join(", ")}`);
+    }
+    if (totalIncidents != null) {
+      parts.push(`— ${totalIncidents.toLocaleString()} incidents`);
+    }
+    parts.push(". Explore trends, demographics, and safety metrics on CalSight.");
+    return parts.join(" ");
+  }, [counties, totalIncidents]);
+
+  const jsonLd = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@graph": [
+      buildDatasetSchema({
+        counties: counties.size > 0 ? [...counties] : undefined,
+        dateRange: dateRange ? {
+          start: dateRange.start ? `${dateRange.start.year}-${String(dateRange.start.month).padStart(2, "0")}` : undefined,
+          end: dateRange.end ? `${dateRange.end.year}-${String(dateRange.end.month).padStart(2, "0")}` : undefined,
+        } : undefined,
+      }),
+      buildBreadcrumbSchema([
+        { name: "Home", path: "/" },
+        { name: "Statistics", path: "/stats" },
+      ]),
+    ],
+  }), [counties, dateRange]);
+
+  const fullShareUrl = useMemo(() => {
+    const encoded = encodeDashboard(dashboard.config);
+    return buildShareUrl({ dashboardEncoded: encoded });
+  }, [dashboard.config]);
+
+  // Build print filter summary
+  const printFilters = useMemo(() => ({
+    counties: [...counties].sort(),
+    dateRange: dateRangeLabel,
+    severities: severities.size > 0 && severities.size < SEVERITIES.length
+      ? [...severities]
+      : [],
+    causes: causes.size > 0 && causes.size < CAUSE_OPTIONS.length
+      ? [...causes].map((c) => CAUSE_LABEL[c] ?? c)
+      : [],
+    involvements: [
+      ...(filters.selectedAlcohol ? ["Alcohol"] : []),
+      ...(filters.selectedDistracted ? ["Distracted"] : []),
+      ...(filters.selectedPedestrian ? ["Pedestrian"] : []),
+      ...(filters.selectedCyclist ? ["Cyclist"] : []),
+      ...(filters.selectedDrug ? ["Drug"] : []),
+    ],
+  }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
+
   return (
-    <main className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 relative">
+    <div className="max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main">
+      <PrintHeader filters={printFilters} />
+      <MetaTags
+        title={`Statistics Dashboard — CalSight`}
+        description={seoDescription}
+        ogImage={ogImage}
+        path="/stats"
+        jsonLd={jsonLd}
+        twitterCard="summary_large_image"
+      />
       <h1 className="sr-only">Statistics Dashboard</h1>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {loading ? "Loading statistics..." : error ? "Error loading statistics." : "Statistics loaded."}
       </div>
+      {/* Stats API error banner */}
+      {error && !loading && (
+        <div role="alert" className="flex items-center gap-3 bg-error-container/30 rounded-lg px-4 py-3">
+          <span className="material-symbols-outlined text-[20px] text-error" aria-hidden="true">cloud_off</span>
+          <div className="flex-1">
+            <p className="text-error text-sm font-semibold">Unable to load statistics</p>
+            <p className="text-on-surface-variant text-xs mt-0.5">The server may be temporarily unavailable. Please try again.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => statsRefetch()}
+            className="px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-bold hover:opacity-90 transition-opacity"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar w-full md:w-auto">
+        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-fade-r w-full md:w-auto min-w-0">
           <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mr-2 flex-shrink-0">
             Filters:
           </span>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
             {chips.map((chip) => (
               chip.onRemove ? (
                 <span
                   key={chip.label}
-                  className="inline-flex items-center gap-1 bg-surface-container-highest px-3 py-1 rounded-full text-xs font-medium text-on-surface whitespace-nowrap"
+                  className={`inline-flex items-center gap-1 px-3 py-2.5 min-h-[44px] rounded-full text-xs font-medium whitespace-nowrap ${
+                    chip.variant === "tertiary"
+                      ? "bg-tertiary/15 text-tertiary border border-tertiary/30"
+                      : "bg-surface-container-highest text-on-surface"
+                  }`}
                 >
                   {chip.label}
                   <button
                     type="button"
                     aria-label={`Remove ${chip.label} filter`}
                     onClick={chip.onRemove}
-                    className="hover:text-error transition-colors"
+                    className="hover:text-error transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -my-2 -mr-2"
                   >
                     <span className="material-symbols-outlined text-[16px]">close</span>
                   </button>
@@ -245,7 +379,7 @@ export default function StatsPage() {
                   key={chip.label}
                   type="button"
                   onClick={chip.onOpen}
-                  className="inline-flex items-center gap-1 bg-surface-container-high px-3 py-1 rounded-full text-xs font-medium text-on-surface-variant whitespace-nowrap hover:text-on-surface transition-colors"
+                  className="inline-flex items-center gap-1 bg-surface-container-high px-3 py-2.5 min-h-[44px] rounded-full text-xs font-medium text-on-surface-variant whitespace-nowrap hover:text-on-surface transition-colors"
                 >
                   {chip.label}
                   <span className="material-symbols-outlined text-[14px]">tune</span>
@@ -254,622 +388,379 @@ export default function StatsPage() {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <ShareButton
-            iconClassName="text-[16px]"
-            className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline"
-          />
-          <button
-            type="button"
-            onClick={() => setShowMobileFilters(true)}
-            className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline"
-          >
-            Edit Filters
-            <span className="material-symbols-outlined text-[16px]">tune</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowMobileFilters(true)}
+          className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline flex-shrink-0 min-h-[44px] py-2"
+        >
+          Edit Filters
+          <span className="material-symbols-outlined text-[16px]">tune</span>
+        </button>
       </section>
 
       {/* Hero Metrics Row */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <section aria-label="Key metrics summary" className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         {/* Total Incidents */}
-        <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
-          <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
-            Total Incidents
-          </p>
-          <div className="flex items-baseline gap-3">
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="Total Incidents">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
+              Total Incidents
+            </p>
+            {!loading && sparkIncidents.length >= 2 && (
+              <Sparkline data={sparkIncidents} label="Incident trend, last 10 years" />
+            )}
+          </div>
+          <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
             {loading ? (
               <Skeleton className="h-10 w-40" />
             ) : (
-              <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`Total incidents: ${totalIncidents != null ? totalIncidents.toLocaleString() : "unavailable"}`}>
                 {totalIncidents != null ? totalIncidents.toLocaleString() : "—"}
-              </h2>
+              </p>
             )}
             {incidentYoYPct != null && (
               <span className={`text-sm font-bold flex items-center ${incidentUp ? "text-error" : "text-primary"}`}>
-                <span className="material-symbols-outlined text-[18px]">
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                   {incidentUp ? "trending_up" : "trending_down"}
                 </span>
                 {incidentUp ? "+" : ""}{incidentYoYPct}%
               </span>
             )}
           </div>
-          <p className="text-on-surface-variant text-[10px] mt-2 italic">
+          <p className="text-on-surface-variant text-[11px] mt-2 italic">
             Relative to previous fiscal cycle
           </p>
         </div>
 
         {/* KSI Rate */}
-        <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
-          <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
-            KSI Rate / 100K Pop.
-          </p>
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="KSI Rate per 100K population">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest leading-tight">
+              KSI Rate / 100K Pop.
+            </p>
+            {!loading && sparkKsi.length >= 2 && (
+              <Sparkline data={sparkKsi} label="KSI trend, last 10 years" />
+            )}
+          </div>
           {loading ? (
             <Skeleton className="h-10 w-24" />
           ) : (
-            <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
+            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`KSI rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
               {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
-            </h2>
+            </p>
           )}
-          <p className="text-on-surface-variant text-[10px] mt-2 italic">
+          <p className="text-on-surface-variant text-[11px] mt-2 italic">
             Killed &amp; seriously injured per 100K residents
           </p>
         </div>
 
         {/* YoY Fatality Change */}
-        <div className="bg-surface-container-lowest rounded-lg p-6 ambient-shadow">
-          <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-4">
-            YoY Fatality Change
-          </p>
-          <div className="flex items-baseline gap-3">
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="Year over year fatality change">
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
+              YoY Fatality Change
+            </p>
+            {!loading && sparkFatalities.length >= 2 && (
+              <Sparkline data={sparkFatalities} label="Fatality trend, last 10 years" />
+            )}
+          </div>
+          <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
             {loading ? (
               <Skeleton className="h-10 w-32" />
             ) : (
-              <h2 className="text-4xl font-headline font-bold text-on-surface tracking-tight">
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`Year over year fatality change: ${yoyFatalityChangePct != null ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%` : "unavailable"}`}>
                 {yoyFatalityChangePct != null
                   ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%`
                   : "—"}
-              </h2>
+              </p>
             )}
             {yoyFatalityChangePct != null && (
-              <span className={`text-sm font-bold flex items-center ${fatalityUp ? "text-error" : "text-primary"}`}>
-                <span className="material-symbols-outlined text-[18px]">
+              <span className={`text-sm font-bold flex items-center gap-0.5 ${fatalityUp ? "text-error" : "text-primary"}`}>
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                   {fatalityUp ? "trending_up" : "trending_down"}
                 </span>
+                <span className="text-xs">{fatalityUp ? "worse" : "improved"}</span>
               </span>
             )}
           </div>
-          <p className="text-on-surface-variant text-[10px] mt-2 italic">
+          <p className="text-on-surface-variant text-[11px] mt-2 italic">
             Change in fatalities vs. prior year
           </p>
         </div>
       </section>
 
-      {/* Bento Chart Grid */}
-      <section className="grid grid-cols-12 gap-4 md:gap-6">
-        {/* Crash Density by Hour */}
-        <div className="col-span-12 md:col-span-8 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h3 className="text-on-surface font-headline font-bold text-lg leading-tight">
-                Crash Density by Hour
-              </h3>
-              <p className="text-on-surface-variant text-xs font-medium">
-                Temporal distribution across 24-hour cycle
-              </p>
-            </div>
-          </div>
-          {loading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : error ? (
-            <ErrorState onRetry={refetch} className="h-48" />
-          ) : !hourlyData.length ? (
-            <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
-          ) : (
-            <ChartImg label="Crash density by hour of day bar chart">
-            <SimpleBarChart
-              data={hourlyData.map((d, i) => ({
-                label: [0, 6, 12, 18, 23].includes(d.hour) ? (d.hour === 23 ? "23:59" : `${String(d.hour).padStart(2, "0")}:00`) : "",
-                value: d.count,
-                color: i === peakHourIndex ? clrPrimary : clrPrimaryContainer,
-                peakLabel: i === peakHourIndex ? "PEAK" : undefined,
-              }))}
-              height={isMobile ? 240 : 192}
-              renderTooltip={(_, idx) => {
-                const d = hourlyData[idx];
-                return <ChartTip title={`${String(d.hour).padStart(2, "0")}:00`} lines={[`${d.count.toLocaleString()} incidents`]} />;
-              }}
-            />
-            </ChartImg>
-          )}
-        </div>
+      {/* Auto-generated Insight Banner */}
+      <InsightBanner heroMetrics={heroMetrics} loading={loading} funFacts={funFacts} />
 
-        {/* Primary Cause */}
-        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
-            Primary Cause
-          </h3>
-          {loading ? (
-            <Skeleton className="h-40 w-full" />
-          ) : error ? (
-            <ErrorState onRetry={refetch} className="h-40" />
-          ) : !causesWithPct.length ? (
-            <EmptyState icon="search_off" description="No data for the selected filters." className="h-40" />
-          ) : causesWithPct.length <= 5 ? (
-            <>
-              <ChartImg label="Primary cause breakdown pie chart">
-              <SimpleDonutChart
-                data={causesWithPct.map((c) => ({ label: c.label, value: c.pct, color: causeColor(c.label) }))}
-                height={isMobile ? 200 : 160}
-                renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.pct}% · ${causesWithPct.find((c) => c.label === item.label)?.count.toLocaleString() ?? 0} incidents`]} />}
-              />
-              </ChartImg>
-              <div className="space-y-4 mt-2">
-                {causesWithPct.map((cause) => (
-                  <div key={cause.label} className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: causeColor(cause.label) }} />
-                    <div>
-                      <p className="text-sm font-bold text-on-surface">{cause.label}</p>
-                      <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
-                        {cause.pct}% · {cause.count.toLocaleString()} incidents
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <ChartImg label="Primary cause breakdown bar chart">
-            <SimpleBarChart
-              data={[...causesWithPct].sort((a, b) => b.count - a.count).map((c) => ({
-                label: c.label,
-                value: c.count,
-                color: causeColor(c.label),
-              }))}
-              height={Math.max(200, causesWithPct.length * 32)}
-              layout="horizontal"
-              renderTooltip={(item) => {
-                const c = causesWithPct.find((x) => x.label === item.label);
-                return <ChartTip title={item.label} lines={[`${c?.pct ?? 0}% · ${item.value.toLocaleString()} incidents`]} />;
-              }}
-            />
-            </ChartImg>
-          )}
-        </div>
-
-        {/* Incidents by Year */}
-        <div className="col-span-12 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <div>
-              <h3 className="text-on-surface font-headline font-bold text-xl leading-tight">
-                Incidents by Year{yearlyData.length >= 2 ? ` (${yearlyData[0]?.year}–${yearlyData[yearlyData.length - 1]?.year})` : ""}
-              </h3>
-              <p className="text-on-surface-variant text-sm">
-                {yearlyData.length < 3 ? "Year-over-year summary" : "Longitudinal dataset showing historical trends"}
-              </p>
-            </div>
-          </div>
-          {loading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : error ? (
-            <ErrorState onRetry={refetch} className="h-64" />
-          ) : !yearlyData.length ? (
-            <EmptyState icon="search_off" description="No data for the selected filters." className="h-64" />
-          ) : yearlyData.length < 3 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {yearlyData.map((yr) => (
-                <div key={yr.year} className="bg-surface-container-low rounded-lg p-5">
-                  <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mb-3">{yr.year}</p>
-                  <p className="text-3xl font-headline font-bold text-on-surface tracking-tight">{yr.count.toLocaleString()}</p>
-                  <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold mt-2">
-                    {yr.killed.toLocaleString()} killed · {yr.injured.toLocaleString()} injured
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <ChartImg label="Incidents by year bar chart">
-            <SimpleBarChart
-              data={yearlyData.map((d) => ({
-                label: String(d.year),
-                value: d.count,
-                color: d.year === peakYear ? clrError : clrPrimaryContainer,
-              }))}
-              height={isMobile ? 200 : 256}
-              radius={4}
-              renderTooltip={(_, idx) => {
-                const d = yearlyData[idx];
-                return <ChartTip title={String(d.year)} lines={[`${d.count.toLocaleString()} incidents`]} />;
-              }}
-              labelFormatter={(label) => {
-                const yr = parseInt(label);
-                const isPeak = yr === peakYear;
-                const nearPeak = Math.abs(yr - peakYear) <= 2 && !isPeak;
-                const isEndpoint = yr === yearlyData[0]?.year || yr === yearlyData[yearlyData.length - 1]?.year;
-                const show = isPeak || (!nearPeak && (yr % 5 === 0 || isEndpoint));
-                if (!show) return null;
-                return (
-                  <text
-                    textAnchor="middle"
-                    fill={isPeak ? clrOnSurface : clrOnSurfaceVariant}
-                    fontSize={10}
-                    fontWeight={700}
-                    fontStyle={isPeak ? "italic" : "normal"}
-                    fontFamily="'Inter Variable', Inter, sans-serif"
-                  >
-                    {isPeak ? `${yr}*` : yr}
-                  </text>
-                );
-              }}
-            />
-            </ChartImg>
-          )}
-          {yearlyData.length >= 3 && (
-            <p className="mt-6 text-[10px] text-on-surface-variant italic leading-relaxed">
-              * Note: 2018 data represents a statistically significant anomaly due
-              to regional reporting calibration. Data accuracy remains within 99.4%
-              confidence interval.
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* Temporal Patterns Grid */}
-      <section className="grid grid-cols-12 gap-4 md:gap-6">
-        {/* Monthly Seasonality */}
-        <div className="col-span-12 md:col-span-8 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h3 className="text-on-surface font-headline font-bold text-lg leading-tight">
-                Crashes by Month
-              </h3>
-              <p className="text-on-surface-variant text-xs font-medium">
-                Seasonal distribution across calendar year
-              </p>
-            </div>
-          </div>
-          {loading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : error ? (
-            <ErrorState onRetry={refetch} className="h-48" />
-          ) : !monthlyData.length ? (
-            <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
-          ) : (
-            <ChartImg label="Crashes by month bar chart">
-            <SimpleBarChart
-              data={monthlyData.map((d, i) => ({
-                label: d.label,
-                value: d.count,
-                color: i === peakMonthIndex ? clrPrimary : clrPrimaryContainer,
-                peakLabel: i === peakMonthIndex ? "PEAK" : undefined,
-              }))}
-              height={isMobile ? 240 : 192}
-              renderTooltip={(_, idx) => {
-                const d = monthlyData[idx];
-                return <ChartTip title={d.label} lines={[`${d.count.toLocaleString()} incidents`, `${d.killed.toLocaleString()} killed · ${d.injured.toLocaleString()} injured`]} />;
-              }}
-            />
-            </ChartImg>
-          )}
-        </div>
-
-        {/* Day of Week */}
-        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
-            Day of Week
-          </h3>
-          {loading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : error ? (
-            <ErrorState onRetry={refetch} className="h-48" />
-          ) : !dayOfWeekData.length ? (
-            <EmptyState icon="search_off" description="No data for the selected filters." className="h-48" />
-          ) : (
-            <ChartImg label="Day of week distribution bar chart">
-            <SimpleBarChart
-              data={dayOfWeekData.map((d, i) => ({
-                label: d.label,
-                value: d.count,
-                color: i === peakDowIndex ? clrPrimary : clrPrimaryContainer,
-              }))}
-              height={isMobile ? 240 : 192}
-              renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.value.toLocaleString()} incidents`]} />}
-            />
-            </ChartImg>
-          )}
-        </div>
-      </section>
-
-      {/* Demographics Grid */}
-      <section className="grid grid-cols-12 gap-4 md:gap-6">
-        {/* Severity Breakdown */}
-        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
-            Severity Breakdown
-          </h3>
-          {loading ? (
-            <Skeleton className="h-40 w-full" />
-          ) : error ? (
-            <ErrorState onRetry={refetch} className="h-40" />
-          ) : !sevWithPct.length ? (
-            <EmptyState icon="search_off" description="No data for the selected filters." className="h-40" />
-          ) : (
-            <>
-              <ChartImg label="Severity breakdown pie chart">
-              <SimpleDonutChart
-                data={sevWithPct.map((s) => ({ label: s.label, value: s.pct, color: severityColor(s.label) }))}
-                height={isMobile ? 200 : 160}
-                renderTooltip={(item) => <ChartTip title={item.label} lines={[`${item.pct}% · ${sevWithPct.find((s) => s.label === item.label)?.count.toLocaleString() ?? 0} incidents`]} />}
-              />
-              </ChartImg>
-              <div className="space-y-4 mt-2">
-                {sevWithPct.map((sev) => (
-                  <div key={sev.label} className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: severityColor(sev.label) }} />
-                    <div>
-                      <p className="text-sm font-bold text-on-surface">{sev.label}</p>
-                      <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
-                        {sev.pct}% · {sev.count.toLocaleString()} incidents
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Victims by Gender */}
-        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
-            Victims by Gender
-          </h3>
-          {dqDisclaimers.preDataOnly && (
-            <DataQualityNote text="Driver demographic data is only available from 2016 onward (CCRS)." />
-          )}
-          {!dqDisclaimers.preDataOnly && dqDisclaimers.hasPreCcrsYears && (
-            <DataQualityNote text="Pre-2016 years have no gender data — chart covers 2016+ only." />
-          )}
-          {!dqDisclaimers.preDataOnly && dqDisclaimers.showGenderWarning && dqDisclaimers.genderPct !== null && (
-            <DataQualityNote text={`Gender recorded for ${Math.round(dqDisclaimers.genderPct)}% of parties. Chart may not be fully representative.`} />
-          )}
-          {loading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : !genderData.length ? (
-            <EmptyState
-              icon="person_off"
-              description={dqDisclaimers.preDataOnly ? "Gender data requires 2016 or later (CCRS)." : "No gender data for the current filters."}
-              className="h-48"
-            />
-          ) : (
-            <ChartImg label="Victims by gender bar chart">
-            <SimpleBarChart
-              data={genderData.map((d, i) => ({
-                label: d.label,
-                value: d.count,
-                color: [clrPrimary, clrTertiary, clrPrimaryContainer][i] ?? clrPrimaryContainer,
-              }))}
-              height={isMobile ? 240 : 192}
-              gap={0.3}
-              renderTooltip={(item) => {
-                const total = genderData.reduce((s, g) => s + g.count, 0);
-                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
-                return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} victims`]} />;
-              }}
-            />
-            </ChartImg>
-          )}
-        </div>
-
-        {/* Victims by Age */}
-        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
-            Victims by Age
-          </h3>
-          {dqDisclaimers.preDataOnly && (
-            <DataQualityNote text="Driver demographic data is only available from 2016 onward (CCRS)." />
-          )}
-          {!dqDisclaimers.preDataOnly && dqDisclaimers.hasPreCcrsYears && (
-            <DataQualityNote text="Pre-2016 years have no age data — chart covers 2016+ only." />
-          )}
-          {!dqDisclaimers.preDataOnly && dqDisclaimers.showAgeWarning && dqDisclaimers.agePct !== null && (
-            <DataQualityNote text={`Age recorded for ${Math.round(dqDisclaimers.agePct)}% of parties. Chart may not be fully representative.`} />
-          )}
-          {loading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : !ageBracketData.length ? (
-            <EmptyState
-              icon="person_off"
-              description={dqDisclaimers.preDataOnly ? "Age data requires 2016 or later (CCRS)." : "No age data for the current filters."}
-              className="h-48"
-            />
-          ) : (
-            <ChartImg label="Victims by age bar chart">
-            <SimpleBarChart
-              data={ageBracketData.map((d) => ({ label: d.label, value: d.count }))}
-              height={isMobile ? 240 : 192}
-              defaultColor={clrPrimaryContainer}
-              renderTooltip={(item) => {
-                const total = ageBracketData.reduce((s, a) => s + a.count, 0);
-                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
-                return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} victims`]} />;
-              }}
-            />
-            </ChartImg>
-          )}
-        </div>
-
-        {/* At-Fault Drivers by Gender */}
-        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
-            At-Fault Drivers by Gender
-          </h3>
-          {dqDisclaimers.preDataOnly && (
-            <DataQualityNote text="At-fault driver data is only available from 2016 onward (CCRS)." />
-          )}
-          {!dqDisclaimers.preDataOnly && dqDisclaimers.hasPreCcrsYears && (
-            <DataQualityNote text="Pre-2016 years have no at-fault data — chart covers 2016+ only." />
-          )}
-          {loading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : !atFaultGenderData.length ? (
-            <EmptyState
-              icon="person_off"
-              description={dqDisclaimers.preDataOnly ? "At-fault data requires 2016 or later (CCRS)." : "No at-fault driver data for the current filters."}
-              className="h-48"
-            />
-          ) : (
-            <ChartImg label="At-fault drivers by gender bar chart">
-            <SimpleBarChart
-              data={atFaultGenderData.map((d, i) => ({
-                label: d.label,
-                value: d.count,
-                color: [clrPrimary, clrTertiary, clrPrimaryContainer][i] ?? clrPrimaryContainer,
-              }))}
-              height={isMobile ? 240 : 192}
-              gap={0.3}
-              renderTooltip={(item) => {
-                const total = atFaultGenderData.reduce((s, g) => s + g.count, 0);
-                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
-                return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} drivers`]} />;
-              }}
-            />
-            </ChartImg>
-          )}
-        </div>
-
-        {/* At-Fault Drivers by Age */}
-        <div className="col-span-12 md:col-span-4 bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <h3 className="text-on-surface font-headline font-bold text-lg mb-4 leading-tight">
-            At-Fault Drivers by Age
-          </h3>
-          {dqDisclaimers.preDataOnly && (
-            <DataQualityNote text="At-fault driver data is only available from 2016 onward (CCRS)." />
-          )}
-          {!dqDisclaimers.preDataOnly && dqDisclaimers.hasPreCcrsYears && (
-            <DataQualityNote text="Pre-2016 years have no at-fault data — chart covers 2016+ only." />
-          )}
-          {loading ? (
-            <Skeleton className="h-48 w-full" />
-          ) : !atFaultAgeBracketData.length ? (
-            <EmptyState
-              icon="person_off"
-              description={dqDisclaimers.preDataOnly ? "At-fault data requires 2016 or later (CCRS)." : "No at-fault driver data for the current filters."}
-              className="h-48"
-            />
-          ) : (
-            <ChartImg label="At-fault drivers by age bar chart">
-            <SimpleBarChart
-              data={atFaultAgeBracketData.map((d) => ({ label: d.label, value: d.count }))}
-              height={isMobile ? 240 : 192}
-              defaultColor={clrPrimaryContainer}
-              renderTooltip={(item) => {
-                const total = atFaultAgeBracketData.reduce((s, a) => s + a.count, 0);
-                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
-                return <ChartTip title={item.label} lines={[`${pct}% · ${item.value.toLocaleString()} drivers`]} />;
-              }}
-            />
-            </ChartImg>
-          )}
-        </div>
-      </section>
-
-      {/* Per-Capita Rates Table */}
-      {rateData.length > 0 && (
-        <section className="bg-surface-container-lowest rounded-lg p-5 md:p-8 ambient-shadow">
-          <div className="mb-6">
-            <h3 className="text-on-surface font-headline font-bold text-xl leading-tight">
-              Per-Capita Crash Rates
-            </h3>
-            <p className="text-on-surface-variant text-sm mt-1">
-              Normalized rates for cross-county comparison
-            </p>
-          </div>
-          {dqDisclaimers.hasPreAcsYears && (
-            <DataQualityNote text="Pre-2009 demographic data is only available for California's largest counties (≥65k population). Per-capita columns may show '—' for smaller counties during 2001–2008." />
-          )}
-          <div className="space-y-1">
-            {Object.entries(
-              sortedRateData.reduce<Record<string, typeof sortedRateData>>((acc, r) => {
-                (acc[r.county_name] ??= []).push(r);
-                return acc;
-              }, {}),
-            ).map(([county, rows]) => (
-              <details key={county} className="group">
-                <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none hover:bg-surface-container-low/40 rounded transition-colors">
-                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant transition-transform group-open:rotate-90">
-                    chevron_right
-                  </span>
-                  <span className="font-headline font-bold text-sm text-on-surface">{county}</span>
-                  <span className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">
-                    {rows.length} {rows.length === 1 ? "row" : "rows"}
-                  </span>
-                </summary>
-                <div className="overflow-x-auto ml-6 mb-2">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-left text-on-surface-variant uppercase tracking-widest font-semibold">
-                        <th className="px-3 py-1.5">Year</th>
-                        <th className="px-3 py-1.5">Severity</th>
-                        <th className="px-3 py-1.5">Crashes</th>
-                        <th className="px-3 py-1.5">Per 100K Pop</th>
-                        <th className="px-3 py-1.5">Per 10K Drivers</th>
-                        <th className="px-3 py-1.5">Per 100 Mi</th>
-                        <th className="px-3 py-1.5">Per 100K AADT</th>
-                        <th className="px-3 py-1.5">Per 10K Vehicles</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((r, i) => (
-                        <tr
-                          key={`${r.year}-${r.severity}`}
-                          className={i % 2 === 0 ? "bg-surface-container-lowest" : "bg-surface-container-low/40"}
-                        >
-                          <td className="px-3 py-1.5 text-on-surface-variant">{r.year}</td>
-                          <td className="px-3 py-1.5 text-on-surface-variant">{r.severity}</td>
-                          <td className="px-3 py-1.5 text-on-surface font-bold">{r.total_crashes.toLocaleString()}</td>
-                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_100k_population?.toFixed(1) ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_10k_licensed_drivers?.toFixed(1) ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_100_road_miles?.toFixed(1) ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_100k_aadt?.toFixed(1) ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-on-surface-variant">{r.per_10k_vehicles?.toFixed(1) ?? "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            ))}
-          </div>
+      {/* Overall empty state when filters return zero results */}
+      {!loading && !error && data && totalIncidents === 0 && (
+        <section
+          role="status"
+          className="flex flex-col items-center justify-center py-12 px-6 bg-surface-container-lowest rounded-2xl ambient-shadow text-center space-y-4"
+        >
+          <span className="material-symbols-outlined text-[48px] text-on-surface-variant/40" aria-hidden="true">
+            filter_list_off
+          </span>
+          <h2 className="text-lg font-headline font-bold text-on-surface">
+            No crashes match your current filters
+          </h2>
+          <p className="text-sm text-on-surface-variant max-w-md">
+            Try broadening your search by removing date, severity, or cause filters.
+          </p>
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="px-5 py-2.5 bg-primary text-on-primary rounded-full font-semibold text-sm hover:opacity-90 transition-opacity"
+          >
+            Clear All Filters
+          </button>
         </section>
       )}
 
+      {!dashLoading && anomalyResult.all.length > 0 && (
+        <AnomalyPanel anomalies={anomalyResult.all} defaultCollapsed />
+      )}
+
+      {narrative && (
+        <NarrativePanel narrative={narrative} tone={tone} onToneChange={setTone} defaultCollapsed />
+      )}
+
+      {!dashLoading && suggestions.length > 0 && (
+        <SuggestedCharts
+          suggestions={suggestions}
+          onAdd={(cfg) => {
+            if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
+            dashboard.addChart(cfg);
+          }}
+          defaultCollapsed
+        />
+      )}
+
+      {/* Dashboard Builder */}
+      <section className="space-y-4" aria-label="Dashboard charts">
+        <h2 className="sr-only">Dashboard Charts</h2>
+        <div className="flex items-center justify-between gap-2 flex-wrap md:flex-nowrap">
+          <DashboardModeToggle
+            mode={storiesMode ? "stories" : dashboard.config.mode}
+            onChange={(m) => {
+              if (m === "stories") {
+                setStoriesMode(true);
+              } else {
+                setStoriesMode(false);
+                setActiveStoryId(null);
+                dashboard.setMode(m);
+              }
+            }}
+          />
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 flex-shrink-0 flex-wrap md:flex-nowrap">
+            <SavedDashboardsPanel
+              currentConfig={dashboard.config}
+              onLoad={dashboard.setConfig}
+            />
+            <SharePanel
+              shareUrl={fullShareUrl}
+              shareText={`California crash statistics dashboard on CalSight${counties.size > 0 && counties.size <= 3 ? ` — ${[...counties].join(", ")}` : ""}`}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setTimelapseActive((v) => {
+                  if (v) timelapse.pause();
+                  return !v;
+                });
+              }}
+              className={`hidden sm:inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                timelapseActive
+                  ? "text-primary"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+              aria-label="Toggle time-lapse mode"
+              aria-pressed={timelapseActive}
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {timelapseActive ? "stop" : "play_arrow"}
+              </span>
+              Time-Lapse
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="hidden sm:inline-flex print-keep items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+              data-print-hide
+              aria-label="Print dashboard"
+            >
+              <span className="material-symbols-outlined text-[16px]">print</span>
+              Print
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrintPreview((v) => !v)}
+              className="hidden sm:inline-flex print-keep items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
+              data-print-hide
+              aria-label="Toggle print preview"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {printPreview ? "visibility_off" : "visibility"}
+              </span>
+              {printPreview ? "Exit Preview" : "Preview"}
+            </button>
+            <DataFreshnessBanner />
+          </div>
+        </div>
+        {storiesMode ? (
+          activeStoryId ? (
+            <StoryReader
+              story={getStoryById(activeStoryId)!}
+              onBack={() => setActiveStoryId(null)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {DATA_STORIES.map((story) => (
+                <button
+                  key={story.id}
+                  type="button"
+                  onClick={() => setActiveStoryId(story.id)}
+                  className="text-left bg-surface-container-lowest rounded-xl p-4 sm:p-5 ambient-shadow hover:bg-surface-container-low transition-colors group"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">
+                      {story.icon}
+                    </span>
+                    <h3 className="text-sm font-headline font-bold text-on-surface group-hover:text-primary transition-colors">
+                      {story.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    {story.subtitle}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )
+        ) : (
+          <>
+            {timelapseActive && (
+              <TimelapseControls
+                currentYear={timelapse.currentYear}
+                isPlaying={timelapse.isPlaying}
+                speed={timelapse.speed}
+                minYear={tlMinYear}
+                maxYear={tlMaxYear}
+                loading={dashLoading}
+                onPlay={timelapse.play}
+                onPause={timelapse.pause}
+                onSeek={timelapse.seek}
+                onSetSpeed={timelapse.setSpeed}
+              />
+            )}
+            <NlqQueryBar onAddChart={(cfg) => {
+              if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
+              dashboard.addChart(cfg);
+            }} />
+            {dashboard.config.mode === "simple" && (
+              <PresetPicker active={dashboard.config.preset} onSelect={handlePresetSelect} />
+            )}
+            {dashError && (
+              <div role="alert" className="flex items-center gap-3 bg-error-container/30 rounded-lg px-4 py-3">
+                <span className="material-symbols-outlined text-[20px] text-error" aria-hidden="true">cloud_off</span>
+                <div className="flex-1">
+                  <p className="text-error text-sm font-semibold">Unable to load chart data</p>
+                  <p className="text-on-surface-variant text-xs mt-0.5">The server may be temporarily unavailable. You can retry or adjust your filters.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dashRefetch()}
+                  className="px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-bold hover:opacity-90 transition-opacity"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            <DrillBreadcrumb drillState={drillState} onDrillUp={drillUp} />
+            <DashboardGrid
+              charts={singleCountyActive ? dashboard.activeCharts.filter(c => !(c.dimension === "county" && (c.chartType === "bar" || c.chartType === "hbar"))) : dashboard.activeCharts}
+              dataBySlot={dataBySlot}
+              mode={dashboard.config.mode}
+              loading={dashLoading}
+              onAddChart={dashboard.addChart}
+              onRemoveChart={dashboard.removeChart}
+              onUpdateChart={dashboard.updateChart}
+              onMoveChart={dashboard.moveChart}
+              onReorderChart={dashboard.reorderChart}
+              closeConfigTrigger={closeConfigTrigger}
+              getChartNarrative={getChartNarrative}
+              crossFilter={crossFilter}
+              onBarClick={handleBarClick}
+              onClearCharts={dashboard.clearCharts}
+            />
+          </>
+        )}
+      </section>
+
+      {/* Vehicle Trends */}
+      <section aria-label="Vehicle registration trends" className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
+        <VehicleTrends />
+      </section>
+
+      {/* Correlation Explorer — hidden in Stories mode */}
+      {!storiesMode && <section aria-label="Correlation explorer" className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
+        {correlation.isLoading ? (
+          <Skeleton className="h-[500px] rounded-lg" />
+        ) : correlation.error ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-variant">
+            <span className="material-symbols-outlined text-3xl" aria-hidden="true">cloud_off</span>
+            <p className="text-sm">Correlation data unavailable — backend may be offline</p>
+          </div>
+        ) : correlation.data ? (
+          <CorrelationMatrix
+            fields={correlation.data.fields}
+            matrix={correlation.data.matrix}
+            countyCount={correlation.data.countyCount}
+            counties={correlation.data.counties}
+            activeFilters={{
+              severity: statsFilters.severities.length ? statsFilters.severities : undefined,
+              alcohol: statsFilters.alcohol,
+              pedestrian: statsFilters.pedestrian,
+              cyclist: statsFilters.cyclist,
+              drug: statsFilters.drug,
+              distracted: statsFilters.distracted,
+              startDate: statsFilters.dateRange?.start ? formatYearMonth(statsFilters.dateRange.start) : undefined,
+              endDate: statsFilters.dateRange?.end ? formatYearMonth(statsFilters.dateRange.end) : undefined,
+            }}
+          />
+        ) : null}
+      </section>}
+
       {/* Methodology Footer */}
-      <section className="border-t border-outline-variant/15 pt-12 pb-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-[10px] leading-relaxed uppercase tracking-widest font-medium text-on-surface-variant">
+      <section className="border-t border-outline-variant/15 pt-6 sm:pt-12 pb-8 sm:pb-16" aria-label="Methodology and data sources">
+        <h2 className="sr-only">Methodology</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-12 text-[11px] leading-relaxed uppercase tracking-wider font-medium text-on-surface-variant">
           <div className="space-y-4">
-            <h4 className="font-bold text-on-surface text-[11px]">Methodology Statement</h4>
+            <h3 className="font-bold text-on-surface text-xs">Data Sources</h3>
             <p>
-              Calculations based on integrated records from the Statewide
-              Integrated Traffic Records System (SWITRS). Data is processed
-              through an iterative algorithmic cleanup to normalize reporting
-              variations across jurisdictions. Temporal density charts are
-              weighted by population density per census tract to ensure
-              rural-urban parity.
+              Crash records from the Statewide Integrated Traffic Records
+              System (SWITRS, 2001&ndash;2015) and the California Crash Records
+              System (CCRS, 2016&ndash;present), maintained by the California
+              Highway Patrol. Demographics from U.S. Census ACS 5-year
+              estimates. Environmental data from CalEnviroScreen 4.0 (OEHHA).
+              Employment from Bureau of Labor Statistics LAUS. Vehicle and
+              driver data from California DMV.
             </p>
           </div>
           <div className="space-y-4">
-            <h4 className="font-bold text-on-surface text-[11px]">California Public Records Act</h4>
+            <h3 className="font-bold text-on-surface text-xs">California Public Records Act</h3>
             <p>
-              This information is presented in compliance with CA Gov Code
-              &sect; 6250. Access to the raw ledger for independent auditing is
-              available upon verification. System Ledger Hash ID:
-              8821-X-CALSIGHT-DASH-04. Version 4.2.1.0 Institutional
-              Transparency Protocol.
+              SWITRS and CCRS data are public records under CA Gov Code
+              &sect; 6250. Source data available at data.chp.ca.gov. This
+              dashboard is an independent analysis and is not affiliated
+              with or endorsed by the California Highway Patrol, Caltrans,
+              or any state agency.
             </p>
           </div>
         </div>
       </section>
+
+      <PrintFooter />
 
       {/* Mobile filter sheet overlay */}
       <MobileFilterSheet
@@ -917,6 +808,6 @@ export default function StatsPage() {
           },
         ]}
       />
-    </main>
+    </div>
   );
 }

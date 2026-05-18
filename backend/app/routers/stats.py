@@ -166,6 +166,7 @@ _AGE_BRACKET_MAP = {
     (16, 21): 1, (22, 34): 2, (35, 49): 3, (50, 64): 4, (65, 200): 5,
 }
 
+_limiter = Limiter(key_func=get_remote_address)
 
 
 def _pick_view(group_by: str | None, has_cause_filter: bool):
@@ -801,7 +802,9 @@ def _run_group_query(
 
 
 @router.get("/stats")
+@_limiter.limit("60/minute")
 def stats(
+    request: Request,
     response: Response,
     year: str | None = Query(None),
     start: str | None = Query(None),
@@ -891,11 +894,9 @@ ALLOWED_GROUPS = {
     "rate", "county", "weather", "lighting", "collision_type",
 }
 
-_limiter = Limiter(key_func=get_remote_address)
-
 
 @router.post("/stats/batch")
-@_limiter.limit("30/minute")
+@_limiter.limit("60/minute")
 def stats_batch(
     request: Request,
     body: BatchStatsRequest,

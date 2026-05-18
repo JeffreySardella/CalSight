@@ -60,10 +60,10 @@ def build_default_registry() -> JobRegistry:
         name="weather",
         module="etl.noaa_weather",
         schedule="monthly",
-        table_name="county_weather",
+        table_name="weather",
         max_drop_pct=5,
         source_type="federal",
-        freshness_table="county_weather",
+        freshness_table="weather",
     ))
     registry.register(Job(
         name="hospitals",

@@ -33,7 +33,12 @@ Cache
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -44,9 +49,22 @@ from app.schemas.context import CountyInsightCardOut, StatewideInsightOut
 
 router = APIRouter(tags=["insights"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
+
+class FunFactOut(BaseModel):
+    narrative: str
+    year: int
+    angle: str
+    county_name: str | None = None
+
+    model_config = {"from_attributes": True}
+
 
 @router.get("/insights/statewide", response_model=StatewideInsightOut)
+@_limiter.limit("30/minute")
 def get_random_statewide_insight(
+    request: Request,
     response: Response,
     year: int | None = Query(None, description="Filter by year; omit for any year"),
     db: Session = Depends(get_db),
@@ -62,8 +80,76 @@ def get_random_statewide_insight(
     return StatewideInsightOut.model_validate(row)
 
 
+@router.get("/fun-facts", response_model=List[FunFactOut])
+@_limiter.limit("30/minute")
+def get_fun_facts(
+    request: Request,
+    response: Response,
+    n: int = Query(3, ge=1, le=10, description="Number of fun facts to return"),
+    county: str | None = Query(None, description="County slug; if provided, prefer county-specific facts"),
+    db: Session = Depends(get_db),
+):
+    """Return N random fun facts.
+
+    When a county is provided, fetches county-specific facts first and fills
+    the remainder with statewide facts. Without a county, returns only
+    statewide fun facts.
+    """
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+
+    results: list = []
+
+    # If county provided, get county-specific fun facts first
+    if county:
+        slug_map = get_slug_map(db)
+        code = get_code(county, slug_map)
+        if code is not None:
+            county_facts = (
+                db.query(CountyInsightCard)
+                .filter(
+                    CountyInsightCard.county_code == code,
+                    CountyInsightCard.angle.like("fun_fact%"),
+                )
+                .order_by(func.random())
+                .limit(n)
+                .all()
+            )
+            for row in county_facts:
+                results.append(FunFactOut(
+                    narrative=row.narrative,
+                    year=row.year,
+                    angle=row.angle,
+                    county_name=row.county_name,
+                ))
+
+    # Fill remaining slots with statewide fun facts
+    remaining = n - len(results)
+    if remaining > 0:
+        statewide_facts = (
+            db.query(StatewideInsight)
+            .filter(StatewideInsight.angle.like("fun_fact%"))
+            .order_by(func.random())
+            .limit(remaining)
+            .all()
+        )
+        for row in statewide_facts:
+            results.append(FunFactOut(
+                narrative=row.narrative,
+                year=row.year,
+                angle=row.angle,
+                county_name=None,
+            ))
+
+    if not results:
+        raise HTTPException(status_code=404, detail="No fun facts found")
+
+    return results
+
+
 @router.get("/insight-cards/random", response_model=CountyInsightCardOut)
+@_limiter.limit("30/minute")
 def get_random_county_insight_card(
+    request: Request,
     response: Response,
     county: str = Query(..., description="County slug, e.g. 'los-angeles'"),
     year: int | None = Query(None),
@@ -85,7 +171,9 @@ def get_random_county_insight_card(
 
 
 @router.get("/insights/{county_slug}")
+@_limiter.limit("30/minute")
 def get_insight(
+    request: Request,
     county_slug: str,
     response: Response,
     year: int | None = Query(None, description="Insight year; defaults to latest available"),

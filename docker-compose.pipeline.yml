@@ -1,0 +1,47 @@
+# docker-compose.pipeline.yml — ETL pipeline service
+#
+# Runs alongside docker-compose.prod.yml on LXC 100.
+# Handles automated data refresh, backups, and monitoring.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml up -d
+#
+# The pipeline service shares the same .env and network as the API backend
+# but runs its own scheduler process instead of uvicorn.
+
+services:
+  pipeline:
+    build: ./backend
+    command: ["python", "-m", "etl.pipeline"]
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override for pipeline-specific settings
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      BACKUP_DIR: /backups
+    volumes:
+      # Backup volume — persists pg_dump files outside the container
+      - calsight_backups:/backups
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    # The pipeline needs the backend service to be healthy (shared DB)
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  calsight_backups:
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/calsight/backups
+      o: bind

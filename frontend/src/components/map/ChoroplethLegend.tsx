@@ -3,6 +3,7 @@ import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
+import { useDesignTokens } from "../../hooks/useDesignTokens";
 
 
 const MISMATCH_DOT_COLORS: Record<PaletteKey, string> = {
@@ -53,6 +54,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
   const coordValidation = useCoordValidation();
   const isDark = useIsDark();
+  const tokens = useDesignTokens();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -178,15 +180,15 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             <span className="text-[10px] text-on-surface-variant font-semibold">Crash</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#dc2626" }} />
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tokens.severity.fatal }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Fatal</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#f59e0b" }} />
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tokens.severity.injury }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Injury</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#6b7280" }} />
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tokens.severity.pdo }} />
             <span className="text-[10px] text-on-surface-variant font-semibold" title="Property Damage Only">PDO</span>
           </div>
           {mismatchCount != null && mismatchCount > 0 && (

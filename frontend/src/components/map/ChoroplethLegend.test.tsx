@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LayersStateProvider, useLayersState } from "../../hooks/useLayersState";
 import { ThemeProvider } from "../../context/ThemeContext";
+import { CustomThemeProvider } from "../../context/CustomThemeContext";
 import ChoroplethLegend from "./ChoroplethLegend";
 import { MEASURES, type MeasureKey } from "../../lib/choropleth/measures";
 import type { DataSummary } from "../../hooks/useChoroplethData";
@@ -34,10 +35,12 @@ function Harness({
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <LayersStateProvider>
-          <Seeder edges={edges} choroplethOn={choroplethOn} />
-          <ChoroplethLegend demographicsAvailable={demographicsAvailable} dataSummary={dataSummary} />
-        </LayersStateProvider>
+        <CustomThemeProvider>
+          <LayersStateProvider>
+            <Seeder edges={edges} choroplethOn={choroplethOn} />
+            <ChoroplethLegend demographicsAvailable={demographicsAvailable} dataSummary={dataSummary} />
+          </LayersStateProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
@@ -83,10 +86,12 @@ describe("ChoroplethLegend", () => {
     render(
       <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <CustomThemeProvider>
         <LayersStateProvider>
           <Probe />
           <ChoroplethLegend demographicsAvailable={true} />
         </LayersStateProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
       </QueryClientProvider>,
     );
@@ -101,9 +106,11 @@ describe("ChoroplethLegend", () => {
     render(
       <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <CustomThemeProvider>
         <LayersStateProvider>
           <ChoroplethLegend demographicsAvailable={true} isError={true} onRetry={onRetry} />
         </LayersStateProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
       </QueryClientProvider>,
     );
@@ -117,9 +124,11 @@ describe("ChoroplethLegend", () => {
     render(
       <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <CustomThemeProvider>
         <LayersStateProvider>
           <ChoroplethLegend demographicsAvailable={true} isError={true} is422={true} />
         </LayersStateProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
       </QueryClientProvider>,
     );
@@ -131,9 +140,11 @@ describe("ChoroplethLegend", () => {
     render(
       <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <CustomThemeProvider>
         <LayersStateProvider>
           <ChoroplethLegend demographicsAvailable={true} isLoading={true} />
         </LayersStateProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
       </QueryClientProvider>,
     );
@@ -173,10 +184,12 @@ describe("ChoroplethLegend", () => {
     render(
       <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <CustomThemeProvider>
         <LayersStateProvider>
           <MeasureSetter measure="crashes_raw" />
           <ChoroplethLegend demographicsAvailable={true} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024] }} />
         </LayersStateProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
       </QueryClientProvider>,
     );
@@ -191,10 +204,12 @@ describe("ChoroplethLegend", () => {
     render(
       <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <CustomThemeProvider>
         <LayersStateProvider>
           <Probe />
           <ChoroplethLegend demographicsAvailable={true} dataSummary={{ ...BASE_SUMMARY, missingDemoYears: [2024] }} />
         </LayersStateProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
       </QueryClientProvider>,
     );

@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import type { ChoroplethPoint } from "../../hooks/useChoroplethData";
+import { buildFilterQS } from "../../hooks/useFilterParams";
 import { Skeleton } from "../ui/Skeleton";
 
 interface AiInsightCardProps {
@@ -174,6 +176,7 @@ export default function AiInsightCard({
   onRefreshNarrative,
   loading,
 }: AiInsightCardProps) {
+  const [searchParams] = useSearchParams();
   const isStatewide = !data && !loading;
   const [expanded, setExpanded] = useState(() => {
     if (isStatewide) {
@@ -298,6 +301,22 @@ export default function AiInsightCard({
                     Compare
                   </button>
                 )}
+
+                {!compareMode && data && (() => {
+                  const filterQs = buildFilterQS(searchParams);
+                  const extra = new URLSearchParams(filterQs);
+                  extra.delete("county"); // county set explicitly below
+                  const tail = extra.toString();
+                  return (
+                    <Link
+                      to={`/stats?county=${countyName.toLowerCase().replace(/ /g, "-")}${tail ? `&${tail}` : ""}`}
+                      className="w-full bg-surface-container text-on-surface py-2 rounded-lg text-[11px] font-bold tracking-widest uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-sm">bar_chart</span>
+                      View Stats
+                    </Link>
+                  );
+                })()}
               </>
             )}
           </div>

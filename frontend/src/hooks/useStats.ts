@@ -8,6 +8,11 @@ export type StatsFilters = {
   severities: string[];
   causes: string[];
   counties: string[];
+  alcohol?: boolean;
+  pedestrian?: boolean;
+  cyclist?: boolean;
+  drug?: boolean;
+  distracted?: boolean;
 };
 
 export interface HourlyDataPoint { hour: number; count: number }
@@ -112,6 +117,11 @@ function normalizeFilters(f: StatsFilters): StatsFilters {
     severities: f.severities.length === SEVERITIES.length ? [] : f.severities,
     causes: f.causes.length === CAUSES.length ? [] : f.causes,
     counties: f.counties,
+    alcohol: f.alcohol,
+    pedestrian: f.pedestrian,
+    cyclist: f.cyclist,
+    drug: f.drug,
+    distracted: f.distracted,
   };
 }
 
@@ -167,7 +177,7 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
   const dateKey = filters.dateRange
     ? `${filters.dateRange.start ? formatYearMonth(filters.dateRange.start) : ""}|${filters.dateRange.end ? formatYearMonth(filters.dateRange.end) : ""}`
     : "";
-  const cacheKey = { d: dateKey, s: filters.severities, c: filters.causes, co: filters.counties };
+  const cacheKey = { d: dateKey, s: filters.severities, c: filters.causes, co: filters.counties, alc: filters.alcohol, ped: filters.pedestrian, cyc: filters.cyclist, drg: filters.drug, dis: filters.distracted };
 
   const batchUrl = `${API_BASE}/api/stats/batch`;
 
@@ -178,6 +188,11 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     if (filters.severities.length) b.severity = filters.severities.map(severityToSlug).join(",");
     if (filters.causes.length) b.cause = filters.causes.join(",");
     if (filters.counties.length) b.county = filters.counties.join(",");
+    if (filters.alcohol) b.alcohol = "true";
+    if (filters.pedestrian) b.pedestrian = "true";
+    if (filters.cyclist) b.cyclist = "true";
+    if (filters.drug) b.drug = "true";
+    if (filters.distracted) b.distracted = "true";
     return b;
   }, [filters]);
 
@@ -200,11 +215,13 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
       if (!res.ok) throw new Error(`stats batch ${res.status}`);
       return res.json();
     },
+    staleTime: 60_000,
   });
 
   const demoQuery = useQuery({
     queryKey: ["stats", "demographics", { d: dateKey, co: filters.counties }],
     queryFn: () => fetchJson<DemoRow[]>(buildDemoUrl(filters)),
+    staleTime: 60_000,
   });
 
   const loading = batchQuery.isLoading;

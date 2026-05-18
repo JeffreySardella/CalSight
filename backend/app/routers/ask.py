@@ -95,7 +95,8 @@ class FeedbackRequest(BaseModel):
 
 
 @router.post("/feedback")
-def feedback(body: FeedbackRequest, db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def feedback(request: Request, body: FeedbackRequest, db: Session = Depends(get_db)):
     row = ChatFeedback(
         question=body.question,
         answer=body.answer[:2000],

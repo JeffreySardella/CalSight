@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,8 @@ from etl.jobs import build_default_registry
 from etl.orchestrator import resolve_execution_order
 
 router = APIRouter(tags=["etl"])
+
+_limiter = Limiter(key_func=get_remote_address)
 
 _registry = build_default_registry()
 
@@ -54,7 +58,8 @@ class RunHistoryItem(BaseModel):
 
 
 @router.get("/etl/status")
-def etl_status(db: Session = Depends(get_db)):
+@_limiter.limit("10/minute")
+def etl_status(request: Request, db: Session = Depends(get_db)):
     sources: list[SourceStatus] = []
     for job in resolve_execution_order(_registry):
         last = (
@@ -84,7 +89,9 @@ def etl_status(db: Session = Depends(get_db)):
 
 
 @router.get("/etl/runs")
+@_limiter.limit("10/minute")
 def etl_runs(
+    request: Request,
     db: Session = Depends(get_db),
     limit: int = Query(20, le=100),
     source: Optional[str] = None,

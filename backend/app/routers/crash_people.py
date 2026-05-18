@@ -11,7 +11,9 @@ collision_ids, so any join to `crashes` MUST use both columns. See
 `docs/db-schema.md` for the 3.85M-collision-id-overlap detail.
 """
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
@@ -29,6 +31,8 @@ from app.schemas.crash_people import CrashPartyOut, CrashVictimOut
 
 router = APIRouter(tags=["crash-people"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
 
 # ── Drill-down endpoints (B1) ──────────────────────────────────────────
 
@@ -37,7 +41,9 @@ router = APIRouter(tags=["crash-people"])
     "/crashes/{collision_id}/parties",
     response_model=list[CrashPartyOut],
 )
+@_limiter.limit("30/minute")
 def list_parties_for_crash(
+    request: Request,
     response: Response,
     collision_id: int,
     data_source: str = Query(..., pattern="^(ccrs|switrs)$"),
@@ -68,7 +74,9 @@ def list_parties_for_crash(
     "/crashes/{collision_id}/victims",
     response_model=list[CrashVictimOut],
 )
+@_limiter.limit("30/minute")
 def list_victims_for_crash(
+    request: Request,
     response: Response,
     collision_id: int,
     data_source: str = Query(..., pattern="^(ccrs|switrs)$"),
@@ -123,7 +131,9 @@ def _parse_gender(raw: str | None) -> set[str] | None:
 
 
 @router.get("/parties", response_model=PaginatedResponse[CrashPartyOut])
+@_limiter.limit("30/minute")
 def list_parties(
+    request: Request,
     response: Response,
     collision_id: int | None = Query(None),
     data_source: str | None = Query(None, pattern="^(ccrs|switrs)$"),
@@ -207,7 +217,9 @@ def list_parties(
 
 
 @router.get("/victims", response_model=PaginatedResponse[CrashVictimOut])
+@_limiter.limit("30/minute")
 def list_victims(
+    request: Request,
     response: Response,
     collision_id: int | None = Query(None),
     data_source: str | None = Query(None, pattern="^(ccrs|switrs)$"),

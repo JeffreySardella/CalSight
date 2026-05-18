@@ -67,6 +67,14 @@ class Settings(BaseSettings):
     debug: bool = False
     etl_api_key: str = ""
 
+    # -- Pipeline Alerting --
+    # Discord or Slack webhook URL for ETL failure notifications.
+    # Leave empty to disable webhook alerts (alerts still go to logs).
+    alert_webhook_url: str = ""
+
+    # -- Backup --
+    backup_dir: str = "/opt/calsight/backups"
+
     # -- LLM (AI insight card generation) --
     # Supports: groq | openrouter | together | cerebras | ollama
     # Leave llm_model / llm_base_url empty to use provider defaults.

@@ -24,17 +24,16 @@ export default function Layout() {
     document.title = PAGE_TITLES[location.pathname] || "CalSight — California Crash Data Explorer";
   }, [location.pathname]);
 
-  // Scroll to hash anchor when navigating (e.g., /about#data-sources)
+  // Scroll to hash anchor when navigating — keyed on pathname+hash, ignoring search params
+  const scrollKey = location.pathname + location.hash;
   useEffect(() => {
     if (location.hash) {
       const el = document.getElementById(location.hash.slice(1));
       if (el) {
         setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 100);
       }
-    } else {
-      window.scrollTo(0, 0);
     }
-  }, [location]);
+  }, [scrollKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

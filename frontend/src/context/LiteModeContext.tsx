@@ -27,7 +27,7 @@ export function LiteModeProvider({ children }: { children: React.ReactNode }) {
   const [setting, setSettingState] = useState<LiteModeSetting>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "on" || stored === "off" || stored === "auto") return stored;
-    return "auto";
+    return "off";
   });
 
   const isLite =

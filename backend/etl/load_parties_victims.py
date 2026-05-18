@@ -19,6 +19,7 @@ Usage:
 """
 
 import argparse
+import gc
 import logging
 import time
 
@@ -37,7 +38,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CKAN_BASE_URL = "https://data.ca.gov/api/3/action/datastore_search"
-PAGE_SIZE = 32000
+PAGE_SIZE = 10000
 MAX_RETRIES = 3
 BACKOFF_BASE = 2
 
@@ -254,6 +255,8 @@ def load_table(
 
             total_rows += year_rows
             logger.info("%s year %d complete: %d rows", table_type, year, year_rows)
+            db.expire_all()
+            gc.collect()
 
         logger.info("Done. %d total %s records upserted.", total_rows, table_type)
 

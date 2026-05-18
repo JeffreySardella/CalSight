@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { LayersStateProvider, useLayersState } from "./useLayersState";
+import { ThemeProvider } from "../context/ThemeContext";
+import { CustomThemeProvider } from "../context/CustomThemeContext";
 import { DEFAULT_MEASURE } from "../lib/choropleth/measures";
 
 function wrap({ children }: { children: ReactNode }) {
-  return <LayersStateProvider>{children}</LayersStateProvider>;
+  return <ThemeProvider><CustomThemeProvider><LayersStateProvider>{children}</LayersStateProvider></CustomThemeProvider></ThemeProvider>;
 }
 
 describe("useLayersState", () => {

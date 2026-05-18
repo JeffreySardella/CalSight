@@ -23,7 +23,7 @@ export default function Footer() {
           <Link
             key={link.label}
             to={link.to}
-            className="text-on-surface-variant hover:underline decoration-outline-variant hover:text-on-surface transition-colors"
+            className="text-on-surface-variant hover:underline decoration-outline-variant hover:text-on-surface transition-colors min-h-[44px] flex items-center py-2"
           >
             {link.label}
           </Link>

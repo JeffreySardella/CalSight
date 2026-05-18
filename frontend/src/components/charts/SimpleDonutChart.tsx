@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { useChartAnimation } from "../../hooks/useChartAnimation";
 
 interface Segment {
   label: string;
@@ -7,12 +8,17 @@ interface Segment {
   color: string;
 }
 
+export type DonutHighlight = "selected" | "dimmed" | "normal";
+
 interface SimpleDonutChartProps {
   data: Segment[];
   height?: number;
   innerRadius?: number;
   outerRadius?: number;
   renderTooltip?: (item: Segment & { pct: number }, idx: number) => React.ReactNode;
+  title?: string;
+  onSegmentClick?: (item: Segment, idx: number) => void;
+  getHighlight?: (item: Segment, idx: number) => DonutHighlight;
 }
 
 function polarToCartesian(cx: number, cy: number, r: number, angle: number) {
@@ -33,23 +39,46 @@ export default function SimpleDonutChart({
   innerRadius = 48,
   outerRadius = 72,
   renderTooltip,
+  title,
+  onSegmentClick,
+  getHighlight,
 }: SimpleDonutChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const titleId = useId();
+  const { progress } = useChartAnimation(svgRef);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    setHover({ idx, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
+
+  const segAnglesRef = useRef<{ start: number; end: number }[]>([]);
+
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || !data.length) return;
+    const rect = svg.getBoundingClientRect();
+    const tx = e.touches[0].clientX - rect.left - rect.width / 2;
+    const ty = e.touches[0].clientY - rect.top - rect.height / 2;
+    const angle = (Math.atan2(ty, tx) * 180 / Math.PI + 90 + 360) % 360;
+    for (let i = 0; i < segAnglesRef.current.length; i++) {
+      const seg = segAnglesRef.current[i];
+      if (angle >= seg.start && angle < seg.end) {
+        setHover({ idx: i, x: e.touches[0].clientX, y: e.touches[0].clientY });
+        return;
+      }
+    }
+  }, [data.length]);
 
   if (!data.length) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return null;
 
-  const cx = height / 2 + 20;
+  const effectiveOuter = Math.min(outerRadius, (height - 4) / 2);
+  const effectiveInner = Math.min(innerRadius, effectiveOuter * 0.67);
+  const vw = effectiveOuter * 2 + 8;
+  const cx = vw / 2;
   const cy = height / 2;
   const padAngle = 2;
 
@@ -62,21 +91,21 @@ export default function SimpleDonutChart({
     const end = cumAngle + sweep;
     const mid = (start + end) / 2;
 
-    const innerStart = polarToCartesian(cx, cy, innerRadius, end);
-    const innerEnd = polarToCartesian(cx, cy, innerRadius, start);
-    const outerStart = polarToCartesian(cx, cy, outerRadius, end);
-    const outerEnd = polarToCartesian(cx, cy, outerRadius, start);
+    const innerStart = polarToCartesian(cx, cy, effectiveInner, end);
+    const innerEnd = polarToCartesian(cx, cy, effectiveInner, start);
+    const outerStart = polarToCartesian(cx, cy, effectiveOuter, end);
+    const outerEnd = polarToCartesian(cx, cy, effectiveOuter, start);
     const large = sweep > 180 ? 1 : 0;
 
     const path = [
       `M ${outerStart.x} ${outerStart.y}`,
-      `A ${outerRadius} ${outerRadius} 0 ${large} 0 ${outerEnd.x} ${outerEnd.y}`,
+      `A ${effectiveOuter} ${effectiveOuter} 0 ${large} 0 ${outerEnd.x} ${outerEnd.y}`,
       `L ${innerEnd.x} ${innerEnd.y}`,
-      `A ${innerRadius} ${innerRadius} 0 ${large} 1 ${innerStart.x} ${innerStart.y}`,
+      `A ${effectiveInner} ${effectiveInner} 0 ${large} 1 ${innerStart.x} ${innerStart.y}`,
       "Z",
     ].join(" ");
 
-    const outerPath = arcPath(cx, cy, outerRadius, start, end);
+    const outerPath = arcPath(cx, cy, effectiveOuter, start, end);
 
     segments.push({
       path,
@@ -89,27 +118,53 @@ export default function SimpleDonutChart({
 
     cumAngle = end + padAngle;
   }
+  segAnglesRef.current = segments.map((_, i) => {
+    const total360 = 360 - padAngle * data.length;
+    const sweep = (data[i].value / total) * total360;
+    const start = segments.slice(0, i).reduce((a, _, j) => a + (data[j].value / total) * total360 + padAngle, 0);
+    return { start, end: start + sweep };
+  });
 
   const withPct = data.map((d) => ({ ...d, pct: Math.round((d.value / total) * 100) }));
 
   return (
-    <div className="w-full overflow-hidden" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block">
-        {segments.map((seg, i) => (
-          <path
-            key={seg.item.label}
-            d={seg.path}
-            fill={seg.color}
-            onMouseMove={(e) => handleMouseMove(e, i)}
-            onMouseLeave={() => setHover(null)}
-            className="cursor-pointer transition-opacity"
-            opacity={hover !== null && hover.idx !== i ? 0.5 : 1}
-          />
-        ))}
-        <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-          {hover !== null && renderTooltip?.(withPct[hover.idx], hover.idx)}
-        </ChartTooltip>
+    <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
+      <svg ref={svgRef} width={vw} height={height} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+        onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
+        {title && <title id={titleId}>{title}</title>}
+        {segments.map((seg, i) => {
+          const isHovered = hover?.idx === i;
+          const pushDist = isHovered ? 4 : 0;
+          const pushRad = ((seg.midAngle - 90) * Math.PI) / 180;
+          const tx = pushDist * Math.cos(pushRad);
+          const ty = pushDist * Math.sin(pushRad);
+          return (
+            <path
+              key={seg.item.label}
+              d={seg.path}
+              fill={seg.color}
+              onMouseMove={(e) => handleMouseMove(e, i)}
+              onMouseLeave={() => setHover(null)}
+              onClick={() => onSegmentClick?.(seg.item, i)}
+              className="cursor-pointer"
+              style={{
+                transform: `translate(${tx}px, ${ty}px) scale(${progress})`,
+                transformOrigin: `${cx}px ${cy}px`,
+                opacity: (() => {
+                  const hl = getHighlight?.(seg.item, i) ?? "normal";
+                  if (hl === "dimmed") return progress * 0.3;
+                  if (hl === "selected") return progress;
+                  return progress * (hover !== null && !isHovered ? 0.5 : 1);
+                })(),
+                transition: "transform 0.2s ease, opacity 0.15s ease",
+              }}
+            />
+          );
+        })}
       </svg>
+      <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
+        {hover !== null && withPct[hover.idx] != null && renderTooltip?.(withPct[hover.idx], hover.idx)}
+      </ChartTooltip>
     </div>
   );
 }

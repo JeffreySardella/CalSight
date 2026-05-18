@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import AiInsightCard from "./AiInsightCard";
 
@@ -44,28 +45,28 @@ async function expandCard() {
 describe("AiInsightCard", () => {
   it("renders county name in collapsed bar", () => {
     render(
-      <AiInsightCard
+      <MemoryRouter><AiInsightCard
         onClose={vi.fn()}
         countyName="Los Angeles"
         data={POINT_A}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      />,
+      /></MemoryRouter>,
     );
     expect(screen.getByText("Los Angeles County")).toBeInTheDocument();
   });
 
   it("shows stats when expanded", async () => {
     render(
-      <AiInsightCard
+      <MemoryRouter><AiInsightCard
         onClose={vi.fn()}
         countyName="Los Angeles"
         data={POINT_A}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      />,
+      /></MemoryRouter>,
     );
     await expandCard();
     expect(screen.getByText("48.3K")).toBeInTheDocument();
@@ -76,14 +77,14 @@ describe("AiInsightCard", () => {
   it("calls onClose when close button is clicked", async () => {
     const onClose = vi.fn();
     render(
-      <AiInsightCard
+      <MemoryRouter><AiInsightCard
         onClose={onClose}
         countyName="Fresno"
         data={POINT_A}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      />,
+      /></MemoryRouter>,
     );
     await userEvent.click(screen.getByText("close").closest("button")!);
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -91,14 +92,14 @@ describe("AiInsightCard", () => {
 
   it("shows Compare button when expanded", async () => {
     render(
-      <AiInsightCard
+      <MemoryRouter><AiInsightCard
         onClose={vi.fn()}
         countyName="Fresno"
         data={POINT_A}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      />,
+      /></MemoryRouter>,
     );
     await expandCard();
     expect(screen.getByRole("button", { name: /compare/i })).toBeInTheDocument();
@@ -106,7 +107,7 @@ describe("AiInsightCard", () => {
 
   it("shows compare layout with both counties", () => {
     render(
-      <AiInsightCard
+      <MemoryRouter><AiInsightCard
         onClose={vi.fn()}
         countyName="Los Angeles"
         data={POINT_A}
@@ -115,7 +116,7 @@ describe("AiInsightCard", () => {
         onCompare={vi.fn()}
         compareCountyName="Orange"
         compareData={POINT_B}
-      />,
+      /></MemoryRouter>,
     );
     expect(screen.getByText("Los Angeles vs Orange")).toBeInTheDocument();
   });
@@ -123,14 +124,14 @@ describe("AiInsightCard", () => {
   it("shows N/A for measure value when hasEnoughData is false", async () => {
     const noData: ChoroplethPoint = { value: null, rawCount: 3, totalKilled: 0, totalInjured: 1, hasEnoughData: false };
     render(
-      <AiInsightCard
+      <MemoryRouter><AiInsightCard
         onClose={vi.fn()}
         countyName="Alpine"
         data={noData}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      />,
+      /></MemoryRouter>,
     );
     await expandCard();
     expect(screen.getByText("N/A")).toBeInTheDocument();

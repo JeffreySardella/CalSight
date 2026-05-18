@@ -1,6 +1,13 @@
+import MetaTags from "../components/seo/MetaTags";
+
 export default function AboutPage() {
   return (
     <main className="max-w-[900px] mx-auto px-6 md:px-0">
+      <MetaTags
+        title="About — CalSight"
+        description="Learn about CalSight's mission, data sources, team, and methodology for making California traffic crash data accessible to everyone."
+        path="/about"
+      />
 
       {/* Hero Section */}
       <section className="py-24 md:py-32 flex flex-col items-center text-center">

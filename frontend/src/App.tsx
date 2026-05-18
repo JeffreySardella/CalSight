@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { ThemeProvider } from "./context/ThemeContext";
+import { CustomThemeProvider } from "./context/CustomThemeContext";
 import { LiteModeProvider } from "./context/LiteModeContext";
 import { AccessibilityProvider } from "./context/AccessibilityContext";
 import { queryClient } from "./lib/queryClient";
@@ -12,6 +13,7 @@ import {
   PERSIST_MAX_AGE,
 } from "./lib/queryPersistence";
 import Layout from "./components/Layout";
+import AdminGuard from "./components/AdminGuard";
 
 const MapPage = lazy(() => import("./pages/MapPage"));
 const StatsPage = lazy(() => import("./pages/StatsPage"));
@@ -33,6 +35,7 @@ export default function App() {
       }}
     >
       <ThemeProvider>
+        <CustomThemeProvider>
         <LiteModeProvider>
           <AccessibilityProvider>
           <BrowserRouter>
@@ -44,7 +47,7 @@ export default function App() {
                 <Route path="about" element={<AboutPage />} />
                 <Route path="ask" element={<AskAiPage />} />
                 <Route path="privacy" element={<PrivacyPage />} />
-                <Route path="admin/etl" element={<AdminEtlPage />} />
+                <Route path="admin/etl" element={<AdminGuard><AdminEtlPage /></AdminGuard>} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
@@ -52,6 +55,7 @@ export default function App() {
           </BrowserRouter>
           </AccessibilityProvider>
         </LiteModeProvider>
+        </CustomThemeProvider>
       </ThemeProvider>
     </PersistQueryClientProvider>
   );
