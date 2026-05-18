@@ -120,9 +120,15 @@ export default function SimpleLineChart({
     : 0;
 
   const interval = n > 12 ? Math.ceil(n / 6) : 1;
+  const trendR2 = showTrendLine && points.length >= 2 ? linearRegression(data.map(d => d.value)).r2 : null;
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
+      {trendR2 !== null && (
+        <span className="absolute top-1 right-1 z-10 text-[9px] font-bold text-on-surface-variant bg-surface-container/80 rounded px-1.5 py-0.5">
+          R²={trendR2.toFixed(2)}
+        </span>
+      )}
       <svg ref={svgRef} width="100%" height={height} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
@@ -244,12 +250,7 @@ export default function SimpleLineChart({
           const y0 = padding.top + chartH - ((reg.intercept) / maxVal) * chartH;
           const yN = padding.top + chartH - ((reg.slope * (n - 1) + reg.intercept) / maxVal) * chartH;
           return (
-            <g>
-              <line x1={points[0].x} x2={points[points.length - 1].x} y1={y0} y2={yN} stroke="rgb(var(--tertiary))" strokeWidth={1.5} strokeDasharray="8 4" strokeOpacity={0.7} />
-              <text x={padding.left + 4} y={padding.top + 12} textAnchor="start" fontSize={10} fontWeight={700} fill="rgb(var(--on-surface))" stroke="rgb(var(--surface))" strokeWidth={3} paintOrder="stroke" fontFamily="'Inter Variable', Inter, sans-serif">
-                R²={reg.r2.toFixed(2)}
-              </text>
-            </g>
+            <line x1={points[0].x} x2={points[points.length - 1].x} y1={y0} y2={yN} stroke="rgb(var(--tertiary))" strokeWidth={1.5} strokeDasharray="8 4" strokeOpacity={0.7} />
           );
         })()}
 
