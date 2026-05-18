@@ -83,7 +83,23 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
 
   return (
     <div className="w-full overflow-visible relative mt-3" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-label={`Scatter plot: ${xField.label} vs ${yField.label}, r = ${r.toFixed(2)}`}>
+      <svg ref={svgRef} width="100%" height={height} className="block touch-none" role="img" aria-label={`Scatter plot: ${xField.label} vs ${yField.label}, r = ${r.toFixed(2)}`}
+        onTouchMove={(e) => {
+          const svg = svgRef.current;
+          if (!svg || !points.length) return;
+          const rect = svg.getBoundingClientRect();
+          const tx = e.touches[0].clientX - rect.left;
+          const ty = e.touches[0].clientY - rect.top;
+          let closest = 0, minDist = Infinity;
+          for (let i = 0; i < points.length; i++) {
+            const px = pad.left + (points[i].x / maxX) * cw;
+            const py = pad.top + ch - (points[i].y / maxY) * ch;
+            const d = (tx - px) ** 2 + (ty - py) ** 2;
+            if (d < minDist) { minDist = d; closest = i; }
+          }
+          setHover(closest);
+        }}
+        onTouchEnd={() => setHover(null)}>
         {[0, 1, 2, 3, 4].map((i) => {
           const v = (maxY / 4) * i;
           const py = pad.top + ch - (v / maxY) * ch;

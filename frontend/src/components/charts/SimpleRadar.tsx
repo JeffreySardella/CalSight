@@ -29,6 +29,21 @@ export default function SimpleRadar({
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || !data.length) return;
+    const rect = svg.getBoundingClientRect();
+    const touchX = e.touches[0].clientX - rect.left;
+    const touchY = e.touches[0].clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const angle = Math.atan2(touchY - centerY, touchX - centerX) + Math.PI / 2;
+    const normalizedAngle = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const step = (2 * Math.PI) / data.length;
+    const idx = Math.round(normalizedAngle / step) % data.length;
+    setHover({ idx, x: e.touches[0].clientX, y: e.touches[0].clientY });
+  }, [data.length]);
+
   if (data.length < 3) {
     return (
       <div className="h-48 flex items-center justify-center text-on-surface-variant text-sm">
@@ -55,7 +70,8 @@ export default function SimpleRadar({
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+      <svg ref={svgRef} width={height} height={height} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+        onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: rings }).map((_, ring) => {
           const r = ((ring + 1) / rings) * maxR;
@@ -82,16 +98,15 @@ export default function SimpleRadar({
         })}
         <polygon points={polyPoints} fill={color} fillOpacity={0.15} stroke={color} strokeWidth={2} />
         {points.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.x}
-            cy={p.y}
-            r={hover?.idx === i ? 5 : 3}
-            fill={color}
-            onMouseMove={(e) => handleMouseMove(e, i)}
-            onMouseLeave={() => setHover(null)}
-            className="cursor-pointer"
-          />
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r={16} fill="transparent"
+              onMouseMove={(e) => handleMouseMove(e, i)}
+              onMouseLeave={() => setHover(null)}
+              className="cursor-pointer" />
+            <circle cx={p.x} cy={p.y} r={hover?.idx === i ? 6 : 3.5} fill={color}
+              stroke="rgb(var(--surface))" strokeWidth={1}
+              style={{ pointerEvents: "none" }} />
+          </g>
         ))}
         {data.map((d, i) => {
           const angle = i * angleStep - Math.PI / 2;

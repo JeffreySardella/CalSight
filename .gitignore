@@ -163,3 +163,4 @@ desktop.ini
 *.png
 .playwright-mcp/
 .claude/
+lighthouse-stats*.json
