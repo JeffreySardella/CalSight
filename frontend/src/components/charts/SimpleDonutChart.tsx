@@ -60,7 +60,7 @@ export default function SimpleDonutChart({
     const rect = svg.getBoundingClientRect();
     const tx = e.touches[0].clientX - rect.left - rect.width / 2;
     const ty = e.touches[0].clientY - rect.top - rect.height / 2;
-    let angle = (Math.atan2(ty, tx) * 180 / Math.PI + 90 + 360) % 360;
+    const angle = (Math.atan2(ty, tx) * 180 / Math.PI + 90 + 360) % 360;
     for (let i = 0; i < segAnglesRef.current.length; i++) {
       const seg = segAnglesRef.current[i];
       if (angle >= seg.start && angle < seg.end) {
