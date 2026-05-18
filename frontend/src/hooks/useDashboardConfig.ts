@@ -64,6 +64,7 @@ export function useDashboardConfig() {
   const setMode = useCallback((mode: "simple" | "advanced") => {
     setConfig((prev) => {
       if (prev.mode === mode) return prev;
+      if (mode === "advanced") return { ...prev, mode, charts: [] };
       return { ...prev, mode };
     });
   }, []);

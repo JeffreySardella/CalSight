@@ -122,6 +122,20 @@ export default function DashboardGrid({
         {announcement}
       </div>
 
+      {isAdvanced && charts.length === 0 && !configOpen && (
+        <div className="flex flex-col items-center justify-center py-12 px-6 bg-surface-container-lowest rounded-2xl ambient-shadow text-center space-y-3 mb-4">
+          <span className="material-symbols-outlined text-[48px] text-on-surface-variant/40" aria-hidden="true">add_chart</span>
+          <h3 className="text-lg font-headline font-bold text-on-surface">Build Your Dashboard</h3>
+          <p className="text-sm text-on-surface-variant max-w-md">Pick dimensions, measures, and chart types to create your own analysis. Start by adding your first chart below.</p>
+          <button
+            onClick={() => setConfigOpen(true)}
+            className="mt-2 px-5 py-2.5 bg-primary text-on-primary rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+          >
+            Add Your First Chart
+          </button>
+        </div>
+      )}
+
       <div
         className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-4 ${dragState.isDragging ? "drag-active" : ""}`}
         {...containerProps}
