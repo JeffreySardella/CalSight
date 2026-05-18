@@ -85,7 +85,17 @@ export default function SimpleBarChart({
     const svgH = Math.max(height, data.length * rowH);
     return (
       <div className="w-full overflow-visible relative" style={{ height: svgH }}>
-        <svg ref={svgRef} width="100%" height={svgH} className="block" role="img" aria-labelledby={title ? `${titleId}-h` : undefined}>
+        <svg ref={svgRef} width="100%" height={svgH} className="block touch-none" role="img" aria-labelledby={title ? `${titleId}-h` : undefined}
+          onTouchMove={(e) => {
+            const svg = svgRef.current;
+            if (!svg || !data.length) return;
+            const rect = svg.getBoundingClientRect();
+            const touchY = e.touches[0].clientY - rect.top;
+            const rH = barH + 10;
+            const idx = Math.max(0, Math.min(data.length - 1, Math.floor((touchY - 4) / rH)));
+            setHover({ idx, x: e.touches[0].clientX, y: e.touches[0].clientY });
+          }}
+          onTouchEnd={() => setHover(null)}>
           {title && <title id={`${titleId}-h`}>{title}</title>}
           {data.map((d, i) => {
             const y = i * rowH + 4;
