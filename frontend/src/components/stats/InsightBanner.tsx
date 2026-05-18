@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { HeroMetrics } from "../../hooks/useStats";
 import type { FunFact } from "../../hooks/useFunFacts";
 
@@ -63,6 +63,8 @@ export default function InsightBanner({ heroMetrics, loading, funFacts = [] }: I
     setActiveIndex((i) => (i - 1 + slides.length) % slides.length);
   }, [slides.length]);
 
+  const touchStartX = useRef<number | null>(null);
+
   if (loading || slides.length === 0) return null;
 
   const current = slides[activeIndex % slides.length];
@@ -75,6 +77,14 @@ export default function InsightBanner({ heroMetrics, loading, funFacts = [] }: I
       className="flex items-center gap-3 bg-surface-container-low border-l-2 border-primary rounded-lg px-4 py-3 overflow-hidden"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+      onTouchEnd={(e) => {
+        if (touchStartX.current === null) return;
+        const dx = e.changedTouches[0].clientX - touchStartX.current;
+        if (dx > 40) goPrev();
+        else if (dx < -40) goNext();
+        touchStartX.current = null;
+      }}
     >
       <span className="material-symbols-outlined text-primary text-[20px] flex-shrink-0" aria-hidden="true">
         {isFunFact ? "lightbulb" : "auto_awesome"}

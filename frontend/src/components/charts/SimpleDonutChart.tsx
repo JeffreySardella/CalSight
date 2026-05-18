@@ -138,7 +138,7 @@ export default function SimpleDonutChart({
         })}
       </svg>
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-        {hover !== null && renderTooltip?.(withPct[hover.idx], hover.idx)}
+        {hover !== null && withPct[hover.idx] != null && renderTooltip?.(withPct[hover.idx], hover.idx)}
       </ChartTooltip>
     </div>
   );

@@ -85,6 +85,7 @@ export default function StatsPage() {
       distracted: filters.selectedDistracted,
     };
   }, [timelapseActive, throttledTlYear, filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, drillState.county]);
+  const singleCountyActive = !!drillState.county || filters.selectedCounties.size === 1;
   const { data, loading, error, refetch: statsRefetch } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
   const crossFilterOverrides = useMemo(() => crossFilter.toFilterOverrides(), [crossFilter.toFilterOverrides]);
@@ -675,7 +676,7 @@ export default function StatsPage() {
             )}
             <DrillBreadcrumb drillState={drillState} onDrillUp={drillUp} />
             <DashboardGrid
-              charts={dashboard.activeCharts}
+              charts={singleCountyActive ? dashboard.activeCharts.filter(c => c.dimension !== "county") : dashboard.activeCharts}
               dataBySlot={dataBySlot}
               mode={dashboard.config.mode}
               loading={dashLoading}

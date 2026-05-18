@@ -61,6 +61,20 @@ export default function SimpleBarChart({
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || !data.length) return;
+    const rect = svg.getBoundingClientRect();
+    const touchX = e.touches[0].clientX - rect.left;
+    const padL = 8;
+    const padR = 8;
+    const n = data.length;
+    const totalW = rect.width - padL - padR;
+    const slotW = totalW / n;
+    const idx = Math.max(0, Math.min(n - 1, Math.floor((touchX - padL) / slotW)));
+    setHover({ idx, x: e.touches[0].clientX, y: e.touches[0].clientY });
+  }, [data.length]);
+
   if (!data.length) return null;
   const maxVal = Math.max(...data.map((d) => d.value), 1);
 
@@ -113,7 +127,8 @@ export default function SimpleBarChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible" role="img" aria-labelledby={title ? `${titleId}-v` : undefined}>
+      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? `${titleId}-v` : undefined}
+        onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={`${titleId}-v`}>{title}</title>}
         {data.map((d, i) => {
           const n = data.length;
@@ -150,7 +165,7 @@ export default function SimpleBarChart({
                 fill={d.color ?? defaultColor}
                 opacity={(() => {
                   const hl = getHighlight?.(d, i) ?? "normal";
-                  if (hl === "dimmed") return 0.3;
+                  if (hl === "dimmed") return 0.5;
                   if (hl === "selected") return 1;
                   return hover !== null && hover.idx !== i ? 0.6 : 1;
                 })()}

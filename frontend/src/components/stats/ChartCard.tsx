@@ -182,7 +182,9 @@ function ChartCard({
   const title = buildTitle(slot);
 
   // Cross-filter: determine if this chart's dimension supports brushing
-  const canCrossFilter = CROSS_FILTER_DIMS.includes(slot.dimension);
+  // Disabled on mobile — touch users tap to read, not to filter
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const canCrossFilter = !isMobile && CROSS_FILTER_DIMS.includes(slot.dimension);
   const isSourceChart = crossFilter?.state.sourceChartId === slot.id;
 
   const handleCrossFilterClick = useMemo(() => {
@@ -340,10 +342,8 @@ function ChartCard({
           <SimpleDonutChart
             data={coloredData.map((d) => ({ label: d.label, value: d.value, color: d.color ?? "rgb(var(--primary))" }))}
             height={140}
-            renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+            renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
             title={title}
-            onSegmentClick={handleCrossFilterClick ? (item) => handleCrossFilterClick(item.label) : undefined}
-            getHighlight={getHighlight ? (item) => getHighlight(item) : undefined}
           />
           <DonutLegend data={coloredData} />
         </>
@@ -354,7 +354,7 @@ function ChartCard({
           showArea={slot.chartType === "area"}
           primaryLabel={MEASURE_LABELS[slot.measure]}
           secondaryLabel={MEASURE_LABELS[slot.secondaryMeasure!]}
-          renderTooltip={(item) => (
+          renderTooltip={(item) => item ? (
             <>
               <p className="font-headline font-bold text-on-surface">{item.label}</p>
               <p className="text-on-surface-variant mt-0.5">
@@ -366,7 +366,7 @@ function ChartCard({
                 {fmtValue(item.secondary)}
               </p>
             </>
-          )}
+          ) : null}
           title={title}
         />
       ) : slot.chartType === "line" || slot.chartType === "area" ? (
@@ -380,7 +380,7 @@ function ChartCard({
           showStdBand={slot.options?.stdBand ?? false}
           showOutliers={slot.options?.outliers ?? false}
           forecastData={forecastData}
-          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+          renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
           title={title}
         />
       ) : slot.chartType === "scatter" ? (
@@ -389,20 +389,20 @@ function ChartCard({
           height={260}
           xLabel="Crashes"
           yLabel="Fatalities"
-          renderTooltip={(item) => (
+          renderTooltip={(item) => item ? (
             <>
               <p className="font-headline font-bold text-on-surface">{item.label}</p>
               <p className="text-on-surface-variant mt-0.5">{fmtValue(item.x ?? 0)} crashes</p>
               <p className="text-on-surface-variant">{fmtValue(item.y ?? 0)} fatalities</p>
             </>
-          )}
+          ) : null}
           title={title}
         />
       ) : slot.chartType === "polar" ? (
         <SimplePolarArea
           data={coloredData.map((d) => ({ ...d, color: d.color }))}
           height={220}
-          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+          renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
           title={title}
         />
       ) : slot.chartType === "lollipop" ? (
@@ -410,7 +410,7 @@ function ChartCard({
           <SimpleLollipop
             data={data}
             height={Math.max(192, data.length * 28)}
-            renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+            renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
             title={title}
             onItemClick={handleCrossFilterClick ? (item) => handleCrossFilterClick(item.label) : undefined}
             getHighlight={getHighlight ? (item) => getHighlight(item) : undefined}
@@ -420,14 +420,14 @@ function ChartCard({
         <SimpleRadar
           data={data}
           height={220}
-          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+          renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
           title={title}
         />
       ) : slot.chartType === "treemap" ? (
         <SimpleTreemap
           data={coloredData.map((d) => ({ ...d, color: d.color }))}
           height={260}
-          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+          renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
           title={title}
         />
       ) : slot.chartType === "gauge" ? (
@@ -444,7 +444,7 @@ function ChartCard({
             data={data}
             height={Math.max(192, data.length * 28)}
             layout="horizontal"
-            renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+            renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
             title={title}
             onBarClick={(item) => {
               if (slot.dimension === "county") {
@@ -462,7 +462,7 @@ function ChartCard({
           height={192}
           showMeanLine={slot.options?.meanLine ?? false}
           labelFormatter={thinLabelFormatter(data.length, slot.dimension)}
-          renderTooltip={(item) => <Tip label={item.label} value={item.value} />}
+          renderTooltip={(item) => item ? <Tip label={item.label} value={item.value} /> : null}
           title={title}
           onBarClick={(item) => {
             if (slot.dimension === "county") {

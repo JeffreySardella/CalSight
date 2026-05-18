@@ -66,10 +66,10 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
   return (
     <>
     {/* Mobile: backdrop */}
-    <div role="button" tabIndex={-1} className="fixed inset-0 z-[49] bg-on-surface/20 md:hidden" onClick={onClose} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }} aria-label="Close settings" />
+    <div role="button" tabIndex={-1} className="fixed inset-0 z-[60] bg-on-surface/20 md:hidden" onClick={onClose} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }} aria-label="Close settings" />
     <div
       ref={popoverRef}
-      className="fixed bottom-0 left-0 right-0 z-50 w-full rounded-t-2xl bg-surface-container-low backdrop-blur-xl ghost-border ambient-shadow p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] space-y-4 max-h-[85vh] overflow-y-auto no-scrollbar md:absolute md:bottom-auto md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 md:rounded-xl md:rounded-t-xl md:pb-4"
+      className="fixed bottom-0 left-0 right-0 z-[61] w-full rounded-t-2xl bg-surface-container-low backdrop-blur-xl ghost-border ambient-shadow p-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] space-y-4 max-h-[85vh] overflow-y-auto md:absolute md:bottom-auto md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 md:rounded-xl md:rounded-t-xl md:pb-4"
     >
       {/* Tab switcher */}
       <div className="flex gap-1 rounded-lg bg-surface-container p-1">

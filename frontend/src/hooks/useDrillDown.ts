@@ -31,7 +31,7 @@ export function useDrillDown() {
         const params = new URLSearchParams(prev);
         params.set("drill_county", slug);
         return params;
-      }, { replace: true });
+      }, { replace: true, preventScrollReset: true });
     },
     [setSearchParams],
   );
@@ -41,7 +41,7 @@ export function useDrillDown() {
       const params = new URLSearchParams(prev);
       params.delete("drill_county");
       return params;
-    }, { replace: true });
+    }, { replace: true, preventScrollReset: true });
   }, [setSearchParams]);
 
   const resetDrill = useCallback(() => {
@@ -49,7 +49,7 @@ export function useDrillDown() {
       const params = new URLSearchParams(prev);
       params.delete("drill_county");
       return params;
-    }, { replace: true });
+    }, { replace: true, preventScrollReset: true });
   }, [setSearchParams]);
 
   return { drillState, drillToCounty, drillUp, resetDrill };

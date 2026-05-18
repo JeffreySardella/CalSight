@@ -70,6 +70,22 @@ export default function SimpleLineChart({
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
 
+  const pointsRef = useRef<{ x: number }[]>([]);
+
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || pointsRef.current.length === 0) return;
+    const rect = svg.getBoundingClientRect();
+    const touchX = e.touches[0].clientX - rect.left;
+    let closest = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < pointsRef.current.length; i++) {
+      const d = Math.abs(pointsRef.current[i].x - touchX);
+      if (d < minDist) { minDist = d; closest = i; }
+    }
+    setHover({ idx: closest, x: e.touches[0].clientX, y: e.touches[0].clientY });
+  }, []);
+
   if (!data.length) return null;
 
   const dataMax = Math.max(...data.map((d) => d.value), 1);
@@ -93,6 +109,7 @@ export default function SimpleLineChart({
         y: padding.top + chartH - (d.value / maxVal) * chartH,
       }))
     : [{ x: padding.left + chartW / 2, y: padding.top + chartH - (data[0].value / maxVal) * chartH }];
+  pointsRef.current = points;
 
   const pathD = points.length >= 2
     ? points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")
@@ -106,7 +123,8 @@ export default function SimpleLineChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}>
+      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+        onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {showYAxis && yTickVals.map((v) => {
           const y = padding.top + chartH - (v / maxVal) * chartH;
@@ -228,7 +246,7 @@ export default function SimpleLineChart({
           return (
             <g>
               <line x1={points[0].x} x2={points[points.length - 1].x} y1={y0} y2={yN} stroke="rgb(var(--tertiary))" strokeWidth={1.5} strokeDasharray="8 4" strokeOpacity={0.7} />
-              <text x={Math.min(padding.left + chartW - 4, svgWidth - padding.right)} y={Math.max(yN - 6, padding.top + 10)} textAnchor="end" fontSize={8} fontWeight={700} fill="rgb(var(--tertiary))" fillOpacity={0.8} fontFamily="'Inter Variable', Inter, sans-serif">
+              <text x={padding.left + 4} y={padding.top + 12} textAnchor="start" fontSize={10} fontWeight={700} fill="rgb(var(--on-surface))" stroke="rgb(var(--surface))" strokeWidth={3} paintOrder="stroke" fontFamily="'Inter Variable', Inter, sans-serif">
                 R²={reg.r2.toFixed(2)}
               </text>
             </g>

@@ -71,8 +71,9 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
 
   if (points.length < 3) return <p className="text-sm text-on-surface-variant">Insufficient data</p>;
 
-  const height = 280;
-  const pad = { top: 20, right: 20, bottom: 40, left: 56 };
+  const isMobileScatter = typeof window !== "undefined" && window.innerWidth < 640;
+  const height = isMobileScatter ? 220 : 280;
+  const pad = { top: 16, right: 12, bottom: 36, left: isMobileScatter ? 40 : 56 };
   const cw = svgW - pad.left - pad.right;
   const ch = height - pad.top - pad.bottom;
   const maxX = Math.max(...points.map((p) => p.x), 1);
@@ -108,24 +109,32 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
         })()}
 
         {points.map((p, i) => {
+          if (i === hover) return null;
           const px = pad.left + (p.x / maxX) * cw;
           const py = pad.top + ch - (p.y / maxY) * ch;
-          const isH = hover === i;
+          return (
+            <circle key={i} cx={px} cy={py} r={3.5} fill={correlationDotColor(r, correlationTokens)} fillOpacity={0.55}
+              stroke="rgb(var(--surface))" strokeWidth={0.75}
+              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} className="cursor-pointer" />
+          );
+        })}
+        {hover !== null && points[hover] && (() => {
+          const p = points[hover];
+          const px = pad.left + (p.x / maxX) * cw;
+          const py = pad.top + ch - (p.y / maxY) * ch;
           const nearRight = px > pad.left + cw * 0.7;
           const nearTop = py < pad.top + 20;
           return (
-            <g key={i}>
-              <circle cx={px} cy={py} r={isH ? 6 : 3.5} fill={correlationDotColor(r, correlationTokens)} fillOpacity={isH ? 0.95 : 0.55}
-                stroke="rgb(var(--surface))" strokeWidth={0.75}
-                onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} className="cursor-pointer" />
-              {isH && (
-                <text x={nearRight ? px - 8 : px + 8} y={nearTop ? py + 14 : py - 6} textAnchor={nearRight ? "end" : "start"} fontSize={10} fontWeight={700} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
-                  {p.name}
-                </text>
-              )}
+            <g>
+              <circle cx={px} cy={py} r={6} fill={correlationDotColor(r, correlationTokens)} fillOpacity={0.95}
+                stroke="rgb(var(--on-surface))" strokeWidth={1.5}
+                onMouseLeave={() => setHover(null)} className="cursor-pointer" />
+              <text x={nearRight ? px - 8 : px + 8} y={nearTop ? py + 14 : py - 6} textAnchor={nearRight ? "end" : "start"} fontSize={10} fontWeight={700} fill="rgb(var(--on-surface))" stroke="rgb(var(--surface))" strokeWidth={3} paintOrder="stroke" fontFamily="'Inter Variable', Inter, sans-serif">
+                {p.name}
+              </text>
             </g>
           );
-        })}
+        })()}
 
         <text x={svgW / 2} y={height - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{xField.label}</text>
         <text x={14} y={height / 2} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-90, 14, ${height / 2})`}>{yField.label}</text>
@@ -191,7 +200,8 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
         </div>
       </div>
 
-      <div style={{ overflowX: "auto", overflowY: "visible" }}>
+      <p className="text-[9px] text-on-surface-variant/50 sm:hidden mb-1">Swipe to scroll</p>
+      <div style={{ overflowX: "auto", overflowY: "visible", WebkitOverflowScrolling: "touch" }}>
         <svg width={svgW} height={svgH} className="block" style={{ overflow: "visible" }} role="img" aria-labelledby={titleId}>
           <title id={titleId}>Correlation matrix: Pearson r values across {countyCount} California counties for {n} metrics</title>
           <desc>A {n} by {n} grid showing pairwise Pearson correlation coefficients between crash, demographic, and environmental metrics. Blue cells indicate positive correlations, red cells indicate negative correlations. Click any cell to view a scatter plot.</desc>
@@ -248,8 +258,8 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
       )}
 
       {selected && counties && (
-        <div className="bg-surface-container rounded-xl p-4">
-          <div className="flex items-center justify-between mb-1">
+        <div className="bg-surface-container rounded-xl p-3 sm:p-4 overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+          <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-sm font-bold text-on-surface">
                 {fields[selected.i].label} × {fields[selected.j].label}
