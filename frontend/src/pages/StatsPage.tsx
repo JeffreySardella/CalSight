@@ -123,13 +123,15 @@ export default function StatsPage() {
   const counties   = filters.selectedCounties;
   const causes     = filters.selectedCauses;
 
-  // Geo drill-down: click county bar → filter to that county
+  // Geo drill-down: click county bar → filter to that county (desktop only)
+  const isMobileDevice = typeof window !== "undefined" && window.innerWidth < 640;
   const handleBarClick = useCallback((label: string, dimension: string) => {
+    if (isMobileDevice) return;
     if (dimension === "county") {
       const slug = label.toLowerCase().replace(/ /g, "-");
       drillToCounty(slug);
     }
-  }, [drillToCounty]);
+  }, [drillToCounty, isMobileDevice]);
 
   // Keyboard shortcut: close config panel trigger (incremented to signal DashboardGrid)
   const [closeConfigTrigger, setCloseConfigTrigger] = useState(0);
