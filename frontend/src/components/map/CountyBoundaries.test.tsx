@@ -17,6 +17,7 @@ vi.mock("topojson-client", () => ({
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LayersStateProvider } from "../../hooks/useLayersState";
+import { CustomThemeProvider } from "../../context/CustomThemeContext";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { MemoryRouter } from "react-router-dom";
 
@@ -64,13 +65,13 @@ describe("CountyBoundaries", () => {
       <MemoryRouter>
         <QueryClientProvider client={client}>
           <ThemeProvider>
-          <LayersStateProvider>
+          <CustomThemeProvider><LayersStateProvider>
             <CountyBoundaries
               focusedCounty={focusedCounty}
               onFocusCounty={onFocusCounty}
               onSelectCounty={onSelectCounty}
             />
-          </LayersStateProvider>
+          </LayersStateProvider></CustomThemeProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </MemoryRouter>,
@@ -118,13 +119,13 @@ describe("CountyBoundaries", () => {
       <MemoryRouter>
         <QueryClientProvider client={client}>
           <ThemeProvider>
-          <LayersStateProvider>
+          <CustomThemeProvider><LayersStateProvider>
             <CountyBoundaries
               focusedCounty={null}
               onFocusCounty={onFocusCounty}
               onSelectCounty={onSelectCounty}
             />
-          </LayersStateProvider>
+          </LayersStateProvider></CustomThemeProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </MemoryRouter>,
@@ -138,13 +139,13 @@ describe("CountyBoundaries", () => {
       <MemoryRouter>
         <QueryClientProvider client={client}>
           <ThemeProvider>
-          <LayersStateProvider>
+          <CustomThemeProvider><LayersStateProvider>
             <CountyBoundaries
               focusedCounty="Fresno"
               onFocusCounty={onFocusCounty}
               onSelectCounty={onSelectCounty}
             />
-          </LayersStateProvider>
+          </LayersStateProvider></CustomThemeProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </MemoryRouter>,
@@ -181,14 +182,14 @@ describe("CountyBoundaries", () => {
       <MemoryRouter>
         <QueryClientProvider client={client}>
           <ThemeProvider>
-          <LayersStateProvider>
+          <CustomThemeProvider><LayersStateProvider>
             <CountyBoundaries
               focusedCounty="Fresno"
               compareCounty="Alameda"
               onFocusCounty={onFocusCounty}
               onSelectCounty={onSelectCounty}
             />
-          </LayersStateProvider>
+          </LayersStateProvider></CustomThemeProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </MemoryRouter>,

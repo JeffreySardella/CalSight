@@ -26,6 +26,7 @@ import type { Map as LeafletMap } from "leaflet";
 import MapCanvas from "./MapCanvas";
 import { mockMapInstance } from "../../__mocks__/leaflet";
 import { ThemeProvider } from "../../context/ThemeContext";
+import { CustomThemeProvider } from "../../context/CustomThemeContext";
 import { AccessibilityProvider } from "../../context/AccessibilityContext";
 import { LayersStateProvider } from "../../hooks/useLayersState";
 
@@ -44,7 +45,7 @@ function renderWithTheme(ui: React.ReactElement) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AccessibilityProvider>
-          <LayersStateProvider>{ui}</LayersStateProvider>
+          <CustomThemeProvider><LayersStateProvider>{ui}</LayersStateProvider></CustomThemeProvider>
         </AccessibilityProvider>
       </ThemeProvider>
     </QueryClientProvider>

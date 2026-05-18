@@ -1,6 +1,20 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_MEASURE, MEASURES, type MeasureKey } from "../lib/choropleth/measures";
 import { PALETTES, type PaletteKey } from "../lib/choropleth/palettes";
+import { useCustomTheme } from "../context/CustomThemeContext";
+import type { ChartPaletteKey } from "../lib/theme/types";
+
+const THEME_TO_MAP_PALETTE: Record<ChartPaletteKey, PaletteKey> = {
+  default: "default",
+  warm: "warm",
+  cool: "cool",
+  ocean: "cool",
+  forest: "cool",
+  sunset: "warm",
+  colorblind: "colorblind",
+  monochrome: "default",
+  custom: "default",
+};
 
 export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "coordMismatches" | "coordIncludeRivers" | "incidents" | "countyBoundaries" | "roadTypes" | "schools" | "hospitals";
 export type HeatmapResolution = "raw" | "low" | "medium" | "high";
@@ -98,9 +112,11 @@ export function LayersStateProvider({
   onStateChange?: (state: LayerUrlState) => void;
 }) {
   const saved = loadSaved();
+  const { customization } = useCustomTheme();
   const [choroplethOn, setChoroplethOn] = useState(urlSeed?.choroplethOn ?? saved.choroplethOn ?? true);
   const [measure, setMeasure] = useState<MeasureKey>(urlSeed?.measure ?? saved.measure ?? DEFAULT_MEASURE);
   const [palette, setPalette] = useState<PaletteKey>(urlSeed?.palette ?? saved.palette ?? "default");
+  const isFirstSync = useRef(true);
   const [bucketEdges, setBucketEdges] = useState<number[] | null>(null);
   const [otherLayers, setOtherLayers] = useState<Record<OtherLayerKey, boolean>>(() => ({
     ...OTHER_LAYER_DEFAULTS,
@@ -124,6 +140,18 @@ export function LayersStateProvider({
       heatmapCounty: otherLayers.heatmapCounty,
     });
   }, [measure, palette, choroplethOn, heatmapResolution, otherLayers, onStateChange]);
+
+  // Sync map palette when the Settings theme palette changes
+  useEffect(() => {
+    if (isFirstSync.current) {
+      isFirstSync.current = false;
+      return;
+    }
+    const mapped = THEME_TO_MAP_PALETTE[customization.chart.palette];
+    if (mapped && mapped !== palette) {
+      setPalette(mapped);
+    }
+  }, [customization.chart.palette]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = useCallback(() => {
     setChoroplethOn(true);
