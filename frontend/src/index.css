@@ -729,8 +729,11 @@
   svg {
     shape-rendering: crispEdges;
     text-rendering: optimizeLegibility;
+  }
+  .chart-card-themed svg {
     width: 100% !important;
     height: auto !important;
+    max-height: 300px;
   }
 
   svg text,
@@ -755,26 +758,25 @@
     stroke-width: 0.5px !important;
   }
 
-  /* ── Layout: single column for print ── */
+  /* ── Layout: single column for charts, row for hero stats ── */
   .grid {
     grid-template-columns: 1fr !important;
+  }
+  [role="group"] .grid {
+    grid-template-columns: repeat(3, 1fr) !important;
   }
 
   /* ── Page Break Management ── */
 
-  /* Never break inside a chart card */
   .chart-card-themed,
   .group\/card {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    break-inside: auto !important;
     margin-bottom: 8px;
   }
 
-  /* Never break inside hero metric cards */
   .grid-cols-1 > div,
   section > .grid > div {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    break-inside: auto !important;
   }
 
   /* Allow breaks between major sections */
