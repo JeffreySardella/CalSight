@@ -7,6 +7,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 
 from app.database import engine, get_db
 from app.filters import FilterError
@@ -32,10 +34,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response as StarletteResponse
-
 
 class NullByteSanitizationMiddleware(BaseHTTPMiddleware):
     """Reject requests containing null bytes in the URL or query string.
