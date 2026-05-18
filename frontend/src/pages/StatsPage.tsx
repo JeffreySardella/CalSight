@@ -314,7 +314,7 @@ export default function StatsPage() {
   }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-5 sm:space-y-6 md:space-y-8 relative print-main">
+    <div className="max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main">
       <PrintHeader filters={printFilters} />
       <MetaTags
         title={`Statistics Dashboard — CalSight`}

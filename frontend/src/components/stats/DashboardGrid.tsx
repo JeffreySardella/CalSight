@@ -123,7 +123,7 @@ export default function DashboardGrid({
       </div>
 
       <div
-        className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 ${dragState.isDragging ? "drag-active" : ""}`}
+        className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-4 ${dragState.isDragging ? "drag-active" : ""}`}
         {...containerProps}
       >
         {charts.map((slot, idx) => {
