@@ -136,4 +136,47 @@ describe("AiInsightCard", () => {
     await expandCard();
     expect(screen.getByText("N/A")).toBeInTheDocument();
   });
+
+  it("View Stats link drills into the county and carries active filters", async () => {
+    render(
+      <MemoryRouter initialEntries={["/?severity=fatal&start=2020-01&alcohol=true"]}>
+        <AiInsightCard
+          onClose={vi.fn()}
+          countyName="Los Angeles"
+          data={POINT_A}
+          measureLabel="Per 100k"
+          compareMode={false}
+          onCompare={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    await expandCard();
+    const link = screen.getByRole("link", { name: /view stats/i });
+    const url = new URL(link.getAttribute("href")!, "http://localhost");
+    expect(url.pathname).toBe("/stats");
+    // drill_county (not the plain county filter) so Stats opens the drill
+    // breadcrumb — which surfaces the "Show on Map" round-trip link.
+    expect(url.searchParams.get("drill_county")).toBe("los-angeles");
+    expect(url.searchParams.get("county")).toBeNull();
+    // Active filters carry over.
+    expect(url.searchParams.get("severity")).toBe("fatal");
+    expect(url.searchParams.get("start")).toBe("2020-01");
+    expect(url.searchParams.get("alcohol")).toBe("true");
+  });
+
+  it("hides View Stats link in compare mode", () => {
+    render(
+      <MemoryRouter><AiInsightCard
+        onClose={vi.fn()}
+        countyName="Los Angeles"
+        data={POINT_A}
+        measureLabel="Per 100k"
+        compareMode={true}
+        onCompare={vi.fn()}
+        compareCountyName="Orange"
+        compareData={POINT_B}
+      /></MemoryRouter>,
+    );
+    expect(screen.queryByRole("link", { name: /view stats/i })).not.toBeInTheDocument();
+  });
 });

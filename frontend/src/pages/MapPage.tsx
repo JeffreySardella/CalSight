@@ -364,6 +364,25 @@ function MapPageInner() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep-link entry: arriving with a single ?county= filter (e.g. from the
+  // Stats page "Show on Map" link) should focus that county — zoom to it and
+  // open its insight card — not merely tick it in the filter panel.
+  // The guard arms on the first render the county GeoJSON is ready (so
+  // CountyBoundaries' fitBounds has a layer to use) and never re-fires, so
+  // later filter-panel changes don't trigger an unexpected focus/zoom.
+  const deepLinkCountyHandledRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkCountyHandledRef.current) return;
+    if (!countyGeoJson) return;
+    deepLinkCountyHandledRef.current = true;
+    if (focusedCounty) return;
+    if (selectedCounties.size !== 1) return;
+    const [name] = [...selectedCounties];
+    setFocusedCounty(name);
+    setInsightCounty(name);
+    setShowInsight(true);
+  }, [countyGeoJson, selectedCounties, focusedCounty]);
+
   function handleToggle(panel: string) {
     setActivePanel((prev) => (prev === panel ? null : panel));
   }
