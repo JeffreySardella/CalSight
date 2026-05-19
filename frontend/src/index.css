@@ -740,8 +740,14 @@
   .chart-card-themed {
     overflow: visible !important;
     max-height: none !important;
+    padding: 8px !important;
+    margin-bottom: 4px !important;
   }
   .chart-card-themed > div {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  .overflow-y-auto {
     overflow: visible !important;
     max-height: none !important;
   }
@@ -771,12 +777,12 @@
     stroke-width: 0.5px !important;
   }
 
-  /* ── Layout: single column for charts, row for hero stats ── */
+  /* ── Layout: single column for charts, row for small grids ── */
   .grid {
     grid-template-columns: 1fr !important;
   }
-  [role="group"] .grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+  .grid-cols-2, [role="group"] .grid {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   /* ── Page Break Management ── */
