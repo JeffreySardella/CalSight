@@ -517,7 +517,9 @@
   a:not(.print-keep),
   .no-scrollbar,
   .bottom-tab-bar,
-  #bottom-tab-bar {
+  #bottom-tab-bar,
+  [aria-live="polite"],
+  [role="status"] {
     display: none !important;
   }
 
@@ -733,7 +735,18 @@
   .chart-card-themed svg {
     width: 100% !important;
     height: auto !important;
-    max-height: 300px;
+    max-height: 280px;
+  }
+  .chart-card-themed {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  .chart-card-themed > div {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  section:empty, .space-y-4:empty, .space-y-3:empty {
+    display: none !important;
   }
 
   svg text,
@@ -1004,7 +1017,9 @@ body.print-mode section:empty,
 body.print-mode [aria-label="Anomaly detection"],
 body.print-mode [aria-label="Key findings"],
 body.print-mode [aria-label="Suggested charts"],
-body.print-mode [aria-label="Natural language query"] {
+body.print-mode [aria-label="Natural language query"],
+body.print-mode [aria-live="polite"],
+body.print-mode [role="status"] {
   display: none !important;
 }
 
