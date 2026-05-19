@@ -71,7 +71,7 @@ def test_parties_filter_by_age_range(client):
     response = client.get("/api/parties?age_min=20&age_max=30")
     body = response.json()
     for p in body["items"]:
-        assert p["age"] is None or 20 <= p["age"] <= 30
+        assert p["age_bracket"] is None or p["age_bracket"] in ("16-24", "25-34")
 
 
 def test_parties_filter_at_fault(client):
