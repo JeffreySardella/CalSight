@@ -305,11 +305,15 @@ export default function AiInsightCard({
                 {!compareMode && data && (() => {
                   const filterQs = buildFilterQS(searchParams);
                   const extra = new URLSearchParams(filterQs);
-                  extra.delete("county"); // county set explicitly below
+                  extra.delete("county"); // drill_county (below) carries the county
                   const tail = extra.toString();
+                  // Navigate via drill_county, not the county filter param, so
+                  // Stats opens drilled into this county — that surfaces the
+                  // breadcrumb's "Show on Map" link for the round trip back.
+                  const countySlug = countyName.toLowerCase().replace(/ /g, "-");
                   return (
                     <Link
-                      to={`/stats?county=${countyName.toLowerCase().replace(/ /g, "-")}${tail ? `&${tail}` : ""}`}
+                      to={`/stats?drill_county=${countySlug}${tail ? `&${tail}` : ""}`}
                       className="w-full bg-surface-container text-on-surface py-2 rounded-lg text-[11px] font-bold tracking-widest uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
                     >
                       <span className="material-symbols-outlined text-sm">bar_chart</span>
