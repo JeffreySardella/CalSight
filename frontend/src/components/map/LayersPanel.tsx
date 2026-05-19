@@ -262,7 +262,6 @@ export function LayersPanelFooter() {
   return (
     <button
       onClick={() => {
-        console.log("Layers reset to defaults");
         window.dispatchEvent(new CustomEvent("layers:reset-defaults"));
       }}
       className="w-full bg-surface-container-high text-on-surface-variant py-4 rounded-md text-[11px] font-bold tracking-[0.2em] uppercase hover:opacity-90 transition-all"

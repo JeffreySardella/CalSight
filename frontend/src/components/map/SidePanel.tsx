@@ -29,9 +29,10 @@ export default function SidePanel({
         </div>
         <button
           onClick={onClose}
+          aria-label="Close panel"
           className="p-2 hover:bg-surface-container rounded-full text-on-surface-variant flex items-center justify-center transition-colors"
         >
-          <span className="material-symbols-outlined text-sm">
+          <span className="material-symbols-outlined text-sm" aria-hidden="true">
             arrow_back_ios
           </span>
         </button>

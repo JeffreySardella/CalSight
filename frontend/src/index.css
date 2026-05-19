@@ -159,10 +159,54 @@
   body {
     @apply bg-surface text-on-surface font-body antialiased;
     @apply selection:bg-tertiary-container selection:text-on-tertiary-container;
+    font-size: var(--type-body-size, 0.8125rem);
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline;
+    font-size: var(--type-heading-size, 0.875rem);
+  }
+}
+
+/* ── Typography scale sizing classes ──
+ * These apply the CSS variable sizes set by typeScaleVars() in cssInjector.ts.
+ * Use .ts-heading / .ts-body / .ts-label for text that should respond to
+ * the user's text size preference. font-headline / font-body remain
+ * font-family-only utilities from Tailwind. */
+.ts-heading {
+  font-size: var(--type-heading-size, 0.875rem);
+}
+.ts-body {
+  font-size: var(--type-body-size, 0.8125rem);
+}
+.ts-label {
+  font-size: var(--type-label-size, 0.625rem);
+}
+
+/* Apply scale factor to text within the stats dashboard.
+ * Tailwind utilities like text-3xl use fixed rem values that ignore CSS
+ * variable font-size on ancestors. To make them scale, we override the root
+ * rem base (html font-size) proportionally. Instead, we target specific
+ * elements within .type-scaled containers using transform: scale() would
+ * break layout. The cleanest approach: override font-size on the key
+ * classes using calc() with the scale factor. */
+.type-scaled .hero-value {
+  font-size: calc(1.875rem * var(--type-scale-factor, 1));
+}
+@media (min-width: 640px) {
+  .type-scaled .hero-value {
+    font-size: calc(2.25rem * var(--type-scale-factor, 1));
+  }
+}
+.type-scaled .insight-text {
+  font-size: calc(0.875rem * var(--type-scale-factor, 1));
+}
+.type-scaled .narrative-text {
+  font-size: calc(0.6875rem * var(--type-scale-factor, 1));
+}
+@media (min-width: 640px) {
+  .type-scaled .narrative-text {
+    font-size: calc(0.75rem * var(--type-scale-factor, 1));
   }
 }
 
@@ -473,7 +517,9 @@
   a:not(.print-keep),
   .no-scrollbar,
   .bottom-tab-bar,
-  #bottom-tab-bar {
+  #bottom-tab-bar,
+  [aria-live="polite"],
+  [role="status"] {
     display: none !important;
   }
 
@@ -685,11 +731,28 @@
   svg {
     shape-rendering: crispEdges;
     text-rendering: optimizeLegibility;
-    /* Scale SVG viewBox content to fill available width for crispness */
+  }
+  .chart-card-themed svg {
     width: 100% !important;
     height: auto !important;
-    min-height: 140px;
-    max-height: 200px;
+    max-height: 280px;
+  }
+  .chart-card-themed {
+    overflow: visible !important;
+    max-height: none !important;
+    padding: 8px !important;
+    margin-bottom: 4px !important;
+  }
+  .chart-card-themed > div {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  section:empty, .space-y-4:empty, .space-y-3:empty {
+    display: none !important;
   }
 
   svg text,
@@ -714,21 +777,25 @@
     stroke-width: 0.5px !important;
   }
 
+  /* ── Layout: single column for charts, row for small grids ── */
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+  .grid-cols-2, [role="group"] .grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
   /* ── Page Break Management ── */
 
-  /* Never break inside a chart card */
   .chart-card-themed,
   .group\/card {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    break-inside: auto !important;
     margin-bottom: 8px;
   }
 
-  /* Never break inside hero metric cards */
   .grid-cols-1 > div,
   section > .grid > div {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    break-inside: auto !important;
   }
 
   /* Allow breaks between major sections */
@@ -952,6 +1019,15 @@ body.print-mode .chart-config-panel,
 body.print-mode .add-chart-card {
   display: none !important;
 }
+body.print-mode section:empty,
+body.print-mode [aria-label="Anomaly detection"],
+body.print-mode [aria-label="Key findings"],
+body.print-mode [aria-label="Suggested charts"],
+body.print-mode [aria-label="Natural language query"],
+body.print-mode [aria-live="polite"],
+body.print-mode [role="status"] {
+  display: none !important;
+}
 
 /* Force light mode */
 body.print-mode {
@@ -995,6 +1071,9 @@ body.print-mode .group\/card {
   page-break-inside: avoid;
   break-inside: avoid;
   margin-bottom: 8px;
+}
+body.print-mode .grid {
+  grid-template-columns: 1fr !important;
 }
 
 body.print-mode section {

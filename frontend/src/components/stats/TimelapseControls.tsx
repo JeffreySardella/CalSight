@@ -13,7 +13,7 @@ interface Props {
   onSetSpeed: (speed: TimelapseSpeed) => void;
 }
 
-const SPEEDS: TimelapseSpeed[] = [0.5, 1, 2, 4];
+const SPEEDS: TimelapseSpeed[] = [0.25, 0.5, 0.75, 1];
 
 export default function TimelapseControls({
   currentYear,

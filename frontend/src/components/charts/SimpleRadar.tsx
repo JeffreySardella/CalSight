@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useId } from "react";
+﻿import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface RadarItem {
   label: string;
@@ -24,6 +25,7 @@ export default function SimpleRadar({
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const titleId = useId();
+  const ts = useTextScale();
 
   const handleMouseMove = useCallback((e: React.MouseEvent, idx: number) => {
     setHover({ idx, x: e.clientX, y: e.clientY });
@@ -70,7 +72,7 @@ export default function SimpleRadar({
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
-      <svg ref={svgRef} width={height} height={height} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+      <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: rings }).map((_, ring) => {
@@ -120,7 +122,7 @@ export default function SimpleRadar({
               y={ly}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={9}
+              fontSize={9 * ts}
               fontWeight={600}
               fill="rgb(var(--on-surface-variant))"
               fontFamily="'Inter Variable', Inter, sans-serif"

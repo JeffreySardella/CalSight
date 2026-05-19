@@ -90,6 +90,16 @@ export default function StatsPage() {
   const dashboard = useDashboardConfig();
   const crossFilterOverrides = useMemo(() => crossFilter.toFilterOverrides(), [crossFilter.toFilterOverrides]);
   const { dataBySlot, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboardData(dashboard.activeCharts, statsFilters, crossFilterOverrides);
+
+  // Prefetch next year's data during timelapse so transitions feel instant
+  const prefetchFilters = useMemo(() => {
+    if (!timelapseActive) return statsFilters;
+    const nextYear = throttledTlYear + 1;
+    if (nextYear > tlMaxYear) return statsFilters;
+    return { ...statsFilters, dateRange: { start: { year: nextYear, month: 1 }, end: { year: nextYear, month: 12 } } };
+  }, [timelapseActive, throttledTlYear, tlMaxYear, statsFilters]);
+  useStats(prefetchFilters);
+  useDashboardData(timelapseActive ? dashboard.activeCharts : [], prefetchFilters, crossFilterOverrides);
   const anomalyResult = useMemo(() => {
     if (dashLoading || Object.keys(dataBySlot).length === 0) return { byChart: {}, all: [] };
     return detectAllAnomalies(dataBySlot, dashboard.activeCharts);
@@ -316,7 +326,21 @@ export default function StatsPage() {
   }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main">
+    <>
+    {printPreview && (
+      <div className="fixed top-0 left-0 right-0 z-[100] bg-primary text-on-primary flex items-center justify-between px-4 py-2 print:hidden">
+        <span className="text-sm font-bold">Print Preview</span>
+        <div className="flex items-center gap-3">
+          <button onClick={handlePrint} className="print-keep px-3 py-1.5 bg-on-primary text-primary rounded-lg text-sm font-bold hover:opacity-90">
+            Print / Save PDF
+          </button>
+          <button onClick={() => setPrintPreview(false)} className="print-keep px-3 py-1.5 rounded-lg text-sm font-bold border border-on-primary/30 hover:bg-on-primary/10">
+            Exit Preview
+          </button>
+        </div>
+      </div>
+    )}
+    <div className={`max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main type-scaled${printPreview ? " mt-12" : ""}`}>
       <PrintHeader filters={printFilters} />
       <MetaTags
         title={`Statistics Dashboard — CalSight`}
@@ -414,7 +438,7 @@ export default function StatsPage() {
             {loading ? (
               <Skeleton className="h-10 w-40" />
             ) : (
-              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`Total incidents: ${totalIncidents != null ? totalIncidents.toLocaleString() : "unavailable"}`}>
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`Total incidents: ${totalIncidents != null ? totalIncidents.toLocaleString() : "unavailable"}`}>
                 {totalIncidents != null ? totalIncidents.toLocaleString() : "—"}
               </p>
             )}
@@ -445,7 +469,7 @@ export default function StatsPage() {
           {loading ? (
             <Skeleton className="h-10 w-24" />
           ) : (
-            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`KSI rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
+            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`KSI rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
               {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
             </p>
           )}
@@ -468,7 +492,7 @@ export default function StatsPage() {
             {loading ? (
               <Skeleton className="h-10 w-32" />
             ) : (
-              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight" aria-label={`Year over year fatality change: ${yoyFatalityChangePct != null ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%` : "unavailable"}`}>
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`Year over year fatality change: ${yoyFatalityChangePct != null ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%` : "unavailable"}`}>
                 {yoyFatalityChangePct != null
                   ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%`
                   : "—"}
@@ -517,15 +541,15 @@ export default function StatsPage() {
         </section>
       )}
 
-      {!dashLoading && anomalyResult.all.length > 0 && (
+      {!dashLoading && anomalyResult.all.length > 0 && !printPreview && (
         <AnomalyPanel anomalies={anomalyResult.all} defaultCollapsed />
       )}
 
-      {narrative && (
+      {narrative && !printPreview && (
         <NarrativePanel narrative={narrative} tone={tone} onToneChange={setTone} defaultCollapsed />
       )}
 
-      {!dashLoading && suggestions.length > 0 && (
+      {!dashLoading && suggestions.length > 0 && !printPreview && (
         <SuggestedCharts
           suggestions={suggestions}
           onAdd={(cfg) => {
@@ -539,7 +563,7 @@ export default function StatsPage() {
       {/* Dashboard Builder */}
       <section className="space-y-4" aria-label="Dashboard charts">
         <h2 className="sr-only">Dashboard Charts</h2>
-        <div className="flex items-center justify-between gap-2 flex-wrap md:flex-nowrap">
+        <div className="flex items-center justify-between gap-2 flex-wrap md:flex-nowrap" data-print-hide>
           <DashboardModeToggle
             mode={storiesMode ? "stories" : dashboard.config.mode}
             onChange={(m) => {
@@ -584,16 +608,6 @@ export default function StatsPage() {
             </button>
             <button
               type="button"
-              onClick={handlePrint}
-              className="hidden sm:inline-flex print-keep items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
-              data-print-hide
-              aria-label="Print dashboard"
-            >
-              <span className="material-symbols-outlined text-[16px]">print</span>
-              Print
-            </button>
-            <button
-              type="button"
               onClick={() => setPrintPreview((v) => !v)}
               className="hidden sm:inline-flex print-keep items-center gap-1 text-on-surface-variant text-[11px] font-medium uppercase tracking-wider hover:text-on-surface transition-colors"
               data-print-hide
@@ -614,7 +628,7 @@ export default function StatsPage() {
               onBack={() => setActiveStoryId(null)}
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {DATA_STORIES.map((story) => (
                 <button
                   key={story.id}
@@ -653,10 +667,10 @@ export default function StatsPage() {
                 onSetSpeed={timelapse.setSpeed}
               />
             )}
-            <NlqQueryBar onAddChart={(cfg) => {
+            {!printPreview && <NlqQueryBar onAddChart={(cfg) => {
               if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
               dashboard.addChart(cfg);
-            }} />
+            }} />}
             {dashboard.config.mode === "simple" && (
               <PresetPicker active={dashboard.config.preset} onSelect={handlePresetSelect} />
             )}
@@ -809,5 +823,6 @@ export default function StatsPage() {
         ]}
       />
     </div>
+    </>
   );
 }

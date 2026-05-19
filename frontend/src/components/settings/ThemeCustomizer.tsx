@@ -14,6 +14,7 @@ import type {
   PresetThemeKey,
   ChartPaletteKey,
   CardStyle,
+  TypeScale,
 } from "../../lib/theme/types";
 
 function hexToRgb(hex: string): string {
@@ -29,6 +30,12 @@ const CARD_STYLES: { value: CardStyle; label: string; icon: string }[] = [
   { value: "minimal", label: "Minimal", icon: "crop_square" },
   { value: "bordered", label: "Bordered", icon: "border_all" },
   { value: "glass", label: "Glass", icon: "blur_on" },
+];
+
+const TYPE_SCALES: { value: TypeScale; label: string }[] = [
+  { value: "small", label: "Small" },
+  { value: "default", label: "Default" },
+  { value: "large", label: "Large" },
 ];
 
 const PALETTE_KEYS: ChartPaletteKey[] = [
@@ -108,6 +115,7 @@ export default function ThemeCustomizer() {
     setColors,
     setChartPalette,
     setCardStyle,
+    setTypeScale,
     exportCurrentTheme,
     importThemeFile,
     reset,
@@ -221,6 +229,28 @@ export default function ThemeCustomizer() {
             >
               <span className="material-symbols-outlined text-[18px]">{style.icon}</span>
               <span className="text-[9px] font-medium">{style.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="border-t border-outline-variant/20" />
+
+      {/* Text size */}
+      <section>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-2">
+          Text Size
+        </span>
+        <div className="flex gap-1">
+          {TYPE_SCALES.map((ts) => (
+            <button
+              key={ts.value}
+              onClick={() => setTypeScale(ts.value)}
+              className={`flex-1 flex items-center justify-center py-2 rounded-lg transition-colors text-[10px] font-bold ${
+                customization.typeScale === ts.value ? CHIP_ACTIVE : CHIP_INACTIVE
+              }`}
+            >
+              {ts.label}
             </button>
           ))}
         </div>

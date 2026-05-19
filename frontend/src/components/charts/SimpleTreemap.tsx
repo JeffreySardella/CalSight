@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback, useId } from "react";
+﻿import { useState, useRef, useEffect, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { useTextScale } from "../../hooks/useTextScale";
 
 interface TreemapItem {
   label: string;
@@ -90,6 +91,7 @@ export default function SimpleTreemap({
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const [svgWidth, setSvgWidth] = useState(300);
   const titleId = useId();
+  const ts = useTextScale();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -152,7 +154,7 @@ export default function SimpleTreemap({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height: effectiveH }}>
-      <svg ref={svgRef} width="100%" height={effectiveH} className="block touch-none" role="img" aria-labelledby={title ? titleId : undefined}
+      <svg ref={svgRef} width="100%" height={effectiveH} className="block" role="img" aria-labelledby={title ? titleId : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {rects.map((r) => {
@@ -162,7 +164,7 @@ export default function SimpleTreemap({
           const cellH = Math.max(r.h - 2, 0);
           const fitsLabel = cellW > 28 && cellH > 16;
           const fitsPct = cellW > 28 && cellH > 30;
-          const fs = Math.min(11, Math.max(7, Math.floor(Math.min(cellW, cellH) / 4)));
+          const fs = Math.min(11, Math.max(7, Math.floor(Math.min(cellW, cellH) / 4))) * ts;
           const maxChars = Math.max(2, Math.floor(cellW / (fs * 0.6)));
           const tc = textOnColor(color);
           return (

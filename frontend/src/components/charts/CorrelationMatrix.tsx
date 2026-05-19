@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useId } from "react";
+﻿import { useState, useRef, useEffect, useId } from "react";
 import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useIsDark } from "../../context/ThemeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { correlationColor, correlationDotColor, type CorrelationTokens } from "../../lib/theme/tokens";
+import { useTextScale } from "../../hooks/useTextScale";
 
 export interface CorrelationActiveFilters {
   severity?: string[];
@@ -55,6 +56,7 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
   const svgRef = useRef<SVGSVGElement>(null);
   const [svgW, setSvgW] = useState(500);
   const [hover, setHover] = useState<number | null>(null);
+  const ts = useTextScale();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -83,7 +85,7 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
 
   return (
     <div className="w-full overflow-visible relative mt-3" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block touch-none" role="img" aria-label={`Scatter plot: ${xField.label} vs ${yField.label}, r = ${r.toFixed(2)}`}
+      <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-label={`Scatter plot: ${xField.label} vs ${yField.label}, r = ${r.toFixed(2)}`}
         onTouchMove={(e) => {
           const svg = svgRef.current;
           if (!svg || !points.length) return;
@@ -106,14 +108,14 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
           return (
             <g key={`y-${i}`}>
               <line x1={pad.left} x2={pad.left + cw} y1={py} y2={py} stroke="rgb(var(--outline-variant))" strokeOpacity={0.15} />
-              <text x={pad.left - 6} y={py + 3} textAnchor="end" fontSize={9} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{fmt((maxY / 4) * i)}</text>
+              <text x={pad.left - 6} y={py + 3} textAnchor="end" fontSize={9 * ts} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{fmt((maxY / 4) * i)}</text>
             </g>
           );
         })}
         {[0, 1, 2, 3, 4].map((i) => {
           const v = (maxX / 4) * i;
           const px = pad.left + (v / maxX) * cw;
-          return <text key={`x-${i}`} x={px} y={height - pad.bottom + 16} textAnchor="middle" fontSize={9} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{fmt(v)}</text>;
+          return <text key={`x-${i}`} x={px} y={height - pad.bottom + 16} textAnchor="middle" fontSize={9 * ts} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{fmt(v)}</text>;
         })}
 
         {points.length >= 3 && (() => {
@@ -145,15 +147,15 @@ function DetailScatter({ counties, xField, yField, r, correlationTokens }: {
               <circle cx={px} cy={py} r={6} fill={correlationDotColor(r, correlationTokens)} fillOpacity={0.95}
                 stroke="rgb(var(--on-surface))" strokeWidth={1.5}
                 onMouseLeave={() => setHover(null)} className="cursor-pointer" />
-              <text x={nearRight ? px - 8 : px + 8} y={nearTop ? py + 14 : py - 6} textAnchor={nearRight ? "end" : "start"} fontSize={10} fontWeight={700} fill="rgb(var(--on-surface))" stroke="rgb(var(--surface))" strokeWidth={3} paintOrder="stroke" fontFamily="'Inter Variable', Inter, sans-serif">
+              <text x={nearRight ? px - 8 : px + 8} y={nearTop ? py + 14 : py - 6} textAnchor={nearRight ? "end" : "start"} fontSize={10 * ts} fontWeight={700} fill="rgb(var(--on-surface))" stroke="rgb(var(--surface))" strokeWidth={3} paintOrder="stroke" fontFamily="'Inter Variable', Inter, sans-serif">
                 {p.name}
               </text>
             </g>
           );
         })()}
 
-        <text x={svgW / 2} y={height - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{xField.label}</text>
-        <text x={14} y={height / 2} textAnchor="middle" fontSize={9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-90, 14, ${height / 2})`}>{yField.label}</text>
+        <text x={svgW / 2} y={height - 4} textAnchor="middle" fontSize={9 * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">{xField.label}</text>
+        <text x={14} y={height / 2} textAnchor="middle" fontSize={9 * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-90, 14, ${height / 2})`}>{yField.label}</text>
       </svg>
     </div>
   );
@@ -180,6 +182,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
   const isDark = useIsDark();
   const tokens = useDesignTokens();
   const titleId = useId();
+  const ts = useTextScale();
   const [hoverCell, setHoverCell] = useState<{ i: number; j: number } | null>(null);
   const [selected, setSelected] = useState<{ i: number; j: number } | null>(null);
   const [windowWidth, setWindowWidth] = useState(() =>
@@ -238,7 +241,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
                     }}
                     className="cursor-pointer" />
                   {cellSize >= 28 && (
-                    <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={cellSize >= 36 ? 9 : 7} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
+                    <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={(cellSize >= 36 ? 9 : 7) * ts} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
                       {isNaN(r) ? "—" : r.toFixed(2)}
                     </text>
                   )}
@@ -248,14 +251,14 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
           )}
           {/* row labels — pointer-events:none so they don't block cell clicks */}
           {fields.map((f, i) => (
-            <text key={`row-${i}`} x={labelW - 4} y={headerH + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={isMobile ? 7 : 8} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>{f.label}</text>
+            <text key={`row-${i}`} x={labelW - 4} y={headerH + labelW + i * cellSize + cellSize / 2 + 3} textAnchor="end" fontSize={(isMobile ? 7 : 8) * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>{f.label}</text>
           ))}
           {/* column labels — pointer-events:none so they don't block cell clicks */}
           {fields.map((f, j) => {
             const tx = labelW + j * cellSize + cellSize / 2;
             const ty = headerH + labelW - 6;
             return (
-              <text key={`col-${j}`} x={tx} y={ty} textAnchor="start" fontSize={isMobile ? 7 : 9} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-55, ${tx}, ${ty})`} style={{ pointerEvents: "none" }}>{f.label}</text>
+              <text key={`col-${j}`} x={tx} y={ty} textAnchor="start" fontSize={(isMobile ? 7 : 9) * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" transform={`rotate(-55, ${tx}, ${ty})`} style={{ pointerEvents: "none" }}>{f.label}</text>
             );
           })}
         </svg>

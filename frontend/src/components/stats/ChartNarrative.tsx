@@ -34,7 +34,7 @@ export default function ChartNarrative({ narrative }: Props) {
           auto_awesome
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-on-surface-variant leading-relaxed">
+          <p className="text-[11px] text-on-surface-variant leading-relaxed narrative-text">
             {preview}
             {hasMore && !expanded && "..."}
           </p>
