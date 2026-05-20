@@ -90,8 +90,10 @@ export default function SimpleScatter({
     yVal: d.y ?? 0,
   }));
 
-  const maxX = Math.max(...points.map((p) => p.xVal), 1);
-  const maxY = Math.max(...points.map((p) => p.yVal), 1);
+  const rawMaxX = Math.max(...points.map((p) => p.xVal), 1);
+  const maxX = Number.isFinite(rawMaxX) ? rawMaxX : 1;
+  const rawMaxY = Math.max(...points.map((p) => p.yVal), 1);
+  const maxY = Number.isFinite(rawMaxY) ? rawMaxY : 1;
 
   const padding = { top: 16, right: 16, bottom: 36, left: 56 };
   const chartW = svgWidth - padding.left - padding.right;

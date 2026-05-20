@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
-import type { ChartSlot, Dimension, Measure } from "../lib/dashboard/types";
+import { slotKey, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
 import type { StatsFilters } from "./useStats";
 import { formatYearMonth } from "./useFilterParams";
 import { movingAverage } from "../lib/dashboard/stats";
@@ -204,13 +204,7 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, cro
     const raw = query.data ?? {};
     const result: Record<string, ChartDataItem[]> = {};
     for (const chart of charts) {
-      const opts = chart.options ?? {};
-      const optStr = [
-        opts.cumulative && "cum",
-        opts.movingAvg && `ma${opts.movingAvg}`,
-        opts.logScale && "log",
-      ].filter(Boolean).join(",");
-      const key = `${chart.dimension}:${chart.measure}${optStr ? `:${optStr}` : ""}`;
+      const key = slotKey(chart);
       if (!result[key]) {
         let items = transformRows(chart.dimension, chart.measure, raw[chart.dimension] ?? []);
         if (chart.measure === "percentage") {

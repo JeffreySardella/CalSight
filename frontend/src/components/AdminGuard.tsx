@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import { API_BASE } from "../config";
 
 const STORAGE_KEY = "calsight-admin-authenticated";
@@ -9,7 +10,7 @@ const STORAGE_KEY = "calsight-admin-authenticated";
  */
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(() => {
-    return localStorage.getItem(STORAGE_KEY) === "true";
+    return safeGetItem(STORAGE_KEY) === "true";
   });
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,11 +29,13 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     setLoading(true);
 
     try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/verify?key=${encodeURIComponent(password)}`
-      );
+      const res = await fetch(`${API_BASE}/api/admin/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: password }),
+      });
       if (res.ok) {
-        localStorage.setItem(STORAGE_KEY, "true");
+        safeSetItem(STORAGE_KEY, "true");
         setAuthenticated(true);
       } else {
         const data = await res.json().catch(() => null);

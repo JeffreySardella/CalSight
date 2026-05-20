@@ -139,6 +139,17 @@ describe("buildPresetCharts fallback behavior", () => {
   });
 });
 
+describe("preset filterOverrides", () => {
+  it("DUI preset has alcohol filterOverrides", () => {
+    expect(PRESETS.dui.filterOverrides).toBeDefined();
+    expect(PRESETS.dui.filterOverrides?.alcohol).toBe(true);
+  });
+
+  it("presets without filterOverrides have undefined filterOverrides", () => {
+    expect(PRESETS.overview.filterOverrides).toBeUndefined();
+  });
+});
+
 describe("preset slot properties", () => {
   it("all slots have sequential order values starting at 0", () => {
     for (const key of PRESET_KEYS) {

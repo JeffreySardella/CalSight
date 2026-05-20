@@ -78,7 +78,8 @@ export default function SimpleBarChart({
   }, [data.length]);
 
   if (!data.length) return null;
-  const maxVal = Math.max(...data.map((d) => d.value), 1);
+  const rawMax = Math.max(...data.map((d) => d.value), 1);
+  const maxVal = Number.isFinite(rawMax) ? rawMax : 1;
 
   if (layout === "horizontal") {
     const barH = 18;

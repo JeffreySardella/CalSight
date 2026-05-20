@@ -17,7 +17,7 @@ _limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/demographics", response_model=list[DemographicOut])
-@_limiter.limit("30/minute")
+@_limiter.limit("1000/minute;20000/hour")
 def list_demographics(
     request: Request,
     response: Response,

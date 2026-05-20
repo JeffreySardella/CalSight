@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 
 export interface FavoriteLocation {
   name: string;
@@ -17,7 +18,7 @@ function emit() {
 
 function readFavorites(): FavoriteLocation[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeGetItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -25,7 +26,7 @@ function readFavorites(): FavoriteLocation[] {
 }
 
 function writeFavorites(favs: FavoriteLocation[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(favs.slice(0, MAX_FAVORITES)));
+  safeSetItem(STORAGE_KEY, JSON.stringify(favs.slice(0, MAX_FAVORITES)));
   emit();
 }
 

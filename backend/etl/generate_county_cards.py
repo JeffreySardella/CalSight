@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 MONTH_NAMES = {1: "January", 2: "February", 3: "March", 4: "April",
                5: "May", 6: "June", 7: "July", 8: "August",
                9: "September", 10: "October", 11: "November", 12: "December"}
-DOW_NAMES = {0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
-             4: "Thursday", 5: "Friday", 6: "Saturday"}
+DOW_NAMES = {0: "Monday", 1: "Tuesday", 2: "Wednesday", 3: "Thursday",
+             4: "Friday", 5: "Saturday", 6: "Sunday"}
 
 
 def _fmt(n: int | float) -> str:
@@ -655,8 +655,8 @@ def compose_weekend_weekday(name: str, d: dict) -> str:
     if not d["dow"]:
         return f"{name} County recorded {_fmt(d['tc'])} crashes in {d['year']}."
     by_dow = {dw: c for dw, c in d["dow"]}
-    weekend = sum(by_dow.get(dw, 0) for dw in [0, 6])  # Sun=0, Sat=6
-    weekday = sum(by_dow.get(dw, 0) for dw in [1, 2, 3, 4, 5])
+    weekend = sum(by_dow.get(dw, 0) for dw in [5, 6])  # Sat=5, Sun=6 (ISODOW-1)
+    weekday = sum(by_dow.get(dw, 0) for dw in [0, 1, 2, 3, 4])
     if weekday == 0:
         return f"{name} County recorded {_fmt(d['tc'])} crashes in {d['year']}."
     avg_weekend = weekend / 2

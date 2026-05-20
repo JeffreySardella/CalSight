@@ -64,7 +64,8 @@ export default function SimpleLollipop({
   }, [data.length]);
 
   if (!data.length) return null;
-  const maxVal = Math.max(...data.map((d) => d.value), 1);
+  const rawMax = Math.max(...data.map((d) => d.value), 1);
+  const maxVal = Number.isFinite(rawMax) ? rawMax : 1;
   const labelW = 84;
   const valueW = 48;
   const barArea = Math.max(svgWidth - labelW - valueW, 0);

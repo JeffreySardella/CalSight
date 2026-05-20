@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { safeGetItem, safeSetItem } from "../../lib/safeStorage";
 import { Link, useSearchParams } from "react-router-dom";
 import type { ChoroplethPoint } from "../../hooks/useChoroplethData";
 import { buildFilterQS } from "../../hooks/useFilterParams";
@@ -180,9 +181,9 @@ export default function AiInsightCard({
   const isStatewide = !data && !loading;
   const [expanded, setExpanded] = useState(() => {
     if (isStatewide) {
-      const seen = localStorage.getItem("calsight-insight-seen");
+      const seen = safeGetItem("calsight-insight-seen");
       if (!seen) {
-        localStorage.setItem("calsight-insight-seen", "1");
+        safeSetItem("calsight-insight-seen", "1");
         return true;
       }
       return window.matchMedia("(min-width: 768px)").matches;

@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import FocusTrap from "focus-trap-react";
+import { safeGetItem, safeSetItem } from "../../lib/safeStorage";
 import logo from "../../assets/logo.webp";
 
 const STORAGE_KEY = "calsight-intro-seen";
@@ -44,7 +46,7 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
   const rowCount = useCountUp(253, 1000, 900);
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY)) return;
+    if (safeGetItem(STORAGE_KEY)) return;
     setVisible(true);
     requestAnimationFrame(() => setTimeout(() => setEntered(true), 50));
   }, []);
@@ -52,8 +54,8 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
   if (!visible) return null;
 
   const handleStart = (mode: "simple" | "advanced") => {
-    localStorage.setItem(STORAGE_KEY, "1");
-    localStorage.setItem("calsight-filter-mode", mode);
+    safeSetItem(STORAGE_KEY, "1");
+    safeSetItem("calsight-filter-mode", mode);
     setExiting(true);
     setTimeout(() => {
       setVisible(false);
@@ -65,7 +67,8 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
     <div className={`fixed inset-0 z-[300] overflow-y-auto transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
       <div className="fixed inset-0 bg-surface" />
 
-      <div className="relative z-10 min-h-full flex flex-col items-center justify-center py-12 px-4">
+      <FocusTrap>
+      <div role="dialog" aria-modal="true" aria-label="Welcome to CalSight" className="relative z-10 min-h-full flex flex-col items-center justify-center py-12 px-4">
         <div className="w-full max-w-xl">
 
           {/* Header */}
@@ -146,6 +149,7 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
 
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

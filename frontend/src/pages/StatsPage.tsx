@@ -88,8 +88,20 @@ export default function StatsPage() {
   const singleCountyActive = !!drillState.county || filters.selectedCounties.size === 1;
   const { data, loading, error, refetch: statsRefetch } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
+  const effectiveFilters = useMemo(() => {
+    const overrides = dashboard.presetFilterOverrides;
+    if (!overrides) return statsFilters;
+    return {
+      ...statsFilters,
+      alcohol: overrides.alcohol ?? statsFilters.alcohol,
+      pedestrian: overrides.pedestrian ?? statsFilters.pedestrian,
+      cyclist: overrides.cyclist ?? statsFilters.cyclist,
+      drug: overrides.drug ?? statsFilters.drug,
+      distracted: overrides.distracted ?? statsFilters.distracted,
+    };
+  }, [statsFilters, dashboard.presetFilterOverrides]);
   const crossFilterOverrides = useMemo(() => crossFilter.toFilterOverrides(), [crossFilter.toFilterOverrides]);
-  const { dataBySlot, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboardData(dashboard.activeCharts, statsFilters, crossFilterOverrides);
+  const { dataBySlot, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboardData(dashboard.activeCharts, effectiveFilters, crossFilterOverrides);
 
   // Prefetch next year's data during timelapse so transitions feel instant
   const prefetchFilters = useMemo(() => {
@@ -99,7 +111,19 @@ export default function StatsPage() {
     return { ...statsFilters, dateRange: { start: { year: nextYear, month: 1 }, end: { year: nextYear, month: 12 } } };
   }, [timelapseActive, throttledTlYear, tlMaxYear, statsFilters]);
   useStats(prefetchFilters);
-  useDashboardData(timelapseActive ? dashboard.activeCharts : [], prefetchFilters, crossFilterOverrides);
+  const effectivePrefetchFilters = useMemo(() => {
+    const overrides = dashboard.presetFilterOverrides;
+    if (!overrides) return prefetchFilters;
+    return {
+      ...prefetchFilters,
+      alcohol: overrides.alcohol ?? prefetchFilters.alcohol,
+      pedestrian: overrides.pedestrian ?? prefetchFilters.pedestrian,
+      cyclist: overrides.cyclist ?? prefetchFilters.cyclist,
+      drug: overrides.drug ?? prefetchFilters.drug,
+      distracted: overrides.distracted ?? prefetchFilters.distracted,
+    };
+  }, [prefetchFilters, dashboard.presetFilterOverrides]);
+  useDashboardData(timelapseActive ? dashboard.activeCharts : [], effectivePrefetchFilters, crossFilterOverrides);
   const anomalyResult = useMemo(() => {
     if (dashLoading || Object.keys(dataBySlot).length === 0) return { byChart: {}, all: [] };
     return detectAllAnomalies(dataBySlot, dashboard.activeCharts);
@@ -324,6 +348,8 @@ export default function StatsPage() {
       ...(filters.selectedDrug ? ["Drug"] : []),
     ],
   }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
+
+  const activeStory = activeStoryId ? getStoryById(activeStoryId) : null;
 
   return (
     <>
@@ -622,9 +648,9 @@ export default function StatsPage() {
           </div>
         </div>
         {storiesMode ? (
-          activeStoryId ? (
+          activeStory ? (
             <StoryReader
-              story={getStoryById(activeStoryId)!}
+              story={activeStory}
               onBack={() => setActiveStoryId(null)}
             />
           ) : (

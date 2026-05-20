@@ -5,6 +5,13 @@ type PresetDef = {
   icon: string;
   description: string;
   slots: Omit<ChartSlot, "id">[];
+  filterOverrides?: {
+    alcohol?: boolean;
+    pedestrian?: boolean;
+    cyclist?: boolean;
+    drug?: boolean;
+    distracted?: boolean;
+  };
 };
 
 export const PRESETS: Record<PresetKey, PresetDef> = {
@@ -55,10 +62,11 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     label: "DUI Deep Dive",
     icon: "local_bar",
     description: "Alcohol-related crash patterns and demographics",
+    filterOverrides: { alcohol: true },
     slots: [
       { dimension: "hour", measure: "count", chartType: "bar", order: 0 },
       { dimension: "severity", measure: "count", chartType: "donut", order: 1 },
-      { dimension: "at_fault_age_bracket", measure: "count", chartType: "radar", order: 2 },
+      { dimension: "county", measure: "count", chartType: "hbar", order: 2 },
       { dimension: "day_of_week", measure: "count", chartType: "bar", order: 3 },
     ],
   },

@@ -34,8 +34,18 @@ export function shouldDehydrateQuery(query: Query): boolean {
   return PERSIST_WHITELIST.has(root);
 }
 
+function getStorage(): Storage | undefined {
+  try {
+    if (typeof window === "undefined") return undefined;
+    window.localStorage.getItem("__test__");
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
 export const persister = createSyncStoragePersister({
-  storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  storage: getStorage(),
   key: "calsight-query-cache",
   throttleTime: 1000,
 });

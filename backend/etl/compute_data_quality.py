@@ -168,7 +168,6 @@ def _run_grouped_queries(db, group_cols, group_by, key_fn):
 def compute_stats(db):
     """Rebuild the whole data_quality_stats table from scratch."""
     db.execute(text("DELETE FROM data_quality_stats"))
-    db.commit()
     logger.info("Cleared data_quality_stats table")
 
     # --- Per county per year ---
@@ -181,7 +180,6 @@ def compute_stats(db):
     )
     for (county, yr), row in results:
         db.add(DataQualityStat(county_code=county, year=yr, **row))
-    db.commit()
     logger.info("Inserted %d per-county per-year rows", len(results))
 
     # --- Per year only ---
@@ -194,7 +192,6 @@ def compute_stats(db):
     )
     for yr, row in results:
         db.add(DataQualityStat(county_code=None, year=yr, **row))
-    db.commit()
     logger.info("Inserted %d per-year rows", len(results))
 
     # --- Per county only ---
@@ -207,8 +204,8 @@ def compute_stats(db):
     )
     for county, row in results:
         db.add(DataQualityStat(county_code=county, year=None, **row))
-    db.commit()
     logger.info("Inserted %d per-county rows", len(results))
+    db.commit()  # single commit — atomic delete + repopulate
 
 
 @track_etl_run("data_quality")

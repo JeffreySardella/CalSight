@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import type { DashboardConfig, ChartSlot, Dimension, Measure, ChartType, ChartOptions, PresetKey } from "../lib/dashboard/types";
 import { DIMENSIONS, MEASURES } from "../lib/dashboard/types";
 import { generateId } from "../lib/dashboard/types";
-import { buildPresetCharts, PRESET_KEYS } from "../lib/dashboard/presets";
+import { buildPresetCharts, PRESET_KEYS, PRESETS } from "../lib/dashboard/presets";
 import { decodeDashboard } from "../lib/dashboard/urlCodec";
 
 const STORAGE_KEY = "calsight-dashboard-v1";
@@ -36,13 +37,13 @@ function loadInitialConfig(): DashboardConfig {
     if (decoded && isValidConfig(decoded)) return decoded;
   }
 
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+  const stored = safeGetItem(STORAGE_KEY);
+  if (stored) {
+    try {
       const parsed = JSON.parse(stored);
       if (isValidConfig(parsed)) return parsed;
-    }
-  } catch { /* corrupted localStorage */ }
+    } catch { /* corrupted value */ }
+  }
 
   return { mode: "simple", preset: "overview", charts: [] };
 }
@@ -56,7 +57,7 @@ export function useDashboardConfig() {
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     const id = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      safeSetItem(STORAGE_KEY, JSON.stringify(config));
     }, 400);
     return () => clearTimeout(id);
   }, [config]);
@@ -129,6 +130,11 @@ export function useDashboardConfig() {
     return [...config.charts].sort((a, b) => a.order - b.order);
   }, [config.mode, config.preset, config.charts]);
 
+  const presetFilterOverrides = useMemo(() => {
+    if (config.mode !== "simple") return undefined;
+    return PRESETS[config.preset]?.filterOverrides;
+  }, [config.mode, config.preset]);
+
   const clearCharts = useCallback(() => {
     setConfig((prev) => ({ ...prev, charts: [] }));
   }, []);
@@ -137,6 +143,7 @@ export function useDashboardConfig() {
     config,
     setConfig,
     activeCharts,
+    presetFilterOverrides,
     setMode,
     setPreset,
     addChart,

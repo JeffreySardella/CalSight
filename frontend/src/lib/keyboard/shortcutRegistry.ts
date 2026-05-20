@@ -161,17 +161,20 @@ const REMAP_STORAGE_KEY = "calsight-keyboard-remaps";
 
 export type RemapStore = Record<string, string>; // shortcut.id -> new combo
 
+import { safeGetItem, safeSetItem } from "../safeStorage";
+
 export function loadRemaps(): RemapStore {
+  const raw = safeGetItem(REMAP_STORAGE_KEY);
+  if (!raw) return {};
   try {
-    const raw = localStorage.getItem(REMAP_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    return JSON.parse(raw);
   } catch {
     return {};
   }
 }
 
 export function saveRemaps(remaps: RemapStore): void {
-  localStorage.setItem(REMAP_STORAGE_KEY, JSON.stringify(remaps));
+  safeSetItem(REMAP_STORAGE_KEY, JSON.stringify(remaps));
 }
 
 /**

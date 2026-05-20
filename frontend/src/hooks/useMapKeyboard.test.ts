@@ -122,6 +122,18 @@ describe("useMapKeyboard", () => {
     document.body.removeChild(input);
   });
 
+  it("ignores keys when a dialog is open", () => {
+    renderKeyboard();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    document.body.appendChild(dialog);
+    fireKey("Tab");
+    fireKey("Escape");
+    expect(onFocusCounty).not.toHaveBeenCalled();
+    expect(onCloseOverlay).not.toHaveBeenCalled();
+    document.body.removeChild(dialog);
+  });
+
   it("ignores keys when enabled is false", () => {
     renderKeyboard({ enabled: false });
     fireKey("Tab");

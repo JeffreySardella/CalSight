@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import FocusTrap from "focus-trap-react";
 import ChartConfigPanel from "./ChartConfigPanel";
 import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
 
@@ -31,9 +32,13 @@ export default function ChartConfigSheet({ open, initial, onConfirm, onCancel }:
     >
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div className="absolute inset-0 bg-inverse-surface/30" onClick={onCancel} />
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <FocusTrap focusTrapOptions={{ allowOutsideClick: true, escapeDeactivates: false }}>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={initial ? "Edit chart" : "Add chart"}
         tabIndex={-1}
         onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}
         className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-2xl bg-surface p-4 pb-safe-bottom outline-none"
@@ -41,6 +46,7 @@ export default function ChartConfigSheet({ open, initial, onConfirm, onCancel }:
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-outline-variant" />
         <ChartConfigPanel initial={initial} onConfirm={onConfirm} onCancel={onCancel} />
       </div>
+      </FocusTrap>
     </div>
   );
 }

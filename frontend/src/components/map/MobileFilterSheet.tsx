@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import FocusTrap from "focus-trap-react";
 
 type TabKey = "filters" | "layers" | "export";
 
@@ -66,6 +67,7 @@ export default function MobileFilterSheet({
       />
 
       {/* Mobile: bottom sheet. Desktop: centered modal */}
+      <FocusTrap focusTrapOptions={{ allowOutsideClick: true }}>
       <div
         role="dialog"
         aria-modal="true"
@@ -137,6 +139,7 @@ export default function MobileFilterSheet({
           </div>
         )}
       </div>
+      </FocusTrap>
     </div>
   );
 }
