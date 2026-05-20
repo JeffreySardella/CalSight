@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { DashboardConfig, ChartSlot, Dimension, Measure, ChartType, ChartOptions, PresetKey } from "../lib/dashboard/types";
 import { DIMENSIONS, MEASURES } from "../lib/dashboard/types";
 import { generateId } from "../lib/dashboard/types";
-import { buildPresetCharts, PRESET_KEYS } from "../lib/dashboard/presets";
+import { buildPresetCharts, PRESET_KEYS, PRESETS } from "../lib/dashboard/presets";
 import { decodeDashboard } from "../lib/dashboard/urlCodec";
 
 const STORAGE_KEY = "calsight-dashboard-v1";
@@ -129,6 +129,11 @@ export function useDashboardConfig() {
     return [...config.charts].sort((a, b) => a.order - b.order);
   }, [config.mode, config.preset, config.charts]);
 
+  const presetFilterOverrides = useMemo(() => {
+    if (config.mode !== "simple") return undefined;
+    return PRESETS[config.preset]?.filterOverrides;
+  }, [config.mode, config.preset]);
+
   const clearCharts = useCallback(() => {
     setConfig((prev) => ({ ...prev, charts: [] }));
   }, []);
@@ -137,6 +142,7 @@ export function useDashboardConfig() {
     config,
     setConfig,
     activeCharts,
+    presetFilterOverrides,
     setMode,
     setPreset,
     addChart,
