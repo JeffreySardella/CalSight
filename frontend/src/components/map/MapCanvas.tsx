@@ -86,8 +86,10 @@ function ViewportSync({
 }
 
 const CA_CENTER: [number, number] = [37.2, -119.5];
-const isMobile = window.innerWidth < 768;
-const CA_ZOOM = isMobile ? 5 : 6;
+
+function getInitialZoom(): number {
+  return typeof window !== "undefined" && window.innerWidth < 768 ? 5 : 6;
+}
 
 const CA_BOUNDS: LatLngBoundsExpression = [
   [28.0, -127.0],
@@ -232,7 +234,7 @@ export default function MapCanvas({
   return (
     <MapContainer
       center={initialView?.center ?? CA_CENTER}
-      zoom={initialView?.zoom ?? CA_ZOOM}
+      zoom={initialView?.zoom ?? getInitialZoom()}
       className="h-full w-full z-0"
       zoomControl={false}
       attributionControl={false}

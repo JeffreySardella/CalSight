@@ -25,7 +25,7 @@ from app.filters import (
     parse_year,
     years_from_date_range,
 )
-from app.models import County, Crash
+from app.models import County
 from app.schemas.stats import (
     AgeBracketRow,
     AtFaultAgeBracketRow,

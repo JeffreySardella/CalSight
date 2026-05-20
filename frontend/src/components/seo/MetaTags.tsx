@@ -23,7 +23,7 @@ const OG_WORKER_URL = "https://og.calsight.org";
 const DEFAULT_TITLE = "CalSight — California Crash Data Explorer";
 const DEFAULT_DESCRIPTION =
   "Explore 11 million California traffic crashes with interactive maps, AI-powered insights, and demographic analysis. Filter by county, cause, severity, and year.";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/web-app-manifest-512x512.png`;
+const DEFAULT_OG_IMAGE = `${OG_WORKER_URL}/og`;
 
 export interface MetaTagsProps {
   title?: string;

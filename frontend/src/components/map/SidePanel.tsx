@@ -16,7 +16,7 @@ export default function SidePanel({
   footer,
 }: SidePanelProps) {
   return (
-    <aside className="w-[300px] bg-surface-container-lowest h-full flex flex-col overflow-hidden transition-[width] duration-300 relative">
+    <aside className="w-full bg-surface-container-lowest h-full flex flex-col overflow-hidden transition-[width] duration-300 relative">
       {/* Header */}
       <div className="p-6 flex justify-between items-center">
         <div>
