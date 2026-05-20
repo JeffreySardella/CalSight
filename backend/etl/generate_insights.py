@@ -310,6 +310,7 @@ def run() -> int:
             db.query(County).order_by(County.name).all()
         )
         upserted = 0
+        skipped = 0
 
         for county in counties:
             # ---- Step 1: latest year ----
@@ -328,6 +329,15 @@ def run() -> int:
                     "Zero crashes for %s in %d — skipping",
                     county.name, year,
                 )
+                continue
+
+            # ---- Step 2.5: skip if crash count unchanged ----
+            existing = db.execute(
+                text("SELECT total_crashes FROM county_insights WHERE county_code = :cc AND year = :yr"),
+                {"cc": county.code, "yr": year},
+            ).fetchone()
+            if existing and existing[0] == stats["total_crashes"]:
+                skipped += 1
                 continue
 
             # ---- Step 3: demographics (prompt context only) ----
@@ -390,7 +400,7 @@ def run() -> int:
             # Rate-limit LLM calls — 3 s between counties (~3 min total)
             time.sleep(3)
 
-        logger.info("generate_insights complete: %d counties upserted", upserted)
+        logger.info("generate_insights complete: %d upserted, %d skipped (unchanged)", upserted, skipped)
         return upserted
 
     finally:
