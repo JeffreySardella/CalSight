@@ -1,3 +1,5 @@
+import FocusTrap from "focus-trap-react";
+
 interface FilteredUrlPromptProps {
   filters: string[];
   onViewFiltered: () => void;
@@ -8,7 +10,8 @@ export default function FilteredUrlPrompt({ filters, onViewFiltered, onShowAll }
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-on-surface/30 backdrop-blur-sm" />
-      <div className="relative bg-surface-container-lowest rounded-xl ambient-shadow px-6 py-5 max-w-sm w-full space-y-4">
+      <FocusTrap>
+      <div role="dialog" aria-modal="true" aria-label="Filtered URL" className="relative bg-surface-container-lowest rounded-xl ambient-shadow px-6 py-5 max-w-sm w-full space-y-4">
         <h2 className="text-lg font-bold text-on-surface font-headline">Filtered View</h2>
         <p className="text-sm text-on-surface-variant">
           This link has filters applied:
@@ -35,6 +38,7 @@ export default function FilteredUrlPrompt({ filters, onViewFiltered, onShowAll }
           </button>
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

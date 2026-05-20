@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import FocusTrap from "focus-trap-react";
 import { safeGetItem, safeSetItem } from "../../lib/safeStorage";
 import logo from "../../assets/logo.webp";
 
@@ -66,7 +67,8 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
     <div className={`fixed inset-0 z-[300] overflow-y-auto transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
       <div className="fixed inset-0 bg-surface" />
 
-      <div className="relative z-10 min-h-full flex flex-col items-center justify-center py-12 px-4">
+      <FocusTrap>
+      <div role="dialog" aria-modal="true" aria-label="Welcome to CalSight" className="relative z-10 min-h-full flex flex-col items-center justify-center py-12 px-4">
         <div className="w-full max-w-xl">
 
           {/* Header */}
@@ -147,6 +149,7 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
 
         </div>
       </div>
+      </FocusTrap>
     </div>
   );
 }

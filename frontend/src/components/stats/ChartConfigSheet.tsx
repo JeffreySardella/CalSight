@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import FocusTrap from "focus-trap-react";
 import ChartConfigPanel from "./ChartConfigPanel";
 import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
 
@@ -32,6 +33,7 @@ export default function ChartConfigSheet({ open, initial, onConfirm, onCancel }:
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div className="absolute inset-0 bg-inverse-surface/30" onClick={onCancel} />
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <FocusTrap focusTrapOptions={{ allowOutsideClick: true, escapeDeactivates: false }}>
       <div
         ref={panelRef}
         tabIndex={-1}
@@ -41,6 +43,7 @@ export default function ChartConfigSheet({ open, initial, onConfirm, onCancel }:
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-outline-variant" />
         <ChartConfigPanel initial={initial} onConfirm={onConfirm} onCancel={onCancel} />
       </div>
+      </FocusTrap>
     </div>
   );
 }
