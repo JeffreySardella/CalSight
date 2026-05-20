@@ -192,6 +192,8 @@ class Crash(Base):
         Index("ix_crashes_canonical_road_condition", "canonical_road_condition"),
         Index("ix_crashes_canonical_collision_type", "canonical_collision_type"),
         Index("ix_crashes_city_id", "city_id", postgresql_where="city_id IS NOT NULL"),
+        Index("ix_crashes_crash_year", "crash_year"),
+        Index("ix_crashes_lat_lng", "latitude", "longitude", postgresql_where="latitude IS NOT NULL AND longitude IS NOT NULL"),
     )
 
 
