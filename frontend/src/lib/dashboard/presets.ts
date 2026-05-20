@@ -66,7 +66,7 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     slots: [
       { dimension: "hour", measure: "count", chartType: "bar", order: 0 },
       { dimension: "severity", measure: "count", chartType: "donut", order: 1 },
-      { dimension: "at_fault_age_bracket", measure: "count", chartType: "radar", order: 2 },
+      { dimension: "county", measure: "count", chartType: "hbar", order: 2 },
       { dimension: "day_of_week", measure: "count", chartType: "bar", order: 3 },
     ],
   },
