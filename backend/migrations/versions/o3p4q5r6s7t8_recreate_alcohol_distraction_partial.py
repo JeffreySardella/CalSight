@@ -35,11 +35,11 @@ def upgrade() -> None:
 
     # Recreate as partial — only includes rows where the flag is not null
     op.execute(
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crashes_alcohol "
+        "CREATE INDEX IF NOT EXISTS ix_crashes_alcohol "
         "ON crashes (is_alcohol_involved) WHERE is_alcohol_involved IS NOT NULL"
     )
     op.execute(
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crashes_distraction "
+        "CREATE INDEX IF NOT EXISTS ix_crashes_distraction "
         "ON crashes (is_distraction_involved) WHERE is_distraction_involved IS NOT NULL"
     )
 

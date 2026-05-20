@@ -21,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crashes_crash_year ON crashes (crash_year)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_crashes_crash_year ON crashes (crash_year)")
 
 
 def downgrade() -> None:

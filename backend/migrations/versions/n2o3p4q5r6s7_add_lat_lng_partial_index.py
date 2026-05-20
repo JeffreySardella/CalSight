@@ -24,7 +24,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.execute(
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crashes_lat_lng "
+        "CREATE INDEX IF NOT EXISTS ix_crashes_lat_lng "
         "ON crashes (latitude, longitude) WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
     )
 
