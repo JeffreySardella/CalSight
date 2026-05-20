@@ -40,6 +40,7 @@ import DrillBreadcrumb from "../components/stats/DrillBreadcrumb";
 import { DIMENSION_LABELS } from "../lib/dashboard/types";
 import { DATA_STORIES, getStoryById } from "../lib/dashboard/stories";
 import { useCrossFilter } from "../hooks/useCrossFilter";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 export default function StatsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -158,7 +159,7 @@ export default function StatsPage() {
   const causes     = filters.selectedCauses;
 
   // Geo drill-down: click county bar → filter to that county (desktop only)
-  const isMobileDevice = typeof window !== "undefined" && window.innerWidth < 640;
+  const isMobileDevice = useIsMobile();
   const handleBarClick = useCallback((label: string, dimension: string) => {
     if (isMobileDevice) return;
     if (dimension === "county") {
