@@ -1,7 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { safeGetItem, safeSetItem } from "../lib/safeStorage";
+import { createContext, useContext, useEffect } from "react";
+import {
+  setPreferences,
+  useUserPreferences,
+  type LiteModeSetting,
+} from "../hooks/useUserPreferences";
 
-export type LiteModeSetting = "on" | "off" | "auto";
+export type { LiteModeSetting };
 
 interface LiteModeContextValue {
   setting: LiteModeSetting;
@@ -10,8 +14,6 @@ interface LiteModeContextValue {
 }
 
 const LiteModeContext = createContext<LiteModeContextValue | undefined>(undefined);
-
-const STORAGE_KEY = "calsight-lite-mode";
 
 function detectSlowDevice(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -25,11 +27,7 @@ function detectSlowDevice(): boolean {
 }
 
 export function LiteModeProvider({ children }: { children: React.ReactNode }) {
-  const [setting, setSettingState] = useState<LiteModeSetting>(() => {
-    const stored = safeGetItem(STORAGE_KEY);
-    if (stored === "on" || stored === "off" || stored === "auto") return stored;
-    return "off";
-  });
+  const { liteMode: setting } = useUserPreferences();
 
   const isLite =
     setting === "on" || (setting === "auto" && detectSlowDevice());
@@ -39,8 +37,7 @@ export function LiteModeProvider({ children }: { children: React.ReactNode }) {
   }, [isLite]);
 
   function setSetting(next: LiteModeSetting) {
-    safeSetItem(STORAGE_KEY, next);
-    setSettingState(next);
+    setPreferences({ liteMode: next });
   }
 
   return (
