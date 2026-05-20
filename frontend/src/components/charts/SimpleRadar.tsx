@@ -58,7 +58,8 @@ export default function SimpleRadar({
   const cx = height / 2;
   const cy = height / 2;
   const maxR = cx - 30;
-  const maxVal = Math.max(...data.map((d) => d.value), 1);
+  const rawMax = Math.max(...data.map((d) => d.value), 1);
+  const maxVal = Number.isFinite(rawMax) ? rawMax : 1;
   const angleStep = (2 * Math.PI) / n;
   const rings = 4;
 

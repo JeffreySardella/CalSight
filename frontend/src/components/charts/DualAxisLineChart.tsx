@@ -80,8 +80,10 @@ export default function DualAxisLineChart({
   const yTicks = 4;
 
   // Compute independent scales for each axis
-  const maxPrimary = Math.max(...data.map((d) => d.primary), 1);
-  const maxSecondary = Math.max(...data.map((d) => d.secondary), 0.01);
+  const rawMaxPrimary = Math.max(...data.map((d) => d.primary), 1);
+  const maxPrimary = Number.isFinite(rawMaxPrimary) ? rawMaxPrimary : 1;
+  const rawMaxSecondary = Math.max(...data.map((d) => d.secondary), 0.01);
+  const maxSecondary = Number.isFinite(rawMaxSecondary) ? rawMaxSecondary : 0.01;
 
   const leftTicks = niceScale(maxPrimary, yTicks);
   const rightTicks = niceScale(maxSecondary, yTicks);

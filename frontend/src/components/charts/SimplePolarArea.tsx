@@ -35,7 +35,8 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
   }, []);
 
   if (!data.length) return null;
-  const maxVal = Math.max(...data.map((d) => d.value), 1);
+  const rawMax = Math.max(...data.map((d) => d.value), 1);
+  const maxVal = Number.isFinite(rawMax) ? rawMax : 1;
   const n = data.length;
   const cx = height / 2;
   const cy = height / 2;
