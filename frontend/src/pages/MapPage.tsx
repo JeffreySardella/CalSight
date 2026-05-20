@@ -331,6 +331,11 @@ function MapPageInner() {
 
   function handleClearAll() {
     clearFilters();
+    setFocusedCounty(null);
+    setCompareCounty(null);
+    setCompareMode(false);
+    setShowInsight(false);
+    clearCounties();
   }
 
   const handleCloseOverlay = useCallback(() => {
