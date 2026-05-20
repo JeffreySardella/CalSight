@@ -53,34 +53,35 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Schedule Configuration
 # ---------------------------------------------------------------------------
-# All times in UTC. The server is on Proxmox LXC 100 (Pacific time = UTC-7/8).
-# 3 AM Pacific = 10 AM UTC (winter) / 11 AM UTC (summer).
+# All cron times in UTC to avoid container timezone confusion.
+# Prod container (LXC 100) may lack tzdata, so explicit UTC is safest.
+# Pacific = UTC-7 (PDT summer) / UTC-8 (PST winter).
 
-ETL_TIMEZONE = os.getenv("ETL_TIMEZONE", "America/Los_Angeles")
+ETL_TIMEZONE = "UTC"
 
 SCHEDULES = {
     # Daily crash data refresh — CHP updates the CCRS CKAN dataset overnight
     "daily_crashes": {
-        "cron": "0 3 * * *",  # 3 AM Pacific
+        "cron": "0 11 * * *",  # 11 AM UTC = 4 AM Pacific (PDT)
         "jobs": None,  # None = all non-static jobs (respects dependency order)
         "description": "Full daily pipeline: crashes, parties, victims, backfill, matviews",
     },
     # Weekly full refresh — includes monthly sources that might have updated
     "weekly_full": {
-        "cron": "0 1 * * 0",  # Sunday 1 AM Pacific
+        "cron": "0 9 * * 0",  # 9 AM UTC = 2 AM Pacific (PDT), Sunday
         "jobs": None,
         "force_refresh": True,
         "description": "Weekly forced refresh of all sources",
     },
     # Database maintenance — VACUUM ANALYZE after the daily load finishes
     "maintenance": {
-        "cron": "0 7 * * *",  # 7 AM Pacific (after daily ETL settles)
+        "cron": "0 15 * * *",  # 3 PM UTC = 8 AM Pacific (after daily ETL settles)
         "jobs": ["vacuum"],
         "description": "VACUUM ANALYZE on hot tables and matviews",
     },
     # Backup — pg_dump nightly
     "backup": {
-        "cron": "0 23 * * *",  # 11 PM Pacific (low traffic)
+        "cron": "0 7 * * *",  # 7 AM UTC = midnight Pacific (low traffic)
         "description": "PostgreSQL backup with 7-day rotation",
     },
 }
