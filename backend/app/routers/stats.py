@@ -802,7 +802,7 @@ def _run_group_query(
 
 
 @router.get("/stats")
-@_limiter.limit("60/minute")
+@_limiter.limit("300/minute")
 def stats(
     request: Request,
     response: Response,
