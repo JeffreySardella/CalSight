@@ -30,6 +30,10 @@ Offsite sync (Cloudflare R2):
      R2_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
      R2_BUCKET_NAME=calsight-backups
   4. Test: python -m etl.backup --upload-only
+
+Discord notifications:
+  Set DISCORD_BACKUP_WEBHOOK to a Discord webhook URL.
+  Sends success/failure embeds after each backup cycle.
 """
 
 from __future__ import annotations
@@ -52,6 +56,27 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BACKUP_DIR = "/opt/calsight/backups"
 RETENTION_DAYS = 7
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_BACKUP_WEBHOOK")
+
+
+def _notify_discord(message: str, success: bool = True) -> None:
+    """Send a backup notification to Discord. No-op if webhook not configured."""
+    if not DISCORD_WEBHOOK_URL:
+        return
+    try:
+        import httpx
+        color = 0x4ADE80 if success else 0xF87171
+        httpx.post(DISCORD_WEBHOOK_URL, json={
+            "embeds": [{
+                "title": "Backup " + ("OK" if success else "FAILED"),
+                "description": message,
+                "color": color,
+                "footer": {"text": "CalSight Backup"},
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }],
+        }, timeout=10)
+    except Exception as exc:
+        logger.warning("Discord notification failed: %s", exc)
 
 
 def upload_to_r2(filepath: Path) -> bool:
@@ -311,10 +336,22 @@ def main() -> int:
     # Run backup then rotate
     filepath = run_backup(args.dir)
     if filepath is None:
+        _notify_discord("pg_dump failed — check server logs", success=False)
         return 1
 
-    rotate_backups(args.dir, args.retention)
-    rotate_r2_backups(args.retention)
+    size_mb = filepath.stat().st_size / (1024 * 1024)
+    r2_ok = upload_to_r2(filepath)
+    local_rotated = rotate_backups(args.dir, args.retention)
+    r2_rotated = rotate_r2_backups(args.retention)
+
+    lines = [f"**{filepath.name}** — {size_mb:.1f} MB"]
+    if r2_ok:
+        lines.append("Uploaded to R2")
+    elif DISCORD_WEBHOOK_URL and os.environ.get("R2_BUCKET_NAME"):
+        _notify_discord(f"Backup saved locally but R2 upload failed\n{lines[0]}", success=False)
+    if local_rotated or r2_rotated:
+        lines.append(f"Rotated: {local_rotated} local, {r2_rotated} R2")
+    _notify_discord("\n".join(lines), success=True)
     return 0
 
 
