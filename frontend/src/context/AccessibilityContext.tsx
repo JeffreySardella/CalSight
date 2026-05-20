@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 
 export type MotionPref = "system" | "on" | "off";
 
@@ -22,13 +23,13 @@ function prefersReducedMotion(): boolean {
 
 export function AccessibilityProvider({ children }: { children: React.ReactNode }) {
   const [motion, setMotionState] = useState<MotionPref>(() => {
-    const stored = localStorage.getItem(MOTION_KEY);
+    const stored = safeGetItem(MOTION_KEY);
     if (stored === "on" || stored === "off" || stored === "system") return stored;
     return "system";
   });
 
   const [highContrast, setHighContrastState] = useState<boolean>(() => {
-    return localStorage.getItem(CONTRAST_KEY) === "true";
+    return safeGetItem(CONTRAST_KEY) === "true";
   });
 
   const [systemReducedMotion, setSystemReducedMotion] = useState(prefersReducedMotion);
@@ -53,12 +54,12 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   }, [highContrast]);
 
   function setMotion(next: MotionPref) {
-    localStorage.setItem(MOTION_KEY, next);
+    safeSetItem(MOTION_KEY, next);
     setMotionState(next);
   }
 
   function setHighContrast(next: boolean) {
-    localStorage.setItem(CONTRAST_KEY, String(next));
+    safeSetItem(CONTRAST_KEY, String(next));
     setHighContrastState(next);
   }
 

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import { DEFAULT_MEASURE, MEASURES, type MeasureKey } from "../lib/choropleth/measures";
 import { PALETTES, type PaletteKey } from "../lib/choropleth/palettes";
 import { useCustomTheme } from "../context/CustomThemeContext";
@@ -54,7 +55,7 @@ type SavedLayers = {
 
 function loadSaved(): SavedLayers {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeGetItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     const result: SavedLayers = {
@@ -129,11 +130,9 @@ export function LayersStateProvider({
   );
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        measure, palette, choroplethOn, resolution: heatmapResolution, otherLayers,
-      }));
-    } catch { /* quota exceeded — ignore */ }
+    safeSetItem(STORAGE_KEY, JSON.stringify({
+      measure, palette, choroplethOn, resolution: heatmapResolution, otherLayers,
+    }));
     onStateChange?.({
       measure, palette, choroplethOn, heatmapResolution,
       heatmapStatewide: otherLayers.heatmapStatewide,

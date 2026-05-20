@@ -4,6 +4,7 @@
 
 import type { ThemeCustomization, ExportedTheme } from "./types";
 import { getDefaultCustomization } from "./presets";
+import { safeGetItem, safeSetItem } from "../safeStorage";
 
 const STORAGE_KEY = "calsight-theme-customization";
 
@@ -12,9 +13,9 @@ const STORAGE_KEY = "calsight-theme-customization";
  * Returns the default if nothing is stored or if the stored value is invalid.
  */
 export function loadCustomization(): ThemeCustomization {
+  const raw = safeGetItem(STORAGE_KEY);
+  if (!raw) return getDefaultCustomization();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return getDefaultCustomization();
     const parsed = JSON.parse(raw) as ThemeCustomization;
     // Basic shape validation
     if (!parsed.colors || !parsed.chart || !parsed.cardStyle) {
@@ -30,7 +31,7 @@ export function loadCustomization(): ThemeCustomization {
  * Persist customization to localStorage.
  */
 export function saveCustomization(customization: ThemeCustomization): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(customization));
+  safeSetItem(STORAGE_KEY, JSON.stringify(customization));
 }
 
 /**

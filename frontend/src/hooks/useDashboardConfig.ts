@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import type { DashboardConfig, ChartSlot, Dimension, Measure, ChartType, ChartOptions, PresetKey } from "../lib/dashboard/types";
 import { DIMENSIONS, MEASURES } from "../lib/dashboard/types";
 import { generateId } from "../lib/dashboard/types";
@@ -36,13 +37,13 @@ function loadInitialConfig(): DashboardConfig {
     if (decoded && isValidConfig(decoded)) return decoded;
   }
 
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+  const stored = safeGetItem(STORAGE_KEY);
+  if (stored) {
+    try {
       const parsed = JSON.parse(stored);
       if (isValidConfig(parsed)) return parsed;
-    }
-  } catch { /* corrupted localStorage */ }
+    } catch { /* corrupted value */ }
+  }
 
   return { mode: "simple", preset: "overview", charts: [] };
 }
@@ -56,7 +57,7 @@ export function useDashboardConfig() {
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     const id = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      safeSetItem(STORAGE_KEY, JSON.stringify(config));
     }, 400);
     return () => clearTimeout(id);
   }, [config]);

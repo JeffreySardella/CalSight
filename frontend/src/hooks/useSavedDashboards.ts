@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import type { DashboardConfig } from "../lib/dashboard/types";
 
 const STORAGE_KEY = "calsight-saved-dashboards-v1";
@@ -23,7 +24,7 @@ function generateId(): string {
 
 function readFromStorage(): SavedDashboard[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeGetItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -34,7 +35,7 @@ function readFromStorage(): SavedDashboard[] {
 }
 
 function writeToStorage(items: SavedDashboard[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  safeSetItem(STORAGE_KEY, JSON.stringify(items));
 }
 
 export function useSavedDashboards() {

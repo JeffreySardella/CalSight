@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { safeGetItem, safeSetItem } from "../../lib/safeStorage";
 import logo from "../../assets/logo.webp";
 
 const STORAGE_KEY = "calsight-intro-seen";
@@ -44,7 +45,7 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
   const rowCount = useCountUp(253, 1000, 900);
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY)) return;
+    if (safeGetItem(STORAGE_KEY)) return;
     setVisible(true);
     requestAnimationFrame(() => setTimeout(() => setEntered(true), 50));
   }, []);
@@ -52,8 +53,8 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
   if (!visible) return null;
 
   const handleStart = (mode: "simple" | "advanced") => {
-    localStorage.setItem(STORAGE_KEY, "1");
-    localStorage.setItem("calsight-filter-mode", mode);
+    safeSetItem(STORAGE_KEY, "1");
+    safeSetItem("calsight-filter-mode", mode);
     setExiting(true);
     setTimeout(() => {
       setVisible(false);

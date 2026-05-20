@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 
 export type LiteModeSetting = "on" | "off" | "auto";
 
@@ -25,7 +26,7 @@ function detectSlowDevice(): boolean {
 
 export function LiteModeProvider({ children }: { children: React.ReactNode }) {
   const [setting, setSettingState] = useState<LiteModeSetting>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = safeGetItem(STORAGE_KEY);
     if (stored === "on" || stored === "off" || stored === "auto") return stored;
     return "off";
   });
@@ -38,7 +39,7 @@ export function LiteModeProvider({ children }: { children: React.ReactNode }) {
   }, [isLite]);
 
   function setSetting(next: LiteModeSetting) {
-    localStorage.setItem(STORAGE_KEY, next);
+    safeSetItem(STORAGE_KEY, next);
     setSettingState(next);
   }
 
