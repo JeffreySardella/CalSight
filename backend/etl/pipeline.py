@@ -61,8 +61,10 @@ ETL_TIMEZONE = "UTC"
 
 SCHEDULES = {
     # Daily crash data refresh — CHP updates the CCRS CKAN dataset overnight
+    # Mon-Sat only: Sunday is covered by weekly_full (which starts at 9 AM UTC),
+    # so skipping daily on Sunday prevents the two pipelines from overlapping.
     "daily_crashes": {
-        "cron": "0 11 * * *",  # 11 AM UTC = 4 AM Pacific (PDT)
+        "cron": "0 11 * * 1-6",  # 11 AM UTC = 4 AM Pacific (PDT), Mon-Sat only
         "jobs": None,  # None = all non-static jobs (respects dependency order)
         "description": "Full daily pipeline: crashes, parties, victims, backfill, matviews",
     },
