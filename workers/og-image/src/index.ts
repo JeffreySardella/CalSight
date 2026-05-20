@@ -19,6 +19,12 @@
  * and the Cache-Control header allows browser caching for 5 minutes.
  */
 
+import { Resvg, initWasm } from "@resvg/resvg-wasm";
+// @ts-expect-error — Cloudflare Workers import WASM as a module
+import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
+
+let wasmReady = false;
+
 export interface Env {
   SITE_URL: string;
   API_BASE: string;
@@ -257,18 +263,25 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
+    if (!wasmReady) {
+      await initWasm(resvgWasm);
+      wasmReady = true;
+    }
+
     const params = parseRequest(url);
     const svg = generateSvg(params);
 
-    // Return SVG directly — Cloudflare will cache at the edge.
-    // For production, you'd convert to PNG using resvg-wasm or
-    // Cloudflare's Image Resizing, but SVG works for og:image in most crawlers.
+    const resvg = new Resvg(svg, {
+      fitTo: { mode: "width", value: OG_WIDTH },
+    });
+    const png = resvg.render().asPng();
+
     const headers = new Headers({
-      "Content-Type": "image/svg+xml",
+      "Content-Type": "image/png",
       "Cache-Control": "public, max-age=3600, s-maxage=86400",
       ...corsHeaders,
     });
 
-    return new Response(svg, { status: 200, headers });
+    return new Response(png, { status: 200, headers });
   },
 };
