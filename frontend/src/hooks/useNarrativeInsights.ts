@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 import type { ChartDataItem } from "./useDashboardData";
-import { DIMENSION_LABELS, MEASURE_LABELS, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
+import { slotKey, DIMENSION_LABELS, MEASURE_LABELS, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
 import type { Anomaly } from "../lib/dashboard/anomaly";
 import type { StatsFilters } from "./useStats";
 import {
@@ -61,16 +61,6 @@ function filtersToDescription(filters: StatsFilters): FilterDescription {
   };
 }
 
-function slotKey(slot: ChartSlot): string {
-  const opts = slot.options ?? {};
-  const optStr = [
-    opts.cumulative && "cum",
-    opts.movingAvg && `ma${opts.movingAvg}`,
-    opts.logScale && "log",
-  ].filter(Boolean).join(",");
-  return `${slot.dimension}:${slot.measure}${optStr ? `:${optStr}` : ""}`;
-}
-
 /**
  * Hook that provides auto-generated narrative insights for the dashboard.
  * Narratives automatically update when filters, data, or charts change.
@@ -98,6 +88,7 @@ export function useNarrativeInsights({
       id: c.id,
       dimension: c.dimension,
       measure: c.measure,
+      options: c.options,
       dimensionLabel: DIMENSION_LABELS[c.dimension as Dimension] ?? c.dimension,
       measureLabel: MEASURE_LABELS[c.measure as Measure] ?? c.measure,
     })),

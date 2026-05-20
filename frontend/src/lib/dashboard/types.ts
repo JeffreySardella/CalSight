@@ -97,3 +97,13 @@ export function defaultChartType(dim: Dimension): ChartType {
 export function generateId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
+
+export function slotKey(chart: { dimension: string; measure: string; options?: ChartOptions }): string {
+  const opts = chart.options ?? {};
+  const optStr = [
+    opts.cumulative && "cum",
+    opts.movingAvg && `ma${opts.movingAvg}`,
+    opts.logScale && "log",
+  ].filter(Boolean).join(",");
+  return `${chart.dimension}:${chart.measure}${optStr ? `:${optStr}` : ""}`;
+}

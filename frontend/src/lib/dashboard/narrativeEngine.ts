@@ -8,6 +8,7 @@
 
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import type { Anomaly } from "./anomaly";
+import { slotKey, type ChartOptions } from "./types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -225,7 +226,7 @@ export function generateChartNarrative(
 
 export function generateDashboardNarrative(
   dataBySlot: Record<string, ChartDataItem[]>,
-  chartMeta: { id: string; dimension: string; measure: string; dimensionLabel?: string; measureLabel?: string }[],
+  chartMeta: { id: string; dimension: string; measure: string; dimensionLabel?: string; measureLabel?: string; options?: ChartOptions }[],
   anomalies: Anomaly[],
   filters: FilterDescription,
   tone: NarrativeTone,
@@ -235,7 +236,7 @@ export function generateDashboardNarrative(
 
   // Generate narratives for each chart
   for (const meta of chartMeta) {
-    const key = `${meta.dimension}:${meta.measure}`;
+    const key = slotKey(meta);
     const data = dataBySlot[key];
     if (!data || data.length === 0) continue;
 

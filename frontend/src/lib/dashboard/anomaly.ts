@@ -1,5 +1,5 @@
 import { mean, stddev } from "./stats";
-import type { Dimension, Measure } from "./types";
+import { slotKey, type Dimension, type Measure, type ChartOptions } from "./types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 
 export type AnomalySeverity = "critical" | "high" | "medium";
@@ -183,12 +183,12 @@ export function detectAnomalies(
 
 export function detectAllAnomalies(
   dataBySlot: Record<string, ChartDataItem[]>,
-  charts: { dimension: Dimension; measure: Measure; id: string }[],
+  charts: { dimension: Dimension; measure: Measure; id: string; options?: ChartOptions }[],
 ): { byChart: Record<string, Anomaly[]>; all: Anomaly[] } {
   const byChart: Record<string, Anomaly[]> = {};
   const all: Anomaly[] = [];
   for (const chart of charts) {
-    const key = `${chart.dimension}:${chart.measure}`;
+    const key = slotKey(chart);
     const data = dataBySlot[key];
     if (!data || data.length < 3) continue;
     const result = detectAnomalies(data, chart.dimension, chart.measure);
