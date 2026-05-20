@@ -17,6 +17,19 @@ Usage:
     python -m etl.backup                    # Run backup now
     python -m etl.backup --list             # Show existing backups
     python -m etl.backup --restore FILENAME # Restore from a backup
+    python -m etl.backup --upload-only      # Upload latest backup to R2
+
+Offsite sync (Cloudflare R2):
+  1. Create R2 bucket in Cloudflare dashboard -> R2 -> Create Bucket
+  2. Create S3 API token: R2 -> Manage R2 API Tokens -> Create API token
+     - Permissions: Object Read & Write
+     - Scope: Apply to specific bucket only
+  3. Set env vars:
+     R2_ACCESS_KEY_ID=<access-key-id>
+     R2_SECRET_ACCESS_KEY=<secret-access-key>
+     R2_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
+     R2_BUCKET_NAME=calsight-backups
+  4. Test: python -m etl.backup --upload-only
 """
 
 from __future__ import annotations
@@ -39,6 +52,47 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BACKUP_DIR = "/opt/calsight/backups"
 RETENTION_DAYS = 7
+
+
+def upload_to_r2(filepath: Path) -> bool:
+    """Upload a backup file to Cloudflare R2 for offsite storage.
+
+    Requires env vars: R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+    R2_ENDPOINT_URL, R2_BUCKET_NAME
+
+    Returns True on success, False on failure. Skips silently if
+    env vars are not configured.
+    """
+    access_key = os.environ.get("R2_ACCESS_KEY_ID")
+    secret_key = os.environ.get("R2_SECRET_ACCESS_KEY")
+    endpoint_url = os.environ.get("R2_ENDPOINT_URL")
+    bucket_name = os.environ.get("R2_BUCKET_NAME")
+
+    if not all([access_key, secret_key, endpoint_url, bucket_name]):
+        logger.info("R2 not configured, skipping offsite upload")
+        return False
+
+    try:
+        import boto3
+
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=endpoint_url,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+        )
+
+        key = f"backups/{filepath.name}"
+        size_mb = filepath.stat().st_size / (1024 * 1024)
+
+        logger.info("Uploading %s (%.1f MB) to R2 bucket %s ...", filepath.name, size_mb, bucket_name)
+        s3.upload_file(str(filepath), bucket_name, key)
+        logger.info("Upload complete: s3://%s/%s (%.1f MB)", bucket_name, key, size_mb)
+        return True
+
+    except Exception as exc:
+        logger.error("R2 upload failed: %s", exc)
+        return False
 
 
 def get_db_url() -> str:
@@ -108,6 +162,8 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
             filename, size_mb, elapsed,
         )
 
+        upload_to_r2(filepath)
+
         return filepath
 
     except FileNotFoundError:
@@ -176,6 +232,7 @@ def main() -> int:
     parser.add_argument("--list", action="store_true", help="List existing backups")
     parser.add_argument("--rotate-only", action="store_true", help="Only rotate old backups")
     parser.add_argument("--retention", type=int, default=RETENTION_DAYS, help="Days to retain")
+    parser.add_argument("--upload-only", action="store_true", help="Upload latest backup to R2")
     args = parser.parse_args()
 
     if args.list:
@@ -189,6 +246,16 @@ def main() -> int:
             print(f"{b['filename']:<35} {b['size_mb']:.1f} MB    {b['age_days']}d old")
         print(f"\nTotal: {len(backups)} backup(s)")
         return 0
+
+    if args.upload_only:
+        backup_path = Path(args.dir)
+        dumps = sorted(backup_path.glob("calsight_*.dump"), reverse=True)
+        if not dumps:
+            logger.error("No backup files found in %s", args.dir)
+            return 1
+        latest = dumps[0]
+        logger.info("Latest backup: %s", latest.name)
+        return 0 if upload_to_r2(latest) else 1
 
     if args.rotate_only:
         rotate_backups(args.dir, args.retention)
