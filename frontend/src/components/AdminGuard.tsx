@@ -28,9 +28,11 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     setLoading(true);
 
     try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/verify?key=${encodeURIComponent(password)}`
-      );
+      const res = await fetch(`${API_BASE}/api/admin/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: password }),
+      });
       if (res.ok) {
         localStorage.setItem(STORAGE_KEY, "true");
         setAuthenticated(true);

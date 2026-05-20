@@ -1,28 +1,31 @@
-"""Admin verification endpoint.
-
-Provides a simple key-check so the frontend admin gate can validate
-credentials without exposing the key in client-side code.
-"""
+"""Admin verification endpoint."""
 
 from __future__ import annotations
 
 import hmac
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from starlette.requests import Request
 
 from app.settings import settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+_limiter = Limiter(key_func=get_remote_address)
 
-@router.get("/verify")
-def verify_admin_key(key: str = Query(..., description="Admin key to verify")):
-    """Verify the provided key matches ETL_API_KEY.
 
-    Returns 200 on success, 403 on mismatch, 503 if no key is configured.
-    """
+class VerifyRequest(BaseModel):
+    key: str
+
+
+@router.post("/verify")
+@_limiter.limit("5/minute")
+def verify_admin_key(body: VerifyRequest, request: Request):
     if not settings.etl_api_key:
         raise HTTPException(status_code=503, detail="Admin key not configured on server")
-    if not hmac.compare_digest(key, settings.etl_api_key):
+    if not hmac.compare_digest(body.key, settings.etl_api_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     return {"status": "ok"}
