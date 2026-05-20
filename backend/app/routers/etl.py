@@ -58,6 +58,13 @@ class RunHistoryItem(BaseModel):
     source_row_count: Optional[int] = None
 
 
+def _verify_etl_key(x_etl_api_key: str = Header(None)):
+    if not settings.etl_api_key:
+        raise HTTPException(status_code=503, detail="ETL API key not configured")
+    if not x_etl_api_key or not hmac.compare_digest(x_etl_api_key, settings.etl_api_key):
+        raise HTTPException(status_code=403, detail="Invalid ETL API key")
+
+
 @router.get("/etl/status", dependencies=[Depends(_verify_etl_key)])
 @_limiter.limit("10/minute")
 def etl_status(request: Request, db: Session = Depends(get_db)):
@@ -119,13 +126,6 @@ def etl_runs(
             for r in rows
         ]
     }
-
-
-def _verify_etl_key(x_etl_api_key: str = Header(None)):
-    if not settings.etl_api_key:
-        raise HTTPException(status_code=503, detail="ETL API key not configured")
-    if not x_etl_api_key or not hmac.compare_digest(x_etl_api_key, settings.etl_api_key):
-        raise HTTPException(status_code=403, detail="Invalid ETL API key")
 
 
 @router.post("/etl/run", dependencies=[Depends(_verify_etl_key)])
