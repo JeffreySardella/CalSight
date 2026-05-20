@@ -301,6 +301,30 @@ def _build_prompt(county_name: str, stats: dict, demo: dict) -> str:
 # Main ETL function
 # ---------------------------------------------------------------------------
 
+
+def _build_update_dict(stats: dict, narrative: str | None, now) -> dict:
+    """Build the on_conflict_do_update set_ dict.
+
+    Narrative and generated_at are only included when narrative is not None
+    so a failed LLM call never overwrites a previously saved narrative with NULL.
+    """
+    update_dict = dict(
+        total_crashes=stats["total_crashes"],
+        total_killed=stats["total_killed"],
+        total_injured=stats["total_injured"],
+        crash_rate_per_capita=stats["crash_rate_per_capita"],
+        top_cause=stats["top_cause"],
+        top_cause_pct=stats["top_cause_pct"],
+        yoy_change_pct=stats["yoy_change_pct"],
+        peak_hour=stats["peak_hour"],
+        dui_pct=stats["dui_pct"],
+    )
+    if narrative is not None:
+        update_dict["narrative"] = narrative
+        update_dict["generated_at"] = now
+    return update_dict
+
+
 @track_etl_run("generate_insights")
 def run() -> int:
     """Generate insight cards for all counties. Returns number of rows upserted."""
@@ -378,19 +402,7 @@ def run() -> int:
                 )
                 .on_conflict_do_update(
                     index_elements=["county_code", "year"],
-                    set_=dict(
-                        total_crashes=stats["total_crashes"],
-                        total_killed=stats["total_killed"],
-                        total_injured=stats["total_injured"],
-                        crash_rate_per_capita=stats["crash_rate_per_capita"],
-                        top_cause=stats["top_cause"],
-                        top_cause_pct=stats["top_cause_pct"],
-                        yoy_change_pct=stats["yoy_change_pct"],
-                        peak_hour=stats["peak_hour"],
-                        dui_pct=stats["dui_pct"],
-                        narrative=narrative,
-                        generated_at=now if narrative else None,
-                    ),
+                    set_=_build_update_dict(stats, narrative, now),
                 )
             )
             db.execute(stmt)
@@ -481,19 +493,7 @@ def run_all_years() -> int:
                     )
                     .on_conflict_do_update(
                         index_elements=["county_code", "year"],
-                        set_=dict(
-                            total_crashes=stats["total_crashes"],
-                            total_killed=stats["total_killed"],
-                            total_injured=stats["total_injured"],
-                            crash_rate_per_capita=stats["crash_rate_per_capita"],
-                            top_cause=stats["top_cause"],
-                            top_cause_pct=stats["top_cause_pct"],
-                            yoy_change_pct=stats["yoy_change_pct"],
-                            peak_hour=stats["peak_hour"],
-                            dui_pct=stats["dui_pct"],
-                            narrative=narrative,
-                            generated_at=now if narrative else None,
-                        ),
+                        set_=_build_update_dict(stats, narrative, now),
                     )
                 )
                 db.execute(stmt)
