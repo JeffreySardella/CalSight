@@ -162,10 +162,11 @@ export default function StatsPage() {
   const handleBarClick = useCallback((label: string, dimension: string) => {
     if (isMobileDevice) return;
     if (dimension === "county") {
+      timelapse.pause();
       const slug = label.toLowerCase().replace(/ /g, "-");
       drillToCounty(slug);
     }
-  }, [drillToCounty, isMobileDevice]);
+  }, [timelapse, drillToCounty, isMobileDevice]);
 
   // Keyboard shortcut: close config panel trigger (incremented to signal DashboardGrid)
   const [closeConfigTrigger, setCloseConfigTrigger] = useState(0);
@@ -180,12 +181,14 @@ export default function StatsPage() {
 
   // Clear drill state and cross-filter when preset changes
   const handlePresetSelect = useCallback((key: Parameters<typeof dashboard.setPreset>[0]) => {
+    timelapse.pause();
     resetDrill();
     crossFilter.clearCrossFilter();
     dashboard.setPreset(key);
-  }, [resetDrill, crossFilter, dashboard]);
+  }, [timelapse, resetDrill, crossFilter, dashboard]);
 
   function handleClearAll() {
+    timelapse.pause();
     filters.clearFilters();
     resetDrill();
     crossFilter.clearCrossFilter();
