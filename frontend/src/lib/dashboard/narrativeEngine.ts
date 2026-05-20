@@ -264,7 +264,7 @@ export function generateDashboardNarrative(
   for (const anomaly of anomalies.slice(0, 3)) {
     keyFindings.push({
       text: tone === "technical"
-        ? `Anomaly detected: ${anomaly.label} deviates significantly from expected pattern (${anomaly.method}, confidence ${(anomaly.confidence * 100).toFixed(0)}%).`
+        ? `Anomaly detected: ${anomaly.label} deviates significantly from expected pattern (${anomaly.method}, confidence ${anomaly.confidence.toFixed(0)}%).`
         : `Unusual pattern found in ${anomaly.label}.`,
       icon: "warning",
       sourceChart: `${anomaly.dimension}:${anomaly.measure}`,
