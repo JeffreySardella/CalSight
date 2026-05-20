@@ -95,6 +95,53 @@ def upload_to_r2(filepath: Path) -> bool:
         return False
 
 
+def rotate_r2_backups(retention_days: int = RETENTION_DAYS) -> int:
+    """Delete backups older than retention_days from R2. Returns count removed."""
+    access_key = os.environ.get("R2_ACCESS_KEY_ID")
+    secret_key = os.environ.get("R2_SECRET_ACCESS_KEY")
+    endpoint_url = os.environ.get("R2_ENDPOINT_URL")
+    bucket_name = os.environ.get("R2_BUCKET_NAME")
+
+    if not all([access_key, secret_key, endpoint_url, bucket_name]):
+        return 0
+
+    try:
+        import boto3
+
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=endpoint_url,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+        )
+
+        resp = s3.list_objects_v2(Bucket=bucket_name, Prefix="backups/calsight_")
+        if "Contents" not in resp:
+            return 0
+
+        cutoff = datetime.utcnow() - timedelta(days=retention_days)
+        removed = 0
+        for obj in resp["Contents"]:
+            fname = obj["Key"].split("/")[-1]
+            try:
+                date_str = fname.replace("calsight_", "").replace(".dump", "")
+                file_date = datetime.strptime(date_str, "%Y-%m-%d")
+                if file_date < cutoff:
+                    s3.delete_object(Bucket=bucket_name, Key=obj["Key"])
+                    removed += 1
+                    logger.info("Rotated from R2: %s", fname)
+            except (ValueError, KeyError):
+                continue
+
+        if removed:
+            logger.info("Rotated %d R2 backup(s) older than %d days", removed, retention_days)
+        return removed
+
+    except Exception as exc:
+        logger.error("R2 rotation failed: %s", exc)
+        return 0
+
+
 def get_db_url() -> str:
     """Resolve the database URL for pg_dump."""
     # Prefer the ETL URL (has full access); fall back to regular DB URL
@@ -267,6 +314,7 @@ def main() -> int:
         return 1
 
     rotate_backups(args.dir, args.retention)
+    rotate_r2_backups(args.retention)
     return 0
 
 
