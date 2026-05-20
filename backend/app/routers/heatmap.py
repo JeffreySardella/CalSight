@@ -60,7 +60,7 @@ _limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/crashes/heatmap", response_model=HeatmapResponse)
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def crash_heatmap(
     request: Request,
     response: Response,

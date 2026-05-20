@@ -62,7 +62,7 @@ class FunFactOut(BaseModel):
 
 
 @router.get("/insights/statewide", response_model=StatewideInsightOut)
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def get_random_statewide_insight(
     request: Request,
     response: Response,
@@ -81,7 +81,7 @@ def get_random_statewide_insight(
 
 
 @router.get("/fun-facts", response_model=List[FunFactOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def get_fun_facts(
     request: Request,
     response: Response,
@@ -147,7 +147,7 @@ def get_fun_facts(
 
 
 @router.get("/insight-cards/random", response_model=CountyInsightCardOut)
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def get_random_county_insight_card(
     request: Request,
     response: Response,
@@ -171,7 +171,7 @@ def get_random_county_insight_card(
 
 
 @router.get("/insights/{county_slug}")
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def get_insight(
     request: Request,
     county_slug: str,

@@ -49,7 +49,7 @@ _limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/crashes", response_model=PaginatedResponse[CrashOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def list_crashes(
     request: Request,
     response: Response,

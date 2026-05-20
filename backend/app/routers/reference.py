@@ -61,7 +61,7 @@ def list_counties(
 
 
 @router.get("/cities", response_model=list[CityOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def list_cities(
     request: Request,
     response: Response,
@@ -94,7 +94,7 @@ def list_cities(
 
 
 @router.get("/hospitals", response_model=list[HospitalOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def list_hospitals(
     request: Request,
     response: Response,
@@ -115,7 +115,7 @@ def list_hospitals(
 
 
 @router.get("/schools", response_model=PaginatedResponse[SchoolOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def list_schools(
     request: Request,
     response: Response,
@@ -148,7 +148,7 @@ def list_schools(
 
 
 @router.get("/calenviroscreen", response_model=list[CalenviroScreenOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def list_calenviroscreen(
     request: Request,
     response: Response,
@@ -166,7 +166,7 @@ def list_calenviroscreen(
 
 
 @router.get("/road-miles", response_model=list[RoadMileOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def list_road_miles(
     request: Request,
     response: Response,
@@ -187,7 +187,7 @@ def list_road_miles(
 
 
 @router.get("/traffic-volumes", response_model=list[TrafficVolumeOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def list_traffic_volumes(
     request: Request,
     response: Response,
@@ -205,7 +205,7 @@ def list_traffic_volumes(
 
 
 @router.get("/speed-limits", response_model=list[SpeedLimitOut])
-@_limiter.limit("300/minute")
+@_limiter.limit("1000/minute;10000/hour")
 def list_speed_limits(
     request: Request,
     response: Response,
