@@ -19,7 +19,7 @@ _FIVE_MIN = "public, max-age=300"
 
 
 @router.get("/weather", response_model=list[WeatherOut])
-@_limiter.limit("1000/minute;10000/hour")
+@_limiter.limit("1000/minute;20000/hour")
 def list_weather(
     request: Request,
     response: Response,

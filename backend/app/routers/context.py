@@ -34,7 +34,7 @@ _FIVE_MIN = "public, max-age=300"
 
 
 @router.get("/unemployment", response_model=list[UnemploymentOut])
-@_limiter.limit("1000/minute;10000/hour")
+@_limiter.limit("1000/minute;20000/hour")
 def list_unemployment(
     request: Request,
     response: Response,
@@ -62,7 +62,7 @@ def list_unemployment(
 
 
 @router.get("/vehicles", response_model=list[VehicleRegistrationOut])
-@_limiter.limit("1000/minute;10000/hour")
+@_limiter.limit("1000/minute;20000/hour")
 def list_vehicles(
     request: Request,
     response: Response,
@@ -88,7 +88,7 @@ def list_vehicles(
 
 
 @router.get("/licensed-drivers", response_model=list[LicensedDriverOut])
-@_limiter.limit("1000/minute;10000/hour")
+@_limiter.limit("1000/minute;20000/hour")
 def list_licensed_drivers(
     request: Request,
     response: Response,
@@ -112,7 +112,7 @@ def list_licensed_drivers(
 
 
 @router.get("/data-quality", response_model=list[DataQualityStatOut])
-@_limiter.limit("1000/minute;10000/hour")
+@_limiter.limit("1000/minute;20000/hour")
 def list_data_quality(
     request: Request,
     response: Response,
@@ -154,7 +154,7 @@ def list_data_quality(
 
 
 @router.get("/insights", response_model=list[CountyInsightOut])
-@_limiter.limit("1000/minute;10000/hour")
+@_limiter.limit("1000/minute;20000/hour")
 def list_insights(
     request: Request,
     response: Response,
@@ -180,7 +180,7 @@ def list_insights(
 
 
 @router.get("/insight-cards", response_model=list[CountyInsightCardOut])
-@_limiter.limit("1000/minute;10000/hour")
+@_limiter.limit("1000/minute;20000/hour")
 def list_insight_cards(
     request: Request,
     response: Response,
