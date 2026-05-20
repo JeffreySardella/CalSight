@@ -225,7 +225,7 @@ export default memo(function CountyBoundaries({
               onSelectCountyRef.current(name);
             },
             mouseover: (e) => {
-              if (name === focusedCounty) return;
+              if (name === focusRef.current.focused) return;
               const cf = countyFilterRef.current;
               if (cf.active && !cf.has.has(name)) return;
               const fc = focusRef.current;
@@ -238,7 +238,7 @@ export default memo(function CountyBoundaries({
               }
             },
             mouseout: (e) => {
-              if (name === focusedCounty) return;
+              if (name === focusRef.current.focused) return;
               const cf = countyFilterRef.current;
               if (cf.active && !cf.has.has(name)) return;
 
