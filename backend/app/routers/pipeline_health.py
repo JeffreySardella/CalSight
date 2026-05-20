@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import EtlRun
+from app.routers.etl import _verify_etl_key
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -223,7 +224,7 @@ def matview_status(
     return results
 
 
-@router.get("/db-metrics")
+@router.get("/db-metrics", dependencies=[Depends(_verify_etl_key)])
 @_limiter.limit("10/minute")
 def db_metrics(
     request: Request,

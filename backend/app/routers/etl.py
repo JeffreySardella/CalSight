@@ -58,7 +58,7 @@ class RunHistoryItem(BaseModel):
     source_row_count: Optional[int] = None
 
 
-@router.get("/etl/status")
+@router.get("/etl/status", dependencies=[Depends(_verify_etl_key)])
 @_limiter.limit("10/minute")
 def etl_status(request: Request, db: Session = Depends(get_db)):
     sources: list[SourceStatus] = []
@@ -89,7 +89,7 @@ def etl_status(request: Request, db: Session = Depends(get_db)):
     return {"sources": [s.model_dump() for s in sources]}
 
 
-@router.get("/etl/runs")
+@router.get("/etl/runs", dependencies=[Depends(_verify_etl_key)])
 @_limiter.limit("10/minute")
 def etl_runs(
     request: Request,
