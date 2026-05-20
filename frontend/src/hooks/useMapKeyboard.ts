@@ -16,7 +16,9 @@ const PAN_PIXELS = 100;
 
 function isInputFocused(): boolean {
   const tag = document.activeElement?.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (document.querySelector("[role='dialog']")) return true;
+  return false;
 }
 
 export function useMapKeyboard({
