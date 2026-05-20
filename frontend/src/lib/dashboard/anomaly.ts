@@ -187,10 +187,9 @@ export function detectAllAnomalies(
 ): { byChart: Record<string, Anomaly[]>; all: Anomaly[] } {
   const byChart: Record<string, Anomaly[]> = {};
   const all: Anomaly[] = [];
-  const keys = Object.keys(dataBySlot);
-  for (let idx = 0; idx < charts.length; idx++) {
-    const chart = charts[idx];
-    const data = dataBySlot[keys[idx]];
+  for (const chart of charts) {
+    const key = `${chart.dimension}:${chart.measure}`;
+    const data = dataBySlot[key];
     if (!data || data.length < 3) continue;
     const result = detectAnomalies(data, chart.dimension, chart.measure);
     byChart[chart.id] = result;
