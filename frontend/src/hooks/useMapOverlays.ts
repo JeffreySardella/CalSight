@@ -40,12 +40,13 @@ export function useHospitals(enabled: boolean) {
 export function useSchools(enabled: boolean) {
   return useQuery<School[]>({
     queryKey: ["schools"],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const all: School[] = [];
       let offset = 0;
       const limit = 5000;
-      while (true) {
-        const res = await fetch(`${API_BASE}/api/schools?limit=${limit}&offset=${offset}`);
+      const maxPages = 20;
+      for (let page = 0; page < maxPages; page++) {
+        const res = await fetch(`${API_BASE}/api/schools?limit=${limit}&offset=${offset}`, { signal });
         if (!res.ok) throw new Error(`schools ${res.status}`);
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items ?? [];
