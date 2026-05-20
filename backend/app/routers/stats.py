@@ -896,7 +896,7 @@ ALLOWED_GROUPS = {
 
 
 @router.post("/stats/batch")
-@_limiter.limit("120/minute")
+@_limiter.limit("300/minute")
 def stats_batch(
     request: Request,
     body: BatchStatsRequest,

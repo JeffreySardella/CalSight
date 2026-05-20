@@ -78,7 +78,7 @@ _STALENESS_THRESHOLDS = {
 
 
 @router.get("/freshness")
-@_limiter.limit("60/minute")
+@_limiter.limit("300/minute")
 def get_freshness(
     request: Request,
     response: Response,
@@ -139,7 +139,7 @@ def get_freshness(
 
 
 @router.get("/freshness/summary")
-@_limiter.limit("60/minute")
+@_limiter.limit("300/minute")
 def get_freshness_summary(
     request: Request,
     response: Response,

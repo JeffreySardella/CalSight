@@ -41,7 +41,7 @@ _limiter = Limiter(key_func=get_remote_address)
     "/crashes/{collision_id}/parties",
     response_model=list[CrashPartyOut],
 )
-@_limiter.limit("30/minute")
+@_limiter.limit("300/minute")
 def list_parties_for_crash(
     request: Request,
     response: Response,
@@ -74,7 +74,7 @@ def list_parties_for_crash(
     "/crashes/{collision_id}/victims",
     response_model=list[CrashVictimOut],
 )
-@_limiter.limit("30/minute")
+@_limiter.limit("300/minute")
 def list_victims_for_crash(
     request: Request,
     response: Response,
@@ -131,7 +131,7 @@ def _parse_gender(raw: str | None) -> set[str] | None:
 
 
 @router.get("/parties", response_model=PaginatedResponse[CrashPartyOut])
-@_limiter.limit("30/minute")
+@_limiter.limit("300/minute")
 def list_parties(
     request: Request,
     response: Response,
@@ -217,7 +217,7 @@ def list_parties(
 
 
 @router.get("/victims", response_model=PaginatedResponse[CrashVictimOut])
-@_limiter.limit("30/minute")
+@_limiter.limit("300/minute")
 def list_victims(
     request: Request,
     response: Response,

@@ -18,7 +18,7 @@ _limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/meta/data-freshness", response_model=dict[str, SourceFreshness])
-@_limiter.limit("30/minute")
+@_limiter.limit("300/minute")
 def data_freshness(request: Request, response: Response, db: Session = Depends(get_db)):
     """Latest successful ETL run per source (for the 'data as of' pill).
 
@@ -50,7 +50,7 @@ def data_freshness(request: Request, response: Response, db: Session = Depends(g
 
 
 @router.get("/meta/coord-validation")
-@_limiter.limit("30/minute")
+@_limiter.limit("300/minute")
 def coord_validation_summary(request: Request, response: Response, db: Session = Depends(get_db)):
     """Summary stats for coordinate validation — how many valid/mismatched/unchecked."""
     response.headers["Cache-Control"] = "public, max-age=60"
@@ -69,7 +69,7 @@ def coord_validation_summary(request: Request, response: Response, db: Session =
 
 
 @router.get("/meta/coord-mismatches")
-@_limiter.limit("30/minute")
+@_limiter.limit("300/minute")
 def coord_mismatches(
     request: Request,
     response: Response,
