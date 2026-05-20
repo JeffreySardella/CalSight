@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 from datetime import datetime
 from typing import Optional
 
@@ -123,7 +124,7 @@ def etl_runs(
 def _verify_etl_key(x_etl_api_key: str = Header(None)):
     if not settings.etl_api_key:
         raise HTTPException(status_code=503, detail="ETL API key not configured")
-    if not x_etl_api_key or x_etl_api_key != settings.etl_api_key:
+    if not x_etl_api_key or not hmac.compare_digest(x_etl_api_key, settings.etl_api_key):
         raise HTTPException(status_code=403, detail="Invalid ETL API key")
 
 

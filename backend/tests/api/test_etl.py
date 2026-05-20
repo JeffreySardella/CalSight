@@ -22,3 +22,13 @@ def test_etl_run_history(client):
     data = response.json()
     assert "runs" in data
     assert isinstance(data["runs"], list)
+
+
+def test_etl_run_rejects_bad_key(client):
+    response = client.post("/api/etl/run", headers={"X-ETL-API-KEY": "wrong-key"})
+    assert response.status_code == 403
+
+
+def test_etl_run_rejects_missing_key(client):
+    response = client.post("/api/etl/run")
+    assert response.status_code == 403
