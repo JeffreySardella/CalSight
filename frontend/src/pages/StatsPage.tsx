@@ -349,6 +349,8 @@ export default function StatsPage() {
     ],
   }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
 
+  const activeStory = activeStoryId ? getStoryById(activeStoryId) : null;
+
   return (
     <>
     {printPreview && (
@@ -646,9 +648,9 @@ export default function StatsPage() {
           </div>
         </div>
         {storiesMode ? (
-          activeStoryId ? (
+          activeStory ? (
             <StoryReader
-              story={getStoryById(activeStoryId)!}
+              story={activeStory}
               onBack={() => setActiveStoryId(null)}
             />
           ) : (
