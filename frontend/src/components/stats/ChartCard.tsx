@@ -21,6 +21,7 @@ import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import { useCustomTheme } from "../../context/CustomThemeContext";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
@@ -259,7 +260,7 @@ function ChartCard({
 
   // Cross-filter: determine if this chart's dimension supports brushing
   // Disabled on mobile — touch users tap to read, not to filter
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const isMobile = useIsMobile();
   const canCrossFilter = !isMobile && CROSS_FILTER_DIMS.includes(slot.dimension);
   const isSourceChart = crossFilter?.state.sourceChartId === slot.id;
 

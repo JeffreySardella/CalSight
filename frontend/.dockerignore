@@ -1,2 +1,8 @@
 node_modules
 dist
+.env
+.env.*
+*.md
+.git
+.github
+.playwright-mcp

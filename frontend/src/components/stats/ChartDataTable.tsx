@@ -79,7 +79,7 @@ function ChartDataTable({ data, title, isScatter, valueLabel }: Props) {
     link.href = url;
     link.download = `${title.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}.csv`;
     link.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function SortIcon({ col }: { col: SortKey }) {

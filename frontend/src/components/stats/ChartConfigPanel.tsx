@@ -71,6 +71,8 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
   function handleDimensionChange(dim: Dimension) {
     setDimension(dim);
     setChartType(defaultChartType(dim));
+    setSecondaryMeasure(undefined);
+    setOptions({});
   }
 
   function toggle(key: keyof ChartOptions) {

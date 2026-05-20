@@ -169,8 +169,10 @@ def get_freshness_summary(
         .scalar()
     )
 
-    # Total crash rows from the DB
-    total_crashes = db.execute(text("SELECT COUNT(*) FROM crashes")).scalar()
+    # Total crash rows — use pg_class estimate to avoid full table scan
+    total_crashes = db.execute(text(
+        "SELECT reltuples::bigint FROM pg_class WHERE relname = 'crashes'"
+    )).scalar() or 0
 
     # Count fresh vs stale sources
     sources_fresh = 0

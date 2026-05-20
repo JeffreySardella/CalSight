@@ -15,7 +15,7 @@ test.describe("Dashboard Builder - Preset Switching", () => {
 
     // Check for chart headings from the overview preset
     await expect(page.locator("h3", { hasText: "Crashes by Severity" })).toBeVisible();
-    await expect(page.locator("h3", { hasText: "Crashes by Cause" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "Crashes by Primary Cause" })).toBeVisible();
     await expect(page.locator("h3", { hasText: "Crashes by Year" })).toBeVisible();
     await expect(page.locator("h3", { hasText: "Crashes by County" })).toBeVisible();
   });
@@ -51,10 +51,10 @@ test.describe("Dashboard Builder - Preset Switching", () => {
     await expect(demoBtn).toBeVisible();
 
     // Check for demographic-specific chart headings
-    await expect(page.locator("h3", { hasText: "Crashes by Gender" })).toBeVisible();
-    await expect(page.locator("h3", { hasText: "Crashes by Age Bracket" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "Crashes by Victim Gender" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "Crashes by Victim Age" })).toBeVisible();
     await expect(page.locator("h3", { hasText: "Crashes by At-Fault Gender" })).toBeVisible();
-    await expect(page.locator("h3", { hasText: "Crashes by At-Fault Age Bracket" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "Crashes by At-Fault Age" })).toBeVisible();
   });
 });
 
@@ -66,8 +66,8 @@ test.describe("Dashboard Builder - Builder Mode", () => {
     // Click the "Builder" toggle to enter advanced mode
     await page.click('button:has-text("Builder")');
 
-    // Assert Builder is pressed
-    const builderBtn = page.locator('button[aria-pressed="true"]', { hasText: "Builder" });
+    // Assert Builder is checked (radio group)
+    const builderBtn = page.locator('button[aria-checked="true"]', { hasText: "Builder" });
     await expect(builderBtn).toBeVisible();
 
     // In advanced mode with no custom charts, guidance text should be visible
@@ -105,7 +105,7 @@ test.describe("Dashboard Builder - Builder Mode", () => {
     await page.click('button:has-text("Add")');
 
     // A new chart card with the configured title should appear
-    await expect(page.locator("h3", { hasText: "Killed by Cause" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "Fatalities by Primary Cause" })).toBeVisible();
   });
 });
 
@@ -122,8 +122,8 @@ test.describe("Dashboard Builder - Chart Interactions", () => {
     const barRect = page.locator("svg rect").first();
     await barRect.hover();
 
-    // Assert tooltip becomes visible
-    const tooltip = page.locator('[role="tooltip"]');
+    // Assert tooltip becomes visible (ChartTooltip renders a fixed div with aria-hidden)
+    const tooltip = page.locator("div.fixed.z-50.pointer-events-none");
     await expect(tooltip).toBeVisible();
   });
 });
@@ -177,7 +177,7 @@ test.describe("Dashboard Builder - localStorage Persistence", () => {
     await expect(demoBtnAfter).toBeVisible();
 
     // Verify demographic charts are still shown
-    await expect(page.locator("h3", { hasText: "Crashes by Gender" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "Crashes by Victim Gender" })).toBeVisible();
   });
 });
 
@@ -188,8 +188,8 @@ test.describe("Dashboard Builder - Mobile Viewport", () => {
     await page.goto(`${BASE_URL}/stats`);
     await page.waitForSelector(".chart-card-enter", { timeout: 15000 });
 
-    // Get the grid container
-    const grid = page.locator(".grid.grid-cols-1");
+    // Get the chart grid container (uniquely identified by drag-drop attribute)
+    const grid = page.locator("[aria-dropeffect]");
     await expect(grid).toBeVisible();
 
     // All chart cards should be stacked vertically (single column)
@@ -219,8 +219,8 @@ test.describe("Dashboard Builder - Mobile Viewport", () => {
     await page.goto(`${BASE_URL}/stats`);
     await page.waitForSelector(".chart-card-enter", { timeout: 15000 });
 
-    // The preset picker container should have overflow-x-auto
-    const presetContainer = page.locator(".overflow-x-auto.no-scrollbar");
+    // The preset picker container (distinguished from filter bar by pb-1 class)
+    const presetContainer = page.locator(".overflow-x-auto.no-scrollbar.pb-1");
     await expect(presetContainer).toBeVisible();
 
     // The container's scrollWidth should exceed its clientWidth (scrollable)

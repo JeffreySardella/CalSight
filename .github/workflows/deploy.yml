@@ -63,6 +63,13 @@ jobs:
           CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
         run: docker compose -f docker-compose.prod.yml up --build -d
 
+      - name: Tag images with commit SHA for rollback
+        run: |
+          docker tag calsight-backend:latest calsight-backend:${{ github.sha }}
+
+      - name: Prune old images (keep last 5)
+        run: docker image prune -f --filter "until=168h"
+
       - name: Run database migrations
         run: docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
 

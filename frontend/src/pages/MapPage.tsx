@@ -243,6 +243,15 @@ function MapPageInner() {
     mapRef.current = map;
   }, []);
 
+  // After the side panel animates open/closed (300 ms CSS transition), tell
+  // Leaflet the container has resized so it redraws tiles into the new bounds.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      mapRef.current?.invalidateSize();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [activePanel]);
+
   // Flush the live viewport into the URL right before a share-link copy, so
   // the link reflects the current camera even if the debounced sync (250ms)
   // hasn't fired yet. setSearchParams updates window.location synchronously.
@@ -331,6 +340,11 @@ function MapPageInner() {
 
   function handleClearAll() {
     clearFilters();
+    setFocusedCounty(null);
+    setCompareCounty(null);
+    setCompareMode(false);
+    setShowInsight(false);
+    clearCounties();
   }
 
   const handleCloseOverlay = useCallback(() => {
