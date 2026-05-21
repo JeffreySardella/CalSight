@@ -1,5 +1,8 @@
-import { useState, useCallback } from "react";
-import { safeGetItem, safeSetItem } from "../../../lib/safeStorage";
+import { useCallback } from "react";
+import {
+  setPreferences,
+  useUserPreferences,
+} from "../../../hooks/useUserPreferences";
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
 import SimpleFilterPanel from "./SimpleFilterPanel";
 import FilterWizard from "./FilterWizard";
@@ -14,18 +17,14 @@ interface FilterPanelRouterProps {
 }
 
 export default function FilterPanelRouter(props: FilterPanelRouterProps) {
-  const [mode, setMode] = useState<"simple" | "advanced">(() => {
-    return (safeGetItem("calsight-filter-mode") as "simple" | "advanced") || "simple";
-  });
+  const { filterMode: mode } = useUserPreferences();
 
   const switchToAdvanced = useCallback(() => {
-    setMode("advanced");
-    safeSetItem("calsight-filter-mode", "advanced");
+    setPreferences({ filterMode: "advanced" });
   }, []);
 
   const switchToSimple = useCallback(() => {
-    setMode("simple");
-    safeSetItem("calsight-filter-mode", "simple");
+    setPreferences({ filterMode: "simple" });
   }, []);
 
   return (

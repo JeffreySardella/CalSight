@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { useQueryClient } from "@tanstack/react-query";
+import { Navigate } from "react-router-dom";
 import { useFilterParams, CA_COUNTIES } from "../hooks/useFilterParams";
+import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
 import { useViewportParams } from "../hooks/useViewportParams";
 import { useLayerParams } from "../hooks/useLayerParams";
 import type { CoordCoverage } from "../hooks/useCoordCoverage";
@@ -396,6 +398,23 @@ function MapPageInner() {
     setInsightCounty(name);
     setShowInsight(true);
   }, [countyGeoJson, selectedCounties, focusedCounty]);
+
+  // Keep focusedCounty in sync when the URL filter moves to a different
+  // single county (e.g. user changed their default-county preference and the
+  // hook rewrote the URL). Without this, CountyBoundaries still draws the
+  // prior focus as colored on top of the new filter selection.
+  useEffect(() => {
+    if (!focusedCounty) return;
+    if (selectedCounties.size === 0) return;
+    if (selectedCounties.has(focusedCounty)) return;
+    if (selectedCounties.size === 1) {
+      const [name] = [...selectedCounties];
+      setFocusedCounty(name);
+      setInsightCounty(name);
+    } else {
+      setFocusedCounty(null);
+    }
+  }, [selectedCounties, focusedCounty]);
 
   function handleToggle(panel: string) {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -809,10 +828,14 @@ function MapPageInner() {
 }
 
 export default function MapPage() {
+  // Apply the user's saved default county before any children mount — otherwise
+  // LayersStateProvider's mount-write would race with (and clobber) the county.
+  const defaultRedirect = useApplyDefaultCounty();
   // Layer state ↔ URL: layerSeed decodes the URL on mount; writeLayerParams
   // mirrors changes back. Kept here (inside <BrowserRouter>) so the provider
   // itself stays Router-agnostic.
   const { layerSeed, writeLayerParams } = useLayerParams();
+  if (defaultRedirect) return <Navigate to={{ search: defaultRedirect }} replace />;
   return (
     <LayersStateProvider urlSeed={layerSeed} onStateChange={writeLayerParams}>
       <MapPageInner />

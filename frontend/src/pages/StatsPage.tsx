@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { Navigate } from "react-router-dom";
 import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES, YEARS } from "../hooks/useFilterParams";
+import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
 import { useStats } from "../hooks/useStats";
@@ -43,6 +45,14 @@ import { useCrossFilter } from "../hooks/useCrossFilter";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 export default function StatsPage() {
+  // Apply the user's saved default county before mounting the real page —
+  // keeps the redirect logic out of StatsPageInner's hook list.
+  const defaultRedirect = useApplyDefaultCounty();
+  if (defaultRedirect) return <Navigate to={{ search: defaultRedirect }} replace />;
+  return <StatsPageInner />;
+}
+
+function StatsPageInner() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [timelapseActive, setTimelapseActive] = useState(false);

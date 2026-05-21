@@ -1,7 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { safeGetItem, safeSetItem } from "../lib/safeStorage";
+import {
+  setPreferences,
+  useUserPreferences,
+  type MotionPref,
+} from "../hooks/useUserPreferences";
 
-export type MotionPref = "system" | "on" | "off";
+export type { MotionPref };
 
 interface AccessibilityContextValue {
   motion: MotionPref;
@@ -13,24 +17,13 @@ interface AccessibilityContextValue {
 
 const AccessibilityContext = createContext<AccessibilityContextValue | undefined>(undefined);
 
-const MOTION_KEY = "calsight-reduced-motion";
-const CONTRAST_KEY = "calsight-high-contrast";
-
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 export function AccessibilityProvider({ children }: { children: React.ReactNode }) {
-  const [motion, setMotionState] = useState<MotionPref>(() => {
-    const stored = safeGetItem(MOTION_KEY);
-    if (stored === "on" || stored === "off" || stored === "system") return stored;
-    return "system";
-  });
-
-  const [highContrast, setHighContrastState] = useState<boolean>(() => {
-    return safeGetItem(CONTRAST_KEY) === "true";
-  });
+  const { reducedMotion: motion, highContrast } = useUserPreferences();
 
   const [systemReducedMotion, setSystemReducedMotion] = useState(prefersReducedMotion);
 
@@ -54,13 +47,11 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   }, [highContrast]);
 
   function setMotion(next: MotionPref) {
-    safeSetItem(MOTION_KEY, next);
-    setMotionState(next);
+    setPreferences({ reducedMotion: next });
   }
 
   function setHighContrast(next: boolean) {
-    safeSetItem(CONTRAST_KEY, String(next));
-    setHighContrastState(next);
+    setPreferences({ highContrast: next });
   }
 
   return (

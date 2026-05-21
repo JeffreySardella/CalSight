@@ -1,7 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { safeGetItem, safeSetItem } from "../lib/safeStorage";
+import {
+  setPreferences,
+  useUserPreferences,
+  type Theme,
+} from "../hooks/useUserPreferences";
 
-export type Theme = "light" | "dark" | "system";
+export type { Theme };
 
 interface ThemeContextValue {
   theme: Theme;
@@ -9,8 +13,6 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
-
-const STORAGE_KEY = "calsight-theme";
 
 function getSystemPreference(): boolean {
   // Guard for test environments (jsdom) that don't ship matchMedia.
@@ -23,13 +25,7 @@ function applyDarkClass(isDark: boolean) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = safeGetItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark" || stored === "system") {
-      return stored;
-    }
-    return "system";
-  });
+  const { theme } = useUserPreferences();
 
   useEffect(() => {
     const isDark =
@@ -47,8 +43,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   function setTheme(next: Theme) {
-    safeSetItem(STORAGE_KEY, next);
-    setThemeState(next);
+    setPreferences({ theme: next });
   }
 
   return (

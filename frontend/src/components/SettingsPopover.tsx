@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import FocusTrap from "focus-trap-react";
 import { useTheme, type Theme } from "../context/ThemeContext";
 import { useAccessibility } from "../context/AccessibilityContext";
+import { CA_COUNTIES } from "../hooks/useFilterParams";
+import {
+  setPreferences,
+  useUserPreferences,
+} from "../hooks/useUserPreferences";
 import ThemeCustomizer from "./settings/ThemeCustomizer";
 
 const THEME_OPTIONS: { value: Theme; label: string; icon: string }[] = [
@@ -24,6 +29,7 @@ type SettingsTab = "general" | "appearance";
 export default function SettingsPopover({ onClose, containerRef }: SettingsPopoverProps) {
   const { theme, setTheme } = useTheme();
   const { highContrast, setHighContrast } = useAccessibility();
+  const { defaultCounty } = useUserPreferences();
   const popoverRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<SettingsTab>("general");
 
@@ -118,6 +124,29 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="border-t border-outline-variant/20" />
+
+          {/* Default county */}
+          <div>
+            <label htmlFor="default-county-select" className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body block mb-3">
+              Default county
+            </label>
+            <select
+              id="default-county-select"
+              value={defaultCounty ?? ""}
+              onChange={(e) => setPreferences({ defaultCounty: e.target.value || null })}
+              className="w-full rounded-lg bg-surface-container text-on-surface text-xs font-medium px-3 py-2 ghost-border focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">None (statewide)</option>
+              {CA_COUNTIES.map((county) => (
+                <option key={county} value={county}>{county}</option>
+              ))}
+            </select>
+            <p className="text-[9px] text-on-surface-variant mt-1.5 leading-relaxed">
+              Applied on Map / Stats pages when no county is set in the URL.
+            </p>
           </div>
 
           <div className="border-t border-outline-variant/20" />
