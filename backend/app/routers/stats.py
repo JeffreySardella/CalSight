@@ -25,7 +25,7 @@ from app.filters import (
     parse_year,
     years_from_date_range,
 )
-from app.models import County, Crash
+from app.models import County
 from app.schemas.stats import (
     AgeBracketRow,
     AtFaultAgeBracketRow,
@@ -157,6 +157,9 @@ mv_wide = Table(
     Column("f_drug", SmallInteger),
     Column("f_hit_run", SmallInteger),
     Column("age_bracket", SmallInteger),
+    Column("day_of_week_num", SmallInteger),
+    Column("crash_month", SmallInteger),
+    Column("crash_hour", SmallInteger),
     Column("crash_count", Integer),
     Column("total_killed", Integer),
     Column("total_injured", Integer),
@@ -174,6 +177,8 @@ def _pick_view(group_by: str | None, has_cause_filter: bool):
         return mv_hour
     if group_by == "month":
         return mv_month
+    if group_by == "day_of_week":
+        return mv_wide
     if group_by == "cause" or has_cause_filter:
         return mv_cause
     return mv_year
@@ -419,44 +424,43 @@ def _run_group_query(
         if group_by == "rate":
             raise FilterError("involvement", "Involvement filters are not supported with group_by=rate.")
 
-        # hour/month/day_of_week not in mv_wide — fall back to raw table
-        preds = _raw_preds()
-        def _raw_query(stmt):
-            for p in preds:
-                stmt = stmt.where(p)
-            return stmt
-
         if group_by == "hour":
-            stmt = _raw_query(
-                select(Crash.crash_hour.label("hour"), func.count().label("crash_count"))
-                .where(Crash.crash_hour.isnot(None))
-                .group_by(Crash.crash_hour)
-                .order_by(Crash.crash_hour)
+            stmt = _wide_query(
+                select(
+                    w.c.crash_hour.label("hour"),
+                    func.coalesce(cc, 0).label("crash_count"),
+                )
+                .where(w.c.crash_hour.isnot(None))
+                .group_by(w.c.crash_hour)
+                .order_by(w.c.crash_hour)
             )
             rows = db.execute(stmt).all()
             return [HourRow(hour=r.hour, crash_count=r.crash_count).model_dump() for r in rows]
 
         if group_by == "month":
-            stmt = _raw_query(
+            stmt = _wide_query(
                 select(
-                    Crash.crash_month.label("month"),
-                    func.count().label("crash_count"),
-                    func.coalesce(func.sum(Crash.number_killed), 0).label("total_killed"),
-                    func.coalesce(func.sum(Crash.number_injured), 0).label("total_injured"),
+                    w.c.crash_month.label("month"),
+                    func.coalesce(cc, 0).label("crash_count"),
+                    func.coalesce(func.sum(w.c.total_killed), 0).label("total_killed"),
+                    func.coalesce(func.sum(w.c.total_injured), 0).label("total_injured"),
                 )
-                .where(Crash.crash_month.isnot(None))
-                .group_by(Crash.crash_month)
-                .order_by(Crash.crash_month)
+                .where(w.c.crash_month.isnot(None))
+                .group_by(w.c.crash_month)
+                .order_by(w.c.crash_month)
             )
             rows = db.execute(stmt).all()
             return [MonthRow(month=r.month, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
 
         if group_by == "day_of_week":
-            stmt = _raw_query(
-                select(Crash.day_of_week_num.label("day_of_week"), func.count().label("crash_count"))
-                .where(Crash.day_of_week_num.isnot(None))
-                .group_by(Crash.day_of_week_num)
-                .order_by(Crash.day_of_week_num)
+            stmt = _wide_query(
+                select(
+                    w.c.day_of_week_num.label("day_of_week"),
+                    func.coalesce(cc, 0).label("crash_count"),
+                )
+                .where(w.c.day_of_week_num.isnot(None))
+                .group_by(w.c.day_of_week_num)
+                .order_by(w.c.day_of_week_num)
             )
             rows = db.execute(stmt).all()
             return [DayOfWeekRow(day_of_week=r.day_of_week, crash_count=r.crash_count).model_dump() for r in rows]
@@ -591,20 +595,18 @@ def _run_group_query(
             for r in rows
         ]
 
-    # --- group_by=day_of_week (always raw table) ---
+    # --- group_by=day_of_week ---
     if group_by == "day_of_week":
         stmt = (
             select(
-                Crash.day_of_week_num.label("day_of_week"),
-                func.count().label("crash_count"),
+                view.c.day_of_week_num.label("day_of_week"),
+                func.sum(view.c.crash_count).label("crash_count"),
             )
-            .where(Crash.day_of_week_num.isnot(None))
-            .group_by(Crash.day_of_week_num)
-            .order_by(Crash.day_of_week_num)
+            .where(view.c.day_of_week_num.isnot(None))
+            .group_by(view.c.day_of_week_num)
+            .order_by(view.c.day_of_week_num)
         )
-        preds = _raw_preds()
-        for pred in preds:
-            stmt = stmt.where(pred)
+        stmt = _apply_filters(stmt, view, years, county_codes, severities, causes)
         rows = db.execute(stmt).all()
         return [
             DayOfWeekRow(
