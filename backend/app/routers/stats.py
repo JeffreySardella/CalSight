@@ -934,8 +934,11 @@ def stats_batch(
 
     results = {}
     for group in body.groups:
-        results[group] = _run_group_query(
-            group, years, county_codes, severities, causes, db, **kwargs,
-        )
+        try:
+            results[group] = _run_group_query(
+                group, years, county_codes, severities, causes, db, **kwargs,
+            )
+        except FilterError:
+            results[group] = None
 
     return results

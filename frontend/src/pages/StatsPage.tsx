@@ -94,8 +94,14 @@ function StatsPageInner() {
       cyclist: filters.selectedCyclist,
       drug: filters.selectedDrug,
       distracted: filters.selectedDistracted,
+      driverAge: filters.selectedDriverAge,
+      weather: filters.selectedWeather.size > 0 ? [...filters.selectedWeather].join(",") : null,
+      lighting: filters.selectedLighting.size > 0 ? [...filters.selectedLighting].join(",") : null,
+      collisionType: filters.selectedCollisionType.size > 0 ? [...filters.selectedCollisionType].join(",") : null,
+      roadType: filters.selectedRoadType,
+      hitRun: filters.selectedHitRun,
     };
-  }, [timelapseActive, throttledTlYear, filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, drillState.county]);
+  }, [timelapseActive, throttledTlYear, filters.selectedDateRange, filters.selectedSeverities, filters.selectedCauses, filters.selectedCounties, filters.selectedAlcohol, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug, filters.selectedDistracted, filters.selectedDriverAge, filters.selectedWeather, filters.selectedLighting, filters.selectedCollisionType, filters.selectedRoadType, filters.selectedHitRun, drillState.county]);
   const singleCountyActive = !!drillState.county || filters.selectedCounties.size === 1;
   const { data, loading, error, refetch: statsRefetch } = useStats(statsFilters);
   const dashboard = useDashboardConfig();
@@ -201,6 +207,7 @@ function StatsPageInner() {
   function handleClearAll() {
     timelapse.pause();
     filters.clearFilters();
+    filters.clearCounties();
     resetDrill();
     crossFilter.clearCrossFilter();
     setResetKey((k) => k + 1);

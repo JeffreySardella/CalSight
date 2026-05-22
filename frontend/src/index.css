@@ -541,7 +541,14 @@
   .correlation-controls,
   .correlation-tooltip,
   .chart-config-panel,
-  .add-chart-card {
+  .add-chart-card,
+  .drag-handle,
+  [aria-label="Time-lapse controls"],
+  [aria-label="Natural language chart query"],
+  [aria-label="Show chart"],
+  [aria-label="View data"],
+  [aria-label*="Download"],
+  [aria-label*="Playback speed"] {
     display: none !important;
   }
 
@@ -734,6 +741,7 @@
   }
   .chart-card-themed svg {
     width: 100% !important;
+    max-width: 100% !important;
     height: auto !important;
     max-height: 280px;
   }
@@ -789,13 +797,15 @@
 
   .chart-card-themed,
   .group\/card {
-    break-inside: auto !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
     margin-bottom: 8px;
   }
 
   .grid-cols-1 > div,
   section > .grid > div {
-    break-inside: auto !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   /* Allow breaks between major sections */
@@ -819,11 +829,11 @@
     break-after: avoid !important;
   }
 
-  /* ── Grid Layout: 2-up for print ──
-   * Charts print in a 2-column layout for density while maintaining readability. */
+  /* ── Grid Layout: single-column for print ──
+   * Charts print in a single column to avoid overflow and page-break issues. */
   .grid {
     display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: 1fr !important;
     gap: 8px !important;
   }
 
@@ -857,6 +867,12 @@
   * {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* Reset chart entrance animation state so cards are fully visible */
+  .chart-card-enter {
+    opacity: 1 !important;
+    transform: none !important;
   }
 
   /* ── Remove max-height limits on lollipop/hbar containers */
@@ -1016,14 +1032,20 @@ body.print-mode [aria-label*="Explain"] {
 body.print-mode .correlation-controls,
 body.print-mode .correlation-tooltip,
 body.print-mode .chart-config-panel,
-body.print-mode .add-chart-card {
+body.print-mode .add-chart-card,
+body.print-mode .drag-handle,
+body.print-mode [aria-label="Time-lapse controls"],
+body.print-mode [aria-label="Natural language chart query"],
+body.print-mode [aria-label="Show chart"],
+body.print-mode [aria-label="View data"],
+body.print-mode [aria-label*="Download"],
+body.print-mode [aria-label*="Playback speed"] {
   display: none !important;
 }
 body.print-mode section:empty,
 body.print-mode [aria-label="Anomaly detection"],
 body.print-mode [aria-label="Key findings"],
 body.print-mode [aria-label="Suggested charts"],
-body.print-mode [aria-label="Natural language query"],
 body.print-mode [aria-live="polite"],
 body.print-mode [role="status"] {
   display: none !important;
@@ -1068,8 +1090,8 @@ body.print-mode svg tspan {
 
 body.print-mode .chart-card-themed,
 body.print-mode .group\/card {
-  page-break-inside: avoid;
-  break-inside: avoid;
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
   margin-bottom: 8px;
 }
 body.print-mode .grid {
@@ -1117,8 +1139,14 @@ body.print-mode * {
 }
 body.print-mode .chart-card-enter {
   animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 body.print-mode svg * {
   animation: none !important;
   transition: none !important;
+}
+body.print-mode .chart-card-themed svg {
+  max-width: 100% !important;
+  height: auto !important;
 }

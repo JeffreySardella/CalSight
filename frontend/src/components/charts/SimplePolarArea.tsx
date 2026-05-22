@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { useTextScale } from "../../hooks/useTextScale";
+import { CHART_PALETTES, paletteColor } from "../../lib/theme/palettes";
 
 interface PolarItem {
   label: string;
@@ -16,18 +17,12 @@ interface SimplePolarAreaProps {
   title?: string;
 }
 
-const FALLBACK_COLORS = [
-  "#2563eb", "#dc2626", "#059669", "#7c3aed", "#d97706",
-  "#0891b2", "#e11d48", "#4f46e5", "#0d9488", "#ca8a04",
-  "#6366f1", "#0284c7",
-];
-
 export default function SimplePolarArea({ data, height = 220, renderTooltip, title }: SimplePolarAreaProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const titleId = useId();
   const tokens = useDesignTokens();
-  const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : FALLBACK_COLORS;
+  const palette = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : CHART_PALETTES.default;
   const ts = useTextScale();
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
@@ -57,7 +52,7 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
           const y2 = cy + r * Math.sin(endAngle);
           const large = sliceAngle > Math.PI ? 1 : 0;
           const path = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
-          const color = d.color ?? paletteColors[i % paletteColors.length];
+          const color = d.color ?? paletteColor(palette, i);
           const isHovered = hover?.idx === i;
           return (
             <path

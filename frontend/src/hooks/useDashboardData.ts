@@ -163,6 +163,12 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, cro
     if (filters.cyclist) b.cyclist = "true";
     if (filters.drug) b.drug = "true";
     if (filters.distracted) b.distracted = "true";
+    if (filters.driverAge) b.driver_age = filters.driverAge;
+    if (filters.weather) b.weather = filters.weather;
+    if (filters.lighting) b.lighting = filters.lighting;
+    if (filters.collisionType) b.collision_type = filters.collisionType;
+    if (filters.roadType) b.road_type = filters.roadType;
+    if (filters.hitRun) b.hit_run = "true";
     // Merge cross-filter overrides (narrow, don't replace)
     if (crossFilterOverrides) {
       for (const [key, val] of Object.entries(crossFilterOverrides)) {
