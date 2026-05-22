@@ -100,7 +100,11 @@ export function useAskAi() {
     }));
 
     const filters: Record<string, string | null> = {};
-    for (const key of ["year", "severity", "county", "cause", "alcohol", "distracted"]) {
+    for (const key of [
+      "start", "end", "year", "severity", "county", "cause",
+      "alcohol", "distracted", "pedestrian", "cyclist", "drug",
+      "driver_age", "weather", "lighting", "collision_type", "road_type", "hit_run",
+    ]) {
       filters[key] = searchParams.get(key);
     }
 

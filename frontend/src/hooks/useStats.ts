@@ -13,6 +13,12 @@ export type StatsFilters = {
   cyclist?: boolean;
   drug?: boolean;
   distracted?: boolean;
+  driverAge?: string | null;
+  weather?: string | null;
+  lighting?: string | null;
+  collisionType?: string | null;
+  roadType?: string | null;
+  hitRun?: boolean;
 };
 
 export interface HourlyDataPoint { hour: number; count: number }
@@ -177,7 +183,7 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
   const dateKey = filters.dateRange
     ? `${filters.dateRange.start ? formatYearMonth(filters.dateRange.start) : ""}|${filters.dateRange.end ? formatYearMonth(filters.dateRange.end) : ""}`
     : "";
-  const cacheKey = { d: dateKey, s: filters.severities, c: filters.causes, co: filters.counties, alc: filters.alcohol, ped: filters.pedestrian, cyc: filters.cyclist, drg: filters.drug, dis: filters.distracted };
+  const cacheKey = { d: dateKey, s: filters.severities, c: filters.causes, co: filters.counties, alc: filters.alcohol, ped: filters.pedestrian, cyc: filters.cyclist, drg: filters.drug, dis: filters.distracted, da: filters.driverAge, w: filters.weather, li: filters.lighting, ct: filters.collisionType, rt: filters.roadType, hr: filters.hitRun };
 
   const batchUrl = `${API_BASE}/api/stats/batch`;
 
@@ -193,6 +199,12 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     if (filters.cyclist) b.cyclist = "true";
     if (filters.drug) b.drug = "true";
     if (filters.distracted) b.distracted = "true";
+    if (filters.driverAge) b.driver_age = filters.driverAge;
+    if (filters.weather) b.weather = filters.weather;
+    if (filters.lighting) b.lighting = filters.lighting;
+    if (filters.collisionType) b.collision_type = filters.collisionType;
+    if (filters.roadType) b.road_type = filters.roadType;
+    if (filters.hitRun) b.hit_run = "true";
     return b;
   }, [filters]);
 

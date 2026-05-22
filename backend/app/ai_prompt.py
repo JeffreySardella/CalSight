@@ -123,8 +123,35 @@ def build_filters_summary(filters: dict) -> str:
     cause = _sanitize_filter(filters.get("cause"), _ALLOWED_CAUSES)
     if cause:
         parts.append(f"Cause: {cause}")
+    start = filters.get("start")
+    end = filters.get("end")
+    if start or end:
+        parts.append(f"Date range: {start or 'earliest'} to {end or 'latest'}")
     if filters.get("alcohol") == "true":
         parts.append("Alcohol-involved only")
     if filters.get("distracted") == "true":
         parts.append("Distraction-involved only")
+    if filters.get("pedestrian") == "true":
+        parts.append("Pedestrian-involved only")
+    if filters.get("cyclist") == "true":
+        parts.append("Cyclist-involved only")
+    if filters.get("drug") == "true":
+        parts.append("Drug-involved only")
+    driver_age = filters.get("driver_age")
+    if driver_age:
+        parts.append(f"At-fault driver age: {driver_age}")
+    weather = _sanitize_filter(filters.get("weather"))
+    if weather:
+        parts.append(f"Weather: {weather}")
+    lighting = _sanitize_filter(filters.get("lighting"))
+    if lighting:
+        parts.append(f"Lighting: {lighting}")
+    collision_type = _sanitize_filter(filters.get("collision_type"))
+    if collision_type:
+        parts.append(f"Collision type: {collision_type}")
+    road_type = filters.get("road_type")
+    if road_type:
+        parts.append(f"Road type: {road_type}")
+    if filters.get("hit_run") == "true":
+        parts.append("Hit-and-run only")
     return ", ".join(parts) if parts else "All California data (no filters active)"

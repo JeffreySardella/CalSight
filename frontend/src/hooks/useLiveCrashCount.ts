@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { API_BASE } from "../config";
+import { formatYearMonth } from "./useFilterParams";
 import type { StagedFilters } from "./useStagedFilters";
 
 function buildCountUrl(staged: StagedFilters): string {
   const p = new URLSearchParams();
-  if (staged.selectedYears.size > 0) {
+  if (staged.dateRange?.start || staged.dateRange?.end) {
+    if (staged.dateRange.start) p.set("start", formatYearMonth(staged.dateRange.start));
+    if (staged.dateRange.end) p.set("end", formatYearMonth(staged.dateRange.end));
+  } else if (staged.selectedYears.size > 0) {
     const years = [...staged.selectedYears].sort();
     p.set("start", `${years[0]}-01`);
     p.set("end", `${years[years.length - 1]}-12`);

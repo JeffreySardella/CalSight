@@ -1,5 +1,6 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import { formatYearMonth } from "./useFilterParams";
 import type { StagedFilters } from "./useStagedFilters";
 
 export interface ConditionCounts {
@@ -27,10 +28,15 @@ export interface FacetCounts extends FacetData {
 function buildParams(staged: StagedFilters, exclude: string): string {
   const p = new URLSearchParams();
 
-  if (exclude !== "year" && staged.selectedYears.size > 0) {
-    const years = [...staged.selectedYears].sort();
-    p.set("start", `${years[0]}-01`);
-    p.set("end", `${years[years.length - 1]}-12`);
+  if (exclude !== "year") {
+    if (staged.dateRange?.start || staged.dateRange?.end) {
+      if (staged.dateRange.start) p.set("start", formatYearMonth(staged.dateRange.start));
+      if (staged.dateRange.end) p.set("end", formatYearMonth(staged.dateRange.end));
+    } else if (staged.selectedYears.size > 0) {
+      const years = [...staged.selectedYears].sort();
+      p.set("start", `${years[0]}-01`);
+      p.set("end", `${years[years.length - 1]}-12`);
+    }
   }
   if (exclude !== "severity" && staged.severities.size > 0) {
     p.set("severity", [...staged.severities].map((s) => s.toLowerCase().replace(/ /g, "-")).join(","));
