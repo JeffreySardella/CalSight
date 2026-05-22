@@ -1,15 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { resolve } from "path";
 
-const ROOT = resolve(__dirname, "../..");
-const indexHtml = readFileSync(resolve(ROOT, "index.html"), "utf-8");
-const headers = readFileSync(resolve(ROOT, "public/_headers"), "utf-8");
+import indexHtml from "../../index.html?raw";
+
+import headers from "../../public/_headers?raw";
 
 describe("CSP & font loading safety", () => {
   it("index.html has no inline event handlers (onload, onerror, onclick)", () => {
     const inlineHandlerPattern = /\s(onload|onerror|onclick|onmouseover|onfocus)\s*=/gi;
-    const matches = indexHtml.match(inlineHandlerPattern);
+    const matches = (indexHtml as string).match(inlineHandlerPattern);
     expect(matches).toBeNull();
   });
 
