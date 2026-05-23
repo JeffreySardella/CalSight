@@ -223,6 +223,46 @@ def _build_stats_string(db: Session, county_code: int, year: int) -> str | None:
         if demo.poverty_rate is not None:
             parts.append(f"poverty={demo.poverty_rate:.1f}%")
 
+    inv = db.execute(text("""
+        SELECT
+            COALESCE(SUM(CASE WHEN pedestrian_involved THEN 1 ELSE 0 END), 0) AS ped,
+            COALESCE(SUM(CASE WHEN cyclist_involved THEN 1 ELSE 0 END), 0) AS cyc,
+            COALESCE(SUM(CASE WHEN hit_run IS NOT NULL THEN 1 ELSE 0 END), 0) AS hr,
+            COALESCE(SUM(CASE WHEN canonical_cause = 'speeding' THEN 1 ELSE 0 END), 0) AS spd
+        FROM crashes WHERE county_code = :c AND crash_year = :y
+    """), {"c": county_code, "y": year}).first()
+    if inv:
+        parts.append(f"pedestrian_crashes={inv.ped}")
+        parts.append(f"cyclist_crashes={inv.cyc}")
+        parts.append(f"hit_run_crashes={inv.hr}")
+        parts.append(f"speeding_crashes={inv.spd}")
+
+    monthly = db.execute(text("""
+        SELECT crash_month, COUNT(*) AS cnt
+        FROM crashes WHERE county_code = :c AND crash_year = :y AND crash_month IS NOT NULL
+        GROUP BY crash_month ORDER BY crash_month
+    """), {"c": county_code, "y": year}).all()
+    if monthly:
+        month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        parts.append("monthly=" + ",".join(f"{month_names[r.crash_month-1]}:{r.cnt}" for r in monthly))
+
+    dow = db.execute(text("""
+        SELECT day_of_week_num, COUNT(*) AS cnt
+        FROM crashes WHERE county_code = :c AND crash_year = :y AND day_of_week_num IS NOT NULL
+        GROUP BY day_of_week_num ORDER BY day_of_week_num
+    """), {"c": county_code, "y": year}).all()
+    if dow:
+        dow_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+        parts.append("day_of_week=" + ",".join(f"{dow_names[r.day_of_week_num]}:{r.cnt}" for r in dow))
+
+    night = db.execute(text("""
+        SELECT COUNT(*) AS cnt
+        FROM crashes WHERE county_code = :c AND crash_year = :y
+            AND crash_hour IS NOT NULL AND (crash_hour >= 20 OR crash_hour < 6)
+    """), {"c": county_code, "y": year}).scalar() or 0
+    if t.tc > 0:
+        parts.append(f"nighttime_crashes={night}({round(night/t.tc*100,1)}%)")
+
     return ", ".join(parts)
 
 

@@ -16,6 +16,7 @@ Usage
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import random
 
@@ -28,8 +29,8 @@ from app.models import County, CountyInsightCard, StatewideInsight
 
 logger = logging.getLogger(__name__)
 
-DOW_NAMES = {0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
-             4: "Thursday", 5: "Friday", 6: "Saturday"}
+DOW_NAMES = {0: "Monday", 1: "Tuesday", 2: "Wednesday", 3: "Thursday",
+             4: "Friday", 5: "Saturday", 6: "Sunday"}
 MONTH_NAMES = {1: "January", 2: "February", 3: "March", 4: "April",
                5: "May", 6: "June", 7: "July", 8: "August",
                9: "September", 10: "October", 11: "November", 12: "December"}
@@ -339,7 +340,7 @@ def _compose_quirky(name: str, s: dict) -> str:
             )
 
     # Pick the most interesting 1-2
-    random.seed(hash(name))
+    random.seed(int(hashlib.md5(name.encode()).hexdigest(), 16))
     random.shuffle(options)
     return " ".join(options[:2]) if options else (
         f"{name} County saw {_fmt(s['tc'])} crashes and {_fmt(s['tk'])} fatalities — "
