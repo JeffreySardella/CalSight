@@ -53,9 +53,13 @@ const ROAD_TYPE_LABELS: Record<string, string> = {
 };
 
 export type FilterScope = {
-  /** Was this dimension narrowed at all? Used to gate the CSV
-   *  "must filter first" precondition. */
+  /** Was any dimension narrowed at all? Used for display copy. */
   hasAnyFilter: boolean;
+  /** Has the user narrowed to a county OR a date range? CSV export requires
+   *  this — the backend's /api/crashes endpoint rejects unfiltered bulk
+   *  reads per #282 to prevent unrestricted scraping of per-row coords +
+   *  alcohol/distraction flags. */
+  hasScopeFilter: boolean;
   /** {label, value} pairs for table-style rendering. */
   rows: { label: string; value: string }[];
   /** Compact one-line description, e.g. "Los Angeles · 2022-01 → 2023-12 · Fatal" */
@@ -181,6 +185,10 @@ export function computeFilterScope(state: FilterState): FilterScope {
     state.collisionType.size > 0 ||
     state.roadType != null;
 
+  // Backend gate for /api/crashes — only county or date narrows the row set
+  // enough to allow a bulk read; severity/cause/flag-only filters don't.
+  const hasScopeFilter = state.dateRange != null || state.counties.size > 0;
+
   const oneLineParts: string[] = [];
   if (state.counties.size > 0) oneLineParts.push(countyLabel);
   if (state.dateRange) oneLineParts.push(dateLabel);
@@ -207,5 +215,5 @@ export function computeFilterScope(state: FilterState): FilterScope {
     return parts.length > 0 ? `_${parts.join("_")}` : "";
   })();
 
-  return { hasAnyFilter, rows, oneLine, filenameSuffix };
+  return { hasAnyFilter, hasScopeFilter, rows, oneLine, filenameSuffix };
 }

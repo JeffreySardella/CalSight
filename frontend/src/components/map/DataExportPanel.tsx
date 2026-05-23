@@ -65,8 +65,10 @@ export default function DataExportPanel() {
   const scope = useMemo(() => computeFilterScope(filterState), [filterState]);
   const filterQs = useMemo(() => buildFilterQS(searchParams), [searchParams]);
 
-  // CSV requires at least one filter (matches /api/crashes?include_total=true).
-  const csvBlocked = activeFormat === "csv" && !scope.hasAnyFilter;
+  // CSV export hits /api/crashes, which requires a county or date filter
+  // (per #282). Other narrowings (severity/cause/flags) aren't enough on
+  // their own — the backend rejects unfiltered bulk reads.
+  const csvBlocked = activeFormat === "csv" && !scope.hasScopeFilter;
   const isRunning = phase.kind === "running";
 
   // Snapshot the latest values on a ref so the event handler always reads
@@ -85,7 +87,7 @@ export default function DataExportPanel() {
       try {
         if (fmt === "csv") {
           if (blocked) {
-            failExport("csv", "Apply at least one filter to export a CSV.");
+            failExport("csv", "Pick a county or date range before exporting a CSV.");
             return;
           }
           abortRef.current?.abort();
@@ -269,7 +271,7 @@ export default function DataExportPanel() {
       {csvBlocked && phase.kind === "idle" && (
         <div className="bg-surface-container rounded-lg p-4 text-[11px] text-on-surface-variant leading-snug">
           <span className="material-symbols-outlined text-base align-middle mr-1">info</span>
-          CSV export requires at least one filter (county, year, severity, etc.) so the file stays a sensible size.
+          CSV export needs a county or date-range filter — that keeps the file small enough to download and prevents bulk re-identification of individual rows.
         </div>
       )}
     </div>

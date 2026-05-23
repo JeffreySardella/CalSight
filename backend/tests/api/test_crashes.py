@@ -4,9 +4,13 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
+# Covers every seeded crash year. /api/crashes requires a county/year/date_range
+# filter as of #282 to prevent unfiltered bulk reads of per-crash rows.
+ALL_YEARS = "year=2014,2015,2022,2023"
+
 
 def test_crashes_returns_items_and_pagination(client):
-    response = client.get("/api/crashes?limit=10")
+    response = client.get(f"/api/crashes?{ALL_YEARS}&limit=10")
     assert response.status_code == 200
     body = response.json()
     assert body["limit"] == 10
@@ -28,25 +32,25 @@ def test_crashes_filter_by_county(client):
 
 
 def test_crashes_filter_by_severity_fatal(client):
-    response = client.get("/api/crashes?severity=fatal")
+    response = client.get(f"/api/crashes?{ALL_YEARS}&severity=fatal")
     body = response.json()
     assert all(c["severity"] == "Fatal" for c in body["items"])
 
 
 def test_crashes_filter_by_cause_dui(client):
-    response = client.get("/api/crashes?cause=dui")
+    response = client.get(f"/api/crashes?{ALL_YEARS}&cause=dui")
     body = response.json()
     assert all(c["canonical_cause"] == "dui" for c in body["items"])
 
 
 def test_crashes_filter_cause_lane_change_translates_hyphen(client):
-    response = client.get("/api/crashes?cause=lane-change")
+    response = client.get(f"/api/crashes?{ALL_YEARS}&cause=lane-change")
     body = response.json()
     assert all(c["canonical_cause"] == "lane_change" for c in body["items"])
 
 
 def test_crashes_alcohol_flag_excludes_switrs(client):
-    response = client.get("/api/crashes?alcohol=true")
+    response = client.get(f"/api/crashes?{ALL_YEARS}&alcohol=true")
     body = response.json()
     ids = {c["id"] for c in body["items"]}
     assert 3 in ids
@@ -55,7 +59,7 @@ def test_crashes_alcohol_flag_excludes_switrs(client):
 
 
 def test_crashes_distracted_flag(client):
-    response = client.get("/api/crashes?distracted=true")
+    response = client.get(f"/api/crashes?{ALL_YEARS}&distracted=true")
     body = response.json()
     ids = {c["id"] for c in body["items"]}
     # Only crash id=4 was seeded with is_distraction_involved=True.
@@ -81,7 +85,7 @@ def test_crashes_rejects_unknown_county(client):
 
 
 def test_crashes_sort_descending_by_datetime(client):
-    response = client.get("/api/crashes?limit=10")
+    response = client.get(f"/api/crashes?{ALL_YEARS}&limit=10")
     body = response.json()
     dts = [c["crash_datetime"] for c in body["items"]]
     assert dts == sorted(dts, reverse=True)
@@ -106,21 +110,34 @@ def test_crashes_join_key_is_collision_plus_source(client):
     assert any(c["collision_id"] == 100 for c in r2)
 
 
-def test_crashes_cache_header(client):
+def test_crashes_cache_header_is_no_store(client):
+    """Per #282 — public CDNs shouldn't memoize per-crash rows."""
+    response = client.get(f"/api/crashes?{ALL_YEARS}")
+    assert response.headers.get("cache-control") == "no-store"
+
+
+def test_crashes_requires_minimum_filter(client):
+    """Per #282 — unfiltered bulk reads of crash rows are rejected.
+    At least one of county / year / start+end is required."""
     response = client.get("/api/crashes")
-    assert response.headers.get("cache-control") == "public, max-age=3600, stale-while-revalidate=86400"
-
-
-def test_crashes_include_total_without_filter_returns_422(client):
-    """Unfiltered include_total=true is rejected — would require a multi-minute
-    COUNT(*) over 11M rows. Users should add a filter or use /api/stats for
-    aggregate totals. Proper fix is the covering index in #106."""
-    response = client.get("/api/crashes?include_total=true")
     assert response.status_code == 422
     body = response.json()
-    assert body["filter"] == "include_total"
-    assert "at least one filter" in body["detail"]
-    assert "/api/stats" in body["detail"]
+    assert body["filter"] == "filter"
+    assert "county" in body["detail"]
+
+
+def test_crashes_requires_filter_even_for_include_total(client):
+    """Same minimum-filter requirement applies regardless of include_total."""
+    response = client.get("/api/crashes?include_total=true")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "filter"
+
+
+def test_crashes_accepts_other_filters_alongside_minimum(client):
+    """severity / cause / alcohol filters are still valid — they just can't
+    appear alone without one of county / year / date range."""
+    response = client.get(f"/api/crashes?{ALL_YEARS}&severity=fatal")
+    assert response.status_code == 200
 
 
 def test_crashes_include_total_timeout_returns_null(client, monkeypatch):
