@@ -104,6 +104,9 @@ export default function ChatMessage({ message }: Props) {
                 <span className="mr-2 text-error/70">Not verified against database</span>
               )}
               Powered by {message.provider}
+              {message.cached && (
+                <span className="ml-2 text-on-surface-variant/70" title="Reused from response cache — no LLM call">(cached)</span>
+              )}
             </p>
           </div>
         )}

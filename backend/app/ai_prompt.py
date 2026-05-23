@@ -6,6 +6,7 @@ You have tools to query the database. Use them to get real data before answering
 
 The user currently has these filters active (use as defaults when relevant):
 {active_filters}
+{quick_facts}
 
 Available data domains:
 - Crash records: 11M crashes with severity, cause, time, location, weather, lighting, road conditions
@@ -155,3 +156,111 @@ def build_filters_summary(filters: dict) -> str:
     if filters.get("hit_run") == "true":
         parts.append("Hit-and-run only")
     return ", ".join(parts) if parts else "All California data (no filters active)"
+
+
+def _format_int(n: int | float | None) -> str:
+    if n is None:
+        return "0"
+    return f"{int(n):,}"
+
+
+def _filters_to_query_args(filters: dict) -> dict:
+    """Translate the URL-shaped filter dict into kwargs for query_crashes.
+
+    Only handles filters that map cleanly onto the tool's signature; the rest
+    are dropped (they're already reflected in the LLM's `active_filters` text
+    block above). The point here is to give the model accurate baseline numbers
+    for the user's current view, not to perfectly replicate every filter.
+    """
+    out: dict = {}
+    if county := filters.get("county"):
+        # query_crashes resolves slug or display name internally — use the raw
+        # value here so users with `?county=los-angeles` and the AI's own
+        # tool-call output stay in sync.
+        out["county"] = county
+    years_raw = filters.get("year") or ""
+    years = [int(y) for y in years_raw.split(",") if y.strip().isdigit()]
+    if years:
+        out["years"] = years
+    if (sev := filters.get("severity")):
+        # Severity slugs come in as "fatal" / "injury" / "property-damage-only"
+        # but the column stores "Fatal" / "Injury" / "Property Damage Only".
+        sev_map = {
+            "fatal": "Fatal",
+            "injury": "Injury",
+            "property-damage-only": "Property Damage Only",
+        }
+        first = sev.split(",")[0].strip().lower()
+        if first in sev_map:
+            out["severity"] = sev_map[first]
+    if (cause := filters.get("cause")):
+        first = cause.split(",")[0].strip().lower()
+        if first:
+            out["cause"] = first
+    if filters.get("alcohol") == "true":
+        out["is_alcohol_involved"] = True
+    if filters.get("distracted") == "true":
+        out["is_distraction_involved"] = True
+    if filters.get("pedestrian") == "true":
+        out["pedestrian_involved"] = True
+    if filters.get("hit_run") == "true":
+        out["hit_run"] = True
+    return out
+
+
+def build_quick_facts(db, filters: dict) -> str:
+    """Pre-query aggregate stats for the active filters and format as a
+    markdown block to prepend to the system prompt.
+
+    The model can read these numbers directly without burning a tool call for
+    "how many crashes in LA in 2023?". Returns an empty string if the lookup
+    fails — we fall back gracefully to tool-call mode rather than block the
+    request.
+    """
+    # Local import to avoid a circular dependency at module load — ai_tools
+    # imports from app.models, which can transitively import this module
+    # during certain pytest collection orders.
+    from app.ai_tools import query_crashes
+
+    args = _filters_to_query_args(filters)
+
+    try:
+        totals_rows = query_crashes(db, **args)
+        totals = totals_rows[0] if totals_rows else {}
+        severity_rows = query_crashes(db, group_by="severity", **args)
+    except Exception:
+        # If the DB hiccups we'd rather return an empty Quick Facts than
+        # 500 the whole ask request. The LLM still has its tool set.
+        return ""
+
+    total_count = int(totals.get("crash_count") or 0)
+    if total_count == 0:
+        return "\nQuick facts: no crashes match these filters.\n"
+
+    killed = int(totals.get("total_killed") or 0)
+    injured = int(totals.get("total_injured") or 0)
+    fatality_rate = totals.get("fatality_rate_pct")
+    injury_rate = totals.get("injury_rate_pct")
+
+    lines: list[str] = []
+    lines.append(
+        "\nQuick facts for the user's current filters (use these directly when answering basic count/rate questions — no tool call needed):"
+    )
+    lines.append(f"- Total crashes: {_format_int(total_count)}")
+    if killed:
+        rate_str = f" ({fatality_rate}%)" if isinstance(fatality_rate, (int, float)) else ""
+        lines.append(f"- Fatalities: {_format_int(killed)}{rate_str}")
+    if injured:
+        rate_str = f" ({injury_rate}%)" if isinstance(injury_rate, (int, float)) else ""
+        lines.append(f"- Injuries: {_format_int(injured)}{rate_str}")
+
+    if severity_rows:
+        # query_crashes already added pct_of_total to each row.
+        breakdown = ", ".join(
+            f"{r.get('severity') or 'Unknown'} {r.get('pct_of_total', 0)}%"
+            for r in severity_rows[:3]
+        )
+        lines.append(f"- Severity mix: {breakdown}")
+
+    lines.append("Use these baselines for the visible scope; call tools for anything not covered here.\n")
+    return "\n".join(lines)

@@ -28,6 +28,9 @@ export interface ChatMessage {
   toolsCalled?: string[];
   grounded?: boolean;
   question?: string;
+  /** True when the backend returned X-Cache: HIT — answer was reused from
+   *  the in-process LRU instead of round-tripping to the LLM. */
+  cached?: boolean;
 }
 
 interface AskResponse {
@@ -170,6 +173,7 @@ export function useAskAi() {
         }
 
         setError(null);
+        const cached = resp.headers.get("x-cache")?.toUpperCase() === "HIT";
         const aiMsg: ChatMessage = {
           role: "assistant",
           content: data.answer,
@@ -180,6 +184,7 @@ export function useAskAi() {
           toolsCalled: data.tools_called,
           grounded: data.grounded,
           question: question.trim(),
+          cached,
         };
 
         setMessages((prev) => [...prev, aiMsg]);
