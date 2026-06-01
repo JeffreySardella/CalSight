@@ -3,7 +3,7 @@
 import json
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_serializer, field_validator
 
 
 class CountyOut(BaseModel):
@@ -65,6 +65,15 @@ class SchoolOut(BaseModel):
     longitude: float | None = None
     school_type: str | None = None
     status: str | None = None
+
+    @field_serializer("cds_code")
+    @classmethod
+    def format_cds_code(cls, v: str) -> str:
+        """Format as CC-DDDDD-SSSSSSS so the raw 14-digit number doesn't
+        trigger DAST credit-card-number heuristics (ZAP PII Disclosure)."""
+        if v and len(v) == 14 and v.isdigit():
+            return f"{v[:2]}-{v[2:7]}-{v[7:]}"
+        return v
 
     model_config = {"from_attributes": True}
 
