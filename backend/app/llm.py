@@ -10,7 +10,7 @@ import logging
 import time
 from typing import Any
 
-from openai import BadRequestError, OpenAI, RateLimitError
+from openai import APIConnectionError, APITimeoutError, BadRequestError, OpenAI, RateLimitError
 
 from app.settings import settings
 
@@ -268,6 +268,12 @@ def generate_with_fallback(
         except BadRequestError as e:
             _mark_cooled_down(name, 60)
             logger.warning("Provider %s bad request: %s", name, e)
+            last_error = e
+            continue
+
+        except (APIConnectionError, APITimeoutError, Exception) as e:
+            _mark_cooled_down(name, 30)
+            logger.warning("Provider %s connection/timeout error: %s", name, e)
             last_error = e
             continue
 

@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
 
+from sqlalchemy import text
+
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import EtlRun
 
@@ -208,7 +210,39 @@ def _describe_exit_code(returncode: int) -> str:
     return f"Non-zero exit code {returncode}"
 
 
+_PIPELINE_LOCK_ID = 839271  # arbitrary advisory lock key
+
+
 def run_pipeline(
+    registry: JobRegistry,
+    triggered_by: str = "manual",
+    only: list[str] | None = None,
+    skip_static: bool = True,
+    force_refresh: bool = False,
+) -> list[EtlRun]:
+    db = SessionLocal()
+    try:
+        acquired = db.execute(
+            text("SELECT pg_try_advisory_lock(:id)"), {"id": _PIPELINE_LOCK_ID}
+        ).scalar()
+        if not acquired:
+            logger.warning("Pipeline already running (advisory lock held), skipping")
+            return []
+    except Exception:
+        db.close()
+        raise
+
+    try:
+        return _run_pipeline_locked(registry, triggered_by, only, skip_static, force_refresh)
+    finally:
+        try:
+            db.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": _PIPELINE_LOCK_ID})
+            db.commit()
+        finally:
+            db.close()
+
+
+def _run_pipeline_locked(
     registry: JobRegistry,
     triggered_by: str = "manual",
     only: list[str] | None = None,

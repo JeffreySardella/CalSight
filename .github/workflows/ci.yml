@@ -19,7 +19,7 @@ jobs:
         working-directory: backend
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: calsight
           POSTGRES_PASSWORD: calsight_dev
@@ -86,7 +86,7 @@ jobs:
           python-version: "3.12"
       - run: pip install bandit
       - name: Run Bandit (Python SAST)
-        run: bandit -r backend/app/ -f json -o bandit-report.json --severity-level medium || true
+        run: bandit -r backend/app/ -f json -o bandit-report.json --severity-level high
       - name: Upload Bandit report
         if: always()
         uses: actions/upload-artifact@v4
@@ -101,7 +101,7 @@ jobs:
           node-version: "20"
       - name: npm audit (frontend)
         working-directory: frontend
-        run: npm audit --audit-level=moderate || true
+        run: npm audit --audit-level=high
 
   lighthouse:
     runs-on: ubuntu-latest

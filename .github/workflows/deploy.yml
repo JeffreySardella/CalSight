@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -58,10 +62,20 @@ jobs:
           mkdir -p backend/data
           cp frontend/public/ca-counties.geojson backend/data/ca-counties-tiger.geojson
 
-      - name: Build and restart backend + tunnel
+      - name: Build images (without starting)
         env:
           CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
-        run: docker compose -f docker-compose.prod.yml up --build -d
+        run: docker compose -f docker-compose.prod.yml build
+
+      - name: Run database migrations (before serving traffic)
+        env:
+          CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
+        run: docker compose -f docker-compose.prod.yml run --rm -T backend alembic upgrade head
+
+      - name: Start backend + tunnel
+        env:
+          CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
+        run: docker compose -f docker-compose.prod.yml up -d
 
       - name: Tag images with commit SHA for rollback
         run: |
@@ -69,9 +83,6 @@ jobs:
 
       - name: Prune old images (keep last 5)
         run: docker image prune -f --filter "until=168h"
-
-      - name: Run database migrations
-        run: docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
 
       - name: Backfill derived fields (severity, flags, driver age, canonical cause)
         run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.backfill_derived

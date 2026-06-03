@@ -34,7 +34,11 @@ export function useDataFreshness(): DataFreshnessResult {
       const res = await fetch(`${API_BASE}/api/meta/data-freshness`);
       if (!res.ok) throw new Error(`data-freshness ${res.status}`);
       const json = await res.json();
-      return Array.isArray(json) ? json : json?.sources ?? [];
+      if (Array.isArray(json)) return json;
+      return Object.entries(json).map(([source, v]: [string, any]) => ({
+        source,
+        last_loaded_at: v.last_loaded_at,
+      }));
     },
     refetchInterval: 5 * 60 * 1000,
   });

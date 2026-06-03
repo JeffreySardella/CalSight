@@ -128,6 +128,12 @@ function normalizeFilters(f: StatsFilters): StatsFilters {
     cyclist: f.cyclist,
     drug: f.drug,
     distracted: f.distracted,
+    driverAge: f.driverAge,
+    weather: f.weather,
+    lighting: f.lighting,
+    collisionType: f.collisionType,
+    roadType: f.roadType,
+    hitRun: f.hitRun,
   };
 }
 

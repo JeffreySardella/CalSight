@@ -156,15 +156,11 @@ def list_crashes(
         # don't stall the client. (The filter requirement above handles
         # the unfiltered case; this catches broad filter combos.)
         #
-        # We use `SET` (session-scoped) rather than `SET LOCAL` (tx-scoped)
-        # because SQLAlchemy's transaction lifecycle around Session.execute
-        # is inconsistent enough that SET LOCAL sometimes doesn't apply to
-        # the subsequent Query.count(). The finally block resets the timeout
-        # before the connection goes back to the pool so the next request
-        # starts clean.
         try:
-            db.execute(text(f"SET statement_timeout = {COUNT_STATEMENT_TIMEOUT_MS}"))
+            db.execute(text("BEGIN"))
+            db.execute(text(f"SET LOCAL statement_timeout = {COUNT_STATEMENT_TIMEOUT_MS}"))
             total = q.count()
+            db.execute(text("COMMIT"))
         except OperationalError as exc:
             logger.warning(
                 "include_total COUNT exceeded %dms; returning total=null (%s)",
@@ -173,8 +169,6 @@ def list_crashes(
             )
             db.rollback()
             total = None
-        finally:
-            db.execute(text("SET statement_timeout = 0"))
 
     rows = q.offset(offset).limit(limit).all()
     return PaginatedResponse[CrashOut](

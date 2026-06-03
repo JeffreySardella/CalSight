@@ -52,7 +52,15 @@ function loadMessages(): ChatMessage[] {
 }
 
 function saveMessages(messages: ChatMessage[]) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-MAX_MESSAGES)));
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-MAX_MESSAGES)));
+  } catch {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-10)));
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  }
 }
 
 export function useAskAi() {
@@ -67,6 +75,8 @@ export function useAskAi() {
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const inFlightRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     saveMessages(messages);
@@ -80,8 +90,14 @@ export function useAskAi() {
     }
   }, [cooldownEnd]);
 
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
+
   const sendMessage = useCallback(async (question: string) => {
-    if (!question.trim() || isLoading) return;
+    if (!question.trim() || isLoading || inFlightRef.current) return;
+    inFlightRef.current = true;
+    abortRef.current?.abort();
 
     setError(null);
     const userMsg: ChatMessage = {
@@ -120,6 +136,7 @@ export function useAskAi() {
         lastWas429 = false;
 
         const controller = new AbortController();
+        abortRef.current = controller;
         const timeout = setTimeout(() => controller.abort(), 55_000);
         const resp = await fetch(API_URL, {
           method: "POST",
@@ -192,6 +209,8 @@ export function useAskAi() {
       }
     }
     setIsLoading(false);
+    inFlightRef.current = false;
+    abortRef.current = null;
   }, [isLoading, searchParams]);
 
   const retry = useCallback(() => {
