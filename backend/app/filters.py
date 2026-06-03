@@ -395,7 +395,10 @@ def require_min_filter(
 
     Raises FilterError → 422 with the documented `{detail, filter}` envelope.
     """
-    if county_codes or years or date_range is not None or collision_id is not None:
+    if (county_codes is not None
+            or years is not None
+            or date_range is not None
+            or collision_id is not None):
         return
     raise FilterError(
         "filter",
