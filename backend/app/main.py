@@ -33,6 +33,7 @@ app.add_middleware(
     allow_origins=settings.cors_origin_list,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "X-ETL-API-KEY"],
+    expose_headers=["X-Cache"],
 )
 
 class NullByteSanitizationMiddleware(BaseHTTPMiddleware):
