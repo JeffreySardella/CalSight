@@ -74,7 +74,7 @@ def backfill_route_number(db) -> int:
     """
     total_updated = 0
     for year in _all_crash_year_range(db):
-        rows = db.execute(
+        result = db.execute(
             text("""
                 SELECT id, primary_road
                 FROM crashes
@@ -83,31 +83,37 @@ def backfill_route_number(db) -> int:
                   AND route_number IS NULL
             """),
             {"y": year},
-        ).all()
-
-        if not rows:
-            continue
+        )
 
         ids: list[int] = []
         rns: list[str] = []
         matched = 0
-        for r in rows:
-            rn = extract_route_number(r.primary_road)
-            if rn is None:
-                continue
-            ids.append(r.id)
-            rns.append(rn)
-            matched += 1
-            if len(ids) >= _BATCH_SIZE:
-                _flush(db, ids, rns)
-                db.commit()
-                ids, rns = [], []
+        scanned = 0
+        while True:
+            rows = result.fetchmany(_BATCH_SIZE)
+            if not rows:
+                break
+            scanned += len(rows)
+            for r in rows:
+                rn = extract_route_number(r.primary_road)
+                if rn is None:
+                    continue
+                ids.append(r.id)
+                rns.append(rn)
+                matched += 1
+                if len(ids) >= _BATCH_SIZE:
+                    _flush(db, ids, rns)
+                    db.commit()
+                    ids, rns = [], []
+
+        if scanned == 0:
+            continue
 
         _flush(db, ids, rns)
         db.commit()
         total_updated += matched
         logger.info(
-            "Route number %d: scanned %d, updated %d", year, len(rows), matched,
+            "Route number %d: scanned %d, updated %d", year, scanned, matched,
         )
 
     logger.info("Route number backfill done: %d rows updated", total_updated)

@@ -30,7 +30,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column("crashes", sa.Column("route_number", sa.String(length=10), nullable=True))
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_crashes_route_number "
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crashes_route_number "
         "ON crashes (route_number) WHERE route_number IS NOT NULL"
     )
 

@@ -200,6 +200,11 @@ CA_HIGHWAYS: dict[int, Highway] = {
 }
 
 
+_CANONICAL_TO_MILES: dict[str, float] = {
+    hw.canonical_id: hw.miles for hw in CA_HIGHWAYS.values()
+}
+
+
 def resolve_route(number: int) -> Highway | None:
     """Return the canonical highway for a bare route number, or None."""
     return CA_HIGHWAYS.get(number)
@@ -207,7 +212,4 @@ def resolve_route(number: int) -> Highway | None:
 
 def miles_for(canonical_id: str) -> float | None:
     """Return centerline miles for a canonical highway designation, or None."""
-    for hw in CA_HIGHWAYS.values():
-        if hw.canonical_id == canonical_id:
-            return hw.miles
-    return None
+    return _CANONICAL_TO_MILES.get(canonical_id)
