@@ -40,7 +40,7 @@ _ONE_HOUR = "public, max-age=3600"
 
 
 @router.get("/counties", response_model=list[CountyOut])
-@_limiter.limit("10/minute")
+@_limiter.limit("1000/minute;20000/hour")
 def list_counties(
     request: Request,
     response: Response,

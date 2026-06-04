@@ -266,6 +266,8 @@ def run(
             start_year, end_year, len(switrs_years), len(ccrs_years),
         )
 
+        failed_batches = 0
+
         # --- SWITRS years ---
         # Download the archive once, then read all years from the SQLite file.
         # This avoids re-downloading for each year (the archive is ~1 GB).
@@ -296,6 +298,7 @@ def run(
                         batch_start, batch_start + len(batch), count,
                     )
                 except Exception as exc:
+                    failed_batches += 1
                     logger.error("SWITRS batch [%d:%d] failed: %s", batch_start, batch_start + len(batch), exc)
                     db.rollback()
 
@@ -322,6 +325,7 @@ def run(
                                 year, count, offset, total, year_rows,
                             )
                         except Exception as exc:
+                            failed_batches += 1
                             logger.error(
                                 "CCRS year %d batch at offset %d failed: %s",
                                 year, offset, exc,
@@ -331,16 +335,18 @@ def run(
                     logger.info("CCRS year %d complete: %d rows", year, year_rows)
 
                 except Exception as exc:
+                    failed_batches += 1
                     logger.error("CCRS year %d failed entirely: %s", year, exc)
                     db.rollback()
 
         # Summary
-        logger.info("Done. %d total rows upserted.", total_rows)
+        logger.info("Done. %d total rows upserted, %d batches failed.", total_rows, failed_batches)
 
-        # Update EtlRun to success
-        etl_run.status = "success"
+        etl_run.status = "partial_success" if failed_batches > 0 else "success"
         etl_run.finished_at = datetime.utcnow()
         etl_run.rows_loaded = total_rows
+        if failed_batches > 0:
+            etl_run.error_message = f"{failed_batches} batch(es) failed during load"
         db.commit()
 
     except Exception as exc:

@@ -53,7 +53,7 @@ def data_freshness(request: Request, response: Response, db: Session = Depends(g
 @_limiter.limit("1000/minute;20000/hour")
 def coord_validation_summary(request: Request, response: Response, db: Session = Depends(get_db)):
     """Summary stats for coordinate validation — how many valid/mismatched/unchecked."""
-    response.headers["Cache-Control"] = "public, max-age=60"
+    response.headers["Cache-Control"] = "public, max-age=3600"
     row = db.query(
         func.count(Crash.id).label("total_with_coords"),
         func.sum(case((Crash.coord_county_mismatch == True, 1), else_=0)).label("mismatched"),  # noqa: E712

@@ -51,6 +51,13 @@ class HistoryMessage(BaseModel):
             raise ValueError("role must be 'user' or 'assistant'")
         return v
 
+    @field_validator("content")
+    @classmethod
+    def cap_content_length(cls, v: str) -> str:
+        if len(v) > 2000:
+            return v[:2000]
+        return v
+
 
 class AskRequest(BaseModel):
     question: str
