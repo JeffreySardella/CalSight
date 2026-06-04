@@ -150,7 +150,10 @@ function buildDemoUrl(filters: StatsFilters): string {
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`stats ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`stats ${res.status}: ${body}`);
+  }
   return res.json();
 }
 

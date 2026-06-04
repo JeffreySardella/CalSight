@@ -22,7 +22,7 @@ from app.ai_prompt import (
     build_filters_summary,
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.models import ChatFeedback
 from app.llm import (
     AllProvidersExhausted,
@@ -119,10 +119,10 @@ def feedback(request: Request, body: FeedbackRequest, db: Session = Depends(get_
 
 @router.post("/ask", response_model=AskResponse)
 @limiter.limit("10/minute;200/day")
-async def ask(request: Request, body: AskRequest, db: Session = Depends(get_db)):
+async def ask(request: Request, body: AskRequest):
     try:
         return await asyncio.wait_for(
-            asyncio.to_thread(_handle_ask, body, db),
+            asyncio.to_thread(_handle_ask, body),
             timeout=60.0,
         )
     except asyncio.TimeoutError:
@@ -132,37 +132,41 @@ async def ask(request: Request, body: AskRequest, db: Session = Depends(get_db))
         )
 
 
-def _handle_ask(body: AskRequest, db: Session) -> AskResponse:
-    filters_summary = build_filters_summary(body.filters)
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(active_filters=filters_summary)
-
-    messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
-
-    for msg in body.history[-_MAX_HISTORY:]:
-        messages.append({"role": msg.role, "content": msg.content})
-
-    messages.append({"role": "user", "content": body.question})
-
-    tools_called: list[str] = []
-
+def _handle_ask(body: AskRequest) -> AskResponse:
+    db = SessionLocal()
     try:
-        answer, provider = _run_with_tools(db, messages, tools_called)
-    except AllProvidersExhausted:
-        answer, provider = _run_simple_mode(db, body.filters, messages)
+        filters_summary = build_filters_summary(body.filters)
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(active_filters=filters_summary)
 
-    suggestions = _parse_suggestions(answer)
-    chart = _parse_chart(answer)
-    clean_answer = _strip_suggestions(_strip_chart(answer))
+        messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
 
-    return AskResponse(
-        answer=clean_answer,
-        provider=provider,
-        suggestions=suggestions,
-        chart=chart,
-        grounded=len(tools_called) > 0,
-        filters_used=body.filters,
-        tools_called=tools_called,
-    )
+        for msg in body.history[-_MAX_HISTORY:]:
+            messages.append({"role": msg.role, "content": msg.content})
+
+        messages.append({"role": "user", "content": body.question})
+
+        tools_called: list[str] = []
+
+        try:
+            answer, provider = _run_with_tools(db, messages, tools_called)
+        except AllProvidersExhausted:
+            answer, provider = _run_simple_mode(db, body.filters, messages)
+
+        suggestions = _parse_suggestions(answer)
+        chart = _parse_chart(answer)
+        clean_answer = _strip_suggestions(_strip_chart(answer))
+
+        return AskResponse(
+            answer=clean_answer,
+            provider=provider,
+            suggestions=suggestions,
+            chart=chart,
+            grounded=len(tools_called) > 0,
+            filters_used=body.filters,
+            tools_called=tools_called,
+        )
+    finally:
+        db.close()
 
 
 def _run_with_tools(

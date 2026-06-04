@@ -31,8 +31,8 @@ export function useNominatim(query: string, enabled: boolean) {
       return;
     }
 
-    setLoading(true);
     const timer = setTimeout(async () => {
+      setLoading(true);
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
