@@ -326,4 +326,4 @@ def generate_narrative(prompt: str) -> str:
         max_tokens=200,
         temperature=0.7,
     )
-    return resp.choices[0].message.content.strip()
+    return (resp.choices[0].message.content or "").strip()

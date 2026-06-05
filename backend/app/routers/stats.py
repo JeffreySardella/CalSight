@@ -938,7 +938,7 @@ def stats_batch(
             results[group] = _run_group_query(
                 group, years, county_codes, severities, causes, db, **kwargs,
             )
-        except FilterError:
-            results[group] = None
+        except FilterError as e:
+            results[group] = {"error": e.detail, "filter": e.filter}
 
     return results
