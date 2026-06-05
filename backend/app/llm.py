@@ -318,7 +318,7 @@ def generate_narrative(prompt: str) -> str:
     if not model:
         raise ValueError(f"No model configured for provider {provider!r}.")
 
-    logger.info("generate_narrative using key #%d of %d", (_narrative_call_count - 1) % len(keys) + 1, len(keys))
+    logger.info("generate_narrative using key #%d of %d", call_num % len(keys) + 1, len(keys))
     client = OpenAI(base_url=base_url, api_key=api_key, max_retries=0, timeout=30)
     resp = client.chat.completions.create(
         model=model,

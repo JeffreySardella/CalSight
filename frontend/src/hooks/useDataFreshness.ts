@@ -35,7 +35,7 @@ export function useDataFreshness(): DataFreshnessResult {
       if (!res.ok) throw new Error(`data-freshness ${res.status}`);
       const json = await res.json();
       if (Array.isArray(json)) return json;
-      return Object.entries(json).map(([source, v]: [string, any]) => ({
+      return Object.entries(json as Record<string, { last_loaded_at: string; rows_loaded: number }>).map(([source, v]) => ({
         source,
         last_loaded_at: v.last_loaded_at,
       }));
