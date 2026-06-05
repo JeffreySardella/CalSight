@@ -45,6 +45,7 @@ export function useHeatLayer(
   const layerRef = useRef<L.HeatLayer | null>(null);
   const latlngsRef = useRef<[number, number, number][]>([]);
 
+  // Layer creation/teardown — only when style config changes
   useEffect(() => {
     if (layerRef.current) {
       map.removeLayer(layerRef.current);
@@ -123,7 +124,34 @@ export function useHeatLayer(
         layerRef.current = null;
       }
     };
-  }, [map, points, resolution, palette, isDark]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, resolution, palette, isDark]);
+
+  // Data updates — setLatLngs to avoid full teardown on each batch
+  useEffect(() => {
+    if (points.length === 0) {
+      if (layerRef.current) {
+        map.removeLayer(layerRef.current);
+        layerRef.current = null;
+      }
+      return;
+    }
+
+    let maxWeight = 0;
+    for (const p of points) {
+      if (p.weight > maxWeight) maxWeight = p.weight;
+    }
+
+    latlngsRef.current = points.map((p) => [
+      p.lat,
+      p.lng,
+      p.weight / (maxWeight || 1),
+    ]);
+
+    if (layerRef.current) {
+      layerRef.current.setLatLngs(latlngsRef.current);
+    }
+  }, [map, points]);
 
   return layerRef;
 }
