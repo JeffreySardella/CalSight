@@ -23,6 +23,7 @@ from app.filters import (
     parse_county_codes,
     parse_date_range,
     parse_year,
+    require_min_filter,
     years_from_date_range,
 )
 from app.models import Crash, CrashParty, CrashVictim
@@ -131,7 +132,7 @@ def _parse_gender(raw: str | None) -> set[str] | None:
 
 
 @router.get("/parties", response_model=PaginatedResponse[CrashPartyOut])
-@_limiter.limit("1000/minute;20000/hour")
+@_limiter.limit("60/minute;500/hour")
 def list_parties(
     request: Request,
     response: Response,
@@ -152,6 +153,12 @@ def list_parties(
 ):
     """Paginated cross-crash party query.
 
+    Requires at least one of `county`, `year`/`start`/`end`, or
+    `collision_id` to prevent unfiltered scraping of per-person rows.
+    Rate-limited tighter than the rest of the API (60/min) because each
+    response row is individual-level data even after age/sobriety
+    suppression.
+
     Filters:
       - `collision_id` + `data_source`: drill into one crash (same as
         /api/crashes/{collision_id}/parties but with paging)
@@ -168,6 +175,21 @@ def list_parties(
     age_min_v, age_max_v = _parse_age_range(age_min, age_max)
     gender_set = _parse_gender(gender)
 
+    date_range = parse_date_range(start, end)
+    county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
+    join_years: set[int] | None = None
+    if date_range is not None:
+        join_years = years_from_date_range(date_range)
+    elif year:
+        join_years = parse_year(year)
+
+    require_min_filter(
+        county_codes=county_codes,
+        years=join_years,
+        date_range=date_range,
+        collision_id=collision_id,
+    )
+
     q = db.query(CrashParty)
 
     if collision_id is not None:
@@ -175,26 +197,17 @@ def list_parties(
     if data_source is not None:
         q = q.filter(CrashParty.data_source == data_source)
 
-    date_range = parse_date_range(start, end)
-    needs_join = bool(county) or bool(year) or date_range is not None
+    needs_join = bool(county_codes) or join_years is not None
     if needs_join:
         q = q.join(
             Crash,
             (Crash.collision_id == CrashParty.collision_id)
             & (Crash.data_source == CrashParty.data_source),
         )
-        if county:
-            codes = parse_county_codes(county, get_slug_map(db))
-            if codes:
-                q = q.filter(Crash.county_code.in_(codes))
-        if date_range is not None:
-            years = years_from_date_range(date_range)
-            if years:
-                q = q.filter(Crash.crash_year.in_(years))
-        elif year:
-            years = parse_year(year)
-            if years:
-                q = q.filter(Crash.crash_year.in_(years))
+        if county_codes:
+            q = q.filter(Crash.county_code.in_(county_codes))
+        if join_years:
+            q = q.filter(Crash.crash_year.in_(join_years))
 
     if gender_set:
         q = q.filter(CrashParty.gender.in_(gender_set))
@@ -217,7 +230,7 @@ def list_parties(
 
 
 @router.get("/victims", response_model=PaginatedResponse[CrashVictimOut])
-@_limiter.limit("1000/minute;20000/hour")
+@_limiter.limit("60/minute;500/hour")
 def list_victims(
     request: Request,
     response: Response,
@@ -238,6 +251,10 @@ def list_victims(
 ):
     """Paginated cross-crash victim query (injured + killed + witnesses).
 
+    Requires at least one of `county`, `year`/`start`/`end`, or
+    `collision_id`. Same tighter rate limit as /api/parties for the same
+    reason — each row is individual-level data.
+
     Filters: same shape as /api/parties, plus `person_type` (Driver,
     Pedestrian, Bicyclist, Passenger) and `injury_severity` (Fatal,
     Severe, Possible, etc. — raw CCRS values; not the same vocabulary
@@ -250,6 +267,21 @@ def list_victims(
     age_min_v, age_max_v = _parse_age_range(age_min, age_max)
     gender_set = _parse_gender(gender)
 
+    date_range = parse_date_range(start, end)
+    county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
+    join_years: set[int] | None = None
+    if date_range is not None:
+        join_years = years_from_date_range(date_range)
+    elif year:
+        join_years = parse_year(year)
+
+    require_min_filter(
+        county_codes=county_codes,
+        years=join_years,
+        date_range=date_range,
+        collision_id=collision_id,
+    )
+
     q = db.query(CrashVictim)
 
     if collision_id is not None:
@@ -257,26 +289,17 @@ def list_victims(
     if data_source is not None:
         q = q.filter(CrashVictim.data_source == data_source)
 
-    date_range = parse_date_range(start, end)
-    needs_join = bool(county) or bool(year) or date_range is not None
+    needs_join = bool(county_codes) or join_years is not None
     if needs_join:
         q = q.join(
             Crash,
             (Crash.collision_id == CrashVictim.collision_id)
             & (Crash.data_source == CrashVictim.data_source),
         )
-        if county:
-            codes = parse_county_codes(county, get_slug_map(db))
-            if codes:
-                q = q.filter(Crash.county_code.in_(codes))
-        if date_range is not None:
-            years = years_from_date_range(date_range)
-            if years:
-                q = q.filter(Crash.crash_year.in_(years))
-        elif year:
-            years = parse_year(year)
-            if years:
-                q = q.filter(Crash.crash_year.in_(years))
+        if county_codes:
+            q = q.filter(Crash.county_code.in_(county_codes))
+        if join_years:
+            q = q.filter(Crash.crash_year.in_(join_years))
 
     if gender_set:
         q = q.filter(CrashVictim.gender.in_(gender_set))

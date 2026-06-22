@@ -5,6 +5,11 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
+# Covers the CCRS-era seeded crashes, where all parties/victims live. Required
+# minimum filter as of #282 — /api/parties and /api/victims need at least one
+# of county / year / start-end / collision_id.
+CCRS_YEARS = "year=2022,2023"
+
 
 # ── Drill-down (B1) ───────────────────────────────────────────────────
 
@@ -53,7 +58,7 @@ def test_drill_down_victims_empty_for_pdo_crash(client):
 
 
 def test_parties_pagination(client):
-    response = client.get("/api/parties?limit=2")
+    response = client.get(f"/api/parties?{CCRS_YEARS}&limit=2")
     assert response.status_code == 200
     body = response.json()
     assert body["limit"] == 2
@@ -62,20 +67,20 @@ def test_parties_pagination(client):
 
 
 def test_parties_filter_by_gender(client):
-    response = client.get("/api/parties?gender=f")
+    response = client.get(f"/api/parties?{CCRS_YEARS}&gender=f")
     body = response.json()
     assert all(p["gender"] == "F" for p in body["items"])
 
 
 def test_parties_filter_by_age_range(client):
-    response = client.get("/api/parties?age_min=20&age_max=30")
+    response = client.get(f"/api/parties?{CCRS_YEARS}&age_min=20&age_max=30")
     body = response.json()
     for p in body["items"]:
         assert p["age_bracket"] is None or p["age_bracket"] in ("16-24", "25-34")
 
 
 def test_parties_filter_at_fault(client):
-    response = client.get("/api/parties?at_fault=true")
+    response = client.get(f"/api/parties?{CCRS_YEARS}&at_fault=true")
     body = response.json()
     assert all(p["at_fault"] is True for p in body["items"])
 
@@ -97,34 +102,64 @@ def test_parties_collision_id_filter(client):
 
 
 def test_parties_rejects_bad_age_range(client):
-    response = client.get("/api/parties?age_min=50&age_max=20")
+    response = client.get(f"/api/parties?{CCRS_YEARS}&age_min=50&age_max=20")
     assert response.status_code == 422
     assert response.json()["filter"] == "age_min"
 
 
 def test_parties_rejects_unknown_gender(client):
-    response = client.get("/api/parties?gender=z")
+    response = client.get(f"/api/parties?{CCRS_YEARS}&gender=z")
     assert response.status_code == 422
     assert response.json()["filter"] == "gender"
 
 
+def test_parties_requires_minimum_filter(client):
+    """Per #282 — bulk /api/parties without a filter returns 422."""
+    response = client.get("/api/parties")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "filter"
+
+
+def test_parties_collision_id_alone_is_sufficient(client):
+    """collision_id targets a single crash, so a county/year filter isn't
+    additionally required."""
+    response = client.get("/api/parties?collision_id=100&data_source=ccrs")
+    assert response.status_code == 200
+
+
+def test_parties_cache_header_is_no_store(client):
+    response = client.get(f"/api/parties?{CCRS_YEARS}")
+    assert response.headers.get("cache-control") == "no-store"
+
+
 def test_victims_pagination(client):
-    response = client.get("/api/victims?limit=2")
+    response = client.get(f"/api/victims?{CCRS_YEARS}&limit=2")
     body = response.json()
     assert body["limit"] == 2
     assert body["total"] is None
 
 
 def test_victims_filter_injury_severity(client):
-    response = client.get("/api/victims?injury_severity=Fatal")
+    response = client.get(f"/api/victims?{CCRS_YEARS}&injury_severity=Fatal")
     body = response.json()
     assert all(v["injury_severity"] == "Fatal" for v in body["items"])
 
 
 def test_victims_filter_person_type(client):
-    response = client.get("/api/victims?person_type=Pedestrian")
+    response = client.get(f"/api/victims?{CCRS_YEARS}&person_type=Pedestrian")
     body = response.json()
     assert all(v["person_type"] == "Pedestrian" for v in body["items"])
+
+
+def test_victims_requires_minimum_filter(client):
+    response = client.get("/api/victims")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "filter"
+
+
+def test_victims_cache_header_is_no_store(client):
+    response = client.get(f"/api/victims?{CCRS_YEARS}")
+    assert response.headers.get("cache-control") == "no-store"
 
 
 def test_victims_county_filter_via_join(client):

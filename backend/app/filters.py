@@ -375,3 +375,34 @@ def build_crash_predicates(
         else:
             preds.append(Crash.hit_run.is_(None))
     return preds
+
+
+def require_min_filter(
+    *,
+    county_codes: set[int] | None,
+    years: set[int] | None,
+    date_range: DateRange | None,
+    collision_id: int | None = None,
+) -> None:
+    """Reject totally unfiltered bulk reads on PII-sensitive endpoints.
+
+    A pageable endpoint that exposes individual-level data (crash rows with
+    coords, or per-party/per-victim demographics) lowers the barrier to bulk
+    re-identification if it can be walked from offset=0 with no filter set.
+    Requiring at least one of county, year/date range, or a single-crash
+    collision_id keeps the result set narrow enough that scraping isn't a
+    one-curl operation.
+
+    Raises FilterError → 422 with the documented `{detail, filter}` envelope.
+    """
+    if (county_codes is not None
+            or years is not None
+            or date_range is not None
+            or collision_id is not None):
+        return
+    raise FilterError(
+        "filter",
+        "At least one filter is required: county, year, start/end, "
+        "or collision_id. Unfiltered bulk reads are not permitted on "
+        "this endpoint.",
+    )
