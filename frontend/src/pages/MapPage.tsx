@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import { useFilterParams, CA_COUNTIES } from "../hooks/useFilterParams";
 import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
+import { useAutoDisableHeatmap } from "../hooks/useAutoDisableHeatmap";
+import { selectHeatmapDetailSlugs } from "../lib/map/heatmapDetail";
 import { useViewportParams } from "../hooks/useViewportParams";
 import { useLayerParams } from "../hooks/useLayerParams";
 import type { CoordCoverage } from "../hooks/useCoordCoverage";
@@ -124,16 +126,31 @@ function MapPageInner() {
   usePrefetchFacets();
   const { data: countyGeoJson } = useCountyGeoJson();
 
-  const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
+  const { measure, otherLayers, heatmapResolution, palette, choroplethOn, setOtherLayer } = useLayersState();
 
-  const useCountyDetail = !!focusedCounty && otherLayers.heatmapCounty && (!compareMode || !!compareCounty);
+  const heatmapDetailSlugs = selectHeatmapDetailSlugs({
+    compareMode,
+    focusedCounty,
+    compareCounty,
+    selectedCounties,
+  });
 
-  const heatmapCountySlugs = useCountyDetail ? (() => {
-    const slugs: string[] = [];
-    if (focusedCounty) slugs.push(focusedCounty.toLowerCase().replace(/\s+/g, "-"));
-    if (compareCounty) slugs.push(compareCounty.toLowerCase().replace(/\s+/g, "-"));
-    return slugs.join(",") || null;
-  })() : null;
+  const useCountyDetail =
+    heatmapDetailSlugs.length > 0
+    && otherLayers.heatmapCounty
+    && (!compareMode || !!compareCounty);
+
+  const heatmapCountySlugs = useCountyDetail ? heatmapDetailSlugs.join(",") || null : null;
+
+  const setHeatmapCounty = useCallback((on: boolean) => setOtherLayer("heatmapCounty", on), [setOtherLayer]);
+  const setHeatmapStatewide = useCallback((on: boolean) => setOtherLayer("heatmapStatewide", on), [setOtherLayer]);
+  const { noteVisible: showHeatmapAutoDisableNote, dismissNote: dismissHeatmapAutoDisableNote } = useAutoDisableHeatmap({
+    selectedCountiesSize: selectedCounties.size,
+    heatmapCountyOn: otherLayers.heatmapCounty,
+    heatmapStatewideOn: otherLayers.heatmapStatewide,
+    setHeatmapCounty,
+    setHeatmapStatewide,
+  });
 
   const effectiveResolution = useCountyDetail
     ? "raw" as const
@@ -616,6 +633,27 @@ function MapPageInner() {
           onClear={handleClearAll}
           searchOpen={mobileSearchOpen}
         />
+
+        {showHeatmapAutoDisableNote && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="hidden md:flex absolute top-20 right-4 z-20 max-w-xs items-start gap-2 bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-xl px-3 py-2 ambient-shadow"
+          >
+            <span className="material-symbols-outlined text-[14px] text-primary shrink-0 mt-0.5">info</span>
+            <div className="flex-1 text-[11px] text-on-surface leading-snug">
+              <span className="font-bold">Heatmap turned off.</span>{" "}
+              <span className="text-on-surface-variant">Too many counties selected — re-enable from the Layers panel.</span>
+            </div>
+            <button
+              onClick={dismissHeatmapAutoDisableNote}
+              className="text-on-surface-variant hover:text-on-surface transition-colors -mr-1"
+              aria-label="Dismiss"
+            >
+              <span className="material-symbols-outlined text-[14px]">close</span>
+            </button>
+          </div>
+        )}
 
         {!choroplethData.isLoading
           && !choroplethData.isError
