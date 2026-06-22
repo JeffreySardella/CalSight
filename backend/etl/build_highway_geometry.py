@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 from shapely.geometry import mapping, shape
-from shapely.ops import unary_union
+from shapely.ops import linemerge, unary_union
 
 from app.ca_highways import resolve_route
 
@@ -55,9 +55,15 @@ def build_geojson(features: list[dict], simplify_tolerance: float = 0.001) -> di
 
     out_features = []
     for route_id in sorted(by_route):
-        merged = unary_union(by_route[route_id]).simplify(
-            simplify_tolerance, preserve_topology=True
-        )
+        # linemerge stitches the SHN's many short, contiguous segments into long
+        # LineStrings first; without it, simplify can't collapse vertices across
+        # segment boundaries and the output stays ~40x larger. linemerge only
+        # accepts a MultiLineString, so a single-segment route (which unions to a
+        # plain LineString) skips it.
+        unioned = unary_union(by_route[route_id])
+        if unioned.geom_type == "MultiLineString":
+            unioned = linemerge(unioned)
+        merged = unioned.simplify(simplify_tolerance, preserve_topology=True)
         out_features.append(
             {
                 "type": "Feature",
@@ -71,10 +77,13 @@ def build_geojson(features: list[dict], simplify_tolerance: float = 0.001) -> di
 def main() -> None:
     raw_path = Path("data/shn_raw.geojson")
     raw = json.loads(raw_path.read_text())
-    fc = build_geojson(raw["features"])
+    # 0.005 deg (~550m) keeps statewide highway lines visually faithful while
+    # holding the static asset well under 1 MB.
+    fc = build_geojson(raw["features"], simplify_tolerance=0.005)
     out_path = Path("../frontend/public/ca-highways.geojson")
     out_path.write_text(json.dumps(fc))
-    print(f"wrote {len(fc['features'])} routes -> {out_path}")
+    size_kb = out_path.stat().st_size / 1024
+    print(f"wrote {len(fc['features'])} routes -> {out_path} ({size_kb:.0f} KB)")
 
 
 if __name__ == "__main__":

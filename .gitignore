@@ -2,6 +2,8 @@
 backend/data/ca-bridges.geojson
 backend/data/ca-counties-tiger.geojson
 backend/data/ca-land-boundary.geojson
+# Raw Caltrans SHN download (reproducible via etl/build_highway_geometry.py)
+backend/data/shn_raw.geojson
 
 # Logs
 logs
