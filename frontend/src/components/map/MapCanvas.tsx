@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
@@ -220,10 +220,6 @@ export default function MapCanvas({
   onViewportChange,
 }: MapCanvasProps) {
   const isDark = useIsDark();
-  // CartoDB tile variants — swap between light_* and dark_* so counties
-  // retain contrast against the basemap in either theme. The `key` on the
-  // TileLayer forces React to tear down + remount when the theme flips,
-  // because react-leaflet otherwise caches the initial URL.
   const baseTileUrl = isDark
     ? "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
     : "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png";
@@ -231,7 +227,33 @@ export default function MapCanvas({
     ? "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
     : "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png";
 
+  const tileErrorCount = useRef(0);
+  const [tileWarning, setTileWarning] = useState(false);
+
+  const handleTileError = useCallback(() => {
+    tileErrorCount.current += 1;
+    if (tileErrorCount.current >= 5 && !tileWarning) {
+      console.warn(`[MapCanvas] ${tileErrorCount.current} consecutive tile failures`);
+      setTileWarning(true);
+    }
+  }, [tileWarning]);
+
+  const handleTileLoad = useCallback(() => {
+    if (tileErrorCount.current > 0) {
+      tileErrorCount.current = 0;
+      setTileWarning(false);
+    }
+  }, []);
+
+  const tileEvents = { tileerror: handleTileError, tileload: handleTileLoad };
+
   return (
+    <>
+    {tileWarning && (
+      <div role="alert" className="absolute top-0 left-0 right-0 z-[1000] bg-error-container text-on-error-container text-xs text-center py-1.5 px-4">
+        Map tiles failed to load. Check your network connection.
+      </div>
+    )}
     <MapContainer
       center={initialView?.center ?? CA_CENTER}
       zoom={initialView?.zoom ?? getInitialZoom()}
@@ -256,6 +278,7 @@ export default function MapCanvas({
         url={baseTileUrl}
         keepBuffer={2}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/">CARTO</a>'
+        eventHandlers={tileEvents}
       />
 
       <MapInternals
@@ -279,7 +302,9 @@ export default function MapCanvas({
         keepBuffer={2}
         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         pane="labelPane"
+        eventHandlers={tileEvents}
       />
     </MapContainer>
+    </>
   );
 }

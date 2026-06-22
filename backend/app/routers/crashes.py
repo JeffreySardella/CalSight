@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.county_slug_map import get_slug_map
 from app.database import get_db
 from app.filters import (
-    FilterError,
     build_crash_predicates,
     parse_bool_flag,
     parse_cause,
@@ -26,6 +25,7 @@ from app.filters import (
     parse_severity,
     parse_weather,
     parse_year,
+    require_min_filter,
 )
 from app.models import Crash
 from app.schemas.common import PaginatedResponse
@@ -36,11 +36,14 @@ logger = logging.getLogger(__name__)
 
 # Bounded cost for `?include_total=true` on the 11M-row crashes table.
 # Two layers of defense, because neither is enough alone on B1ms Azure:
-#   1. Filter requirement — unfiltered COUNT(*) takes minutes; we reject
-#      `include_total=true` unless at least one filter is set.
-#   2. statement_timeout — even with filters, broad combinations (e.g.
-#      year + severity only) can take >60s without a covering index
-#      (#106). The timeout caps the worst case and returns total=null.
+#   1. require_min_filter (security + performance) — rejects requests with
+#      no county/year/date_range. Originally protected the unfiltered
+#      COUNT(*) path; #282 extended it to all reads so individual crash
+#      rows (lat/lng + alcohol/distraction flags) can't be walked from
+#      offset=0 without first narrowing the slice.
+#   2. statement_timeout — even with a county/year filter, broad
+#      combinations can take >60s without a covering index (#106). The
+#      timeout caps the worst case and returns total=null.
 # The real fix is covering-index work on the `crashes` table — see #106.
 # Future bulk/export endpoints (see #57) should use their own longer budget.
 COUNT_STATEMENT_TIMEOUT_MS = 5000
@@ -88,11 +91,16 @@ def list_crashes(
       - `distracted=true|false`  (CCRS 2016+ only)
 
     Sorted by `crash_datetime DESC, id DESC`. `total` is `null` by default;
-    set `?include_total=true` to get a count — this requires at least one
-    filter (year, county, severity, cause, alcohol, distracted) to keep the
-    query bounded. For aggregate totals across all crashes, use `/api/stats`.
+    set `?include_total=true` to get a count.
+
+    At least one of `county`, `year`, `start`/`end` is required — unfiltered
+    paginated reads of individual crash rows (lat/lng + alcohol/distraction
+    flags) lower the barrier to bulk re-identification. For aggregate totals
+    across all crashes, use `/api/stats`.
+
+    Cache-Control: `no-store` so a public CDN can't memoize individual rows.
     """
-    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    response.headers["Cache-Control"] = "no-store"
 
     date_range = parse_date_range(start, end)
     years = parse_year(year) if date_range is None else None
@@ -111,21 +119,11 @@ def list_crashes(
     road_type_v = parse_road_type(road_type)
     hit_run_v = parse_hit_run(hit_run)
 
-    if include_total and not any([
-        date_range is not None, years, county_codes, severities, causes,
-        alcohol_v is not None, distracted_v is not None,
-        pedestrian_v is not None, cyclist_v is not None,
-        drug_v is not None, driver_age_v is not None,
-        weather_v, lighting_v, collision_type_v,
-        road_type_v is not None, hit_run_v is not None,
-    ]):
-        raise FilterError(
-            "include_total",
-            "include_total=true requires at least one filter (start/end, "
-            "year, county, severity, cause, alcohol, distracted, pedestrian, "
-            "cyclist, drug, driver_age). Unbounded COUNT(*) over 11M crashes "
-            "is too slow. For aggregate totals, use /api/stats.",
-        )
+    require_min_filter(
+        county_codes=county_codes,
+        years=years,
+        date_range=date_range,
+    )
 
     preds = build_crash_predicates(
         years=years,
@@ -156,15 +154,11 @@ def list_crashes(
         # don't stall the client. (The filter requirement above handles
         # the unfiltered case; this catches broad filter combos.)
         #
-        # We use `SET` (session-scoped) rather than `SET LOCAL` (tx-scoped)
-        # because SQLAlchemy's transaction lifecycle around Session.execute
-        # is inconsistent enough that SET LOCAL sometimes doesn't apply to
-        # the subsequent Query.count(). The finally block resets the timeout
-        # before the connection goes back to the pool so the next request
-        # starts clean.
         try:
-            db.execute(text(f"SET statement_timeout = {COUNT_STATEMENT_TIMEOUT_MS}"))
+            db.execute(text("BEGIN"))
+            db.execute(text(f"SET LOCAL statement_timeout = {COUNT_STATEMENT_TIMEOUT_MS}"))
             total = q.count()
+            db.execute(text("COMMIT"))
         except OperationalError as exc:
             logger.warning(
                 "include_total COUNT exceeded %dms; returning total=null (%s)",
@@ -173,8 +167,6 @@ def list_crashes(
             )
             db.rollback()
             total = None
-        finally:
-            db.execute(text("SET statement_timeout = 0"))
 
     rows = q.offset(offset).limit(limit).all()
     return PaginatedResponse[CrashOut](

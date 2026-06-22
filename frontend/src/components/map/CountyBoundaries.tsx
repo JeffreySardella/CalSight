@@ -44,7 +44,7 @@ export default memo(function CountyBoundaries({
   onSelectCounty,
 }: CountyBoundariesProps) {
   const map = useMap();
-  const { selectedDateRange, selectedSeverities, selectedCauses, selectedCounties, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge } = useFilterParams();
+  const { selectedDateRange, selectedSeverities, selectedCauses, selectedCounties, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedWeather, selectedLighting, selectedCollisionType, selectedRoadType, selectedHitRun } = useFilterParams();
   const { choroplethOn, measure, palette, setBucketEdges, otherLayers } = useLayersState();
   const isDark = useIsDark();
 
@@ -62,8 +62,13 @@ export default memo(function CountyBoundaries({
       cyclist: selectedCyclist ?? undefined,
       drug: selectedDrug ?? undefined,
       driverAge: selectedDriverAge ?? undefined,
+      weather: selectedWeather.size ? [...selectedWeather] : undefined,
+      lighting: selectedLighting.size ? [...selectedLighting] : undefined,
+      collisionType: selectedCollisionType.size ? [...selectedCollisionType] : undefined,
+      roadType: selectedRoadType ?? undefined,
+      hitRun: selectedHitRun ?? undefined,
     }),
-    [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge],
+    [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedWeather, selectedLighting, selectedCollisionType, selectedRoadType, selectedHitRun],
   );
   const { byCountyCode } = useChoroplethData(measure, filters);
 

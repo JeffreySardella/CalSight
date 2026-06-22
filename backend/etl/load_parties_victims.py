@@ -22,6 +22,7 @@ import argparse
 import gc
 import logging
 import time
+from datetime import datetime
 
 import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -38,12 +39,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CKAN_BASE_URL = "https://data.ca.gov/api/3/action/datastore_search"
-PAGE_SIZE = 10000
+PAGE_SIZE = 2000
 MAX_RETRIES = 3
 BACKOFF_BASE = 2
 
 DEFAULT_START_YEAR = 2016
-DEFAULT_END_YEAR = 2026
+DEFAULT_END_YEAR = datetime.now().year + 1
 
 # Resource IDs for Parties data per year
 PARTIES_RESOURCE_IDS = {
@@ -235,7 +236,7 @@ def load_table(
                         )
                         db.execute(stmt)
                         db.commit()
-                        db.expire_all()
+                        db.expunge_all()
                         year_rows += len(batch)
                     except Exception as exc:
                         logger.error(
@@ -244,7 +245,11 @@ def load_table(
                         )
                         db.rollback()
 
-                offset += len(records)
+                fetched_count = len(records)
+                del batch, records, result
+                gc.collect()
+
+                offset += fetched_count
                 logger.info(
                     "%s year %d: %d/%d fetched, %d upserted",
                     table_type, year, offset, total, year_rows,
@@ -255,8 +260,7 @@ def load_table(
 
             total_rows += year_rows
             logger.info("%s year %d complete: %d rows", table_type, year, year_rows)
-            db.expire_all()
-            gc.collect()
+            db.expunge_all()
 
         logger.info("Done. %d total %s records upserted.", total_rows, table_type)
 

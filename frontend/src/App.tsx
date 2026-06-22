@@ -5,6 +5,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { CustomThemeProvider } from "./context/CustomThemeContext";
 import { LiteModeProvider } from "./context/LiteModeContext";
 import { AccessibilityProvider } from "./context/AccessibilityContext";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { queryClient } from "./lib/queryClient";
 import {
   persister,
@@ -25,6 +26,16 @@ const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 export default function App() {
   return (
+    <ErrorBoundary fallback={
+      <div role="alert" className="flex flex-col items-center justify-center h-dvh text-center p-8">
+        <span className="material-symbols-outlined text-[48px] text-error mb-4" aria-hidden="true">error</span>
+        <p className="text-on-surface font-semibold text-lg mb-2">Something went wrong</p>
+        <p className="text-on-surface-variant text-sm mb-4">The app encountered an unexpected error.</p>
+        <button type="button" onClick={() => { queryClient.clear(); window.location.reload(); }} className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-semibold hover:opacity-90 transition-opacity">
+          Reload
+        </button>
+      </div>
+    }>
     <PersistQueryClientProvider
       client={queryClient}
       persistOptions={{
@@ -39,7 +50,7 @@ export default function App() {
         <LiteModeProvider>
           <AccessibilityProvider>
           <BrowserRouter>
-          <Suspense fallback={<div className="flex items-center justify-center h-dvh"><span className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+          <Suspense fallback={<div className="flex items-center justify-center h-dvh" role="status" aria-label="Loading page"><span className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden="true" /><span className="sr-only">Loading page</span></div>}>
             <Routes>
               <Route element={<Layout />}>
                 <Route index element={<MapPage />} />
@@ -58,5 +69,6 @@ export default function App() {
         </CustomThemeProvider>
       </ThemeProvider>
     </PersistQueryClientProvider>
+    </ErrorBoundary>
   );
 }

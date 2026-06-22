@@ -148,7 +148,7 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     _retryKey: retryKey,
   });
 
-  const filterKey = `${params.county}|${dateRangeKey(params.dateRange)}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}`;
+  const filterKey = `${params.county}|${dateRangeKey(params.dateRange)}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}|${params.alcohol ?? ""}|${params.distracted ?? ""}|${params.pedestrian ?? ""}|${params.cyclist ?? ""}|${params.drug ?? ""}|${params.driverAge ?? ""}|${(params.weather ?? []).join(",")}|${(params.lighting ?? []).join(",")}|${(params.collisionType ?? []).join(",")}|${params.roadType ?? ""}|${params.hitRun ?? ""}`;
   useEffect(() => {
     setCurrentBatch(1);
     setAllPoints([]);

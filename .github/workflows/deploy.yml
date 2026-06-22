@@ -4,14 +4,45 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
+  check-backfill:
+    runs-on: self-hosted
+    outputs:
+      needed: ${{ steps.check.outputs.needed }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Detect migration/backfill changes or [backfill] tag
+        id: check
+        run: |
+          NEEDED=false
+          if git log -1 --format='%s%b' | grep -qi '\[backfill\]'; then
+            echo "Commit message contains [backfill]"
+            NEEDED=true
+          fi
+          if git diff --name-only HEAD~1 HEAD -- \
+            'backend/migrations/versions/' \
+            'backend/etl/backfill_derived.py' \
+            'backend/etl/backfill_conditions.py' | grep -q .; then
+            echo "Migration or backfill files changed"
+            NEEDED=true
+          fi
+          echo "needed=$NEEDED" >> $GITHUB_OUTPUT
+
   deploy:
+    needs: check-backfill
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
@@ -58,10 +89,20 @@ jobs:
           mkdir -p backend/data
           cp frontend/public/ca-counties.geojson backend/data/ca-counties-tiger.geojson
 
-      - name: Build and restart backend + tunnel
+      - name: Build images (without starting)
         env:
           CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
-        run: docker compose -f docker-compose.prod.yml up --build -d
+        run: docker compose -f docker-compose.prod.yml build
+
+      - name: Run database migrations (before serving traffic)
+        env:
+          CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
+        run: docker compose -f docker-compose.prod.yml run --rm -T backend alembic upgrade head
+
+      - name: Start backend + tunnel
+        env:
+          CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
+        run: docker compose -f docker-compose.prod.yml up -d
 
       - name: Tag images with commit SHA for rollback
         run: |
@@ -70,21 +111,22 @@ jobs:
       - name: Prune old images (keep last 5)
         run: docker image prune -f --filter "until=168h"
 
-      - name: Run database migrations
-        run: docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
-
       - name: Backfill derived fields (severity, flags, driver age, canonical cause)
+        if: needs.check-backfill.outputs.needed == 'true'
         run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.backfill_derived
         timeout-minutes: 240
 
       - name: Backfill canonical condition columns (weather, lighting, collision, road)
+        if: needs.check-backfill.outputs.needed == 'true'
         run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.backfill_conditions
         timeout-minutes: 240
 
       - name: Refresh materialized views
+        if: needs.check-backfill.outputs.needed == 'true'
         run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.refresh_materialized_views
 
       - name: Validate crash coordinates (background, ~15 min)
+        if: needs.check-backfill.outputs.needed == 'true'
         run: docker compose -f docker-compose.prod.yml exec -T -d backend python -m etl.validate_coords
 
       - name: Verify backend + tunnel are healthy
@@ -106,6 +148,25 @@ jobs:
           fi
           echo "Checking tunnel..."
           docker compose -f docker-compose.prod.yml ps tunnel --format '{{.State}}' | grep -q running && echo "Tunnel is running" || { echo "Tunnel not running:"; docker compose -f docker-compose.prod.yml logs --tail=20 tunnel; exit 1; }
+
+      - name: Rollback to previous image on failure
+        if: failure()
+        run: |
+          echo "Deploy failed — attempting rollback..."
+          PREV_SHA=$(docker images calsight-backend --format '{{.Tag}}' | grep -v latest | head -1)
+          if [ -n "$PREV_SHA" ] && [ "$PREV_SHA" != "${{ github.sha }}" ]; then
+            echo "Rolling back to calsight-backend:$PREV_SHA"
+            docker tag calsight-backend:$PREV_SHA calsight-backend:latest
+            docker compose -f docker-compose.prod.yml up -d backend
+            sleep 5
+            if curl -sf http://127.0.0.1:8000/api/health > /dev/null; then
+              echo "Rollback successful — backend is healthy"
+            else
+              echo "WARNING: Rollback did not restore health"
+            fi
+          else
+            echo "No previous image available for rollback"
+          fi
 
       - name: Collect disk usage for notification
         if: always()

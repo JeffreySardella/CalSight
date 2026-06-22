@@ -1,5 +1,6 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { queryClient } from "../../lib/queryClient";
 
 interface Props {
   children: ReactNode;
@@ -29,7 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <p className="text-on-surface font-semibold">Something went wrong</p>
           <button
             type="button"
-            onClick={() => this.setState({ hasError: false })}
+            onClick={() => { queryClient.clear(); this.setState({ hasError: false }); }}
             className="mt-3 px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
           >
             Try again

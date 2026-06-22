@@ -184,7 +184,7 @@ _ALLOWED_MATVIEWS = frozenset([
 ])
 
 
-@router.get("/matviews")
+@router.get("/matviews", dependencies=[Depends(_verify_etl_key)])
 @_limiter.limit("10/minute")
 def matview_status(
     request: Request,

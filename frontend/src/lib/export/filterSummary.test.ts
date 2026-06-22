@@ -138,6 +138,28 @@ describe("computeFilterScope", () => {
     expect(s.rows.find((r) => r.label === "Road type")).toBeUndefined();
   });
 
+  it("hasScopeFilter is only true when a county or date range is set", () => {
+    // No filters at all
+    expect(computeFilterScope(empty).hasScopeFilter).toBe(false);
+
+    // Other filters alone don't count — they don't narrow the row set
+    // enough for /api/crashes (per #282 server-side rule).
+    expect(computeFilterScope({ ...empty, severities: new Set(["Fatal"]) }).hasScopeFilter).toBe(false);
+    expect(computeFilterScope({ ...empty, weather: new Set(["rain"]) }).hasScopeFilter).toBe(false);
+    expect(computeFilterScope({ ...empty, alcohol: true }).hasScopeFilter).toBe(false);
+
+    // County alone is enough
+    expect(computeFilterScope({ ...empty, counties: new Set(["Los Angeles"]) }).hasScopeFilter).toBe(true);
+
+    // Date range alone is enough
+    expect(
+      computeFilterScope({
+        ...empty,
+        dateRange: { start: { year: 2023, month: 1 }, end: null },
+      }).hasScopeFilter,
+    ).toBe(true);
+  });
+
   it("handles open-ended date ranges", () => {
     const startOnly = computeFilterScope({
       ...empty,

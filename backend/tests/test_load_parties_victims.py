@@ -145,3 +145,59 @@ class TestResourceIds:
     def test_no_duplicate_resource_ids(self):
         all_ids = list(PARTIES_RESOURCE_IDS.values()) + list(VICTIMS_RESOURCE_IDS.values())
         assert len(all_ids) == len(set(all_ids))
+
+
+class TestLoadTableMemoryCleanup:
+    """Verify the OOM-prevention changes: gc.collect() per batch, expunge_all, del."""
+
+    def test_gc_collect_called_per_batch(self, monkeypatch):
+        """gc.collect() should fire after every batch, not just per year."""
+        import gc as gc_mod
+        from unittest.mock import MagicMock, patch
+        from etl import load_parties_victims as mod
+
+        gc_calls = []
+        original_collect = gc_mod.collect
+        def tracking_collect(*a, **kw):
+            gc_calls.append(1)
+            return original_collect(*a, **kw)
+
+        fake_db = MagicMock()
+
+        page1 = {
+            "total": 3,
+            "records": [
+                {"PartyId": 1, "CollisionId": 10, "PartyNumber": 1},
+                {"PartyId": 2, "CollisionId": 20, "PartyNumber": 1},
+            ],
+        }
+        page2 = {
+            "total": 3,
+            "records": [
+                {"PartyId": 3, "CollisionId": 30, "PartyNumber": 1},
+            ],
+        }
+        page3 = {"total": 3, "records": []}
+
+        pages = iter([page1, page2, page3])
+        monkeypatch.setattr(mod, "_fetch_page", lambda rid, off: next(pages))
+        monkeypatch.setattr(mod, "SessionLocal", lambda: fake_db)
+
+        with patch.object(gc_mod, "collect", side_effect=tracking_collect):
+            mod.load_table(
+                table_type="parties",
+                resource_ids={2026: "fake-id"},
+                model_class=MagicMock(),
+                transform_fn=mod.transform_party,
+                upsert_cols=["collision_id"],
+                constraint_name="uq_parties_party_source",
+                id_field="party_id",
+                start_year=2026,
+                end_year=2026,
+                force=False,
+            )
+
+        assert len(gc_calls) >= 2, (
+            f"gc.collect() should fire per batch (expected >=2, got {len(gc_calls)})"
+        )
+        fake_db.expunge_all.assert_called()

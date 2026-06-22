@@ -128,6 +128,12 @@ function normalizeFilters(f: StatsFilters): StatsFilters {
     cyclist: f.cyclist,
     drug: f.drug,
     distracted: f.distracted,
+    driverAge: f.driverAge,
+    weather: f.weather,
+    lighting: f.lighting,
+    collisionType: f.collisionType,
+    roadType: f.roadType,
+    hitRun: f.hitRun,
   };
 }
 
@@ -144,7 +150,10 @@ function buildDemoUrl(filters: StatsFilters): string {
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`stats ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`stats ${res.status}: ${body}`);
+  }
   return res.json();
 }
 

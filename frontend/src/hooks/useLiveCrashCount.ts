@@ -49,10 +49,16 @@ export function useLiveCrashCount(staged: StagedFilters) {
       setLoading(true);
 
       fetch(buildCountUrl(staged), { signal: abort.signal })
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) {
+            console.warn(`[useLiveCrashCount] ${r.status} for ${r.url}`);
+            return null;
+          }
+          return r.json();
+        })
         .then((data) => {
           if (!abort.signal.aborted) {
-            setCount(data.total_crashes ?? 0);
+            setCount(data?.total_crashes ?? 0);
             setLoading(false);
           }
         })

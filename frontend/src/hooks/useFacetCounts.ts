@@ -62,10 +62,15 @@ function buildParams(staged: StagedFilters, exclude: string): string {
 async function fetchCount(url: string): Promise<number> {
   try {
     const r = await fetch(url);
-    if (!r.ok) return 0;
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      console.warn(`[fetchCount] ${r.status} for ${url}: ${body}`);
+      return 0;
+    }
     const data = await r.json();
     return data.total_crashes ?? 0;
-  } catch {
+  } catch (err) {
+    console.warn(`[fetchCount] network error for ${url}:`, err);
     return 0;
   }
 }

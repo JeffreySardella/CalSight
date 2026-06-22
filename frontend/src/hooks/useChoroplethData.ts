@@ -147,6 +147,8 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     d: dateKey, s: filters.severities, c: filters.causes,
     al: filters.alcohol, di: filters.distracted, pe: filters.pedestrian,
     cy: filters.cyclist, dr: filters.drug, da: filters.driverAge,
+    we: filters.weather, li: filters.lighting, ct: filters.collisionType,
+    rt: filters.roadType, hr: filters.hitRun,
   };
 
   const queries = useQueries({

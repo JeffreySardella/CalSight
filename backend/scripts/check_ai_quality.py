@@ -5,8 +5,8 @@ to verify the tools return useful data for common questions.
 Does NOT call any LLM API — zero rate limit risk.
 
 Usage:
-    DATABASE_URL=postgresql://calsight:calsight_dev@100.121.46.16:5433/calsight \
-    python -m tests.test_ask_ai_quality
+    DATABASE_URL=postgresql://calsight:PASSWORD@<tailscale-ip>:5433/calsight \
+    python -m scripts.check_ai_quality
 """
 
 import json

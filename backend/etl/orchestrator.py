@@ -5,8 +5,10 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Literal
+
+from sqlalchemy import text
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import EtlRun
@@ -93,8 +95,8 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             record = EtlRun(
                 source=job.name,
                 status="skipped_unchanged",
-                started_at=datetime.utcnow(),
-                finished_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
+                finished_at=datetime.now(timezone.utc),
                 triggered_by=triggered_by,
                 error_message=freshness.reason,
                 validation_status="skipped",
@@ -111,7 +113,7 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
     record = EtlRun(
         source=job.name,
         status="running",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
         triggered_by=triggered_by,
     )
     db.add(record)
@@ -144,14 +146,14 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
                 record.last_source_modified = freshness.last_source_modified
                 record.source_row_count = freshness.source_row_count
 
-        record.finished_at = datetime.utcnow()
+        record.finished_at = datetime.now(timezone.utc)
         db.commit()
         logger.info("Job %s finished in %.1fs (status=%s)", job.name, elapsed, record.status)
 
     except subprocess.TimeoutExpired:
         record.status = "error"
         record.error_message = f"Job timed out after {job.timeout}s"
-        record.finished_at = datetime.utcnow()
+        record.finished_at = datetime.now(timezone.utc)
         record.validation_status = "skipped"
         db.commit()
         logger.error("Job %s timed out", job.name)
@@ -159,7 +161,7 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
     except Exception as exc:
         record.status = "error"
         record.error_message = str(exc)[:2000]
-        record.finished_at = datetime.utcnow()
+        record.finished_at = datetime.now(timezone.utc)
         record.validation_status = "skipped"
         db.commit()
         logger.exception("Job %s failed unexpectedly", job.name)
@@ -180,14 +182,14 @@ def _cleanup_zombie_runs() -> int:
             db.query(EtlRun)
             .filter(
                 EtlRun.status == "running",
-                EtlRun.started_at < datetime.utcnow() - __import__("datetime").timedelta(hours=1),
+                EtlRun.started_at < datetime.now(timezone.utc) - timedelta(hours=1),
             )
             .all()
         )
         for z in zombies:
             z.status = "error"
             z.error_message = "Zombie cleanup: process was killed or never finished"
-            z.finished_at = datetime.utcnow()
+            z.finished_at = datetime.now(timezone.utc)
         db.commit()
         if zombies:
             logger.info("Cleaned up %d zombie etl_runs", len(zombies))
@@ -208,7 +210,39 @@ def _describe_exit_code(returncode: int) -> str:
     return f"Non-zero exit code {returncode}"
 
 
+_PIPELINE_LOCK_ID = 839271  # arbitrary advisory lock key
+
+
 def run_pipeline(
+    registry: JobRegistry,
+    triggered_by: str = "manual",
+    only: list[str] | None = None,
+    skip_static: bool = True,
+    force_refresh: bool = False,
+) -> list[EtlRun]:
+    db = SessionLocal()
+    try:
+        acquired = db.execute(
+            text("SELECT pg_try_advisory_lock(:id)"), {"id": _PIPELINE_LOCK_ID}
+        ).scalar()
+        if not acquired:
+            logger.warning("Pipeline already running (advisory lock held), skipping")
+            return []
+    except Exception:
+        db.close()
+        raise
+
+    try:
+        return _run_pipeline_locked(registry, triggered_by, only, skip_static, force_refresh)
+    finally:
+        try:
+            db.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": _PIPELINE_LOCK_ID})
+            db.commit()
+        finally:
+            db.close()
+
+
+def _run_pipeline_locked(
     registry: JobRegistry,
     triggered_by: str = "manual",
     only: list[str] | None = None,
@@ -236,8 +270,8 @@ def run_pipeline(
             record = EtlRun(
                 source=job.name,
                 status="skipped",
-                started_at=datetime.utcnow(),
-                finished_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
+                finished_at=datetime.now(timezone.utc),
                 triggered_by=triggered_by,
                 error_message=f"Blocked by failed deps: {', '.join(blocked_by)}",
                 validation_status="skipped",
@@ -262,8 +296,8 @@ def run_pipeline(
             record = EtlRun(
                 source=job.name,
                 status="skipped_unchanged",
-                started_at=datetime.utcnow(),
-                finished_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
+                finished_at=datetime.now(timezone.utc),
                 triggered_by=triggered_by,
                 error_message=f"All dependencies unchanged: {', '.join(job.depends_on)}",
                 validation_status="skipped",

@@ -6,11 +6,13 @@ OpenRouter free models are automatically expanded into the fallback chain so eac
 model gets its own rate-limit cooldown.
 """
 
+import itertools
 import logging
+import threading
 import time
 from typing import Any
 
-from openai import BadRequestError, OpenAI, RateLimitError
+from openai import APIConnectionError, APITimeoutError, BadRequestError, OpenAI, RateLimitError
 
 from app.settings import settings
 
@@ -60,6 +62,7 @@ OPENROUTER_FREE_MODELS: list[tuple[str, str]] = [
 SUPPORTS_TOOL_USE = {"groq", "gemini", "openrouter", "ollama"}
 
 # In-memory cooldown tracker: provider_name -> timestamp when cooldown expires
+_cooldown_lock = threading.Lock()
 _provider_cooldowns: dict[str, float] = {}
 _provider_failures: dict[str, int] = {}
 _BASE_COOLDOWN_SECONDS = 30
@@ -72,26 +75,30 @@ class AllProvidersExhausted(Exception):
 
 def _mark_cooled_down(provider_name: str, seconds: int | None = None):
     """Mark a provider as rate-limited with exponential backoff."""
-    _provider_failures[provider_name] = _provider_failures.get(provider_name, 0) + 1
-    if seconds is None:
-        failures = _provider_failures[provider_name]
-        seconds = min(_BASE_COOLDOWN_SECONDS * (2 ** (failures - 1)), 300)
-    _provider_cooldowns[provider_name] = time.time() + seconds
-    logger.info("Provider %s cooled down for %ds (failure #%d)", provider_name, seconds, _provider_failures.get(provider_name, 0))
+    with _cooldown_lock:
+        _provider_failures[provider_name] = _provider_failures.get(provider_name, 0) + 1
+        if seconds is None:
+            failures = _provider_failures[provider_name]
+            seconds = min(_BASE_COOLDOWN_SECONDS * (2 ** (failures - 1)), 300)
+        _provider_cooldowns[provider_name] = time.time() + seconds
+        failure_count = _provider_failures.get(provider_name, 0)
+    logger.info("Provider %s cooled down for %ds (failure #%d)", provider_name, seconds, failure_count)
 
 
 def _mark_success(provider_name: str):
     """Reset failure count on successful call."""
-    _provider_failures.pop(provider_name, None)
+    with _cooldown_lock:
+        _provider_failures.pop(provider_name, None)
 
 
 def _is_available(provider_name: str) -> bool:
     """Check if a provider is past its cooldown period."""
-    cooldown_until = _provider_cooldowns.get(provider_name, 0)
-    if time.time() >= cooldown_until:
-        _provider_cooldowns.pop(provider_name, None)
-        return True
-    remaining = int(cooldown_until - time.time())
+    with _cooldown_lock:
+        cooldown_until = _provider_cooldowns.get(provider_name, 0)
+        if time.time() >= cooldown_until:
+            _provider_cooldowns.pop(provider_name, None)
+            return True
+        remaining = int(cooldown_until - time.time())
     logger.debug("Provider %s still cooling down (%ds left)", provider_name, remaining)
     return False
 
@@ -271,12 +278,18 @@ def generate_with_fallback(
             last_error = e
             continue
 
+        except (APIConnectionError, APITimeoutError, Exception) as e:
+            _mark_cooled_down(name, 30)
+            logger.warning("Provider %s connection/timeout error: %s", name, e)
+            last_error = e
+            continue
+
     raise AllProvidersExhausted(
         f"All providers exhausted ({tried} tried, {len(chain)} configured). Last error: {last_error}"
     )
 
 
-_narrative_call_count = 0
+_narrative_call_counter = itertools.count()
 
 
 def generate_narrative(prompt: str) -> str:
@@ -285,7 +298,7 @@ def generate_narrative(prompt: str) -> str:
     When LLM_API_KEY_2 is set, alternates between the two keys so each
     key handles half the calls and stays under per-key rate limits.
     """
-    global _narrative_call_count
+    call_num = next(_narrative_call_counter)
 
     provider = settings.llm_provider.lower()
     defaults = _PROVIDER_DEFAULTS.get(provider, {})
@@ -298,15 +311,14 @@ def generate_narrative(prompt: str) -> str:
         keys = ["ollama"] if provider == "ollama" else []
     if not keys:
         raise ValueError(f"No API key configured for provider {provider!r}.")
-    api_key = keys[_narrative_call_count % len(keys)]
-    _narrative_call_count += 1
+    api_key = keys[call_num % len(keys)]
 
     if not base_url:
         raise ValueError(f"Unknown LLM provider {provider!r} and no LLM_BASE_URL set.")
     if not model:
         raise ValueError(f"No model configured for provider {provider!r}.")
 
-    logger.info("generate_narrative using key #%d of %d", (_narrative_call_count - 1) % len(keys) + 1, len(keys))
+    logger.info("generate_narrative using key #%d of %d", call_num % len(keys) + 1, len(keys))
     client = OpenAI(base_url=base_url, api_key=api_key, max_retries=0, timeout=30)
     resp = client.chat.completions.create(
         model=model,
@@ -314,4 +326,4 @@ def generate_narrative(prompt: str) -> str:
         max_tokens=200,
         temperature=0.7,
     )
-    return resp.choices[0].message.content.strip()
+    return (resp.choices[0].message.content or "").strip()

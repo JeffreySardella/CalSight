@@ -8,7 +8,7 @@ import logging
 import re
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
@@ -20,9 +20,11 @@ from app.ai_prompt import (
     SYSTEM_PROMPT_TEMPLATE,
     TOOL_DEFINITIONS,
     build_filters_summary,
+    build_quick_facts,
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
 from app.database import get_db
+from app.llm_cache import get_ask_cache, make_cache_key
 from app.models import ChatFeedback
 from app.llm import (
     AllProvidersExhausted,
@@ -49,6 +51,13 @@ class HistoryMessage(BaseModel):
     def restrict_role(cls, v: str) -> str:
         if v not in ("user", "assistant"):
             raise ValueError("role must be 'user' or 'assistant'")
+        return v
+
+    @field_validator("content")
+    @classmethod
+    def cap_content_length(cls, v: str) -> str:
+        if len(v) > 2000:
+            return v[:2000]
         return v
 
 
@@ -112,9 +121,25 @@ def feedback(request: Request, body: FeedbackRequest, db: Session = Depends(get_
 
 @router.post("/ask", response_model=AskResponse)
 @limiter.limit("10/minute;200/day")
-async def ask(request: Request, body: AskRequest, db: Session = Depends(get_db)):
+async def ask(
+    request: Request,
+    response: Response,
+    body: AskRequest,
+    db: Session = Depends(get_db),
+):
+    # Cache lookup happens before the LLM round trip — identical
+    # (question, filters, history) produce the same answer, and the LLM
+    # call is the slow + expensive part. See app.llm_cache for the design.
+    cache = get_ask_cache()
+    history_payload = [m.model_dump() for m in body.history]
+    cache_key = make_cache_key(body.question, body.filters, history_payload)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        response.headers["X-Cache"] = "HIT"
+        return cached
+
     try:
-        return await asyncio.wait_for(
+        result = await asyncio.wait_for(
             asyncio.to_thread(_handle_ask, body, db),
             timeout=60.0,
         )
@@ -124,10 +149,22 @@ async def ask(request: Request, body: AskRequest, db: Session = Depends(get_db))
             content={"message": "Request timed out. Please try again.", "retry_after": 5},
         )
 
+    cache.set(cache_key, result)
+    response.headers["X-Cache"] = "MISS"
+    return result
+
 
 def _handle_ask(body: AskRequest, db: Session) -> AskResponse:
     filters_summary = build_filters_summary(body.filters)
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(active_filters=filters_summary)
+    # Quick Facts pre-queries the totals/severity-split for the active filters
+    # and injects them into the system prompt. Saves a tool call for basic
+    # count questions ("crashes in LA in 2023?") and gives the model a
+    # grounded baseline before it decides whether to call tools.
+    quick_facts = build_quick_facts(db, body.filters)
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+        active_filters=filters_summary,
+        quick_facts=quick_facts,
+    )
 
     messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
 

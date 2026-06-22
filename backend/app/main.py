@@ -25,7 +25,15 @@ async def lifespan(app: FastAPI):
     engine.dispose()
 
 
-app = FastAPI(title="CalSight API", version="0.1.0", debug=settings.debug, lifespan=lifespan)
+app = FastAPI(
+    title="CalSight API",
+    version="0.1.0",
+    debug=settings.debug,
+    lifespan=lifespan,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
+)
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
@@ -33,6 +41,7 @@ app.add_middleware(
     allow_origins=settings.cors_origin_list,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "X-ETL-API-KEY"],
+    expose_headers=["X-Cache"],
 )
 
 class NullByteSanitizationMiddleware(BaseHTTPMiddleware):
@@ -63,8 +72,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(NullByteSanitizationMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 from slowapi import Limiter  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
