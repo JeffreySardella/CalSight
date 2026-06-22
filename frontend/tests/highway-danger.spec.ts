@@ -7,6 +7,9 @@ const BASE_URL = "http://localhost:5174";
 // populated) and the generated frontend/public/ca-highways.geojson present.
 // Without that geometry/data the layer draws nothing and this test fails.
 test("toggle highway-danger layer draws lines and clicking one opens its stats", async ({ page }) => {
+  // Suppress the first-visit intro modal, which otherwise covers the UI.
+  await page.addInitScript(() => localStorage.setItem("calsight-intro-seen", "1"));
+
   await page.goto(`${BASE_URL}/`);
 
   // Open the Layers panel from the icon rail.
