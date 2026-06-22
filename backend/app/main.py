@@ -63,8 +63,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(NullByteSanitizationMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 from slowapi import Limiter  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402

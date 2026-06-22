@@ -38,7 +38,7 @@ from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from etl.alerts import send_alert, AlertLevel
+from etl.alerts import send_alert, AlertLevel, check_disk_and_alert
 from etl.jobs import build_default_registry
 from etl.orchestrator import run_pipeline
 
@@ -112,7 +112,9 @@ def run_daily_pipeline():
         succeeded, failed, unchanged, skipped,
     )
 
-    # Alert on any failures
+    disk = check_disk_and_alert()
+    disk_line = f"\n\nDisk: {disk['summary']}"
+
     if failed > 0:
         failed_names = [r.source for r in results if r.status == "error"]
         error_details = "\n".join(
@@ -122,13 +124,13 @@ def run_daily_pipeline():
         send_alert(
             AlertLevel.ERROR,
             f"Daily ETL: {failed} job(s) failed",
-            f"Failed jobs: {', '.join(failed_names)}\n\n{error_details}",
+            f"Failed jobs: {', '.join(failed_names)}\n\n{error_details}{disk_line}",
         )
     elif succeeded > 0:
         send_alert(
             AlertLevel.INFO,
             f"Daily ETL complete: {succeeded} succeeded, {unchanged} unchanged",
-            "All jobs completed successfully.",
+            f"All jobs completed successfully.{disk_line}",
         )
 
     return results
@@ -145,12 +147,21 @@ def run_weekly_pipeline():
 
     failed = sum(1 for r in results if r.status == "error")
 
+    disk = check_disk_and_alert()
+    disk_line = f"\n\nDisk: {disk['summary']}"
+
     if failed > 0:
         failed_names = [r.source for r in results if r.status == "error"]
         send_alert(
             AlertLevel.ERROR,
             f"Weekly refresh: {failed} job(s) failed",
-            f"Failed: {', '.join(failed_names)}",
+            f"Failed: {', '.join(failed_names)}{disk_line}",
+        )
+    else:
+        send_alert(
+            AlertLevel.INFO,
+            "Weekly refresh complete",
+            f"All jobs succeeded.{disk_line}",
         )
 
     return results

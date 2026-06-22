@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from enum import Enum
 from urllib.parse import urlparse
 
@@ -126,3 +127,53 @@ def _slack_payload(title: str, body: str) -> dict:
         text += f"\n```\n{body[:3000]}\n```"
 
     return {"text": text}
+
+
+DISK_WARN_PCT = 75
+DISK_CRIT_PCT = 90
+
+
+def get_disk_usage(path: str = "/") -> dict:
+    """Get disk usage stats for the given mount point."""
+    try:
+        usage = shutil.disk_usage(path)
+        total_gb = usage.total / (1024 ** 3)
+        used_gb = usage.used / (1024 ** 3)
+        free_gb = usage.free / (1024 ** 3)
+        pct = (usage.used / usage.total) * 100
+        return {
+            "total_gb": round(total_gb, 1),
+            "used_gb": round(used_gb, 1),
+            "free_gb": round(free_gb, 1),
+            "pct": round(pct, 1),
+            "summary": f"{used_gb:.1f}G / {total_gb:.1f}G ({pct:.0f}%)",
+        }
+    except Exception as exc:
+        logger.warning("Could not read disk usage: %s", exc)
+        return {"total_gb": 0, "used_gb": 0, "free_gb": 0, "pct": 0, "summary": "unknown"}
+
+
+def check_disk_and_alert() -> dict:
+    """Check disk usage and send a warning/critical alert if thresholds exceeded.
+
+    Returns the disk usage dict so callers can include it in their own alerts.
+    """
+    disk = get_disk_usage()
+    pct = disk["pct"]
+
+    if pct >= DISK_CRIT_PCT:
+        send_alert(
+            AlertLevel.ERROR,
+            f"Disk CRITICAL: {disk['summary']}",
+            f"Only {disk['free_gb']}G free — PostgreSQL will crash if disk fills up.\n"
+            f"Expand the LXC disk or clean up old data immediately.",
+        )
+    elif pct >= DISK_WARN_PCT:
+        send_alert(
+            AlertLevel.WARNING,
+            f"Disk warning: {disk['summary']}",
+            f"{disk['free_gb']}G free — approaching danger zone.\n"
+            f"Consider expanding disk or running cleanup.",
+        )
+
+    return disk
