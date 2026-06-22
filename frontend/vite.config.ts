@@ -86,6 +86,11 @@ export default defineConfig({
     },
   },
   server: {
+    // Fixed port so the Playwright config + e2e specs (all on 5174) line up
+    // with the dev server. strictPort fails loudly instead of drifting to
+    // another port when 5174 is taken.
+    port: 5174,
+    strictPort: true,
     watch: {
       usePolling: true,
     },
