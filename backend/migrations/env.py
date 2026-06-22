@@ -62,6 +62,12 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            # Give each migration its own transaction so a revision can opt
+            # out of transactional DDL via `revision_is_non_transactional`.
+            # Without this, Alembic wraps the whole upgrade in one transaction
+            # and CREATE INDEX CONCURRENTLY fails with "cannot run inside a
+            # transaction block". Non-transactional revisions run in AUTOCOMMIT.
+            transaction_per_migration=True,
         )
         with context.begin_transaction():
             context.run_migrations()

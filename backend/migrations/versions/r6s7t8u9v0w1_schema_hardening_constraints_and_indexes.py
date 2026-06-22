@@ -28,8 +28,8 @@ Tightens the schema with data-integrity constraints and cleans up index bloat:
      - ix_crashes_crash_hour     (only 24 values on 11M rows; temporal facets
                                   go through mv_crashes_wide)
 
-Revision ID: q5r6s7t8u9v0
-Revises: p4q5r6s7t8u9
+Revision ID: r6s7t8u9v0w1
+Revises: q5r6s7t8u9v0
 Create Date: 2026-06-03 00:00:00.000000
 """
 from typing import Sequence, Union
@@ -39,8 +39,8 @@ from alembic import op
 # Allow CREATE INDEX CONCURRENTLY (runs outside a transaction)
 revision_is_non_transactional = True
 
-revision: str = "q5r6s7t8u9v0"
-down_revision: Union[str, None] = "p4q5r6s7t8u9"
+revision: str = "r6s7t8u9v0w1"
+down_revision: Union[str, None] = "q5r6s7t8u9v0"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
