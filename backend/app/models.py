@@ -107,6 +107,13 @@ class Crash(Base):
     primary_road = Column(String(100))
     secondary_road = Column(String(100))
 
+    # Canonical highway designation extracted from primary_road. Format:
+    # "I-5", "US-101", "SR-99" (always type-prefixed). NULL for local streets
+    # or unparseable text. Populated by etl/extract_route_number.py — the
+    # raw column has 14 different formats ("RT 5", "I-5 N/B", "STATE ROUTE 99",
+    # "HWY-9", ...) so we collapse them here for fast highway rankings.
+    route_number = Column(String(10))
+
     # Hit and run — null = no, "M" = misdemeanor, "F" = felony
     hit_run = Column(String(1))
 

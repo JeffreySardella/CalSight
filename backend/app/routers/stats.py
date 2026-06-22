@@ -6,6 +6,7 @@ from slowapi.util import get_remote_address
 from sqlalchemy import Column, Float, Integer, MetaData, SmallInteger, String, Table, func, select
 from sqlalchemy.orm import Session
 
+from app.ca_highways import miles_for
 from app.county_slug_map import get_slug_map
 from app.database import get_db
 from app.filters import (
@@ -25,7 +26,7 @@ from app.filters import (
     parse_year,
     years_from_date_range,
 )
-from app.models import County
+from app.models import County, Crash
 from app.schemas.stats import (
     AgeBracketRow,
     AtFaultAgeBracketRow,
@@ -36,6 +37,7 @@ from app.schemas.stats import (
     DayOfWeekRow,
     GenderRow,
     GrandTotal,
+    HighwayRow,
     HourRow,
     MonthRow,
     RateRow,
@@ -942,3 +944,138 @@ def stats_batch(
             results[group] = None
 
     return results
+
+
+# Hard cap so a malicious client can't ask us to return all ~250 California
+# routes in one response. UI defaults are smaller; this just protects the API.
+_HIGHWAYS_MAX_LIMIT = 100
+
+
+@router.get("/stats/highways", response_model=list[HighwayRow])
+@_limiter.limit("1000/minute;20000/hour")
+def stats_highways(
+    request: Request,
+    response: Response,
+    year: str | None = Query(None),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
+    county: str | None = Query(None),
+    severity: str | None = Query(None),
+    cause: str | None = Query(None),
+    alcohol: str | None = Query(None),
+    distracted: str | None = Query(None),
+    pedestrian: str | None = Query(None),
+    cyclist: str | None = Query(None),
+    drug: str | None = Query(None),
+    driver_age: str | None = Query(None),
+    weather: str | None = Query(None),
+    lighting: str | None = Query(None),
+    collision_type: str | None = Query(None),
+    road_type: str | None = Query(None),
+    hit_run: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=_HIGHWAYS_MAX_LIMIT),
+    sort: str = Query(
+        "crash_count",
+        pattern="^(crash_count|fatality_rate|crashes_per_mile)$",
+    ),
+    db: Session = Depends(get_db),
+):
+    """Rank California highways by crash burden.
+
+    Aggregates the crashes table by `route_number` (the canonical highway ID
+    pre-extracted by `etl.extract_route_number`) and joins centerline miles
+    from `app.ca_highways` to produce a crashes-per-mile rate.
+
+    Filters mirror /api/stats — same date range, county, severity, cause,
+    weather/lighting, etc. Routes for which no mileage is known appear with
+    `miles: null` and `crashes_per_mile: null`; they're sortable by
+    `crash_count` and `fatality_rate` but excluded when `sort=crashes_per_mile`
+    (we can't rank by a value we don't have).
+
+    `sort=crash_count` (default) returns the busiest highways. `fatality_rate`
+    surfaces the deadliest. `crashes_per_mile` normalizes for route length
+    and answers "where on the network are crashes concentrated."
+    """
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+
+    alcohol_v = parse_bool_flag(alcohol, "alcohol")
+    distracted_v = parse_bool_flag(distracted, "distracted")
+    pedestrian_v = parse_bool_flag(pedestrian, "pedestrian")
+    cyclist_v = parse_bool_flag(cyclist, "cyclist")
+    drug_v = parse_bool_flag(drug, "drug")
+    driver_age_v = parse_driver_age(driver_age)
+    weather_v = parse_weather(weather)
+    lighting_v = parse_lighting(lighting)
+    collision_type_v = parse_collision_type(collision_type)
+    road_type_v = parse_road_type(road_type)
+    hit_run_v = parse_hit_run(hit_run)
+
+    date_range = parse_date_range(start, end)
+    years = years_from_date_range(date_range) if date_range is not None else parse_year(year)
+    county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
+    severities = parse_severity(severity)
+    causes = parse_cause(cause)
+
+    preds = build_crash_predicates(
+        years=years,
+        date_range=date_range,
+        county_codes=county_codes,
+        severities=severities,
+        causes=causes,
+        alcohol=alcohol_v,
+        distracted=distracted_v,
+        pedestrian=pedestrian_v,
+        cyclist=cyclist_v,
+        drug=drug_v,
+        driver_age=driver_age_v,
+        weather=weather_v,
+        lighting=lighting_v,
+        collision_type=collision_type_v,
+        road_type=road_type_v,
+        hit_run=hit_run_v,
+    )
+
+    stmt = (
+        select(
+            Crash.route_number.label("route_number"),
+            func.count().label("crash_count"),
+            func.coalesce(func.sum(Crash.number_killed), 0).label("total_killed"),
+            func.coalesce(func.sum(Crash.number_injured), 0).label("total_injured"),
+        )
+        .where(Crash.route_number.isnot(None), *preds)
+        .group_by(Crash.route_number)
+    )
+
+    raw_rows = db.execute(stmt).all()
+
+    # Build the per-mile rate in Python — pulling the over-fetch (all routes,
+    # then truncating) is fine because there are ~120 known routes and the
+    # group-by output stays small even before filtering.
+    enriched: list[HighwayRow] = []
+    for r in raw_rows:
+        crash_count = int(r.crash_count)
+        killed = int(r.total_killed)
+        injured = int(r.total_injured)
+        miles = miles_for(r.route_number)
+        enriched.append(
+            HighwayRow(
+                route_number=r.route_number,
+                crash_count=crash_count,
+                total_killed=killed,
+                total_injured=injured,
+                fatality_rate=(killed / crash_count) if crash_count else 0.0,
+                miles=miles,
+                crashes_per_mile=(crash_count / miles) if miles else None,
+            ),
+        )
+
+    if sort == "crash_count":
+        enriched.sort(key=lambda h: h.crash_count, reverse=True)
+    elif sort == "fatality_rate":
+        enriched.sort(key=lambda h: h.fatality_rate, reverse=True)
+    else:
+        # crashes_per_mile — routes without known mileage can't rank here.
+        enriched = [h for h in enriched if h.crashes_per_mile is not None]
+        enriched.sort(key=lambda h: h.crashes_per_mile or 0.0, reverse=True)
+
+    return enriched[:limit]

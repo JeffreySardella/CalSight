@@ -3,6 +3,18 @@
 from pydantic import BaseModel, Field
 
 
+class HighwayRow(BaseModel):
+    """One ranked-highway result row from /api/stats/highways."""
+
+    route_number: str          # canonical id, e.g. "I-5"
+    crash_count: int
+    total_killed: int
+    total_injured: int
+    fatality_rate: float       # 0.0 - 1.0
+    miles: float | None        # centerline miles in CA; None for routes outside the lookup
+    crashes_per_mile: float | None  # None when miles is None
+
+
 class GrandTotal(BaseModel):
     total_crashes: int
     total_killed: int

@@ -86,6 +86,7 @@ def _seed(session: Session) -> None:
               severity="Fatal",
               canonical_cause="dui", number_killed=1, number_injured=0,
               county_name="Los Angeles", latitude=34.0, longitude=-118.0,
+              route_number="I-5",
               is_alcohol_involved=None, is_distraction_involved=None),
         Crash(id=2, collision_id=200, data_source="switrs",
               crash_datetime=datetime(2014, 1, 15, 9, 0), county_code=19,
@@ -93,6 +94,7 @@ def _seed(session: Session) -> None:
               severity="Injury",
               canonical_cause="speeding", number_killed=0, number_injured=2,
               county_name="Los Angeles", latitude=34.1, longitude=-118.1,
+              route_number="I-5",
               is_alcohol_involved=None, is_distraction_involved=None),
         Crash(id=3, collision_id=100, data_source="ccrs",
               crash_datetime=datetime(2022, 3, 10, 22, 0), county_code=19,
@@ -100,6 +102,7 @@ def _seed(session: Session) -> None:
               severity="Fatal",
               canonical_cause="dui", number_killed=1, number_injured=1,
               county_name="Los Angeles", latitude=34.05, longitude=-118.05,
+              route_number="I-5",
               is_alcohol_involved=True, is_distraction_involved=False),
         Crash(id=4, collision_id=300, data_source="ccrs",
               crash_datetime=datetime(2023, 7, 4, 16, 30), county_code=30,
@@ -107,6 +110,7 @@ def _seed(session: Session) -> None:
               severity="Injury",
               canonical_cause="lane_change", number_killed=0, number_injured=3,
               county_name="Orange", latitude=33.7, longitude=-117.8,
+              route_number="US-101",
               is_alcohol_involved=False, is_distraction_involved=True),
         Crash(id=5, collision_id=400, data_source="ccrs",
               crash_datetime=datetime(2023, 12, 31, 23, 45), county_code=38,
@@ -114,6 +118,7 @@ def _seed(session: Session) -> None:
               severity="Property Damage Only",
               canonical_cause="other", number_killed=0, number_injured=0,
               county_name="San Francisco", latitude=37.77, longitude=-122.45,
+              # route_number left NULL — local street, excluded from /api/stats/highways.
               is_alcohol_involved=False, is_distraction_involved=False),
     ]
     session.add_all(crashes)
