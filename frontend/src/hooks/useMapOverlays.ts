@@ -4,12 +4,15 @@ import { API_BASE } from "../config";
 export interface Hospital {
   facility_id: string;
   facility_name: string;
-  facility_type: string;
+  facility_type: string | null;
   county_code: number;
-  city: string;
+  city: string | null;
+  address: string | null;
   latitude: number | null;
   longitude: number | null;
+  bed_capacity: number | null;
   trauma_center: string | null;
+  trauma_pediatric: string | null;
   status: string | null;
 }
 

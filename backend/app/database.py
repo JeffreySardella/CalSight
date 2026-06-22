@@ -22,8 +22,8 @@ SessionLocal = sessionmaker(bind=engine)
 # time.
 etl_engine = create_engine(
     settings.effective_etl_database_url,
-    pool_size=5,
-    max_overflow=5,
+    pool_size=1,
+    max_overflow=1,
     pool_recycle=3600,
     pool_pre_ping=True,
 )

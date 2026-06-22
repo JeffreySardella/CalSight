@@ -529,8 +529,9 @@ export function useFilterParams() {
 
   const clearPanel = useCallback(() => {
     setSearchParams((prev) => {
-      prev.delete("panel");
-      return prev;
+      const params = new URLSearchParams(prev);
+      params.delete("panel");
+      return params;
     }, { replace: true });
   }, [setSearchParams]);
 

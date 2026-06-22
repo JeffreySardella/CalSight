@@ -123,7 +123,7 @@ class Crash(Base):
 
     # Pre-computed from number_killed and number_injured so the filter
     # panel can just do WHERE severity = 'Fatal' instead of math.
-    # Values: 'Fatal', 'Severe Injury', 'Minor Injury', 'Property Damage Only'
+    # Values: 'Fatal', 'Injury', 'Property Damage Only'
     severity = Column(String(25))
 
     # Pedestrian
@@ -150,7 +150,7 @@ class Crash(Base):
     coord_validated_at = Column(DateTime)
 
     # Data provenance — which source this record came from
-    data_source = Column(String(10))  # "switrs" or "ccrs"
+    data_source = Column(String(10), nullable=False)  # "switrs" or "ccrs"
 
     # Simplified cause category derived from primary_factor. The raw field has
     # 12,517 distinct values (mix of English and CA Vehicle Code numbers);
@@ -184,8 +184,14 @@ class Crash(Base):
 
     __table_args__ = (
         UniqueConstraint("collision_id", "data_source", name="uq_crashes_collision_source"),
-        Index("ix_crashes_county_code", "county_code"),
-        Index("ix_crashes_crash_datetime", "crash_datetime"),
+        # ix_crashes_county_code removed — redundant with ix_crashes_county_datetime,
+        # ix_crashes_county_severity_datetime, and ix_crashes_county_crash_year
+        # ix_crashes_crash_datetime removed — redundant with ix_crashes_datetime_brin
+        # and ix_crashes_county_datetime
+        # ix_crashes_severity removed — redundant with ix_crashes_county_severity_datetime;
+        # only 3 values + NULL = useless selectivity on 11M rows
+        # ix_crashes_crash_hour removed — only 24 values on 11M rows; temporal facets
+        # go through mv_crashes_wide
         Index("ix_crashes_primary_factor", "primary_factor"),
         Index("ix_crashes_county_datetime", "county_code", "crash_datetime"),
         Index("ix_crashes_at_fault_driver_age", "at_fault_driver_age"),
@@ -194,6 +200,7 @@ class Crash(Base):
         Index("ix_crashes_pedestrian", "pedestrian_involved", postgresql_where="pedestrian_involved = true"),
         Index("ix_crashes_cyclist", "cyclist_involved", postgresql_where="cyclist_involved IS NOT NULL"),
         Index("ix_crashes_drug", "is_drug_involved", postgresql_where="is_drug_involved IS NOT NULL"),
+        Index("ix_crashes_canonical_cause", "canonical_cause"),
         Index("ix_crashes_canonical_weather", "canonical_weather"),
         Index("ix_crashes_canonical_lighting", "canonical_lighting"),
         Index("ix_crashes_canonical_road_condition", "canonical_road_condition"),
@@ -231,7 +238,7 @@ class CrashParty(Base):
     movement = Column(String(100))         # proceeding straight, turning, etc.
     safety_equipment = Column(String(100)) # seatbelt, helmet, none, etc.
     cell_phone_use = Column(String(50))    # in use, not in use, etc.
-    data_source = Column(String(10))       # "ccrs"
+    data_source = Column(String(10), nullable=False)  # "ccrs"
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (
@@ -264,7 +271,7 @@ class CrashVictim(Base):
     seat_position = Column(String(50))
     safety_equipment = Column(String(100))
     ejected = Column(String(30))           # NotEjected, FullyEjected, etc.
-    data_source = Column(String(10))       # "ccrs"
+    data_source = Column(String(10), nullable=False)  # "ccrs"
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (

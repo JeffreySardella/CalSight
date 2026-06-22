@@ -282,7 +282,8 @@ def read_crashes_from_sqlite(
             logger.info("Reading SWITRS collisions for %d...", year)
 
             cursor = conn.execute(
-                f"SELECT * FROM collisions WHERE collision_date LIKE '{year}-%'"
+                "SELECT * FROM collisions WHERE collision_date LIKE ?",
+                (f"{year}-%",),
             )
 
             year_count = 0

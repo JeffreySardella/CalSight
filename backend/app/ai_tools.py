@@ -39,7 +39,7 @@ from app.models import (
 
 logger = logging.getLogger(__name__)
 
-_MAX_ROWS = 30
+_MAX_ROWS = 20
 
 
 # ---------------------------------------------------------------------------
@@ -216,16 +216,6 @@ def query_crashes(
 # ---------------------------------------------------------------------------
 # 2. rank_counties
 # ---------------------------------------------------------------------------
-
-_RANK_METRICS: dict[str, Any] = {
-    "crash_count": func.count(Crash.id),
-    "total_killed": func.sum(Crash.number_killed),
-    "total_injured": func.sum(Crash.number_injured),
-    "fatal_crashes": func.count(Crash.id),  # filtered separately
-    "alcohol_crashes": func.count(Crash.id),  # filtered separately
-    "pedestrian_crashes": func.count(Crash.id),  # filtered separately
-}
-
 
 def rank_counties(
     db: Session,

@@ -124,8 +124,12 @@ def build_filters_summary(filters: dict) -> str:
     cause = _sanitize_filter(filters.get("cause"), _ALLOWED_CAUSES)
     if cause:
         parts.append(f"Cause: {cause}")
-    start = filters.get("start")
-    end = filters.get("end")
+    import re
+    _DATE_RE = re.compile(r"^\d{4}-\d{2}$")
+    start = filters.get("start") or ""
+    end = filters.get("end") or ""
+    start = start if _DATE_RE.match(start) else ""
+    end = end if _DATE_RE.match(end) else ""
     if start or end:
         parts.append(f"Date range: {start or 'earliest'} to {end or 'latest'}")
     if filters.get("alcohol") == "true":
@@ -138,8 +142,9 @@ def build_filters_summary(filters: dict) -> str:
         parts.append("Cyclist-involved only")
     if filters.get("drug") == "true":
         parts.append("Drug-involved only")
-    driver_age = filters.get("driver_age")
-    if driver_age:
+    _DRIVER_AGE_BRACKETS = {"16-24", "25-34", "35-44", "45-54", "55-64", "65+"}
+    driver_age = filters.get("driver_age") or ""
+    if driver_age in _DRIVER_AGE_BRACKETS:
         parts.append(f"At-fault driver age: {driver_age}")
     weather = _sanitize_filter(filters.get("weather"))
     if weather:
@@ -150,8 +155,9 @@ def build_filters_summary(filters: dict) -> str:
     collision_type = _sanitize_filter(filters.get("collision_type"))
     if collision_type:
         parts.append(f"Collision type: {collision_type}")
-    road_type = filters.get("road_type")
-    if road_type:
+    _ROAD_TYPES = {"highway", "local"}
+    road_type = (filters.get("road_type") or "").lower()
+    if road_type in _ROAD_TYPES:
         parts.append(f"Road type: {road_type}")
     if filters.get("hit_run") == "true":
         parts.append("Hit-and-run only")

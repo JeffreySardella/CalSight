@@ -22,6 +22,7 @@ import argparse
 import gc
 import logging
 import time
+from datetime import datetime
 
 import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -43,7 +44,7 @@ MAX_RETRIES = 3
 BACKOFF_BASE = 2
 
 DEFAULT_START_YEAR = 2016
-DEFAULT_END_YEAR = 2026
+DEFAULT_END_YEAR = datetime.now().year + 1
 
 # Resource IDs for Parties data per year
 PARTIES_RESOURCE_IDS = {

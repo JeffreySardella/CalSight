@@ -30,7 +30,7 @@ router = APIRouter(tags=["context"])
 
 _limiter = Limiter(key_func=get_remote_address)
 
-_FIVE_MIN = "public, max-age=300"
+_ONE_HOUR = "public, max-age=3600, stale-while-revalidate=86400"
 
 
 @router.get("/unemployment", response_model=list[UnemploymentOut])
@@ -43,7 +43,7 @@ def list_unemployment(
     db: Session = Depends(get_db),
 ):
     """BLS monthly unemployment rates per county."""
-    response.headers["Cache-Control"] = _FIVE_MIN
+    response.headers["Cache-Control"] = _ONE_HOUR
     q = db.query(UnemploymentRate)
     if county:
         codes = parse_county_codes(county, get_slug_map(db))
@@ -71,7 +71,7 @@ def list_vehicles(
     db: Session = Depends(get_db),
 ):
     """DMV vehicle registrations per county × year, including EV counts."""
-    response.headers["Cache-Control"] = _FIVE_MIN
+    response.headers["Cache-Control"] = _ONE_HOUR
     q = db.query(VehicleRegistration)
     if county:
         codes = parse_county_codes(county, get_slug_map(db))
@@ -97,7 +97,7 @@ def list_licensed_drivers(
     db: Session = Depends(get_db),
 ):
     """DMV licensed driver counts per county × year."""
-    response.headers["Cache-Control"] = _FIVE_MIN
+    response.headers["Cache-Control"] = _ONE_HOUR
     q = db.query(LicensedDriver)
     if county:
         codes = parse_county_codes(county, get_slug_map(db))
@@ -127,7 +127,7 @@ def list_data_quality(
     - `?year=Y`           -> statewide per-year (county_code IS NULL AND year=Y)
     - (no filter)         -> all rows
     """
-    response.headers["Cache-Control"] = _FIVE_MIN
+    response.headers["Cache-Control"] = _ONE_HOUR
     q = db.query(DataQualityStat)
 
     if county and year is not None:
@@ -166,7 +166,7 @@ def list_insights(
 
     Returns `[]` until issue #68 populates `county_insights`.
     """
-    response.headers["Cache-Control"] = _FIVE_MIN
+    response.headers["Cache-Control"] = _ONE_HOUR
     q = db.query(CountyInsight)
     if county:
         codes = parse_county_codes(county, get_slug_map(db))
@@ -194,7 +194,7 @@ def list_insight_cards(
     Angles include: overview, dui, cause_focus, trend, comparison,
     unique_factor, safety_ranking.
     """
-    response.headers["Cache-Control"] = _FIVE_MIN
+    response.headers["Cache-Control"] = _ONE_HOUR
     q = db.query(CountyInsightCard)
     if county:
         codes = parse_county_codes(county, get_slug_map(db))

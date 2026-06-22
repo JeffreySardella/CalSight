@@ -258,13 +258,18 @@ export default function AskAiPage() {
             className="w-full bg-transparent border-none resize-none overflow-hidden px-2 md:px-3 py-2 md:py-2.5 text-on-surface placeholder:text-outline font-body text-base md:text-sm"
             placeholder="Ask about crash data..."
             aria-label="Ask a question about California crash data"
+            aria-describedby="ask-char-count"
             disabled={isLoading}
             maxLength={500}
             rows={1}
           />
-          {inputValue.length > 400 && (
-            <span className="text-[10px] text-on-surface-variant mr-2">{inputValue.length}/500</span>
-          )}
+          <span
+            id="ask-char-count"
+            aria-live="polite"
+            className={`text-[10px] text-on-surface-variant mr-2${inputValue.length <= 400 ? " sr-only" : ""}`}
+          >
+            {inputValue.length > 400 ? `${inputValue.length}/500` : ""}
+          </span>
           <button
             type="button"
             onClick={handleSend}
