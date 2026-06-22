@@ -18,9 +18,6 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-# Required for CREATE INDEX CONCURRENTLY
-revision_is_non_transactional = True
-
 revision: str = "q5r6s7t8u9v0"
 down_revision: Union[str, None] = "p4q5r6s7t8u9"
 branch_labels: Union[str, Sequence[str], None] = None
@@ -29,10 +26,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("crashes", sa.Column("route_number", sa.String(length=10), nullable=True))
-    op.execute(
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crashes_route_number "
-        "ON crashes (route_number) WHERE route_number IS NOT NULL"
-    )
+    # CREATE INDEX CONCURRENTLY cannot run inside a transaction. autocommit_block
+    # commits the current transaction, switches the connection to AUTOCOMMIT for
+    # the duration of the block, then resumes normal transactional DDL.
+    with op.get_context().autocommit_block():
+        op.execute(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crashes_route_number "
+            "ON crashes (route_number) WHERE route_number IS NOT NULL"
+        )
 
 
 def downgrade() -> None:

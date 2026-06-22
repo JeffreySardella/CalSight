@@ -36,9 +36,6 @@ from typing import Sequence, Union
 
 from alembic import op
 
-# Allow CREATE INDEX CONCURRENTLY (runs outside a transaction)
-revision_is_non_transactional = True
-
 revision: str = "r6s7t8u9v0w1"
 down_revision: Union[str, None] = "q5r6s7t8u9v0"
 branch_labels: Union[str, Sequence[str], None] = None
