@@ -2,7 +2,14 @@ import { useEffect } from "react";
 import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
 import { PALETTES, getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
+import type { HighwaySort } from "../../hooks/useHighwayRankings";
 import { useIsDark } from "../../context/ThemeContext";
+
+const HIGHWAY_METRICS: { key: HighwaySort; label: string }[] = [
+  { key: "fatality_rate", label: "Fatality Rate" },
+  { key: "crash_count", label: "Total Crashes" },
+  { key: "crashes_per_mile", label: "Per Mile" },
+];
 
 interface ToggleProps {
   enabled: boolean;
@@ -39,6 +46,7 @@ export default function LayersPanel() {
     measure, setMeasure,
     palette: activePalette, setPalette,
     otherLayers, toggleOtherLayer, setOtherLayer,
+    highwayMetric, setHighwayMetric,
     heatmapResolution, setHeatmapResolution,
     reset,
   } = useLayersState();
@@ -193,6 +201,53 @@ export default function LayersPanel() {
           {otherLayers.coordIncludeRivers && (
             <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
               Excludes crashes over rivers and small water bodies from the heatmap
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Highways */}
+      <div className="space-y-4">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          Highways
+        </span>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.highwayDanger ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Highway Danger
+            </span>
+            <Toggle
+              enabled={otherLayers.highwayDanger}
+              onToggle={() => toggleOtherLayer("highwayDanger")}
+            />
+          </div>
+          {otherLayers.highwayDanger ? (
+            <div className="space-y-2 pl-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                Color By
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {HIGHWAY_METRICS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setHighwayMetric(key)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                      highwayMetric === key
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-on-surface-variant leading-tight">
+                Colors state highways by crash danger. Click a route for its stats.
+              </p>
+            </div>
+          ) : (
+            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+              Draws California state highways colored by crash danger
             </p>
           )}
         </div>
