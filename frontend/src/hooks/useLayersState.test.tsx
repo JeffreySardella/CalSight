@@ -43,6 +43,20 @@ describe("useLayersState", () => {
     expect(result.current.bucketEdges).toEqual([0, 10, 20, 30, 40, 50]);
   });
 
+  it("highwayDanger layer defaults off and toggles", () => {
+    const { result } = renderHook(() => useLayersState(), { wrapper: wrap });
+    expect(result.current.otherLayers.highwayDanger).toBe(false);
+    act(() => result.current.setOtherLayer("highwayDanger", true));
+    expect(result.current.otherLayers.highwayDanger).toBe(true);
+  });
+
+  it("highwayMetric defaults to fatality_rate and updates", () => {
+    const { result } = renderHook(() => useLayersState(), { wrapper: wrap });
+    expect(result.current.highwayMetric).toBe("fatality_rate");
+    act(() => result.current.setHighwayMetric("crash_count"));
+    expect(result.current.highwayMetric).toBe("crash_count");
+  });
+
   it("throws when used outside provider", () => {
     expect(() => renderHook(() => useLayersState())).toThrow(/LayersStateProvider/);
   });
