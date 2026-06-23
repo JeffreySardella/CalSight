@@ -67,6 +67,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
         <input
           ref={inputRef}
           type="password"
+          aria-label="Admin key"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Admin key"

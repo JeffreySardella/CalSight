@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import text
@@ -166,7 +166,7 @@ def check_date_range(
             severity="critical",
         )
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Check for future dates
     if max_date > now:
@@ -201,7 +201,7 @@ def check_recent_data(
             severity="critical",
         )
 
-    days_old = (datetime.utcnow() - max_date).days
+    days_old = (datetime.now(timezone.utc).replace(tzinfo=None) - max_date).days
 
     return ValidationCheck(
         name=f"{table}_recency",

@@ -36,7 +36,7 @@ import logging
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable, Iterator, TypeVar
 
 import httpx
@@ -220,7 +220,7 @@ def etl_run(source: str) -> Iterator[EtlRun]:
     record = EtlRun(
         source=source,
         status="running",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(record)
     db.commit()
@@ -233,7 +233,7 @@ def etl_run(source: str) -> Iterator[EtlRun]:
         try:
             record.status = "error"
             record.error_message = str(exc)
-            record.finished_at = datetime.utcnow()
+            record.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
             db.commit()
         except Exception:
             db.rollback()
@@ -241,7 +241,7 @@ def etl_run(source: str) -> Iterator[EtlRun]:
         raise
     else:
         record.status = "success"
-        record.finished_at = datetime.utcnow()
+        record.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         db.commit()
         logger.info(
             "EtlRun id=%d success; rows_loaded=%s",

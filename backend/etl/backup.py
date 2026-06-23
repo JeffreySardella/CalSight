@@ -44,8 +44,9 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 logging.basicConfig(
     level=logging.INFO,
@@ -72,7 +73,7 @@ def _notify_discord(message: str, success: bool = True) -> None:
                 "description": message,
                 "color": color,
                 "footer": {"text": "CalSight Backup"},
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
             }],
         }, timeout=10)
     except Exception as exc:
@@ -144,7 +145,7 @@ def rotate_r2_backups(retention_days: int = RETENTION_DAYS) -> int:
         if "Contents" not in resp:
             return 0
 
-        cutoff = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
         removed = 0
         for obj in resp["Contents"]:
             fname = obj["Key"].split("/")[-1]
@@ -183,6 +184,27 @@ def get_db_url() -> str:
     return url
 
 
+def _split_db_password(url: str) -> tuple[str, str | None]:
+    """Strip the password out of a libpq URL.
+
+    Passing a URL with an inline password as a pg_dump argument exposes the
+    secret on the process command line (readable via `ps` or
+    /proc/<pid>/cmdline by any local user). We instead hand pg_dump a
+    password-free URL and supply the secret through the PGPASSWORD env var.
+    """
+    parts = urlsplit(url)
+    if parts.password is None:
+        return url, None
+    host = parts.hostname or ""
+    if parts.port:
+        host = f"{host}:{parts.port}"
+    netloc = f"{parts.username}@{host}" if parts.username else host
+    sanitized = urlunsplit(
+        (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
+    )
+    return sanitized, parts.password
+
+
 def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
     """Execute pg_dump and return the path to the backup file.
 
@@ -198,11 +220,15 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
     backup_path = Path(backup_dir)
     backup_path.mkdir(parents=True, exist_ok=True)
 
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
     filename = f"calsight_{today}.dump"
     filepath = backup_path / filename
 
     db_url = get_db_url()
+    safe_url, password = _split_db_password(db_url)
+    env = os.environ.copy()
+    if password is not None:
+        env["PGPASSWORD"] = password
 
     logger.info("Starting backup: %s", filepath)
     start = time.monotonic()
@@ -216,11 +242,12 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
                 "--no-owner",
                 "--no-acl",
                 f"--file={filepath}",
-                db_url,
+                safe_url,
             ],
             capture_output=True,
             text=True,
             timeout=7200,  # 2 hours max for 11M+ rows
+            env=env,
         )
 
         if result.returncode != 0:
@@ -252,7 +279,7 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
 def rotate_backups(backup_dir: str = DEFAULT_BACKUP_DIR, retention_days: int = RETENTION_DAYS) -> int:
     """Delete backups older than retention_days. Returns count removed."""
     backup_path = Path(backup_dir)
-    cutoff = datetime.utcnow() - timedelta(days=retention_days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
     removed = 0
 
     for dump_file in backup_path.glob("calsight_*.dump"):
@@ -283,7 +310,7 @@ def list_backups(backup_dir: str = DEFAULT_BACKUP_DIR) -> list[dict]:
             date_str = dump_file.stem.replace("calsight_", "")
             file_date = datetime.strptime(date_str, "%Y-%m-%d")
             size_mb = dump_file.stat().st_size / (1024 * 1024)
-            age_days = (datetime.utcnow() - file_date).days
+            age_days = (datetime.now(timezone.utc).replace(tzinfo=None) - file_date).days
 
             backups.append({
                 "filename": dump_file.name,

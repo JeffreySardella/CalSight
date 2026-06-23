@@ -63,7 +63,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-headline text-lg font-bold text-on-surface mb-2">What We Do NOT Collect or Send</h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Your IP address or precise location (we never see it)</li>
+            <li>Your precise GPS location (geolocation stays in your browser and is never sent to us)</li>
             <li>Any personally identifiable information</li>
             <li>Browsing history or behavior on other sites</li>
             <li>Device fingerprints</li>

@@ -182,7 +182,7 @@ def run_backup():
     backup_dir = Path(os.environ.get("BACKUP_DIR", "/backups"))
     backup_dir.mkdir(parents=True, exist_ok=True)
 
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
     backup_file = backup_dir / f"calsight_{today}.dump"
 
     # Build pg_dump command from the ETL database URL
@@ -218,7 +218,7 @@ def run_backup():
         logger.info("Backup complete: %.1f MB in %.0fs", size_mb, elapsed)
 
         # Rotate: delete backups older than 7 days
-        cutoff = datetime.utcnow() - timedelta(days=7)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
         removed = 0
         for old_file in backup_dir.glob("calsight_*.dump"):
             # Parse date from filename

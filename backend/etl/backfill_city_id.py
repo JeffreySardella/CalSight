@@ -23,7 +23,7 @@ city_id automatically.
 
 import argparse
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import text
 
@@ -74,7 +74,7 @@ def run(dry_run: bool = False) -> None:
     etl_run = EtlRun(
         source="backfill_city_id",
         status="running",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(etl_run)
     db.commit()
@@ -130,14 +130,14 @@ def run(dry_run: bool = False) -> None:
 
         logger.info("Done. %d rows %s.", total_updated, "would be updated" if dry_run else "updated")
         etl_run.status = "success" if not dry_run else "dry_run"
-        etl_run.finished_at = datetime.utcnow()
+        etl_run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         etl_run.rows_loaded = total_updated
         db.commit()
     except Exception as exc:
         logger.exception("Backfill failed: %s", exc)
         try:
             etl_run.status = "error"
-            etl_run.finished_at = datetime.utcnow()
+            etl_run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
             etl_run.error_message = str(exc)
             db.commit()
         except Exception:

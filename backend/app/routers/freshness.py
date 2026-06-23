@@ -14,7 +14,7 @@ All data comes from the etl_runs table — no extra bookkeeping needed.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -109,7 +109,7 @@ def get_freshness(
         .all()
     )
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     results = []
 
     for run in rows:
@@ -152,7 +152,7 @@ def get_freshness_summary(
     """
     response.headers["Cache-Control"] = "public, max-age=300"
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Last successful crash data load
     crash_run = (

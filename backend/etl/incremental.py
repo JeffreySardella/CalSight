@@ -32,7 +32,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -108,7 +108,7 @@ def estimate_new_records(db: Session, high_water: datetime) -> dict:
     Returns dict with expected_count, daily_avg, and days_since_last.
     """
     # How many days since our last record?
-    days_since = (datetime.utcnow() - high_water).days
+    days_since = (datetime.now(timezone.utc).replace(tzinfo=None) - high_water).days
 
     # Average records per day over the last year of CCRS data
     one_year_ago = datetime(high_water.year - 1, high_water.month, high_water.day)
@@ -146,14 +146,14 @@ def should_use_incremental(db: Session) -> bool:
         logger.info("Decision: FULL LOAD (no existing data)")
         return False
 
-    days_gap = (datetime.utcnow() - high_water).days
+    days_gap = (datetime.now(timezone.utc).replace(tzinfo=None) - high_water).days
 
     if days_gap > 90:
         logger.info("Decision: FULL LOAD (gap=%d days > 90 day threshold)", days_gap)
         return False
 
     # Check the most recent year has reasonable data
-    current_year = datetime.utcnow().year
+    current_year = datetime.now(timezone.utc).replace(tzinfo=None).year
     recent_count = db.query(func.count(Crash.id)).filter(
         Crash.data_source == "ccrs",
         Crash.crash_year == current_year,
