@@ -55,7 +55,34 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.debug else None,
 )
 
+class MaintenanceModeMiddleware(BaseHTTPMiddleware):
+    """Return 503 + Retry-After for API requests while maintenance mode is on.
+
+    Lets the app be taken offline gracefully for a server/DB migration instead
+    of users hitting raw errors. /api/health is exempt so uptime monitors and
+    the static frontend can still detect status and show a maintenance screen.
+    """
+
+    EXEMPT_PATHS = ("/api/health",)
+
+    async def dispatch(self, request: Request, call_next):
+        if settings.maintenance_mode and request.url.path not in self.EXEMPT_PATHS:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "maintenance",
+                    "message": "CalSight is temporarily down for scheduled "
+                    "maintenance. Please check back shortly.",
+                },
+                headers={"Retry-After": "120"},
+            )
+        return await call_next(request)
+
+
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+# Added before CORS so CORS remains the outer layer — the 503 must carry
+# Access-Control-Allow-Origin or the browser can't read it to show the screen.
+app.add_middleware(MaintenanceModeMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -181,6 +208,8 @@ app.include_router(weather_router, prefix="/api")
 
 @app.get("/api/health")
 def health(db: Session = Depends(get_db)):
+    if settings.maintenance_mode:
+        return JSONResponse(status_code=503, content={"status": "maintenance"})
     try:
         db.execute(text("SELECT 1"))
         return {"status": "ok"}

@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     debug: bool = False
     etl_api_key: str = ""
 
+    # Maintenance mode: when true, the API returns 503 + Retry-After for all
+    # /api/* requests (except /api/health) so the app can be taken offline
+    # gracefully during a server/DB migration. Set MAINTENANCE_MODE=true and
+    # restart the API to enable.
+    maintenance_mode: bool = False
+
     # -- Pipeline Alerting --
     # Discord or Slack webhook URL for ETL failure notifications.
     # Leave empty to disable webhook alerts (alerts still go to logs).
