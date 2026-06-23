@@ -173,6 +173,16 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
     ))
     registry.register(Job(
+        name="route_number",
+        module="etl.extract_route_number",
+        depends_on=["crashes_ccrs"],
+        schedule="daily",
+        # First run backfills route_number across all ~11M crashes; the regex
+        # extraction + chunked UPDATEs run long, so allow 2h. Idempotent (only
+        # touches NULL rows), so later daily runs only handle newly loaded crashes.
+        timeout=7200,
+    ))
+    registry.register(Job(
         name="matviews",
         module="etl.refresh_materialized_views",
         depends_on=["backfill", "data_quality", "demographics", "licensed_drivers", "vehicles", "road_miles", "aadt"],
