@@ -100,6 +100,11 @@ class Settings(BaseSettings):
     # Leave llm_model / llm_base_url empty to use provider defaults.
     # For ollama over Tailscale, set llm_base_url to the Tailscale IP.
     llm_provider: str = "together"
+    # Sampling temperature for data-analysis answers. Kept low (0.3–0.5) on
+    # purpose: this is a factual reporting tool, and higher temperatures make
+    # the model more likely to phrase numbers loosely or drift. Tune via
+    # LLM_TEMPERATURE without a code change.
+    llm_temperature: float = 0.4
     llm_api_key: str = ""
     llm_api_key_2: str = ""
     llm_model: str = ""
