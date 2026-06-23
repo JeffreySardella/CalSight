@@ -14,15 +14,17 @@
 
 ## 🔴 Reliability & Observability (live prod — highest priority)
 
-- [ ] **Wire offsite backup into the scheduler.** The scheduled backup (`etl/pipeline.py`
-      `run_backup`) is **local-only**; the R2 upload + rotation code in `etl/backup.py`
-      is never called by the scheduler. You likely have **no offsite copy** (3-2-1 not
-      met). Fix: have the scheduled backup call `backup.upload_to_r2()` +
-      `rotate_r2_backups()`, or schedule `etl.backup.main` instead of the local-only
-      duplicate. *(uncaptured before 2026-06-23)*
-- [ ] **Verify R2 actually has backups + isn't accruing cost.** Cloudflare dashboard →
-      R2 → `calsight-backups`: does it exist, have objects, total size? On LXC 100:
-      `crontab -l | grep backup` and `R2_*` vars in `backend/.env`.
+- [x] ~~**Wire offsite backup into the scheduler.**~~ DONE 2026-06-23: the LXC 100 cron
+      already runs `etl.backup` (which uploads to R2), but it was scheduled **weekly**
+      (`0 19 * * 6`) and used `source .env`, which silently fails under cron's `/bin/sh`
+      — so it had effectively never produced an offsite backup. Fixed to **daily**
+      (`0 19 * * *`) + POSIX `. ./.env`. Verified end-to-end: Discord "Backup OK",
+      822 MB dump uploaded to `r2://calsight-backups`.
+- [x] ~~**Verify R2 actually has backups + isn't accruing cost.**~~ DONE 2026-06-23:
+      bucket verified, **$0 billable** (well under the 10 GB free tier). Retention is now
+      enforced by a Cloudflare **`delete-after-3-days` lifecycle rule** (server-side),
+      not the in-script `rotate_r2_backups()` — so old dumps auto-expire and can't stack
+      up. Stale May test files were deleted.
 - [x] ~~**Add a dead-man's-switch / uptime alert.**~~ DONE 2026-06-23 (`4ca0398`):
       `send_heartbeat()` pings an external monitor (healthchecks.io-style) after each
       backup — silence now triggers an external alert. Set `HEARTBEAT_URL` to activate.
@@ -94,15 +96,22 @@
 - ✅ ETL no longer marks failed batches "success" — uses `partial_success` + error_message + alert (`load_crashes.py:345-349`). #292's claim is stale.
 - ✅ `pg_dump` password no longer on command line — uses `PGPASSWORD` (PR #321).
 - ✅ County selection in heatmap (#298 closed, verified live).
-- ✅ Dangerous-highways map layer renders (PR #320); only prod `route_number` backfill remains.
+- ✅ Dangerous-highways map layer renders (PR #320); `route_number` backfill now auto-runs as a daily ETL job (`etl.extract_route_number` registered in `jobs.py`) — no manual step, populates on deploy. *(2026-06-23)*
 
 ---
 
 ## Suggested order to the finish line
 
-1. **Verify R2** (5 min, tells you if you have offsite backup at all) → wire offsite backup into scheduler.
-2. **Uptime/dead-man's-switch + Sentry** — cheap, huge confidence for a live, self-hosted, autonomous system.
-3. **Maintenance mode** — needed before your next server migration.
-4. **AI credibility pass** (temperature + guardrails + methodology footer) — fast, protects trust.
+The entire 🔴 Reliability tier is now done — the system runs unattended and is monitored.
+What's left is credibility + a11y + polish; none of it is "breaks on its own."
+
+1. ~~**Verify R2** → wire offsite backup into scheduler.~~ ✅ DONE 2026-06-23 (daily R2 + lifecycle rotation, verified).
+2. ~~**Uptime/dead-man's-switch + Sentry.**~~ ✅ DONE.
+3. ~~**Maintenance mode.**~~ ✅ DONE.
+4. **AI credibility pass** — temperature + guardrails ✅ done; **remaining:** methodology-footer copy + jargon tooltips + percentile context.
 5. **WCAG 2.2 AA audit** — batch the #291 items behind one axe/Lighthouse sweep.
 6. Test coverage, then reach/polish.
+
+### Small 🔴 leftovers (not blocking, low effort)
+- `pg_restore --list` verification after each dump.
+- Cross-job DB concurrency guard (daily/weekly/manual contention).
