@@ -23,13 +23,15 @@
 - [ ] **Verify R2 actually has backups + isn't accruing cost.** Cloudflare dashboard →
       R2 → `calsight-backups`: does it exist, have objects, total size? On LXC 100:
       `crontab -l | grep backup` and `R2_*` vars in `backend/.env`.
-- [ ] **Add a dead-man's-switch / uptime alert.** Current alerting (`etl/alerts.py`,
-      Discord) only fires *while a job runs and catches an error* — if the whole box,
-      backend, or Cloudflare tunnel is down, **nothing alerts you**. Add (a) an external
-      uptime ping against the public URL (e.g. UptimeRobot / healthchecks.io heartbeat),
-      and (b) a "backup did NOT run today" alert, so silence ≠ healthy. *(new — 2026-06-23)*
-- [ ] **Error monitoring (Sentry).** Verified: **zero** Sentry in backend or frontend.
-      Production has no error visibility. Add backend + frontend SDK. *(in #256 "strategic" — elevate)*
+- [x] ~~**Add a dead-man's-switch / uptime alert.**~~ DONE 2026-06-23 (`4ca0398`):
+      `send_heartbeat()` pings an external monitor (healthchecks.io-style) after each
+      backup — silence now triggers an external alert. Set `HEARTBEAT_URL` to activate.
+      *(Remaining: also wire the heartbeat into the daily pipeline job, and add a
+      separate uptime check against the public URL for the API/tunnel.)*
+- [x] ~~**Error monitoring (Sentry).**~~ DONE 2026-06-23 (`f59d5bc`): backend (FastAPI)
+      + frontend (React 19/Vite) SDKs wired, gated on `SENTRY_DSN`/`VITE_SENTRY_DSN`,
+      `send_default_pii=False`. Set a DSN to activate. *(Remaining: optional source-map
+      upload via `sentryVitePlugin` + `SENTRY_AUTH_TOKEN` for readable stack traces.)*
 - [ ] **ETL data-integrity bugs** *(in #292 — re-verified 2026-06-23):*
   - [x] ~~**Migration advisory lock provides ZERO protection.**~~ FIXED 2026-06-23
         (`0423aa8`): now holds a single connection across acquire → `alembic upgrade` →
