@@ -17,6 +17,26 @@ from app.settings import settings
 logger = logging.getLogger(__name__)
 
 
+# -- Sentry error monitoring (no-op unless SENTRY_DSN is set) --
+# Must init before `app = FastAPI()` so the Starlette/FastAPI integrations
+# auto-attach. We keep send_default_pii=False: CalSight is a public,
+# privacy-conscious app, so IPs/headers/cookies/query strings stay out of
+# error reports.
+if settings.sentry_dsn:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.sentry_environment,
+        traces_sample_rate=settings.sentry_traces_sample_rate,
+        send_default_pii=False,
+    )
+    logger.info(
+        "Sentry error monitoring enabled (environment=%s)",
+        settings.sentry_environment,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("CalSight API starting up")

@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     # -- Backup --
     backup_dir: str = "/opt/calsight/backups"
 
+    # -- Sentry (error monitoring) --
+    # Set SENTRY_DSN to enable error reporting. Empty = disabled (no-op),
+    # matching the env-gated pattern used for alerting/backup above.
+    sentry_dsn: str = ""
+    sentry_environment: str = "production"
+    sentry_traces_sample_rate: float = 0.1
+
     # -- LLM (AI insight card generation) --
     # Supports: groq | openrouter | together | cerebras | ollama
     # Leave llm_model / llm_base_url empty to use provider defaults.
