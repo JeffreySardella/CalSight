@@ -44,12 +44,12 @@
 
 ## 🔴 Maintenance UX (for server migrations / planned downtime)
 
-- [ ] **Maintenance mode + status screen.** No graceful-downtime path exists today.
-      When you migrate the server or the DB is down, users hit raw errors. Add a
-      maintenance flag (env var or sentinel file) that makes the backend return `503`
-      with `Retry-After`, and a friendly frontend screen ("CalSight is down for
-      scheduled maintenance — back shortly"). Optionally a lightweight public status
-      page. *(new — 2026-06-23)*
+- [x] **Maintenance mode — backend DONE** 2026-06-23 (`3d3d743`): `MAINTENANCE_MODE`
+      flag + middleware returns `503 + Retry-After` on `/api/*` (health exempt, reports
+      `{status: maintenance}`). Middleware sits inside CORS so the 503 is browser-readable.
+- [ ] **Maintenance mode — frontend screen** *(next code task):* the static frontend
+      (Cloudflare Pages, stays up when the API is down) should poll `/api/health` and show
+      a friendly "down for maintenance" screen on `503 maintenance` / network failure.
 
 ## 🟠 Analytical Credibility (public data tool — trust matters)
 
