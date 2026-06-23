@@ -47,9 +47,9 @@
 - [x] **Maintenance mode — backend DONE** 2026-06-23 (`3d3d743`): `MAINTENANCE_MODE`
       flag + middleware returns `503 + Retry-After` on `/api/*` (health exempt, reports
       `{status: maintenance}`). Middleware sits inside CORS so the 503 is browser-readable.
-- [ ] **Maintenance mode — frontend screen** *(next code task):* the static frontend
-      (Cloudflare Pages, stays up when the API is down) should poll `/api/health` and show
-      a friendly "down for maintenance" screen on `503 maintenance` / network failure.
+- [x] **Maintenance mode — frontend screen DONE** 2026-06-23 (`5a0ded7`): `useApiHealth`
+      polls `/api/health`; `MaintenanceGate` shows a full-screen auto-retrying overlay on
+      `503 maintenance` or sustained unreachable (covers a full box-down migration).
 
 ## 🟠 Analytical Credibility (public data tool — trust matters)
 
