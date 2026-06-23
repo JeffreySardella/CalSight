@@ -38,7 +38,7 @@ from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from etl.alerts import send_alert, AlertLevel, check_disk_and_alert
+from etl.alerts import send_alert, send_heartbeat, AlertLevel, check_disk_and_alert
 from etl.jobs import build_default_registry
 from etl.orchestrator import run_pipeline
 
@@ -190,6 +190,7 @@ def run_backup():
     if not db_url:
         logger.error("No DATABASE_URL configured — skipping backup")
         send_alert(AlertLevel.WARNING, "Backup skipped", "No DATABASE_URL configured")
+        send_heartbeat(success=False)
         return
 
     logger.info("Starting backup: %s", backup_file)
@@ -246,12 +247,18 @@ def run_backup():
         if removed:
             logger.info("Removed %d backup(s) older than 7 days", removed)
 
+        # Backup succeeded — ping the dead-man's-switch so the external monitor
+        # knows the box is alive and ran the job on schedule.
+        send_heartbeat(success=True)
+
     except subprocess.TimeoutExpired:
         send_alert(AlertLevel.ERROR, "Backup timed out", "pg_dump exceeded 1 hour timeout")
         logger.error("Backup timed out after 1 hour")
+        send_heartbeat(success=False)
     except Exception as exc:
         send_alert(AlertLevel.ERROR, "Backup failed", str(exc)[:500])
         logger.exception("Backup failed: %s", exc)
+        send_heartbeat(success=False)
 
 
 # ---------------------------------------------------------------------------

@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     # -- Backup --
     backup_dir: str = "/opt/calsight/backups"
 
+    # -- Dead-man's-switch heartbeat --
+    # Push-based liveness URL (e.g. a healthchecks.io check). The scheduler
+    # pings it after each successful backup; if pings stop arriving the
+    # external monitor alerts — catching a dead box that webhook alerts can't.
+    # Leave empty to disable (no-op).
+    heartbeat_url: str = ""
+
     # -- Sentry (error monitoring) --
     # Set SENTRY_DSN to enable error reporting. Empty = disabled (no-op),
     # matching the env-gated pattern used for alerting/backup above.

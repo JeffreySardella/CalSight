@@ -129,6 +129,41 @@ def _slack_payload(title: str, body: str) -> dict:
     return {"text": text}
 
 
+def send_heartbeat(success: bool = True) -> bool:
+    """Ping an external dead-man's-switch monitor (e.g. healthchecks.io).
+
+    Push-based liveness, the inverse of send_alert(). The scheduler pings this
+    URL after each successful run. If the ping stops arriving on schedule —
+    because the job failed, the container died, or the whole box is down — the
+    external monitor fires an alert on ITS side. This catches the silent
+    failures send_alert() can't: send_alert only runs while the process is
+    alive to call it, so a dead box never alerts.
+
+    Reads HEARTBEAT_URL (env first, then settings). No-op if unset. On failure,
+    appends '/fail' (the healthchecks.io convention) to signal an explicit
+    failure rather than waiting for the grace period to elapse. Never raises.
+    """
+    url = os.environ.get("HEARTBEAT_URL", "")
+    if not url:
+        try:
+            from app.settings import settings
+            url = settings.heartbeat_url
+        except Exception:
+            pass
+
+    if not url:
+        return False
+
+    ping_url = url if success else url.rstrip("/") + "/fail"
+    try:
+        httpx.get(ping_url, timeout=10.0)
+        return True
+    except Exception as exc:
+        # Heartbeat failures must never crash the pipeline.
+        logger.warning("Failed to send heartbeat ping: %s", exc)
+        return False
+
+
 DISK_WARN_PCT = 75
 DISK_CRIT_PCT = 90
 
