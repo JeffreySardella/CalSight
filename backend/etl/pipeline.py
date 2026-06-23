@@ -217,20 +217,31 @@ def run_backup():
         size_mb = backup_file.stat().st_size / (1024 * 1024)
         logger.info("Backup complete: %.1f MB in %.0fs", size_mb, elapsed)
 
-        # Rotate: delete backups older than 7 days
+        # Rotate: delete backups older than 7 days, but ALWAYS keep at least
+        # `min_keep` most-recent dumps regardless of age. Without this guard, if
+        # pg_dump fails for 7+ consecutive days the rotation would delete every
+        # surviving backup, leaving zero recovery points.
+        min_keep = 3
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
-        removed = 0
+
+        dated_backups = []
         for old_file in backup_dir.glob("calsight_*.dump"):
-            # Parse date from filename
             try:
                 date_str = old_file.stem.replace("calsight_", "")
                 file_date = datetime.strptime(date_str, "%Y-%m-%d")
-                if file_date < cutoff:
-                    old_file.unlink()
-                    removed += 1
-                    logger.info("Rotated old backup: %s", old_file.name)
+                dated_backups.append((file_date, old_file))
             except ValueError:
                 continue
+
+        # Newest first; the first `min_keep` are protected from deletion.
+        dated_backups.sort(key=lambda pair: pair[0], reverse=True)
+
+        removed = 0
+        for file_date, old_file in dated_backups[min_keep:]:
+            if file_date < cutoff:
+                old_file.unlink()
+                removed += 1
+                logger.info("Rotated old backup: %s", old_file.name)
 
         if removed:
             logger.info("Removed %d backup(s) older than 7 days", removed)
