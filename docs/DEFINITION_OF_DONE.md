@@ -6,6 +6,7 @@
 > so "done" is legible. Each item links to the MEGA that tracks it.
 >
 > Status legend: 🔴 launch-critical · 🟠 credibility · 🟡 polish/reach · ✅ verified done
+> · `[~]` code complete but prod activation unverified (config-gated)
 >
 > Last verified against code: 2026-06-23. CalSight is **already live in production**,
 > so reliability/observability gaps are active risk, not future work.
@@ -25,21 +26,27 @@
       enforced by a Cloudflare **`delete-after-3-days` lifecycle rule** (server-side),
       not the in-script `rotate_r2_backups()` — so old dumps auto-expire and can't stack
       up. Stale May test files were deleted.
-- [x] ~~**Add a dead-man's-switch / uptime alert.**~~ DONE 2026-06-23 (`4ca0398`):
-      `send_heartbeat()` pings an external monitor (healthchecks.io-style) after each
-      backup — silence now triggers an external alert. Set `HEARTBEAT_URL` to activate.
-      *(Remaining: also wire the heartbeat into the daily pipeline job, and add a
-      separate uptime check against the public URL for the API/tunnel.)*
-- [x] ~~**Error monitoring (Sentry).**~~ DONE 2026-06-23 (`f59d5bc`): backend (FastAPI)
-      + frontend (React 19/Vite) SDKs wired, gated on `SENTRY_DSN`/`VITE_SENTRY_DSN`,
-      `send_default_pii=False`. Set a DSN to activate. *(Remaining: optional source-map
-      upload via `sentryVitePlugin` + `SENTRY_AUTH_TOKEN` for readable stack traces.)*
+- [~] **Dead-man's-switch / uptime alert — CODE DONE (`4ca0398`), PROD ACTIVATION UNVERIFIED.**
+      `send_heartbeat()` is wired into the ETL scheduler daemon (`pipeline.py:193,252,257,261`)
+      but is a **no-op unless `HEARTBEAT_URL` is set**, and only fires if the
+      `calsight-etl-scheduler` systemd service is actually running and an external monitor
+      (healthchecks.io) is configured to alert on silence. The deployed *backup* cron
+      (`etl.backup`) does NOT heartbeat. **Verify in prod before trusting this:**
+      `grep HEARTBEAT_URL /opt/calsight/backend/.env` + `systemctl status calsight-etl-scheduler`
+      + confirm the external monitor pings you on silence.
+- [~] **Error monitoring (Sentry) — CODE DONE (`f59d5bc`), PROD ACTIVATION UNVERIFIED.**
+      backend + frontend SDKs wired, `send_default_pii=False`, but **no-op unless
+      `SENTRY_DSN` (backend) and `VITE_SENTRY_DSN` (frontend, at build time) are set.**
+      Verify: `grep SENTRY_DSN /opt/calsight/backend/.env` and check the frontend build env.
 - [ ] **ETL data-integrity bugs** *(in #292 — re-verified 2026-06-23):*
   - [x] ~~**Migration advisory lock provides ZERO protection.**~~ FIXED 2026-06-23
         (`0423aa8`): now holds a single connection across acquire → `alembic upgrade` →
         release, so the session-scoped lock actually protects the migration.
   - [x] ~~**Backup rotation can delete ALL backups** if dumps fail 7+ days.~~ FIXED
-        2026-06-23 (`0423aa8`): always keeps the 3 most-recent dumps regardless of age.
+        2026-06-23: `pipeline.py` run_backup (`0423aa8`) AND the deployed `etl.backup`
+        path (`6963d5e`) now both keep the 3 most-recent dumps regardless of age. (The
+        prod cron runs `etl.backup`, so the second fix is the one that actually protects
+        prod.) Offsite R2 also keeps 3 days via lifecycle rule.
   - [ ] No backup verification — add `pg_restore --list` check after dump (`backup.py`)
   - [ ] No cross-job concurrency guard — APScheduler defaults `max_instances=1` *per job id*,
         so same-job overlap is safe, but daily/weekly/manual runs can still contend on the DB.
@@ -102,8 +109,10 @@
 
 ## Suggested order to the finish line
 
-The entire 🔴 Reliability tier is now done — the system runs unattended and is monitored.
-What's left is credibility + a11y + polish; none of it is "breaks on its own."
+The 🔴 Reliability tier is code-complete. **Two items (heartbeat, Sentry) are config-gated
+and unverified in prod** — run the two grep/`systemctl` checks above to confirm they're
+actually active, or they're paper tigers. Everything else in the tier is verified. What's
+left beyond that is credibility + a11y + polish; none of it is "breaks on its own."
 
 1. ~~**Verify R2** → wire offsite backup into scheduler.~~ ✅ DONE 2026-06-23 (daily R2 + lifecycle rotation, verified).
 2. ~~**Uptime/dead-man's-switch + Sentry.**~~ ✅ DONE.
