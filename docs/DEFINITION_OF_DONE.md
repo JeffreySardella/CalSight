@@ -53,8 +53,10 @@
 
 ## 🟠 Analytical Credibility (public data tool — trust matters)
 
-- [ ] **Lower AI temperature** from 0.7 → 0.3–0.5 for data analysis (verified `llm.py:193,228,327`). *(in #293)*
-- [ ] **Causal-claim guardrails** in the system prompt (correlation ≠ causation). *(in #293)*
+- [x] ~~**Lower AI temperature** from 0.7 → 0.3–0.5.~~ DONE 2026-06-23 (`90773cc`):
+      default 0.4 via `DEFAULT_TEMPERATURE`, tunable with `LLM_TEMPERATURE`.
+- [x] ~~**Causal-claim guardrails** in the system prompt (correlation ≠ causation).~~ DONE
+      2026-06-23 (`90773cc`): live-tested — model now hedges + names confounders.
 - [ ] **Methodology footer placeholder text** — replace fake/placeholder copy before more eyes land. *(roadmap note — verify)*
 - [ ] **Inline jargon tooltips** — SWITRS, KSI, AADT, CES, ACS, MV explained on hover. *(in #304)*
 - [ ] **Neighborhood/percentile context** — "safer than 70% of CA counties" so raw rates mean something. *(in #304)*
