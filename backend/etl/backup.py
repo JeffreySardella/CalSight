@@ -57,6 +57,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BACKUP_DIR = "/opt/calsight/backups"
 RETENTION_DAYS = 7
+# Always retain at least this many of the most-recent dumps regardless of age,
+# so a run of failed pg_dumps can never rotate away every recovery point.
+MIN_KEEP_BACKUPS = 3
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_BACKUP_WEBHOOK")
 
 
@@ -276,26 +279,49 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
         return None
 
 
-def rotate_backups(backup_dir: str = DEFAULT_BACKUP_DIR, retention_days: int = RETENTION_DAYS) -> int:
-    """Delete backups older than retention_days. Returns count removed."""
+def rotate_backups(
+    backup_dir: str = DEFAULT_BACKUP_DIR,
+    retention_days: int = RETENTION_DAYS,
+    min_keep: int = MIN_KEEP_BACKUPS,
+) -> int:
+    """Delete backups older than retention_days, but ALWAYS keep at least
+    `min_keep` most-recent dumps regardless of age.
+
+    Without the min_keep guard, if pg_dump fails for retention_days+ consecutive
+    days the rotation would delete every surviving backup, leaving zero local
+    recovery points. Returns count removed.
+    """
     backup_path = Path(backup_dir)
     cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
-    removed = 0
 
+    dated_backups = []
     for dump_file in backup_path.glob("calsight_*.dump"):
         try:
             # Parse date from filename: calsight_2026-05-16.dump
             date_str = dump_file.stem.replace("calsight_", "")
             file_date = datetime.strptime(date_str, "%Y-%m-%d")
-            if file_date < cutoff:
+            dated_backups.append((file_date, dump_file))
+        except ValueError:
+            continue
+
+    # Newest first; the first `min_keep` are protected from deletion.
+    dated_backups.sort(key=lambda pair: pair[0], reverse=True)
+
+    removed = 0
+    for file_date, dump_file in dated_backups[min_keep:]:
+        if file_date < cutoff:
+            try:
                 dump_file.unlink()
                 removed += 1
                 logger.info("Rotated: %s", dump_file.name)
-        except (ValueError, OSError) as exc:
-            logger.warning("Could not process %s: %s", dump_file.name, exc)
+            except OSError as exc:
+                logger.warning("Could not remove %s: %s", dump_file.name, exc)
 
     if removed:
-        logger.info("Rotated %d backup(s) older than %d days", removed, retention_days)
+        logger.info(
+            "Rotated %d backup(s) older than %d days (kept newest %d)",
+            removed, retention_days, min_keep,
+        )
 
     return removed
 
