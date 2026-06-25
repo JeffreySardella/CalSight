@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { scrollBehavior } from "../lib/a11y/motion";
 import NavBar from "./NavBar";
 import Footer from "./Footer";
 import BottomTabBar from "./BottomTabBar";
@@ -30,7 +31,7 @@ export default function Layout() {
     if (location.hash) {
       const el = document.getElementById(location.hash.slice(1));
       if (el) {
-        setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 100);
+        setTimeout(() => el.scrollIntoView({ behavior: scrollBehavior() }), 100);
       }
     }
   }, [scrollKey]); // eslint-disable-line react-hooks/exhaustive-deps

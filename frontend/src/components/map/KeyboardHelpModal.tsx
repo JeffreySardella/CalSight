@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import FocusTrap from "focus-trap-react";
 
 interface KeyboardHelpModalProps {
   isOpen: boolean;
@@ -44,13 +45,14 @@ export default function KeyboardHelpModal({ isOpen, onClose }: KeyboardHelpModal
   if (!isOpen) return null;
 
   return (
+    <FocusTrap focusTrapOptions={{ allowOutsideClick: true, escapeDeactivates: false, initialFocus: '[role="dialog"]', fallbackFocus: '[role="dialog"]' }}>
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
-      <div
-        role="button"
-        tabIndex={-1}
-        className="absolute inset-0 bg-on-surface/30 backdrop-blur-sm"
+      {/* Real button (not a div+role) so it's keyboard-operable and not a
+          misleading announced-but-unreachable control. */}
+      <button
+        type="button"
+        className="absolute inset-0 bg-on-surface/30 backdrop-blur-sm cursor-default"
         onClick={onClose}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }}
         aria-label="Close keyboard shortcuts"
       />
 
@@ -92,5 +94,6 @@ export default function KeyboardHelpModal({ isOpen, onClose }: KeyboardHelpModal
         </p>
       </div>
     </div>
+    </FocusTrap>
   );
 }
