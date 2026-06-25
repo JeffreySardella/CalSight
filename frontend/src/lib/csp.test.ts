@@ -1,8 +1,16 @@
 import { describe, it, expect } from "vitest";
+import { createHash } from "node:crypto";
 
 import indexHtml from "../../index.html?raw";
 
 import headers from "../../public/_headers?raw";
+
+/** Browser CSP hashing is over the script's exact text content, served with LF
+ *  line endings. Normalize CRLF so the check is stable on Windows checkouts. */
+function sriHash(scriptBody: string): string {
+  const lf = scriptBody.replace(/\r\n/g, "\n");
+  return "sha256-" + createHash("sha256").update(lf, "utf8").digest("base64");
+}
 
 describe("CSP & font loading safety", () => {
   it("index.html has no inline event handlers (onload, onerror, onclick)", () => {
@@ -21,12 +29,20 @@ describe("CSP & font loading safety", () => {
     expect(indexHtml).toContain("Material+Symbols+Outlined");
   });
 
-  it("CSP script-src includes the theme detection script hash", () => {
-    expect(headers).toContain("sha256-7KgsK+rf4Rc3ME3W5uAANl/sWTCxGPnFQbCSSiwfV5c=");
+  it("CSP script-src hash matches the actual theme detection script", () => {
+    // The plain inline <script> (no attributes) is the pre-React theme bootstrap.
+    const body = (indexHtml as string).match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    expect(body, "theme bootstrap <script> not found in index.html").toBeTruthy();
+    const hash = sriHash(body as string);
+    // If this fails after editing the bootstrap, update the hash in public/_headers.
+    expect(hash).toBe("sha256-XaTKuElas5PL1kdyE+VJ5ev4+XcFIJkvpWZGejgFhWY=");
+    expect(headers).toContain(hash);
   });
 
-  it("CSP script-src includes the speculation rules hash", () => {
-    expect(headers).toContain("sha256-UB3x5ELInkHeh1Jo9394EOWX/u0+IzR803lEJbzVhlc=");
+  it("CSP script-src hash matches the actual speculation rules script", () => {
+    const body = (indexHtml as string).match(/<script type="speculationrules">([\s\S]*?)<\/script>/)?.[1];
+    expect(body, "speculationrules <script> not found in index.html").toBeTruthy();
+    expect(headers).toContain(sriHash(body as string));
   });
 
   it("CSP allows Google Fonts in style-src and font-src", () => {
