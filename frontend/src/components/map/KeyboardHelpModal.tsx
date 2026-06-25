@@ -6,8 +6,8 @@ interface KeyboardHelpModalProps {
 }
 
 const SHORTCUTS = [
-  { key: "Tab", desc: "Next county" },
-  { key: "Shift + Tab", desc: "Previous county" },
+  { key: "]", desc: "Next county" },
+  { key: "[", desc: "Previous county" },
   { key: "Enter", desc: "Open insight card" },
   { key: "Esc", desc: "Close overlay" },
   { key: "Arrow keys", desc: "Pan map" },

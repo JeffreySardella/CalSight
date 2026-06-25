@@ -244,7 +244,7 @@ export default function UnifiedSearchBar({
     <>
       {/* ── Mobile: top-right buttons (next to filter) ── */}
       {!mobileExpanded && (
-        <div className="absolute top-3 right-16 z-20 md:hidden flex items-center gap-2">
+        <div className="absolute top-3 right-28 z-20 md:hidden flex items-center gap-2">
           <button
             onClick={() => setMobileExpanded(true)}
             className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"

@@ -166,6 +166,21 @@
     @apply font-headline;
     font-size: var(--type-heading-size, 0.875rem);
   }
+
+  /* Global keyboard focus indicator (WCAG 2.4.7 Focus Visible). Uses outline
+   * (not box-shadow) so it can't be clipped by ancestor overflow:hidden. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--primary));
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Keep focused elements clear of the fixed top nav and bottom tab bar
+   * (WCAG 2.4.11 Focus Not Obscured) when scrolled into view. */
+  html {
+    scroll-padding-top: 4rem;
+    scroll-padding-bottom: 3.5rem;
+  }
 }
 
 /* ── Typography scale sizing classes ──

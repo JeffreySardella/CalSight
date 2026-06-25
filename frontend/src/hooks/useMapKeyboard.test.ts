@@ -14,7 +14,9 @@ function createMockMap() {
 }
 
 function fireKey(key: string, opts: Partial<KeyboardEventInit> = {}) {
-  document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...opts }));
+  const ev = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...opts });
+  document.dispatchEvent(ev);
+  return ev;
 }
 
 describe("useMapKeyboard", () => {
@@ -48,28 +50,45 @@ describe("useMapKeyboard", () => {
     );
   }
 
-  it("Tab focuses the first county when none is focused", () => {
+  // County cycling is bound to ] / [ (not Tab) so native focus traversal works.
+  it("] focuses the first county when none is focused", () => {
     renderKeyboard();
-    fireKey("Tab");
+    fireKey("]");
     expect(onFocusCounty).toHaveBeenCalledWith("Alameda");
   });
 
-  it("Tab advances to next county", () => {
+  it("] advances to next county", () => {
     renderKeyboard({ focusedCounty: "Butte" });
-    fireKey("Tab");
+    fireKey("]");
     expect(onFocusCounty).toHaveBeenCalledWith("Fresno");
   });
 
-  it("Tab wraps from last to first county", () => {
+  it("] wraps from last to first county", () => {
     renderKeyboard({ focusedCounty: "Ventura" });
-    fireKey("Tab");
+    fireKey("]");
     expect(onFocusCounty).toHaveBeenCalledWith("Alameda");
   });
 
-  it("Shift+Tab goes to previous county", () => {
+  it("[ goes to previous county", () => {
     renderKeyboard({ focusedCounty: "Fresno" });
-    fireKey("Tab", { shiftKey: true });
+    fireKey("[");
     expect(onFocusCounty).toHaveBeenCalledWith("Butte");
+  });
+
+  it("[ wraps from first to last county", () => {
+    renderKeyboard({ focusedCounty: "Alameda" });
+    fireKey("[");
+    expect(onFocusCounty).toHaveBeenCalledWith("Ventura");
+  });
+
+  it("does NOT intercept Tab — no keyboard trap (native focus traversal preserved)", () => {
+    renderKeyboard({ focusedCounty: "Butte" });
+    const ev = fireKey("Tab");
+    expect(onFocusCounty).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+    const shiftEv = fireKey("Tab", { shiftKey: true });
+    expect(onFocusCounty).not.toHaveBeenCalled();
+    expect(shiftEv.defaultPrevented).toBe(false);
   });
 
   it("Enter selects the focused county", () => {
@@ -115,7 +134,7 @@ describe("useMapKeyboard", () => {
     const input = document.createElement("input");
     document.body.appendChild(input);
     input.focus();
-    fireKey("Tab");
+    fireKey("]");
     fireKey("Escape");
     expect(onFocusCounty).not.toHaveBeenCalled();
     expect(onCloseOverlay).not.toHaveBeenCalled();
@@ -127,7 +146,7 @@ describe("useMapKeyboard", () => {
     const dialog = document.createElement("div");
     dialog.setAttribute("role", "dialog");
     document.body.appendChild(dialog);
-    fireKey("Tab");
+    fireKey("]");
     fireKey("Escape");
     expect(onFocusCounty).not.toHaveBeenCalled();
     expect(onCloseOverlay).not.toHaveBeenCalled();
@@ -136,7 +155,7 @@ describe("useMapKeyboard", () => {
 
   it("ignores keys when enabled is false", () => {
     renderKeyboard({ enabled: false });
-    fireKey("Tab");
+    fireKey("]");
     fireKey("Escape");
     expect(onFocusCounty).not.toHaveBeenCalled();
     expect(onCloseOverlay).not.toHaveBeenCalled();

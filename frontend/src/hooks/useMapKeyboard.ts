@@ -38,7 +38,10 @@ export function useMapKeyboard({
       if (isInputFocused()) return;
 
       switch (e.key) {
-        case "Tab": {
+        // County cycling is bound to ] / [ rather than Tab, so native focus
+        // traversal (Tab to the rail/search/share controls) is never trapped.
+        case "]":
+        case "[": {
           if (counties.length === 0) return;
           e.preventDefault();
           const currentIndex = focusedCounty
@@ -46,7 +49,7 @@ export function useMapKeyboard({
             : -1;
 
           let nextIndex: number;
-          if (e.shiftKey) {
+          if (e.key === "[") {
             nextIndex = currentIndex <= 0
               ? counties.length - 1
               : currentIndex - 1;
