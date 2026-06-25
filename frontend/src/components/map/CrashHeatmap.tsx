@@ -124,8 +124,13 @@ export function useHeatLayer(
         layerRef.current = null;
       }
     };
+  // `points.length === 0` is included so the layer is (re)built when data
+  // transitions empty→present. Without it, a cold load where points arrive
+  // after this effect first runs would never create the layer — the data
+  // effect below only calls setLatLngs on an already-existing layer. The
+  // boolean stays stable across batch updates, so we still avoid teardown.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, resolution, palette, isDark]);
+  }, [map, resolution, palette, isDark, points.length === 0]);
 
   // Data updates — setLatLngs to avoid full teardown on each batch
   useEffect(() => {
