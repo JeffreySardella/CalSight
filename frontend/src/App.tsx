@@ -15,6 +15,7 @@ import {
 } from "./lib/queryPersistence";
 import Layout from "./components/Layout";
 import AdminGuard from "./components/AdminGuard";
+import MaintenanceGate from "./components/MaintenanceGate";
 
 const MapPage = lazy(() => import("./pages/MapPage"));
 const StatsPage = lazy(() => import("./pages/StatsPage"));
@@ -49,6 +50,7 @@ export default function App() {
         <CustomThemeProvider>
         <LiteModeProvider>
           <AccessibilityProvider>
+          <MaintenanceGate />
           <BrowserRouter>
           <Suspense fallback={<div className="flex items-center justify-center h-dvh" role="status" aria-label="Loading page"><span className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden="true" /><span className="sr-only">Loading page</span></div>}>
             <Routes>

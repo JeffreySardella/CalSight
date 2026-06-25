@@ -14,7 +14,7 @@ returns a simple status that monitoring tools can poll.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -81,7 +81,7 @@ def pipeline_health(
       - No successful run in 96+ hours
     """
     response.headers["Cache-Control"] = "no-cache"
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Last successful run
     last_success = (

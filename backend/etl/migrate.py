@@ -83,7 +83,12 @@ def apply_migrations() -> bool:
     """
     backend_dir = Path(__file__).parent.parent
 
-    # Acquire advisory lock to prevent concurrent migrations
+    # Acquire the advisory lock and hold it on a SINGLE connection for the
+    # entire migration. pg_try_advisory_lock is session-scoped: the lock lives
+    # and dies with the connection that took it. If we acquired it in one
+    # `with` block and released it in another, the lock would already be gone
+    # by the time Alembic ran — providing zero protection. So acquire, run
+    # alembic, and release all happen on the same `conn`.
     with etl_engine.connect() as conn:
         lock_acquired = conn.execute(
             text(f"SELECT pg_try_advisory_lock({_MIGRATION_LOCK_ID})")
@@ -93,38 +98,36 @@ def apply_migrations() -> bool:
             logger.warning("Another process is running migrations — skipping")
             return True  # Not a failure, just concurrent
 
-    try:
-        logger.info("Applying pending Alembic migrations...")
-        result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            cwd=str(backend_dir),
-            capture_output=True,
-            text=True,
-            timeout=300,  # 5 min max for migrations
-        )
+        try:
+            logger.info("Applying pending Alembic migrations...")
+            result = subprocess.run(
+                [sys.executable, "-m", "alembic", "upgrade", "head"],
+                cwd=str(backend_dir),
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 min max for migrations
+            )
 
-        if result.returncode != 0:
-            logger.error("Migration failed:\n%s\n%s", result.stdout, result.stderr)
+            if result.returncode != 0:
+                logger.error("Migration failed:\n%s\n%s", result.stdout, result.stderr)
+                return False
+
+            if result.stdout:
+                logger.info("Migration output:\n%s", result.stdout.strip())
+
+            current = get_current_revision()
+            logger.info("Migrations applied successfully. Current revision: %s", current)
+            return True
+
+        except subprocess.TimeoutExpired:
+            logger.error("Migration timed out after 5 minutes")
             return False
-
-        if result.stdout:
-            logger.info("Migration output:\n%s", result.stdout.strip())
-
-        current = get_current_revision()
-        logger.info("Migrations applied successfully. Current revision: %s", current)
-        return True
-
-    except subprocess.TimeoutExpired:
-        logger.error("Migration timed out after 5 minutes")
-        return False
-    except Exception as exc:
-        logger.exception("Migration failed unexpectedly: %s", exc)
-        return False
-    finally:
-        # Release advisory lock
-        with etl_engine.connect() as conn:
+        except Exception as exc:
+            logger.exception("Migration failed unexpectedly: %s", exc)
+            return False
+        finally:
+            # Release advisory lock on the same connection that holds it.
             conn.execute(text(f"SELECT pg_advisory_unlock({_MIGRATION_LOCK_ID})"))
-            conn.commit()
 
 
 def ensure_migrated() -> bool:

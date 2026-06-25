@@ -50,7 +50,7 @@ export function useNominatim(query: string, enabled: boolean) {
           `https://nominatim.openstreetmap.org/search?${params}`,
           {
             signal: controller.signal,
-            headers: { "User-Agent": "CalSight/1.0 (https://calsight.app)" },
+            headers: { "User-Agent": "CalSight/1.0 (https://calsight.org)" },
           },
         );
         if (!res.ok) throw new Error(`Nominatim ${res.status}`);

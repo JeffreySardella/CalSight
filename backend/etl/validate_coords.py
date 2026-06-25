@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from shapely.geometry import Point, shape
 from shapely.prepared import prep
@@ -154,7 +154,7 @@ def run(county_code: int | None = None, audit_only: bool = False, buffer_m: floa
             total_valid += len(valid)
 
             if not audit_only and (mismatches or valid):
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
                 if mismatches:
                     db.execute(
                         update(Crash)

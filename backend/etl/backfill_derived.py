@@ -22,7 +22,7 @@ Usage:
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import text
 
@@ -48,7 +48,7 @@ def _ccrs_year_range(db) -> range:
         FROM crashes
         WHERE data_source = 'ccrs'
     """)).scalar()
-    max_year = int(row) if row is not None else datetime.utcnow().year
+    max_year = int(row) if row is not None else datetime.now(timezone.utc).replace(tzinfo=None).year
     # +1 because range's end is exclusive and we want max_year included
     return range(_CCRS_START_YEAR, max_year + 1)
 

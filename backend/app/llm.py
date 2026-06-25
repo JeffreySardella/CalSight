@@ -18,6 +18,11 @@ from app.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# Default sampling temperature for all LLM calls. Low by design — CalSight's AI
+# reports facts from the database, so consistency beats creativity. Configurable
+# via LLM_TEMPERATURE (settings.llm_temperature).
+DEFAULT_TEMPERATURE = settings.llm_temperature
+
 _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
@@ -190,7 +195,7 @@ def _call_provider(
     tools: list[dict] | None = None,
     tool_choice: str | None = None,
     max_tokens: int = 500,
-    temperature: float = 0.7,
+    temperature: float = DEFAULT_TEMPERATURE,
 ) -> Any:
     ptype = provider.get("type", provider["name"])
     extra_headers = {}
@@ -225,7 +230,7 @@ def generate_with_fallback(
     tools: list[dict] | None = None,
     tool_choice: str | None = None,
     max_tokens: int = 500,
-    temperature: float = 0.7,
+    temperature: float = DEFAULT_TEMPERATURE,
 ) -> tuple[Any, str]:
     chain = _get_provider_chain()
     last_error = None
@@ -324,6 +329,6 @@ def generate_narrative(prompt: str) -> str:
         model=model,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=200,
-        temperature=0.7,
+        temperature=DEFAULT_TEMPERATURE,
     )
     return (resp.choices[0].message.content or "").strip()

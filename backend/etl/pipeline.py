@@ -31,14 +31,14 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from etl.alerts import send_alert, AlertLevel, check_disk_and_alert
+from etl.alerts import send_alert, send_heartbeat, AlertLevel, check_disk_and_alert
 from etl.jobs import build_default_registry
 from etl.orchestrator import run_pipeline
 
@@ -182,7 +182,7 @@ def run_backup():
     backup_dir = Path(os.environ.get("BACKUP_DIR", "/backups"))
     backup_dir.mkdir(parents=True, exist_ok=True)
 
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
     backup_file = backup_dir / f"calsight_{today}.dump"
 
     # Build pg_dump command from the ETL database URL
@@ -190,6 +190,7 @@ def run_backup():
     if not db_url:
         logger.error("No DATABASE_URL configured — skipping backup")
         send_alert(AlertLevel.WARNING, "Backup skipped", "No DATABASE_URL configured")
+        send_heartbeat(success=False)
         return
 
     logger.info("Starting backup: %s", backup_file)
@@ -217,30 +218,47 @@ def run_backup():
         size_mb = backup_file.stat().st_size / (1024 * 1024)
         logger.info("Backup complete: %.1f MB in %.0fs", size_mb, elapsed)
 
-        # Rotate: delete backups older than 7 days
-        cutoff = datetime.utcnow() - timedelta(days=7)
-        removed = 0
+        # Rotate: delete backups older than 7 days, but ALWAYS keep at least
+        # `min_keep` most-recent dumps regardless of age. Without this guard, if
+        # pg_dump fails for 7+ consecutive days the rotation would delete every
+        # surviving backup, leaving zero recovery points.
+        min_keep = 3
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
+
+        dated_backups = []
         for old_file in backup_dir.glob("calsight_*.dump"):
-            # Parse date from filename
             try:
                 date_str = old_file.stem.replace("calsight_", "")
                 file_date = datetime.strptime(date_str, "%Y-%m-%d")
-                if file_date < cutoff:
-                    old_file.unlink()
-                    removed += 1
-                    logger.info("Rotated old backup: %s", old_file.name)
+                dated_backups.append((file_date, old_file))
             except ValueError:
                 continue
+
+        # Newest first; the first `min_keep` are protected from deletion.
+        dated_backups.sort(key=lambda pair: pair[0], reverse=True)
+
+        removed = 0
+        for file_date, old_file in dated_backups[min_keep:]:
+            if file_date < cutoff:
+                old_file.unlink()
+                removed += 1
+                logger.info("Rotated old backup: %s", old_file.name)
 
         if removed:
             logger.info("Removed %d backup(s) older than 7 days", removed)
 
+        # Backup succeeded — ping the dead-man's-switch so the external monitor
+        # knows the box is alive and ran the job on schedule.
+        send_heartbeat(success=True)
+
     except subprocess.TimeoutExpired:
         send_alert(AlertLevel.ERROR, "Backup timed out", "pg_dump exceeded 1 hour timeout")
         logger.error("Backup timed out after 1 hour")
+        send_heartbeat(success=False)
     except Exception as exc:
         send_alert(AlertLevel.ERROR, "Backup failed", str(exc)[:500])
         logger.exception("Backup failed: %s", exc)
+        send_heartbeat(success=False)
 
 
 # ---------------------------------------------------------------------------

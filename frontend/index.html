@@ -52,8 +52,17 @@
     </script>
     <script>
       (function() {
-        var t = localStorage.getItem('calsight-theme');
-        if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+        // Resolve the theme BEFORE React mounts to avoid a flash of the wrong
+        // theme. Must mirror useUserPreferences: the active store is
+        // 'calsight-preferences' (JSON); 'calsight-theme' is the legacy key,
+        // kept here only as a fallback for clients that haven't migrated yet.
+        var theme = null;
+        try {
+          var raw = localStorage.getItem('calsight-preferences');
+          if (raw) { theme = JSON.parse(raw).theme; }
+        } catch (e) { /* corrupt JSON — fall through to legacy/system */ }
+        if (!theme) { theme = localStorage.getItem('calsight-theme'); }
+        if (theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
           document.documentElement.classList.add('dark');
         }
       })();

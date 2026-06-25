@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     debug: bool = False
     etl_api_key: str = ""
 
+    # Maintenance mode: when true, the API returns 503 + Retry-After for all
+    # /api/* requests (except /api/health) so the app can be taken offline
+    # gracefully during a server/DB migration. Set MAINTENANCE_MODE=true and
+    # restart the API to enable.
+    maintenance_mode: bool = False
+
     # -- Pipeline Alerting --
     # Discord or Slack webhook URL for ETL failure notifications.
     # Leave empty to disable webhook alerts (alerts still go to logs).
@@ -75,11 +81,30 @@ class Settings(BaseSettings):
     # -- Backup --
     backup_dir: str = "/opt/calsight/backups"
 
+    # -- Dead-man's-switch heartbeat --
+    # Push-based liveness URL (e.g. a healthchecks.io check). The scheduler
+    # pings it after each successful backup; if pings stop arriving the
+    # external monitor alerts — catching a dead box that webhook alerts can't.
+    # Leave empty to disable (no-op).
+    heartbeat_url: str = ""
+
+    # -- Sentry (error monitoring) --
+    # Set SENTRY_DSN to enable error reporting. Empty = disabled (no-op),
+    # matching the env-gated pattern used for alerting/backup above.
+    sentry_dsn: str = ""
+    sentry_environment: str = "production"
+    sentry_traces_sample_rate: float = 0.1
+
     # -- LLM (AI insight card generation) --
     # Supports: groq | openrouter | together | cerebras | ollama
     # Leave llm_model / llm_base_url empty to use provider defaults.
     # For ollama over Tailscale, set llm_base_url to the Tailscale IP.
     llm_provider: str = "together"
+    # Sampling temperature for data-analysis answers. Kept low (0.3–0.5) on
+    # purpose: this is a factual reporting tool, and higher temperatures make
+    # the model more likely to phrase numbers loosely or drift. Tune via
+    # LLM_TEMPERATURE without a code change.
+    llm_temperature: float = 0.4
     llm_api_key: str = ""
     llm_api_key_2: str = ""
     llm_model: str = ""

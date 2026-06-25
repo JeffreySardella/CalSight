@@ -25,7 +25,7 @@ import argparse
 import logging
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import extract, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -227,7 +227,7 @@ def run(
     etl_run = EtlRun(
         source="ccrs",
         status="running",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(etl_run)
     db.commit()
@@ -343,7 +343,7 @@ def run(
         logger.info("Done. %d total rows upserted, %d batches failed.", total_rows, failed_batches)
 
         etl_run.status = "partial_success" if failed_batches > 0 else "success"
-        etl_run.finished_at = datetime.utcnow()
+        etl_run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         etl_run.rows_loaded = total_rows
         if failed_batches > 0:
             etl_run.error_message = f"{failed_batches} batch(es) failed during load"
@@ -354,7 +354,7 @@ def run(
         logger.error("ETL run failed: %s", exc)
         try:
             etl_run.status = "error"
-            etl_run.finished_at = datetime.utcnow()
+            etl_run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
             etl_run.error_message = error_message
             db.commit()
         except Exception:

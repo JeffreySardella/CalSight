@@ -44,8 +44,9 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,6 +57,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BACKUP_DIR = "/opt/calsight/backups"
 RETENTION_DAYS = 7
+# Always retain at least this many of the most-recent dumps regardless of age,
+# so a run of failed pg_dumps can never rotate away every recovery point.
+MIN_KEEP_BACKUPS = 3
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_BACKUP_WEBHOOK")
 
 
@@ -72,7 +76,7 @@ def _notify_discord(message: str, success: bool = True) -> None:
                 "description": message,
                 "color": color,
                 "footer": {"text": "CalSight Backup"},
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
             }],
         }, timeout=10)
     except Exception as exc:
@@ -144,7 +148,7 @@ def rotate_r2_backups(retention_days: int = RETENTION_DAYS) -> int:
         if "Contents" not in resp:
             return 0
 
-        cutoff = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
         removed = 0
         for obj in resp["Contents"]:
             fname = obj["Key"].split("/")[-1]
@@ -183,6 +187,27 @@ def get_db_url() -> str:
     return url
 
 
+def _split_db_password(url: str) -> tuple[str, str | None]:
+    """Strip the password out of a libpq URL.
+
+    Passing a URL with an inline password as a pg_dump argument exposes the
+    secret on the process command line (readable via `ps` or
+    /proc/<pid>/cmdline by any local user). We instead hand pg_dump a
+    password-free URL and supply the secret through the PGPASSWORD env var.
+    """
+    parts = urlsplit(url)
+    if parts.password is None:
+        return url, None
+    host = parts.hostname or ""
+    if parts.port:
+        host = f"{host}:{parts.port}"
+    netloc = f"{parts.username}@{host}" if parts.username else host
+    sanitized = urlunsplit(
+        (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
+    )
+    return sanitized, parts.password
+
+
 def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
     """Execute pg_dump and return the path to the backup file.
 
@@ -198,11 +223,15 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
     backup_path = Path(backup_dir)
     backup_path.mkdir(parents=True, exist_ok=True)
 
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
     filename = f"calsight_{today}.dump"
     filepath = backup_path / filename
 
     db_url = get_db_url()
+    safe_url, password = _split_db_password(db_url)
+    env = os.environ.copy()
+    if password is not None:
+        env["PGPASSWORD"] = password
 
     logger.info("Starting backup: %s", filepath)
     start = time.monotonic()
@@ -216,11 +245,12 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
                 "--no-owner",
                 "--no-acl",
                 f"--file={filepath}",
-                db_url,
+                safe_url,
             ],
             capture_output=True,
             text=True,
             timeout=7200,  # 2 hours max for 11M+ rows
+            env=env,
         )
 
         if result.returncode != 0:
@@ -249,26 +279,49 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
         return None
 
 
-def rotate_backups(backup_dir: str = DEFAULT_BACKUP_DIR, retention_days: int = RETENTION_DAYS) -> int:
-    """Delete backups older than retention_days. Returns count removed."""
-    backup_path = Path(backup_dir)
-    cutoff = datetime.utcnow() - timedelta(days=retention_days)
-    removed = 0
+def rotate_backups(
+    backup_dir: str = DEFAULT_BACKUP_DIR,
+    retention_days: int = RETENTION_DAYS,
+    min_keep: int = MIN_KEEP_BACKUPS,
+) -> int:
+    """Delete backups older than retention_days, but ALWAYS keep at least
+    `min_keep` most-recent dumps regardless of age.
 
+    Without the min_keep guard, if pg_dump fails for retention_days+ consecutive
+    days the rotation would delete every surviving backup, leaving zero local
+    recovery points. Returns count removed.
+    """
+    backup_path = Path(backup_dir)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
+
+    dated_backups = []
     for dump_file in backup_path.glob("calsight_*.dump"):
         try:
             # Parse date from filename: calsight_2026-05-16.dump
             date_str = dump_file.stem.replace("calsight_", "")
             file_date = datetime.strptime(date_str, "%Y-%m-%d")
-            if file_date < cutoff:
+            dated_backups.append((file_date, dump_file))
+        except ValueError:
+            continue
+
+    # Newest first; the first `min_keep` are protected from deletion.
+    dated_backups.sort(key=lambda pair: pair[0], reverse=True)
+
+    removed = 0
+    for file_date, dump_file in dated_backups[min_keep:]:
+        if file_date < cutoff:
+            try:
                 dump_file.unlink()
                 removed += 1
                 logger.info("Rotated: %s", dump_file.name)
-        except (ValueError, OSError) as exc:
-            logger.warning("Could not process %s: %s", dump_file.name, exc)
+            except OSError as exc:
+                logger.warning("Could not remove %s: %s", dump_file.name, exc)
 
     if removed:
-        logger.info("Rotated %d backup(s) older than %d days", removed, retention_days)
+        logger.info(
+            "Rotated %d backup(s) older than %d days (kept newest %d)",
+            removed, retention_days, min_keep,
+        )
 
     return removed
 
@@ -283,7 +336,7 @@ def list_backups(backup_dir: str = DEFAULT_BACKUP_DIR) -> list[dict]:
             date_str = dump_file.stem.replace("calsight_", "")
             file_date = datetime.strptime(date_str, "%Y-%m-%d")
             size_mb = dump_file.stat().st_size / (1024 * 1024)
-            age_days = (datetime.utcnow() - file_date).days
+            age_days = (datetime.now(timezone.utc).replace(tzinfo=None) - file_date).days
 
             backups.append({
                 "filename": dump_file.name,

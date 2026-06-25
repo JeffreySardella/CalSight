@@ -17,6 +17,10 @@ export default function Footer() {
         <p className="font-body text-xs uppercase tracking-widest text-on-surface-variant">
           © 2026 CalSight. Data Methodology & Institutional Transparency.
         </p>
+        <p className="font-body text-xs text-on-surface-variant max-w-md text-center md:text-left">
+          CalSight is an independent project and is not affiliated with, endorsed by,
+          or operated by the California Highway Patrol, Caltrans, or the State of California.
+        </p>
       </div>
       <div className="flex flex-wrap justify-center md:justify-start gap-4 md:gap-8 font-body text-xs uppercase tracking-widest">
         {footerLinks.map((link) => (
