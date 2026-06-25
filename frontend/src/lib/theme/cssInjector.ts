@@ -52,6 +52,22 @@ function deriveContainerColors(baseRgb: string, isDark: boolean): { container: s
 }
 
 /**
+ * Resolve the `--primary` background for the active mode so it keeps adequate
+ * contrast with `--on-primary` (white in light mode, dark in dark mode).
+ *
+ * In light mode the brand color is used as-is. In dark mode `--on-primary` is
+ * a dark token, so a mid-tone brand color (e.g. #6366f1) would fail contrast;
+ * we lighten the brand color toward white so it pairs with dark text. This
+ * keeps the brand hue while satisfying WCAG 1.4.3 in both modes.
+ */
+export function primaryForMode(baseRgb: string, isDark: boolean): string {
+  if (!isDark) return baseRgb;
+  const [r, g, b] = baseRgb.split(" ").map(Number);
+  const lighten = (c: number) => Math.round(c + (255 - c) * 0.55);
+  return `${lighten(r)} ${lighten(g)} ${lighten(b)}`;
+}
+
+/**
  * Card style maps to CSS variable overrides.
  */
 function cardStyleVars(style: CardStyle): Record<string, string> {
@@ -158,19 +174,20 @@ function typeScaleVars(scale: TypeScale): Record<string, string> {
 export function buildCssOverrides(customization: ThemeCustomization): string {
   const vars: Record<string, string> = {};
 
-  // Color overrides (light mode — dark mode derivation happens via a .dark block)
+  // Color overrides. `--primary` is resolved per mode so it keeps contrast with
+  // `--on-primary` (which flips light/dark via the .dark block) — WCAG 1.4.3.
   const { primary, tertiary, error } = customization.colors;
-  vars["--primary"] = primary;
+  const isDark = document.documentElement.classList.contains("dark");
+  vars["--primary"] = primaryForMode(primary, isDark);
   vars["--tertiary"] = tertiary;
   vars["--error"] = error;
 
   // Derive container/on-container (dark-mode-aware)
-  const isDarkForContainers = document.documentElement.classList.contains("dark");
-  const pDerived = deriveContainerColors(primary, isDarkForContainers);
+  const pDerived = deriveContainerColors(primary, isDark);
   vars["--primary-container"] = pDerived.container;
   vars["--on-primary-container"] = pDerived.onContainer;
 
-  const tDerived = deriveContainerColors(tertiary, isDarkForContainers);
+  const tDerived = deriveContainerColors(tertiary, isDark);
   vars["--tertiary-container"] = tDerived.container;
   vars["--on-tertiary-container"] = tDerived.onContainer;
 
@@ -184,7 +201,6 @@ export function buildCssOverrides(customization: ThemeCustomization): string {
   Object.assign(vars, typeScaleVars(customization.typeScale));
 
   // Design tokens — inject semantic color tokens derived from the active palette
-  const isDark = document.documentElement.classList.contains("dark");
   const tokens = getTokens(customization.chart.palette, isDark, customization.chart.customColors, undefined, customization.colors);
 
   // Severity tokens
