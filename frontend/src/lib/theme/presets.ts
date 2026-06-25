@@ -20,10 +20,12 @@ function sevColors(paletteKey: keyof typeof PALETTE_SEVERITY) {
   return { primary: sevToRgb(s.pdo), tertiary: sevToRgb(s.injury), error: sevToRgb(s.fatal) };
 }
 
-/** Default — matches existing MD3 tokens in index.css */
+/** Default — matches existing MD3 tokens in index.css. Brand `primary` is set
+ *  explicitly (indigo-600 #4f46e5) rather than borrowing the lighter PDO chart
+ *  swatch, so filled primary buttons meet WCAG 1.4.3 contrast in light mode. */
 const DEFAULT_THEME: ThemeCustomization = {
   activePreset: "default",
-  colors: sevColors("default"),
+  colors: { ...sevColors("default"), primary: "79 70 229" },
   chart: {
     palette: "default",
     customColors: [],

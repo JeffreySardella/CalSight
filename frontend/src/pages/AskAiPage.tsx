@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { scrollBehavior } from "../lib/a11y/motion";
 import { useAskAi } from "../hooks/useAskAi";
 import { useFilterParams } from "../hooks/useFilterParams";
 import ChatMessage from "../components/ask/ChatMessage";
@@ -77,7 +78,7 @@ export default function AskAiPage() {
   const communityInquiries = useMemo(() => buildPopularQuestions(activeCounty), [activeCounty]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior() });
   }, [messages, isLoading]);
 
   useEffect(() => {

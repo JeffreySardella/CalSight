@@ -130,6 +130,7 @@ export function useAskAi() {
     const body = JSON.stringify({ question: question.trim(), filters, history });
 
     let lastWas429 = false;
+    try {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         if (attempt > 0 && !lastWas429) {
@@ -213,9 +214,14 @@ export function useAskAi() {
         setError(isTimeout ? "Request timed out. Try a simpler question." : "Couldn't reach the server. Check your connection.");
       }
     }
-    setIsLoading(false);
-    inFlightRef.current = false;
-    abortRef.current = null;
+    } finally {
+      // Always release the in-flight latch (and loading state) on every exit
+      // path — including the early returns and the success return inside the
+      // loop — so a completed request never blocks the next question.
+      setIsLoading(false);
+      inFlightRef.current = false;
+      abortRef.current = null;
+    }
   }, [isLoading, searchParams]);
 
   const retry = useCallback(() => {

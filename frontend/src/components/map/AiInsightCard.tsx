@@ -275,8 +275,9 @@ export default function AiInsightCard({
                       {onRefreshNarrative && (
                         <button
                           onClick={onRefreshNarrative}
-                          className="p-1 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
+                          className="p-1 inline-flex items-center justify-center min-w-[24px] min-h-[24px] hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
                           title="Show another insight"
+                          aria-label="Show another insight"
                         >
                           <span className="material-symbols-outlined text-[14px]">refresh</span>
                         </button>
