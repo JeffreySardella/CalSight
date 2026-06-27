@@ -4,9 +4,11 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useApiHealth } from "./useApiHealth";
 
-function wrapper({ children }: { children: ReactNode }) {
+function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
 }
 
 beforeEach(() => vi.stubGlobal("fetch", vi.fn()));
@@ -17,7 +19,7 @@ describe("useApiHealth", () => {
     vi.mocked(fetch).mockResolvedValue({
       status: 200, ok: true, json: async () => ({ status: "rebuilding" }),
     } as Response);
-    const { result } = renderHook(() => useApiHealth(), { wrapper });
+    const { result } = renderHook(() => useApiHealth(), { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current).toBe("rebuilding"));
   });
 
@@ -25,7 +27,7 @@ describe("useApiHealth", () => {
     vi.mocked(fetch).mockResolvedValue({
       status: 200, ok: true, json: async () => ({ status: "ok" }),
     } as Response);
-    const { result } = renderHook(() => useApiHealth(), { wrapper });
+    const { result } = renderHook(() => useApiHealth(), { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current).toBe("ok"));
   });
 });

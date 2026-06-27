@@ -4,11 +4,16 @@ import { API_BASE } from "../config";
 export type ApiHealth = "ok" | "rebuilding" | "maintenance" | "down";
 
 /**
- * Polls /api/health so the app can show a maintenance screen when the API is
- * either deliberately offline (MAINTENANCE_MODE → 503 {status:"maintenance"})
- * or unreachable during a server migration (the whole box is down → fetch
- * throws). The ['health'] key is excluded by the persistence whitelist, so it
- * is never cached and can't flash a stale state on reload.
+ * Polls /api/health so the app can show the appropriate UI for each API state:
+ *   - "ok"          — normal operation
+ *   - "rebuilding"  — data/ETL rebuild in progress (200 {status:"rebuilding"});
+ *                     site remains usable; RebuildingBanner shows a slim top bar
+ *   - "maintenance" — deliberately offline (MAINTENANCE_MODE → 503 {status:"maintenance"});
+ *                     MaintenanceGate shows a full-screen overlay
+ *   - "down"        — unreachable during a server migration (fetch throws after
+ *                     retries); MaintenanceGate shows a full-screen overlay
+ * The ['health'] key is excluded by the persistence whitelist, so it is never
+ * cached and can't flash a stale state on reload.
  */
 export function useApiHealth(): ApiHealth {
   const query = useQuery({

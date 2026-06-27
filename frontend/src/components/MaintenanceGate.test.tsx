@@ -41,4 +41,11 @@ describe("MaintenanceGate", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByText(/reach CalSight/i)).toBeInTheDocument();
   });
+
+  it("renders nothing while data is rebuilding (non-blocking bar handles it)", () => {
+    mockHealth("rebuilding");
+    const { container } = renderGate();
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });

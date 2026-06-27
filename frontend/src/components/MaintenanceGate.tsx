@@ -1,12 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useApiHealth, type ApiHealth } from "../hooks/useApiHealth";
+import { useApiHealth } from "../hooks/useApiHealth";
 
 /**
  * Full-screen overlay shown when the API is offline. The frontend is served
  * statically from Cloudflare Pages, so it stays up even while the API/box is
  * down for a migration — this turns raw fetch errors into a friendly screen.
  */
-function MaintenanceScreen({ variant }: { variant: Exclude<ApiHealth, "ok"> }) {
+function MaintenanceScreen({ variant }: { variant: "maintenance" | "down" }) {
   const queryClient = useQueryClient();
   const isMaintenance = variant === "maintenance";
 
@@ -54,6 +54,6 @@ function MaintenanceScreen({ variant }: { variant: Exclude<ApiHealth, "ok"> }) {
  */
 export default function MaintenanceGate() {
   const health = useApiHealth();
-  if (health === "ok") return null;
+  if (health !== "maintenance" && health !== "down") return null;
   return <MaintenanceScreen variant={health} />;
 }

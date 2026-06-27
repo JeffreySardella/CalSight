@@ -39,7 +39,7 @@ def is_rebuilding(db: Session, views: Iterable[str] | None = None) -> bool:
         return False
     try:
         populated = db.execute(
-            text("SELECT bool_and(relispopulated) FROM pg_class WHERE relname = ANY(:names)"),
+            text("SELECT bool_and(relispopulated) FROM pg_class WHERE relname = ANY(:names) AND relkind = 'm'"),
             {"names": names},
         ).scalar()
     except Exception:

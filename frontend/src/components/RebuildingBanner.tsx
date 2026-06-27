@@ -13,7 +13,7 @@ export default function RebuildingBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed top-0 inset-x-0 z-[900] flex items-center justify-center gap-2 bg-primary text-on-primary text-xs px-4 py-1.5 text-center"
+      className="fixed top-0 inset-x-0 z-[900] flex items-center justify-center gap-2 bg-primary text-on-primary text-xs px-4 py-1.5"
     >
       <span className="material-symbols-outlined text-[16px] animate-spin" aria-hidden="true">
         sync

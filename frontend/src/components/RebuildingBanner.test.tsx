@@ -16,6 +16,18 @@ describe("RebuildingBanner", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("renders nothing during maintenance (MaintenanceGate owns that state)", () => {
+    mockHealth("maintenance");
+    const { container } = render(<RebuildingBanner />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders nothing when the API is down (MaintenanceGate owns that state)", () => {
+    mockHealth("down");
+    const { container } = render(<RebuildingBanner />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("shows the banner while rebuilding", () => {
     mockHealth("rebuilding");
     render(<RebuildingBanner />);
