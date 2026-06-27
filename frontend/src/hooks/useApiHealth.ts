@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
 
-export type ApiHealth = "ok" | "maintenance" | "down";
+export type ApiHealth = "ok" | "rebuilding" | "maintenance" | "down";
 
 /**
  * Polls /api/health so the app can show a maintenance screen when the API is
@@ -21,11 +21,17 @@ export function useApiHealth(): ApiHealth {
         throw new Error("api-unhealthy");
       }
       if (!res.ok) throw new Error("api-unhealthy");
+      const body = (await res.json().catch(() => null)) as { status?: string } | null;
+      if (body?.status === "rebuilding") return "rebuilding" as const;
       return "ok" as const;
     },
     // Poll often while unhealthy so recovery is detected quickly; back off when ok.
     refetchInterval: (q) =>
-      q.state.data === "maintenance" || q.state.fetchFailureCount > 0 ? 10_000 : 45_000,
+      q.state.data === "maintenance" ||
+      q.state.data === "rebuilding" ||
+      q.state.fetchFailureCount > 0
+        ? 10_000
+        : 45_000,
     refetchOnWindowFocus: true,
     retry: 2,
     retryDelay: 2_000,
@@ -34,6 +40,7 @@ export function useApiHealth(): ApiHealth {
   });
 
   if (query.data === "maintenance") return "maintenance";
+  if (query.data === "rebuilding") return "rebuilding";
   // Only declare "down" after a full failed retry cycle (1 attempt + 2 retries),
   // so a single dropped request on flaky wifi doesn't flash the screen.
   if (query.failureCount >= 3) return "down";
