@@ -32,10 +32,18 @@ export function serializeContext(ctx: DataContext): string {
   return JSON.stringify(ctx);
 }
 
+const VALID_KINDS = new Set(["stat", "chart", "county", "highway", "view", "correlation"]);
+
 export function deserializeContext(raw: string): DataContext | null {
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && typeof parsed.kind === "string" && parsed.filters) {
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof parsed.kind === "string" &&
+      VALID_KINDS.has(parsed.kind) &&
+      parsed.filters
+    ) {
       return parsed as DataContext;
     }
     return null;
@@ -44,9 +52,18 @@ export function deserializeContext(raw: string): DataContext | null {
   }
 }
 
+function sortedReplacer(_key: string, value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)),
+    );
+  }
+  return value;
+}
+
 // Stable, order-independent hash for cache keys.
 export function hashContext(ctx: DataContext): string {
-  const stable = JSON.stringify(ctx, Object.keys(ctx).sort());
+  const stable = JSON.stringify(ctx, sortedReplacer);
   let h = 0;
   for (let i = 0; i < stable.length; i++) {
     h = (h << 5) - h + stable.charCodeAt(i);

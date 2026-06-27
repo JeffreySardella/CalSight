@@ -28,4 +28,14 @@ describe("dataContext", () => {
     expect(hashContext(ctx)).toBe(hashContext({ ...ctx }));
     expect(hashContext(ctx)).not.toBe(hashContext({ ...ctx, value: 9.99 }));
   });
+
+  it("hashContext differs when only filters changes", () => {
+    expect(hashContext(ctx)).not.toBe(
+      hashContext({ ...ctx, filters: { ...emptyFilters, years: [2023] } }),
+    );
+  });
+
+  it("deserializeContext returns null for unknown kind", () => {
+    expect(deserializeContext('{"kind":"evil","filters":{}}')).toBeNull();
+  });
 });
