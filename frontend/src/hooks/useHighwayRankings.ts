@@ -51,6 +51,7 @@ export function useHighwayRankings(
   filters: StatsFilters,
   sort: HighwaySort = "crash_count",
   limit = 20,
+  enabled = true,
 ) {
   const url = buildUrl(filters, sort, limit);
   return useQuery<HighwayRow[]>({
@@ -61,5 +62,6 @@ export function useHighwayRankings(
       return res.json();
     },
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }
