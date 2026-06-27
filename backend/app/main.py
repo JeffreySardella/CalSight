@@ -12,6 +12,7 @@ from starlette.responses import Response as StarletteResponse
 
 from app.database import engine, get_db
 from app.filters import FilterError
+from app.health import is_rebuilding
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -212,6 +213,8 @@ def health(db: Session = Depends(get_db)):
         return JSONResponse(status_code=503, content={"status": "maintenance"})
     try:
         db.execute(text("SELECT 1"))
-        return {"status": "ok"}
     except Exception:
         return JSONResponse(status_code=503, content={"status": "db_unavailable"})
+    if is_rebuilding(db):
+        return {"status": "rebuilding"}
+    return {"status": "ok"}

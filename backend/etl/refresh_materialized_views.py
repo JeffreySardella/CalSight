@@ -27,6 +27,7 @@ import logging
 from sqlalchemy import text
 
 from app.database import etl_engine as engine  # write/DDL role
+from app.health import MATERIALIZED_VIEWS
 from etl._utils import track_etl_run
 
 logging.basicConfig(
@@ -36,16 +37,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_VIEWS = [
-    "mv_crashes_by_year",
-    "mv_crashes_by_cause",
-    "mv_crashes_by_hour",
-    "mv_crashes_by_month",
-    "mv_crash_victims_by_demographics",
-    "mv_at_fault_parties_by_demographics",
-    "mv_crash_rates",
-    "mv_crashes_wide",
-]
+_VIEWS = list(MATERIALIZED_VIEWS)
 
 
 def _has_data(conn, view: str) -> bool:
