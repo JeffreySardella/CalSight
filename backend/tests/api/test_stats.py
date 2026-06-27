@@ -83,6 +83,27 @@ def test_stats_rejects_involvement_with_demographics(client):
     assert response.json()["filter"] == "involvement"
 
 
+def test_stats_involvement_false_excludes_unknown_and_matches_crashes(client):
+    """HIGH-1: an involvement `=false` filter must not bucket rows whose
+    underlying flag is NULL (unknown) as 'false'.
+
+    /stats reads mv_crashes_wide; /crashes reads the raw table with
+    `.is_(False)` semantics (NULL excluded). The two must agree.
+
+    Seed alcohol flags: id3=True, id4=False, id5=False, id1/id2 (SWITRS)=NULL.
+    So `alcohol=false` is exactly the 2 real-false crashes — not the 2 NULL
+    SWITRS rows. Before the fix /stats returned 4 (2 false + 2 NULL).
+    """
+    years = "year=2014,2015,2022,2023"
+    stats = client.get(f"/api/stats?alcohol=false&{years}").json()
+    crashes = client.get(
+        f"/api/crashes?alcohol=false&{years}&include_total=true&limit=1"
+    ).json()
+
+    assert stats["total_crashes"] == 2
+    assert stats["total_crashes"] == crashes["total"]
+
+
 # --- group_by=gender / age_bracket (mv_crash_victims_by_demographics) ---
 
 
