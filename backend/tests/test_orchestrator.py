@@ -74,7 +74,7 @@ def test_resolve_detects_missing_dependency():
 
 def test_default_registry_has_all_jobs():
     registry = build_default_registry()
-    assert len(registry.jobs) == 22
+    assert len(registry.jobs) == 23
 
 
 def test_default_registry_resolves_without_error():
@@ -83,6 +83,7 @@ def test_default_registry_resolves_without_error():
     names = [j.name for j in order]
     assert names.index("crashes_ccrs") < names.index("backfill")
     assert names.index("parties") < names.index("backfill")
+    assert names.index("crashes_ccrs") < names.index("route_number")
     assert names.index("backfill") < names.index("matviews")
     assert names.index("matviews") < names.index("insights")
     assert names.index("insights") < names.index("vacuum")

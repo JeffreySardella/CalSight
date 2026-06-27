@@ -69,8 +69,16 @@ def test_highways_county_filter(client):
 
 def test_highways_limit_clamps_to_max(client):
     response = client.get("/api/stats/highways?limit=999")
-    # Out-of-range limit should reject with 422 (FastAPI/pydantic le=100).
+    # Out-of-range limit should reject with 422 (FastAPI/pydantic le=300).
     assert response.status_code == 422
+
+
+def test_highways_accepts_full_network_limit(client):
+    # The highway-danger map layer (HighwayDangerLayer HIGHWAY_LIMIT) fetches
+    # limit=300 to color every drawn route. The cap must accept it, or the
+    # layer's fetch 422s and every highway falls back to no-data gray.
+    response = client.get("/api/stats/highways?limit=300")
+    assert response.status_code == 200
 
 
 def test_highways_invalid_sort_rejected(client):

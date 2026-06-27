@@ -946,9 +946,12 @@ def stats_batch(
     return results
 
 
-# Hard cap so a malicious client can't ask us to return all ~250 California
-# routes in one response. UI defaults are smaller; this just protects the API.
-_HIGHWAYS_MAX_LIMIT = 100
+# Hard cap so a malicious client can't ask for an unbounded response. The
+# highway-danger map layer legitimately needs a danger value for every route
+# it draws (~152 in ca-highways.geojson, ~250 distinct in the data), so the
+# cap must clear that — otherwise the layer's full-network fetch 422s and every
+# highway falls back to the no-data gray.
+_HIGHWAYS_MAX_LIMIT = 300
 
 
 @router.get("/stats/highways", response_model=list[HighwayRow])

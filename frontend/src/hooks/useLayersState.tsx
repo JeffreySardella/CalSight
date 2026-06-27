@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import { DEFAULT_MEASURE, MEASURES, type MeasureKey } from "../lib/choropleth/measures";
 import { PALETTES, type PaletteKey } from "../lib/choropleth/palettes";
+import type { HighwaySort } from "./useHighwayRankings";
 import { useCustomTheme } from "../context/CustomThemeContext";
 import type { ChartPaletteKey } from "../lib/theme/types";
 
@@ -17,7 +18,7 @@ const THEME_TO_MAP_PALETTE: Record<ChartPaletteKey, PaletteKey> = {
   custom: "default",
 };
 
-export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "coordMismatches" | "coordIncludeRivers" | "incidents" | "countyBoundaries" | "roadTypes" | "schools" | "hospitals";
+export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "coordMismatches" | "coordIncludeRivers" | "incidents" | "countyBoundaries" | "roadTypes" | "schools" | "hospitals" | "highwayDanger";
 export type HeatmapResolution = "raw" | "low" | "medium" | "high";
 
 /** The shareable subset of layer state that round-trips through the URL. See useLayerParams. */
@@ -40,6 +41,7 @@ const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
   roadTypes: false,
   schools: false,
   hospitals: false,
+  highwayDanger: false,
 };
 
 const STORAGE_KEY = "calsight-layers";
@@ -87,8 +89,11 @@ type LayersState = {
    *  `null` when fewer than MIN_BUCKET_SUBSET visible counties. */
   bucketEdges: number[] | null;
   otherLayers: Record<OtherLayerKey, boolean>;
+  /** Which danger metric colors the Highway-danger layer lines. */
+  highwayMetric: HighwaySort;
 
   setChoroplethOn: (v: boolean) => void;
+  setHighwayMetric: (m: HighwaySort) => void;
   setMeasure: (m: MeasureKey) => void;
   setPalette: (p: PaletteKey) => void;
   setBucketEdges: (e: number[] | null) => void;
@@ -128,6 +133,7 @@ export function LayersStateProvider({
   const [heatmapResolution, setHeatmapResolution] = useState<HeatmapResolution>(
     urlSeed?.heatmapResolution ?? saved.resolution ?? "low",
   );
+  const [highwayMetric, setHighwayMetric] = useState<HighwaySort>("fatality_rate");
 
   useEffect(() => {
     safeSetItem(STORAGE_KEY, JSON.stringify({
@@ -159,6 +165,7 @@ export function LayersStateProvider({
     setBucketEdges(null);
     setOtherLayers({ ...OTHER_LAYER_DEFAULTS });
     setHeatmapResolution("low");
+    setHighwayMetric("fatality_rate");
   }, []);
 
   const toggleOtherLayer = useCallback((key: OtherLayerKey) => {
@@ -171,12 +178,13 @@ export function LayersStateProvider({
 
   const value = useMemo<LayersState>(
     () => ({
-      choroplethOn, measure, palette, bucketEdges, otherLayers,
+      choroplethOn, measure, palette, bucketEdges, otherLayers, highwayMetric,
       setChoroplethOn, setMeasure, setPalette, setBucketEdges, toggleOtherLayer, setOtherLayer,
+      setHighwayMetric,
       heatmapResolution, setHeatmapResolution,
       reset,
     }),
-    [choroplethOn, measure, palette, bucketEdges, otherLayers, toggleOtherLayer, heatmapResolution, reset],
+    [choroplethOn, measure, palette, bucketEdges, otherLayers, highwayMetric, toggleOtherLayer, heatmapResolution, reset],
   );
 
   return <LayersStateContext.Provider value={value}>{children}</LayersStateContext.Provider>;

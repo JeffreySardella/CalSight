@@ -13,12 +13,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 import CountyBoundaries from "./CountyBoundaries";
+import HighwayDangerLayer from "./HighwayDangerLayer";
 import CrashHeatmap from "./CrashHeatmap";
 import CoordMismatchLayer from "./CoordMismatchLayer";
 import CaliforniaMask from "./CaliforniaMask";
 import OverlayMarkers from "./OverlayMarkers";
 import CrashDotLayer from "./CrashDotLayer";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
+import type { HighwayRow } from "../../hooks/useHighwayRankings";
 import type { ViewportSeed } from "../../hooks/useViewportParams";
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
 import { useHospitals, useSchools } from "../../hooks/useMapOverlays";
@@ -101,6 +103,7 @@ interface MapCanvasProps {
   compareCounty?: string | null;
   onFocusCounty: (name: string | null) => void;
   onSelectCounty: (name: string) => void;
+  onSelectHighway: (row: HighwayRow) => void;
   onMapReady: (map: LeafletMap) => void;
   heatmapPoints: HeatmapPoint[];
   heatmapActive: boolean;
@@ -127,6 +130,7 @@ function MapInternals({
   compareCounty,
   onFocusCounty,
   onSelectCounty,
+  onSelectHighway,
   onMapReady,
   heatmapPoints,
   heatmapActive,
@@ -177,6 +181,7 @@ function MapInternals({
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
       />
+      <HighwayDangerLayer onSelectHighway={onSelectHighway} />
       {heatmapActive && (
         <CrashHeatmap
           points={heatmapPoints}
@@ -208,6 +213,7 @@ export default function MapCanvas({
   compareCounty,
   onFocusCounty,
   onSelectCounty,
+  onSelectHighway,
   onMapReady,
   heatmapPoints,
   heatmapActive,
@@ -286,6 +292,7 @@ export default function MapCanvas({
         compareCounty={compareCounty}
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
+        onSelectHighway={onSelectHighway}
         onMapReady={onMapReady}
         heatmapPoints={heatmapPoints}
         heatmapActive={heatmapActive}

@@ -26,6 +26,8 @@ import DataExportPanel, {
   DataExportPanelFooter,
 } from "../components/map/DataExportPanel";
 import MapCanvas from "../components/map/MapCanvas";
+import HighwaySidePanelContent from "../components/map/HighwaySidePanelContent";
+import type { HighwayRow } from "../hooks/useHighwayRankings";
 import AiInsightCard from "../components/map/AiInsightCard";
 import Breadcrumb from "../components/map/Breadcrumb";
 import StatewideHeatmapCard from "../components/map/StatewideHeatmapCard";
@@ -91,6 +93,7 @@ function MapPageInner() {
   const { initialViewport, writeViewport } = useViewportParams();
 
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [selectedHighway, setSelectedHighway] = useState<HighwayRow | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleIntroStart = useCallback((_mode: "simple" | "advanced") => {
     const isMobile = window.innerWidth < 768;
@@ -302,6 +305,11 @@ function MapPageInner() {
     }
   }, [compareMode, focusedCounty, setCounty, toggleCounty]);
 
+  const handleSelectHighway = useCallback((row: HighwayRow) => {
+    setSelectedHighway(row);
+    setActivePanel("highway");
+  }, []);
+
   const handleSelectPlace = useCallback((lat: number, lng: number) => {
     setTempMarker([lat, lng]);
     mapRef.current?.setView([lat, lng], 14, { animate: true, duration: 0.5 });
@@ -441,7 +449,9 @@ function MapPageInner() {
     setActivePanel(null);
   }
 
-  const meta = activePanel ? PANEL_META[activePanel] : null;
+  const meta = activePanel === "highway"
+    ? { title: selectedHighway?.route_number ?? "Highway", subtitle: "Highway Danger" }
+    : activePanel ? PANEL_META[activePanel] : null;
 
   const initialStagedFilters: StagedFilters = useMemo(() => ({
     selectedYears: new Set(selectedYears),
@@ -513,6 +523,8 @@ function MapPageInner() {
         return <LayersPanel />;
       case "export":
         return <DataExportPanel />;
+      case "highway":
+        return selectedHighway ? <HighwaySidePanelContent row={selectedHighway} /> : null;
       default:
         return null;
     }
@@ -575,6 +587,7 @@ function MapPageInner() {
           compareCounty={compareCounty}
           onFocusCounty={handleFocusCounty}
           onSelectCounty={handleSelectCounty}
+          onSelectHighway={handleSelectHighway}
           onMapReady={handleMapReady}
           heatmapPoints={heatmap.points}
           heatmapActive={heatmapEnabled}

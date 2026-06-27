@@ -8,6 +8,9 @@ vi.mock("./CountyBoundaries", () => ({
     <div data-testid="county-boundaries" data-focused={props.focusedCounty} />
   ),
 }));
+vi.mock("./HighwayDangerLayer", () => ({
+  default: () => null,
+}));
 vi.mock("./CrashHeatmap", () => ({
   default: () => null,
 }));
@@ -35,6 +38,7 @@ const defaultHeatmapProps = {
   heatmapActive: false,
   heatmapResolution: "low" as const,
   heatmapPalette: "default" as const,
+  onSelectHighway: vi.fn(),
 };
 
 function renderWithTheme(ui: React.ReactElement) {
