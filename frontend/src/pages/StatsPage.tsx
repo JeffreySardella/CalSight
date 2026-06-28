@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Navigate } from "react-router-dom";
 import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES, YEARS } from "../hooks/useFilterParams";
+import { Explainable } from "../components/ai/Explainable";
+import { statContext, snapshotFilters } from "../lib/ai/contextBuilders";
 import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
@@ -487,7 +489,11 @@ function StatsPageInner() {
               <Skeleton className="h-10 w-40" />
             ) : (
               <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`Total incidents: ${totalIncidents != null ? totalIncidents.toLocaleString() : "unavailable"}`}>
-                {totalIncidents != null ? totalIncidents.toLocaleString() : "—"}
+                {totalIncidents != null ? (
+                  <Explainable context={statContext({ label: "Total crashes statewide", measure: "crashes_total", value: totalIncidents, filters: snapshotFilters(filters) })}>
+                    {totalIncidents.toLocaleString()}
+                  </Explainable>
+                ) : "—"}
               </p>
             )}
             {incidentYoYPct != null && (
