@@ -390,6 +390,17 @@ def _check_arcgis_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
             True, None, count,
             f"row count changed: {prior_count} -> {count}" if prior_count else f"first count: {count}",
         )
+    except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+        # The upstream host is unreachable or erroring (e.g. geo.dot.gov
+        # returning 5xx). This is an outage we can't fix by running the load —
+        # the loader would just hit the same dead host and fail the whole
+        # pipeline. Skip this cycle instead, leaving the last good data in
+        # place; the next run retries automatically once the source recovers.
+        logger.warning("ArcGIS source unreachable for %s: %s — skipping run", job.name, exc)
+        return FreshnessResult(
+            False, None, last_run.source_row_count,
+            f"source unreachable ({exc}); skipping run, will retry next cycle",
+        )
     except Exception as exc:
         logger.warning("ArcGIS freshness check failed for %s: %s", job.name, exc)
         return FreshnessResult(True, None, None, f"freshness check error: {exc}")

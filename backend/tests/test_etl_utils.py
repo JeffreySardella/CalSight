@@ -10,6 +10,8 @@ Covers:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import httpx
 import pytest
 
@@ -170,6 +172,67 @@ class TestPostWithRetry:
 
         resp = _utils.post_with_retry("https://example.test", max_retries=2)
         assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# _check_arcgis_freshness — upstream-outage handling
+# ---------------------------------------------------------------------------
+
+def _arcgis_job(freshness_url: str = "https://geo.dot.gov/query", name: str = "speed_limits"):
+    return SimpleNamespace(name=name, source_type="arcgis", freshness_url=freshness_url)
+
+
+def _last_run(source_row_count: int | None = 100):
+    return SimpleNamespace(source_row_count=source_row_count, finished_at=None)
+
+
+class TestArcgisFreshness:
+    """The freshness probe must not turn a transient upstream outage into a
+    hard job failure. When the ArcGIS host is unreachable or 5xx-ing, the run
+    should be skipped (is_fresh=False) so the loader never runs and the last
+    good data stays in place — instead of fail-opening and crashing the load.
+    """
+
+    def test_5xx_outage_skips_run_instead_of_failing(self, monkeypatch):
+        # geo.dot.gov returning 500s (the real incident): get_with_retry
+        # exhausts retries and raises HTTPStatusError.
+        monkeypatch.setattr(httpx, "get", lambda url, **kw: _make_response(503))
+        monkeypatch.setattr(_utils.time, "sleep", lambda _: None)
+
+        result = _utils._check_arcgis_freshness(_arcgis_job(), _last_run(100))
+
+        assert result.is_fresh is False
+        assert "unreachable" in result.reason.lower()
+
+    def test_connection_error_skips_run(self, monkeypatch):
+        def boom(url, **kw):
+            raise httpx.ConnectError("connection refused")
+
+        monkeypatch.setattr(httpx, "get", boom)
+        monkeypatch.setattr(_utils.time, "sleep", lambda _: None)
+
+        result = _utils._check_arcgis_freshness(_arcgis_job(), _last_run(100))
+
+        assert result.is_fresh is False
+        assert "unreachable" in result.reason.lower()
+
+    def test_unchanged_count_still_skips(self, monkeypatch):
+        monkeypatch.setattr(httpx, "get", lambda url, **kw: _make_response(200, b'{"count": 100}'))
+        monkeypatch.setattr(_utils.time, "sleep", lambda _: None)
+
+        result = _utils._check_arcgis_freshness(_arcgis_job(), _last_run(100))
+
+        assert result.is_fresh is False
+        assert "unchanged" in result.reason.lower()
+
+    def test_changed_count_runs(self, monkeypatch):
+        monkeypatch.setattr(httpx, "get", lambda url, **kw: _make_response(200, b'{"count": 250}'))
+        monkeypatch.setattr(_utils.time, "sleep", lambda _: None)
+
+        result = _utils._check_arcgis_freshness(_arcgis_job(), _last_run(100))
+
+        assert result.is_fresh is True
+        assert result.source_row_count == 250
 
 
 # ---------------------------------------------------------------------------
