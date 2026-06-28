@@ -1082,3 +1082,63 @@ def stats_highways(
         enriched.sort(key=lambda h: h.crashes_per_mile or 0.0, reverse=True)
 
     return enriched[:limit]
+
+
+_DISTRIBUTION_METRICS = {
+    "crash_count", "total_killed", "total_injured",
+    "fatal_crashes", "alcohol_crashes", "pedestrian_crashes",
+}
+
+
+@router.get("/stats/distribution")
+@_limiter.limit("1000/minute;20000/hour")
+def stats_distribution(
+    request: Request,
+    response: Response,
+    metric: str = Query("crash_count"),
+    year: int | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Per-county values for one metric — the distribution the frontend reduces
+    into percentile/rank context ("safer than X% of counties").
+
+    Mirrors the rank_counties tool but returns every county (no small limit).
+    """
+    if metric not in _DISTRIBUTION_METRICS:
+        raise HTTPException(status_code=422, detail=f"invalid metric: {metric}")
+
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+
+    preds = []
+    if year is not None:
+        preds.append(Crash.crash_year == year)
+    if metric == "fatal_crashes":
+        preds.append(Crash.severity == "Fatal")
+        agg = func.count(Crash.id)
+    elif metric == "alcohol_crashes":
+        preds.append(Crash.is_alcohol_involved.is_(True))
+        agg = func.count(Crash.id)
+    elif metric == "pedestrian_crashes":
+        preds.append(Crash.pedestrian_involved.is_(True))
+        agg = func.count(Crash.id)
+    elif metric == "total_killed":
+        agg = func.sum(Crash.number_killed)
+    elif metric == "total_injured":
+        agg = func.sum(Crash.number_injured)
+    else:
+        agg = func.count(Crash.id)
+
+    stmt = (
+        select(
+            Crash.county_code.label("county_code"),
+            Crash.county_name.label("county_name"),
+            agg.label("value"),
+        )
+        .where(*preds)
+        .group_by(Crash.county_code, Crash.county_name)
+    )
+    rows = db.execute(stmt).fetchall()
+    return [
+        {"county_code": r.county_code, "county_name": r.county_name, "value": float(r.value or 0)}
+        for r in rows
+    ]
