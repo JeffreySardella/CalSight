@@ -5,6 +5,8 @@ import { explainContext } from "../../lib/ai/explainContext";
 import { useAskAi } from "../../hooks/useAskAi";
 import type { ChatMessage } from "../../hooks/useAskAi";
 import InlineChart from "../ask/InlineChart";
+import { useDistribution } from "../../hooks/useDistribution";
+import { measureToMetric } from "../../lib/ai/measureMetric";
 
 export function buildDeepDivePrompt(ctx: DataContext): string {
   const parts: string[] = [`Explain this CalSight data point: "${ctx.label}".`];
@@ -45,7 +47,20 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
   useEffect(() => { setAskedHere(false); }, [current]);
 
   const api = useMemo<CompanionApi>(() => ({ open, close, current }), [open, close, current]);
-  const explanation = current ? explainContext(current) : null;
+
+  const metric = current?.kind === "stat" ? measureToMetric(current.measure) : null;
+  const years = current?.filters.years ?? [];
+  const distEnabled =
+    current?.kind === "stat" &&
+    current.geography?.type === "county" &&
+    metric != null &&
+    years.length <= 1;
+  const distYear = years.length === 1 ? years[0] : null;
+  const { data: distribution } = useDistribution(metric ?? "crash_count", distYear, { enabled: distEnabled });
+
+  const explanation = current
+    ? explainContext(current, distEnabled ? { distribution } : undefined)
+    : null;
   const lastAnswer: ChatMessage | undefined =
     [...messages].reverse().find((m) => m.role === "assistant");
 

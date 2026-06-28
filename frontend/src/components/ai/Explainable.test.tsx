@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+
+vi.mock("../../hooks/useDistribution", () => ({
+  useDistribution: () => ({ data: undefined, isLoading: false }),
+}));
 import { MemoryRouter } from "react-router-dom";
 import { AiCompanionProvider } from "./AiCompanion";
 import { Explainable } from "./Explainable";

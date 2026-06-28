@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
+vi.mock("../../hooks/useDistribution", () => ({
+  useDistribution: () => ({ data: undefined, isLoading: false }),
+}));
+
 const hoisted = vi.hoisted(() => ({
   state: {
     sendMessage: vi.fn(),

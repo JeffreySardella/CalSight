@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+
+vi.mock("../../hooks/useDistribution", () => ({
+  useDistribution: () => ({ data: undefined, isLoading: false }),
+}));
+
 import { AiCompanionProvider, useAiCompanion } from "./AiCompanion";
 import type { DataContext } from "../../lib/ai/dataContext";
 
