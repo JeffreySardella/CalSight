@@ -7,6 +7,10 @@ import ChatMessage from "../components/ask/ChatMessage";
 import SuggestionChips from "../components/ask/SuggestionChips";
 import ThinkingIndicator from "../components/ask/ThinkingIndicator";
 import MetaTags from "../components/seo/MetaTags";
+import { StoryCanvasProvider, useStoryCanvas } from "../hooks/useStoryCanvas";
+import StoryCanvasPanel from "../components/ask/StoryCanvasPanel";
+import StoryReportView from "../components/ask/StoryReportView";
+import { exportPng, exportPdf } from "../lib/story/exportCanvas";
 
 function buildGuidedTopics(county: string | null, year: string | null) {
   const area = county || "California";
@@ -38,9 +42,15 @@ function buildPopularQuestions(county: string | null) {
   ];
 }
 
-export default function AskAiPage() {
+function AskAiPageInner() {
   const [inputValue, setInputValue] = useState("");
   const { messages, isLoading, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
+  const { title, blocks, count } = useStoryCanvas();
+  const [storyOpen, setStoryOpen] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const handleExportPng = () => { if (reportRef.current) void exportPng(reportRef.current); };
+  const handleExportPdf = () => { if (reportRef.current) void exportPdf(reportRef.current); };
   const { selectedCounties, selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted } = useFilterParams();
   const [searchParams] = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -146,16 +156,27 @@ export default function AskAiPage() {
             {filterSummary}
           </p>
         </div>
-        {hasMessages && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={clearConversation}
+            onClick={() => setStoryOpen(true)}
             className="flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-surface-container text-on-surface-variant hover:text-on-surface text-xs font-medium transition-colors whitespace-nowrap"
+            aria-label={`Open story canvas (${count} ${count === 1 ? "item" : "items"})`}
           >
-            <span className="material-symbols-outlined text-sm">add</span>
-            New Chat
+            <span className="material-symbols-outlined text-sm">auto_stories</span>
+            Story{count > 0 ? ` (${count})` : ""}
           </button>
-        )}
+          {hasMessages && (
+            <button
+              type="button"
+              onClick={clearConversation}
+              className="flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-surface-container text-on-surface-variant hover:text-on-surface text-xs font-medium transition-colors whitespace-nowrap"
+            >
+              <span className="material-symbols-outlined text-sm">add</span>
+              New Chat
+            </button>
+          )}
+        </div>
       </div>
 
       {/* SCROLLABLE MESSAGE AREA */}
@@ -245,6 +266,16 @@ export default function AskAiPage() {
         )}
       </div>
 
+      <StoryCanvasPanel
+        open={storyOpen}
+        onClose={() => setStoryOpen(false)}
+        onExportPng={handleExportPng}
+        onExportPdf={handleExportPdf}
+      />
+      <div ref={reportRef} aria-hidden="true" style={{ position: "fixed", left: "-9999px", top: 0 }}>
+        <StoryReportView title={title} blocks={blocks} filterSummary={filterSummary} />
+      </div>
+
       {/* STICKY FOOTER */}
       <div className="flex-none px-3 md:px-6 pt-1.5 pb-1.5 md:pt-2 md:pb-3 border-t border-outline-variant bg-surface">
         <div className="relative flex items-end bg-surface-container-high rounded-xl p-1 md:p-2 group transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/20">
@@ -298,5 +329,13 @@ export default function AskAiPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AskAiPage() {
+  return (
+    <StoryCanvasProvider>
+      <AskAiPageInner />
+    </StoryCanvasProvider>
   );
 }
