@@ -1,4 +1,5 @@
 import type { DataContext, FilterSnapshot, ChartPoint } from "./dataContext";
+import { normalizeCounty } from "./measureMetric";
 
 export type FilterInputs = {
   selectedYears: Set<number>;
@@ -53,4 +54,29 @@ export function chartContext(args: {
   label: string; series: ChartPoint[]; measure?: string; filters: FilterSnapshot;
 }): DataContext {
   return { kind: "chart", label: args.label, series: args.series, measure: args.measure, filters: args.filters };
+}
+
+export function buildTotalCrashesContext(args: {
+  totalIncidents: number | null;
+  counties: Set<string>;
+  filters: FilterSnapshot;
+}): DataContext | null {
+  if (args.totalIncidents == null) return null;
+  const names = [...args.counties];
+  if (names.length === 1) {
+    const name = names[0];
+    return statContext({
+      label: `Total crashes · ${name}`,
+      measure: "crash_count",
+      geography: { type: "county", id: normalizeCounty(name), name },
+      value: args.totalIncidents,
+      filters: args.filters,
+    });
+  }
+  return statContext({
+    label: "Total crashes statewide",
+    measure: "crash_count",
+    value: args.totalIncidents,
+    filters: args.filters,
+  });
 }
