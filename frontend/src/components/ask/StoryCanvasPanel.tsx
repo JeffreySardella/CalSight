@@ -8,16 +8,25 @@ interface Props {
   onClose: () => void;
   onExportPng: () => void;
   onExportPdf: () => void;
+  exportError?: string | null;
 }
 
-export default function StoryCanvasPanel({ open, onClose, onExportPng, onExportPdf }: Props) {
+export default function StoryCanvasPanel({ open, onClose, onExportPng, onExportPdf, exportError }: Props) {
   const {
     title, blocks, count, setTitle, addNote, updateNote, moveBlock, removeBlock, clear,
   } = useStoryCanvas();
   const panelRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
 
+  // Capture the focused element before opening; restore it when closing.
+  // Combined into one [open] effect to guarantee capture happens before panel steals focus.
   useEffect(() => {
-    if (open) panelRef.current?.focus();
+    if (open) {
+      returnFocusRef.current = document.activeElement as HTMLElement | null;
+      panelRef.current?.focus();
+    } else {
+      returnFocusRef.current?.focus();
+    }
   }, [open]);
 
   if (!open) return null;
@@ -102,16 +111,21 @@ export default function StoryCanvasPanel({ open, onClose, onExportPng, onExportP
         </div>
 
         {/* Footer */}
-        <div className="flex-none flex items-center gap-2 px-4 py-3 border-t border-outline-variant">
-          <button type="button" onClick={onExportPng} disabled={count === 0} className="flex-1 bg-primary text-on-primary rounded-lg py-2 text-sm font-medium disabled:opacity-40">
-            Export PNG
-          </button>
-          <button type="button" onClick={onExportPdf} disabled={count === 0} className="flex-1 bg-surface-container-high text-on-surface rounded-lg py-2 text-sm font-medium disabled:opacity-40">
-            Export PDF
-          </button>
-          <button type="button" onClick={handleClear} aria-label="Clear story" className="p-2 text-on-surface-variant hover:text-error">
-            <span className="material-symbols-outlined">delete_sweep</span>
-          </button>
+        <div className="flex-none px-4 py-3 border-t border-outline-variant">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={onExportPng} disabled={count === 0} className="flex-1 bg-primary text-on-primary rounded-lg py-2 text-sm font-medium disabled:opacity-40">
+              Export PNG
+            </button>
+            <button type="button" onClick={onExportPdf} disabled={count === 0} className="flex-1 bg-surface-container-high text-on-surface rounded-lg py-2 text-sm font-medium disabled:opacity-40">
+              Export PDF
+            </button>
+            <button type="button" onClick={handleClear} aria-label="Clear story" className="p-2 text-on-surface-variant hover:text-error">
+              <span className="material-symbols-outlined">delete_sweep</span>
+            </button>
+          </div>
+          {exportError && (
+            <p className="mt-2 text-xs text-error" role="alert">{exportError}</p>
+          )}
         </div>
       </div>
     </div>

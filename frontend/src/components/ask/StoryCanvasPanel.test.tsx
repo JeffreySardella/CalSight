@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -10,12 +11,12 @@ function answer(ts: number, content: string): ChatMessage {
 }
 
 // Seed the canvas, then render the panel inside the same provider.
-function Harness({ open, onClose }: { open: boolean; onClose: () => void }) {
+function Harness({ open, onClose, exportError }: { open: boolean; onClose: () => void; exportError?: string | null }) {
   const { pinAnswer, count } = useStoryCanvas();
   return (
     <>
       <button onClick={() => pinAnswer(answer(Date.now() + count, `answer ${count + 1}`))}>seed</button>
-      <StoryCanvasPanel open={open} onClose={onClose} onExportPng={() => {}} onExportPdf={() => {}} />
+      <StoryCanvasPanel open={open} onClose={onClose} onExportPng={() => {}} onExportPdf={() => {}} exportError={exportError} />
     </>
   );
 }
@@ -137,5 +138,61 @@ describe("StoryCanvasPanel", () => {
     // Assert the spies were called once
     expect(onExportPng).toHaveBeenCalledTimes(1);
     expect(onExportPdf).toHaveBeenCalledTimes(1);
+  });
+
+  describe("export error display", () => {
+    it("shows the export error message when exportError prop is set", () => {
+      wrap(<Harness open onClose={() => {}} exportError="Export failed. Please try again." />);
+      expect(screen.getByText("Export failed. Please try again.")).toBeTruthy();
+    });
+
+    it("does not show an export error message when exportError is null", () => {
+      wrap(<Harness open onClose={() => {}} exportError={null} />);
+      expect(screen.queryByText("Export failed. Please try again.")).toBeNull();
+    });
+
+    it("does not show an export error message when exportError is absent", () => {
+      wrap(<Harness open onClose={() => {}} />);
+      expect(screen.queryByText("Export failed. Please try again.")).toBeNull();
+    });
+  });
+
+  describe("focus return on close", () => {
+    it("returns focus to the trigger element when the panel is closed", () => {
+      function FocusHarness() {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button data-testid="trigger" onClick={() => setOpen(true)}>Open</button>
+            <StoryCanvasPanel
+              open={open}
+              onClose={() => setOpen(false)}
+              onExportPng={() => {}}
+              onExportPdf={() => {}}
+            />
+          </>
+        );
+      }
+
+      render(
+        <StoryCanvasProvider>
+          <FocusHarness />
+        </StoryCanvasProvider>
+      );
+
+      const trigger = screen.getByTestId("trigger");
+      act(() => { trigger.focus(); });
+      expect(document.activeElement).toBe(trigger);
+
+      // Open the panel
+      act(() => { fireEvent.click(trigger); });
+      expect(screen.getByRole("dialog")).toBeTruthy();
+
+      // Close via Escape
+      act(() => { fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" }); });
+      expect(screen.queryByRole("dialog")).toBeNull();
+
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 });

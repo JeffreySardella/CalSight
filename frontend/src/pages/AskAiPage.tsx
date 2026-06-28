@@ -47,10 +47,27 @@ function AskAiPageInner() {
   const { messages, isLoading, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
   const { title, blocks, count } = useStoryCanvas();
   const [storyOpen, setStoryOpen] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const handleExportPng = () => { if (reportRef.current) void exportPng(reportRef.current); };
-  const handleExportPdf = () => { if (reportRef.current) void exportPdf(reportRef.current); };
+  const handleExportPng = async () => {
+    if (!reportRef.current) return;
+    try {
+      await exportPng(reportRef.current);
+      setExportError(null);
+    } catch {
+      setExportError("Export failed. Please try again.");
+    }
+  };
+  const handleExportPdf = async () => {
+    if (!reportRef.current) return;
+    try {
+      await exportPdf(reportRef.current);
+      setExportError(null);
+    } catch {
+      setExportError("Export failed. Please try again.");
+    }
+  };
   const { selectedCounties, selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted } = useFilterParams();
   const [searchParams] = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -271,6 +288,7 @@ function AskAiPageInner() {
         onClose={() => setStoryOpen(false)}
         onExportPng={handleExportPng}
         onExportPdf={handleExportPdf}
+        exportError={exportError}
       />
       <div ref={reportRef} aria-hidden="true" style={{ position: "fixed", left: "-9999px", top: 0 }}>
         <StoryReportView title={title} blocks={blocks} filterSummary={filterSummary} />

@@ -29,7 +29,7 @@ export default function StoryReportView({ title, blocks, filterSummary }: Props)
               <div className="prose prose-sm max-w-none text-gray-900">
                 <ReactMarkdown>{block.content}</ReactMarkdown>
               </div>
-              {block.chart && <InlineChart chart={block.chart} />}
+              {block.chart && <InlineChart chart={block.chart} forceLight />}
             </article>
           ) : (
             <p key={block.id} className="font-serif text-gray-800 leading-relaxed whitespace-pre-wrap">
