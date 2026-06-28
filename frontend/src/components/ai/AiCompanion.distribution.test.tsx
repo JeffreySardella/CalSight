@@ -51,4 +51,24 @@ describe("AiCompanion distribution tier", () => {
     fireEvent.click(screen.getByText("open"));
     expect(screen.getByRole("dialog").textContent).not.toMatch(/ranks #|safer than/i);
   });
+
+  it("does not show percentile when a population-narrowing filter (severity) is active", () => {
+    const filteredStat: DataContext = {
+      ...countyStat,
+      filters: { ...baseFilters, severities: ["Fatal"] },
+    };
+    renderWith(filteredStat);
+    fireEvent.click(screen.getByText("open"));
+    expect(screen.getByRole("dialog").textContent).not.toMatch(/ranks #|safer than/i);
+  });
+
+  it("does not show percentile when two years are selected", () => {
+    const multiYearStat: DataContext = {
+      ...countyStat,
+      filters: { ...baseFilters, years: [2022, 2023] },
+    };
+    renderWith(multiYearStat);
+    fireEvent.click(screen.getByText("open"));
+    expect(screen.getByRole("dialog").textContent).not.toMatch(/ranks #|safer than/i);
+  });
 });

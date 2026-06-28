@@ -63,12 +63,13 @@ describe("AiCompanion inline deep-dive", () => {
     expect(screen.getByText("Fresh inline answer.")).toBeTruthy();
   });
 
-  it("shows a thinking state while loading after Go deeper", () => {
-    hoisted.state.isLoading = true;
-    renderApp();
+  it("shows a thinking state in the inline region after Go deeper is clicked", () => {
+    const { rerender } = renderApp();
     fireEvent.click(screen.getByText("explain"));
-    fireEvent.click(screen.getByText(/Thinking|Go deeper/));
-    expect(screen.getByText(/Thinking/)).toBeTruthy();
+    fireEvent.click(screen.getByText("Go deeper with AI"));
+    hoisted.state.isLoading = true;
+    rerender(<MemoryRouter><AiCompanionProvider><Trigger /></AiCompanionProvider></MemoryRouter>);
+    expect(screen.getByText("Generating answer…")).toBeTruthy();
   });
 
   it("shows an error with a retry button after Go deeper", () => {

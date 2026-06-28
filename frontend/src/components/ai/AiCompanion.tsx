@@ -6,7 +6,7 @@ import { useAskAi } from "../../hooks/useAskAi";
 import type { ChatMessage } from "../../hooks/useAskAi";
 import InlineChart from "../ask/InlineChart";
 import { useDistribution } from "../../hooks/useDistribution";
-import { measureToMetric } from "../../lib/ai/measureMetric";
+import { measureToMetric, distributionPopulationMatches } from "../../lib/ai/measureMetric";
 
 export function buildDeepDivePrompt(ctx: DataContext): string {
   const parts: string[] = [`Explain this CalSight data point: "${ctx.label}".`];
@@ -54,7 +54,8 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
     current?.kind === "stat" &&
     current.geography?.type === "county" &&
     metric != null &&
-    years.length <= 1;
+    years.length <= 1 &&
+    distributionPopulationMatches(current.filters);
   const distYear = years.length === 1 ? years[0] : null;
   const { data: distribution } = useDistribution(metric ?? "crash_count", distYear, { enabled: distEnabled });
 
@@ -87,7 +88,7 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
           </button>
           {askedHere && (
             <div aria-live="polite" className="mt-3 max-h-[40vh] overflow-y-auto border-t border-outline-variant pt-3">
-              {isLoading && <p className="text-xs text-on-surface-variant">Thinking…</p>}
+              {isLoading && <p className="text-xs text-on-surface-variant">Generating answer…</p>}
               {error && !isLoading && (
                 <p className="text-xs text-error">
                   {error}{" "}
