@@ -33,7 +33,7 @@ function fakeNode(): HTMLElement {
   return el;
 }
 
-beforeEach(() => { mockToPng.mockClear(); mockSave.mockClear(); mockAddImage.mockClear(); mockAddPage.mockClear(); });
+beforeEach(() => { MockedJsPDF.mockClear(); mockToPng.mockClear(); mockSave.mockClear(); mockAddImage.mockClear(); mockAddPage.mockClear(); });
 
 describe("exportCanvas", () => {
   it("builds a dated filename", () => {
@@ -41,17 +41,28 @@ describe("exportCanvas", () => {
   });
 
   it("exportPng rasterizes the node and triggers a .png download", async () => {
+    const node = fakeNode();
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    await exportPng(fakeNode(), "calsight-story-2026-06-28");
-    expect(mockToPng).toHaveBeenCalledTimes(1);
+    await exportPng(node, "calsight-story-2026-06-28");
+    expect(mockToPng).toHaveBeenCalledWith(node, expect.objectContaining({ pixelRatio: 2 }));
     expect(clickSpy).toHaveBeenCalledTimes(1);
     clickSpy.mockRestore();
   });
 
   it("exportPdf rasterizes the node and saves a .pdf", async () => {
-    await exportPdf(fakeNode(), "calsight-story-2026-06-28");
-    expect(mockToPng).toHaveBeenCalledTimes(1);
+    const node = fakeNode();
+    await exportPdf(node, "calsight-story-2026-06-28");
+    expect(mockToPng).toHaveBeenCalledWith(node, expect.objectContaining({ pixelRatio: 2 }));
     expect(mockAddImage).toHaveBeenCalled();
     expect(mockSave).toHaveBeenCalledWith("calsight-story-2026-06-28.pdf");
+  });
+
+  it("exportPdf handles multi-page pagination for tall nodes", async () => {
+    const el = document.createElement("div");
+    el.getBoundingClientRect = () => ({ width: 100, height: 400, top: 0, left: 0, right: 100, bottom: 400, x: 0, y: 0, toJSON: () => ({}) });
+    await exportPdf(el, "calsight-story-tall");
+    expect(mockAddPage).toHaveBeenCalled();
+    expect(mockAddImage.mock.calls.length).toBeGreaterThan(1);
+    expect(mockSave).toHaveBeenCalledWith("calsight-story-tall.pdf");
   });
 });
