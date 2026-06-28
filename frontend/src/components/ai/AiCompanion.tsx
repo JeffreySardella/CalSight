@@ -1,6 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { DataContext } from "../../lib/ai/dataContext";
 import { explainContext } from "../../lib/ai/explainContext";
+import { useAskAi } from "../../hooks/useAskAi";
+
+export function buildDeepDivePrompt(ctx: DataContext): string {
+  const parts: string[] = [`Explain this CalSight data point: "${ctx.label}".`];
+  if (ctx.value != null) parts.push(`Value: ${ctx.value}.`);
+  if (ctx.geography) parts.push(`Area: ${ctx.geography.name}.`);
+  const f = ctx.filters;
+  if (f.years.length) parts.push(`Years: ${f.years.join(", ")}.`);
+  if (f.severities.length) parts.push(`Severities: ${f.severities.join(", ")}.`);
+  if (f.counties.length && !ctx.geography) parts.push(`Counties: ${f.counties.join(", ")}.`);
+  if (f.alcohol) parts.push("Alcohol-involved only.");
+  parts.push("Be concise and avoid claiming causation.");
+  return parts.join(" ");
+}
 
 type CompanionApi = {
   open: (ctx: DataContext) => void;
@@ -12,6 +26,7 @@ const Ctx = createContext<CompanionApi | null>(null);
 
 export function AiCompanionProvider({ children }: { children: ReactNode }) {
   const [current, setCurrent] = useState<DataContext | null>(null);
+  const { sendMessage, isLoading } = useAskAi();
 
   const open = useCallback((ctx: DataContext) => setCurrent(ctx), []);
   const close = useCallback(() => setCurrent(null), []);
@@ -40,6 +55,13 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
             <button onClick={close} aria-label="Close explanation" className="text-on-surface-variant hover:text-on-surface">✕</button>
           </div>
           <p className="mt-2 text-sm text-on-surface-variant">{explanation.body}</p>
+          <button
+            onClick={() => current && sendMessage(buildDeepDivePrompt(current))}
+            disabled={isLoading}
+            className="mt-3 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary disabled:opacity-50"
+          >
+            {isLoading ? "Thinking…" : "Go deeper with AI"}
+          </button>
         </div>
       )}
     </Ctx.Provider>

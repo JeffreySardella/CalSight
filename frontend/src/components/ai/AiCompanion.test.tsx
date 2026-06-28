@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { AiCompanionProvider, useAiCompanion } from "./AiCompanion";
 import type { DataContext } from "../../lib/ai/dataContext";
 
@@ -17,7 +18,7 @@ function Trigger() {
 
 describe("AiCompanion", () => {
   it("opens on demand and shows the instant explanation", () => {
-    render(<AiCompanionProvider><Trigger /></AiCompanionProvider>);
+    render(<MemoryRouter><AiCompanionProvider><Trigger /></AiCompanionProvider></MemoryRouter>);
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getByText("explain"));
     const dialog = screen.getByRole("dialog", { name: "AI explanation" });
@@ -26,7 +27,7 @@ describe("AiCompanion", () => {
   });
 
   it("closes on Escape", () => {
-    render(<AiCompanionProvider><Trigger /></AiCompanionProvider>);
+    render(<MemoryRouter><AiCompanionProvider><Trigger /></AiCompanionProvider></MemoryRouter>);
     fireEvent.click(screen.getByText("explain"));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { AiCompanionProvider } from "./AiCompanion";
 import { Explainable } from "./Explainable";
 import type { DataContext } from "../../lib/ai/dataContext";
@@ -13,9 +14,11 @@ const ctx: DataContext = { kind: "chart", label: "Crashes by hour", series: [{ l
 
 function setup() {
   render(
-    <AiCompanionProvider>
-      <Explainable context={ctx}><span>9</span></Explainable>
-    </AiCompanionProvider>,
+    <MemoryRouter>
+      <AiCompanionProvider>
+        <Explainable context={ctx}><span>9</span></Explainable>
+      </AiCompanionProvider>
+    </MemoryRouter>,
   );
 }
 
