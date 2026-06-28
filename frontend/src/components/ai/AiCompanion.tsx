@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
 import type { DataContext } from "../../lib/ai/dataContext";
 import { explainContext } from "../../lib/ai/explainContext";
 import { useAskAi } from "../../hooks/useAskAi";
+import type { ChatMessage } from "../../hooks/useAskAi";
+import InlineChart from "../ask/InlineChart";
 
 export function buildDeepDivePrompt(ctx: DataContext): string {
   const parts: string[] = [`Explain this CalSight data point: "${ctx.label}".`];
@@ -26,7 +29,8 @@ const Ctx = createContext<CompanionApi | null>(null);
 
 export function AiCompanionProvider({ children }: { children: ReactNode }) {
   const [current, setCurrent] = useState<DataContext | null>(null);
-  const { sendMessage, isLoading } = useAskAi();
+  const [askedHere, setAskedHere] = useState(false);
+  const { sendMessage, isLoading, error, retry, messages } = useAskAi();
 
   const open = useCallback((ctx: DataContext) => setCurrent(ctx), []);
   const close = useCallback(() => setCurrent(null), []);
@@ -38,8 +42,12 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [current, close]);
 
+  useEffect(() => { setAskedHere(false); }, [current]);
+
   const api = useMemo<CompanionApi>(() => ({ open, close, current }), [open, close, current]);
   const explanation = current ? explainContext(current) : null;
+  const lastAnswer: ChatMessage | undefined =
+    [...messages].reverse().find((m) => m.role === "assistant");
 
   return (
     <Ctx.Provider value={api}>
@@ -56,12 +64,29 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
           </div>
           <p className="mt-2 text-sm text-on-surface-variant">{explanation.body}</p>
           <button
-            onClick={() => current && sendMessage(buildDeepDivePrompt(current))}
+            onClick={() => { if (current) { setAskedHere(true); sendMessage(buildDeepDivePrompt(current)); } }}
             disabled={isLoading}
             className="mt-3 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary disabled:opacity-50"
           >
             {isLoading ? "Thinking…" : "Go deeper with AI"}
           </button>
+          {askedHere && (
+            <div aria-live="polite" className="mt-3 max-h-[40vh] overflow-y-auto border-t border-outline-variant pt-3">
+              {isLoading && <p className="text-xs text-on-surface-variant">Thinking…</p>}
+              {error && !isLoading && (
+                <p className="text-xs text-error">
+                  {error}{" "}
+                  <button onClick={retry} className="underline" aria-label="Retry deep dive">Retry</button>
+                </p>
+              )}
+              {!isLoading && !error && lastAnswer && (
+                <div className="prose prose-sm dark:prose-invert max-w-none text-on-surface">
+                  <ReactMarkdown>{lastAnswer.content}</ReactMarkdown>
+                  {lastAnswer.chart && <InlineChart chart={lastAnswer.chart} />}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </Ctx.Provider>

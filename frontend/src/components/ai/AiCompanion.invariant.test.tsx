@@ -10,7 +10,7 @@ import type { DataContext } from "../../lib/ai/dataContext";
 // would silently fire a Groq request and blow the free tier.
 const sendMessage = vi.fn();
 vi.mock("../../hooks/useAskAi", () => ({
-  useAskAi: () => ({ sendMessage, isLoading: false }),
+  useAskAi: () => ({ sendMessage, isLoading: false, error: null, retry: vi.fn(), messages: [] }),
 }));
 
 const filters = {
