@@ -27,7 +27,7 @@ export default function StoryCanvasPanel({ open, onClose, onExportPng, onExportP
   };
 
   return (
-    <div className="fixed inset-0 z-[1100] flex justify-end" >
+    <div className="fixed inset-0 z-[1100] flex justify-end">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden="true" />
       <div
         ref={panelRef}

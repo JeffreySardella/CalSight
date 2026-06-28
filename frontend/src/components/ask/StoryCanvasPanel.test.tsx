@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import type { ReactNode } from "react";
 import StoryCanvasPanel from "./StoryCanvasPanel";
 import { StoryCanvasProvider, useStoryCanvas } from "../../hooks/useStoryCanvas";
@@ -22,7 +22,10 @@ function Harness({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 const wrap = (ui: ReactNode) => render(<StoryCanvasProvider>{ui}</StoryCanvasProvider>);
 
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => {
+  cleanup();
+  sessionStorage.clear();
+});
 
 describe("StoryCanvasPanel", () => {
   it("renders nothing when closed", () => {
@@ -56,5 +59,83 @@ describe("StoryCanvasPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /clear/i }));
     expect(screen.getByText(/pin answers from the chat/i)).toBeTruthy();
     vi.restoreAllMocks();
+  });
+
+  it("disables move buttons at the ends", () => {
+    wrap(<Harness open onClose={() => {}} />);
+    act(() => {
+      fireEvent.click(screen.getByText("seed"));
+    });
+    act(() => {
+      fireEvent.click(screen.getByText("seed"));
+    });
+    const moveUpButtons = screen.getAllByRole("button", { name: /move up/i });
+    const moveDownButtons = screen.getAllByRole("button", { name: /move down/i });
+
+    // Ensure we have the expected number of buttons
+    expect(moveUpButtons).toHaveLength(2);
+    expect(moveDownButtons).toHaveLength(2);
+
+    // First block's move up should be disabled
+    expect(moveUpButtons[0]).toBeDisabled();
+    // Second block's move up should be enabled
+    expect(moveUpButtons[1]).not.toBeDisabled();
+    // First block's move down should be enabled
+    expect(moveDownButtons[0]).not.toBeDisabled();
+    // Last block's move down should be disabled
+    expect(moveDownButtons[1]).toBeDisabled();
+  });
+
+  it("removes a block when Remove block is clicked", () => {
+    wrap(<Harness open onClose={() => {}} />);
+    act(() => {
+      fireEvent.click(screen.getByText("seed"));
+    });
+    // Answer content should be visible
+    expect(screen.getByText(/answer 1/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /remove block/i }));
+    // Empty state should appear
+    expect(screen.getByText(/pin answers from the chat/i)).toBeTruthy();
+  });
+
+  it("export buttons are disabled when empty and call spies when populated", () => {
+    const onExportPng = vi.fn();
+    const onExportPdf = vi.fn();
+
+    function HarnessWithSpies({ open, onClose }: { open: boolean; onClose: () => void }) {
+      const { pinAnswer, count } = useStoryCanvas();
+      return (
+        <>
+          <button onClick={() => pinAnswer(answer(Date.now() + count, `answer ${count + 1}`))}>seed</button>
+          <StoryCanvasPanel open={open} onClose={onClose} onExportPng={onExportPng} onExportPdf={onExportPdf} />
+        </>
+      );
+    }
+
+    wrap(<HarnessWithSpies open onClose={() => {}} />);
+
+    // Export buttons should be disabled when empty
+    const exportPng = screen.getByRole("button", { name: /export png/i });
+    const exportPdf = screen.getByRole("button", { name: /export pdf/i });
+    expect(exportPng).toBeDisabled();
+    expect(exportPdf).toBeDisabled();
+
+    // Seed a block
+    act(() => {
+      fireEvent.click(screen.getByText("seed"));
+    });
+
+    // Buttons should now be enabled
+    expect(exportPng).not.toBeDisabled();
+    expect(exportPdf).not.toBeDisabled();
+
+    // Click export buttons
+    fireEvent.click(exportPng);
+    fireEvent.click(exportPdf);
+
+    // Assert the spies were called once
+    expect(onExportPng).toHaveBeenCalledTimes(1);
+    expect(onExportPdf).toHaveBeenCalledTimes(1);
   });
 });
