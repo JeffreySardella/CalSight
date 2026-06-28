@@ -48,7 +48,7 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<CompanionApi>(() => ({ open, close, current }), [open, close, current]);
 
-  const metric = current?.kind === "stat" ? measureToMetric(current.measure) : null;
+  const metric = current?.kind === "stat" ? measureToMetric(current.measure ?? "") : null;
   const years = current?.filters.years ?? [];
   const distEnabled =
     current?.kind === "stat" &&
