@@ -63,6 +63,7 @@ jobs:
           GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           CEREBRAS_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          SENTRY: ${{ secrets.SENTRY_DSN }}
         run: |
           : > backend/.env
           printf 'DATABASE_URL=%s\n' "$DB_URL" >> backend/.env
@@ -80,6 +81,12 @@ jobs:
           printf 'LLM_FALLBACK_3_PROVIDER=cerebras\n' >> backend/.env
           printf 'LLM_FALLBACK_3_KEY=%s\n' "$CEREBRAS_KEY" >> backend/.env
           printf 'DEBUG=false\n' >> backend/.env
+          # Sentry error monitoring for the API container. No-op until the
+          # SENTRY_DSN repo secret is set (main.py gates on a non-empty DSN),
+          # so this is safe to ship before the secret exists. Without this line
+          # the deploy's `: > backend/.env` truncation wiped SENTRY_DSN every
+          # deploy, which is why backend error monitoring never activated.
+          printf 'SENTRY_DSN=%s\n' "$SENTRY" >> backend/.env
 
       - name: Stop standalone cloudflared (if still running as systemd)
         run: systemctl disable --now cloudflared 2>/dev/null || true
