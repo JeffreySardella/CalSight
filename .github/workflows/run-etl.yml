@@ -1,0 +1,46 @@
+name: Run ETL Job
+
+# Manually run a single ETL job on the prod runner (LXC 100) against the live
+# backend container — without a full redeploy. Used for one-off backfills like
+# route_number, where the data job is registered in the daily pipeline but you
+# don't want to wait for the next nightly cycle.
+#
+# Trigger from the Actions tab ("Run ETL Job" -> Run workflow) or:
+#   gh workflow run run-etl.yml -f job=extract_route_number
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "ETL module to run (etl.<module>), e.g. extract_route_number"
+        required: true
+        default: "extract_route_number"
+      refresh_matviews:
+        description: "Refresh materialized views after the job (needed for backfills that feed mv_crashes_wide)"
+        type: boolean
+        required: false
+        default: true
+
+concurrency:
+  # Don't let two manual ETL runs (or this + a deploy's backfill) clobber each
+  # other on the DB. Same group as nothing else; cancel-in-progress stays off so
+  # a long backfill is never killed mid-run.
+  group: run-etl
+  cancel-in-progress: false
+
+jobs:
+  run-etl:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Run ETL job (${{ inputs.job }})
+        run: docker compose -f docker-compose.prod.yml exec -T backend python -m "etl.${{ inputs.job }}"
+        timeout-minutes: 240
+
+      - name: Refresh materialized views
+        if: ${{ inputs.refresh_matviews }}
+        run: docker compose -f docker-compose.prod.yml exec -T backend python -m etl.refresh_materialized_views
+        timeout-minutes: 60

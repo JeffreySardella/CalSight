@@ -6,13 +6,15 @@ import type { ChartData } from "../../hooks/useAskAi";
 const COLORS_LIGHT = ["#4a7a8c", "#994444", "#6b6b2e", "#3d7a5c", "#8a6d3b", "#5b4fa0", "#2d7d8a", "#b45309"];
 const COLORS_DARK = ["#6b8fa3", "#c28a8a", "#b0a050", "#7ba088", "#b89a6b", "#8e7cc3", "#6baab5", "#c27862"];
 
-function useColors() {
+function useColors(forceLight?: boolean) {
+  if (forceLight) return COLORS_LIGHT;
   const isDark = document.documentElement.classList.contains("dark");
   return isDark ? COLORS_DARK : COLORS_LIGHT;
 }
 
 interface Props {
   chart: ChartData;
+  forceLight?: boolean;
 }
 
 function Tip({ label, value }: { label: string; value: number }) {
@@ -24,14 +26,17 @@ function Tip({ label, value }: { label: string; value: number }) {
   );
 }
 
-export default function InlineChart({ chart }: Props) {
+export default function InlineChart({ chart, forceLight }: Props) {
   const { type, title, data } = chart;
-  const colors = useColors();
+  const colors = useColors(forceLight);
+  const tileClass = forceLight
+    ? "my-3 p-3 md:p-4 bg-gray-100 rounded-lg overflow-x-auto"
+    : "my-3 p-3 md:p-4 bg-surface-container rounded-lg overflow-x-auto";
 
   if (!data || data.length === 0) return null;
 
   return (
-    <div className="my-3 p-3 md:p-4 bg-surface-container rounded-lg overflow-x-auto">
+    <div className={tileClass}>
       {title && (
         <p className="text-[10px] md:text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">{title}</p>
       )}

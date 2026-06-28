@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import type { ChatMessage as ChatMessageType } from "../../hooks/useAskAi";
 import { API_BASE } from "../../config";
 import InlineChart from "./InlineChart";
+import { useStoryCanvas } from "../../hooks/useStoryCanvas";
 
 interface Props {
   message: ChatMessageType;
@@ -45,6 +46,8 @@ export default function ChatMessage({ message }: Props) {
   const [feedback, setFeedback] = useState<"up" | "down" | null>(
     !isUser ? getSavedFeedback(message.timestamp) : null
   );
+  const { pinAnswer, isPinned } = useStoryCanvas();
+  const pinned = !isUser && isPinned(message.timestamp);
 
   const handleFeedback = (vote: "up" | "down") => {
     const newVote = feedback === vote ? null : vote;
@@ -97,6 +100,20 @@ export default function ChatMessage({ message }: Props) {
                 <span className="material-symbols-outlined text-sm" style={feedback === "down" ? { fontVariationSettings: "'FILL' 1" } : undefined}>thumb_down</span>
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => pinAnswer(message)}
+              aria-label={pinned ? "Pinned to story" : "Pin to story"}
+              aria-pressed={pinned}
+              className={`p-1 rounded transition-colors ${pinned ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+            >
+              <span
+                className="material-symbols-outlined text-sm"
+                style={pinned ? { fontVariationSettings: "'FILL' 1" } : undefined}
+              >
+                push_pin
+              </span>
+            </button>
             <p className="text-[10px] text-on-surface-variant/50">
               {message.grounded ? (
                 <span className="mr-2 text-primary/70">Sourced from CalSight DB</span>
