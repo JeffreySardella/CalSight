@@ -135,7 +135,7 @@ export function StoryCanvasProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, blocks: prev.blocks.filter((b) => b.id !== id) }));
   }, []);
 
-  const clear = useCallback(() => setState(EMPTY), []);
+  const clear = useCallback(() => setState({ title: "", blocks: [] }), []);
 
   const api = useMemo<StoryCanvasApi>(() => ({
     title: state.title,

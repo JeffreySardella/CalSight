@@ -12,9 +12,8 @@ function answer(timestamp: number, content = "Hello"): ChatMessage {
   return { role: "assistant", content, timestamp, question: "Q?", provider: "groq", grounded: true };
 }
 
-beforeEach(() => sessionStorage.clear());
-
 describe("useStoryCanvas", () => {
+  beforeEach(() => sessionStorage.clear());
   it("pins an answer as an answer block", () => {
     const { result } = renderHook(() => useStoryCanvas(), { wrapper });
     act(() => result.current.pinAnswer(answer(1)));
@@ -62,6 +61,11 @@ describe("useStoryCanvas", () => {
     // moving the top block up again is a no-op
     act(() => result.current.moveBlock(result.current.blocks[0].id, "up"));
     expect((result.current.blocks[0] as { content: string }).content).toBe("second");
+    // now move it back down and confirm the bottom-edge clamp
+    act(() => result.current.moveBlock(result.current.blocks[0].id, "down"));
+    expect((result.current.blocks[1] as { content: string }).content).toBe("second");
+    act(() => result.current.moveBlock(result.current.blocks[1].id, "down"));
+    expect((result.current.blocks[1] as { content: string }).content).toBe("second");
   });
 
   it("removes a block and clears the canvas", () => {
