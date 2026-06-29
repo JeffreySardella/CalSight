@@ -423,7 +423,7 @@ function StatsPageInner() {
       )}
       {/* Filter Summary Bar */}
       <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-fade-r w-full md:w-auto min-w-0">
+        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-fade-r pr-8 w-full md:w-auto min-w-0">
           <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mr-2 flex-shrink-0">
             Filters:
           </span>

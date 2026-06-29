@@ -56,6 +56,22 @@ export function chartContext(args: {
   return { kind: "chart", label: args.label, series: args.series, measure: args.measure, filters: args.filters };
 }
 
+// Context for a single metric of a highway route (side-panel "ask AI about this
+// route" affordance). geography.type "highway" so the deep-dive prompt frames it
+// as a route rather than a county.
+export function highwayStatContext(args: {
+  route: string; label: string; measure: string; value: number; filters: FilterSnapshot;
+}): DataContext {
+  return {
+    kind: "highway",
+    label: args.label,
+    measure: args.measure,
+    value: args.value,
+    geography: { type: "highway", id: args.route, name: args.route },
+    filters: args.filters,
+  };
+}
+
 export function buildTotalCrashesContext(args: {
   totalIncidents: number | null;
   counties: Set<string>;
