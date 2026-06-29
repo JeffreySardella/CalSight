@@ -29,6 +29,16 @@ export default function StoryCanvasPanel({ open, onClose, onExportPng, onExportP
     }
   }, [open]);
 
+  // Escape closes. On the document (not the dialog div) to avoid attaching a
+  // key handler to a non-interactive element (jsx-a11y) and to catch the key
+  // regardless of where focus sits inside the panel.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const handleClear = () => {
@@ -44,7 +54,6 @@ export default function StoryCanvasPanel({ open, onClose, onExportPng, onExportP
         aria-modal="true"
         aria-label="Your AI story"
         tabIndex={-1}
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
         className="relative w-full max-w-md h-full bg-surface shadow-xl flex flex-col outline-none"
       >
         {/* Header */}

@@ -23,6 +23,9 @@ const HIGHWAY_DANGER_COLORS = ["#fdba74", "#f97316", "#dc2626", "#7f1d1d"] as co
 // makes every route read as a distinct line on any background / theme.
 const CASING_COLOR = "#ffffff";
 
+// Dedicated Leaflet pane so highways draw above the county choropleth.
+const HIGHWAY_PANE = "highwayDangerPane";
+
 interface HighwayDangerLayerProps {
   onSelectHighway: (row: HighwayRow) => void;
 }
@@ -86,6 +89,17 @@ export default memo(function HighwayDangerLayer({ onSelectHighway }: HighwayDang
     }
     if (!enabled || !geo) return;
 
+    // Render highways in a dedicated pane ABOVE the county choropleth. Leaflet's
+    // default overlayPane (z-index 400) holds the choropleth, which is a
+    // semi-transparent fill — when highways shared that pane the blue washed
+    // over them and muddied the danger colors. A pane at 450 keeps highways on
+    // top of the choropleth but still below markers (600) / popups (700).
+    if (!map.getPane(HIGHWAY_PANE)) {
+      map.createPane(HIGHWAY_PANE);
+      const pane = map.getPane(HIGHWAY_PANE);
+      if (pane) pane.style.zIndex = "450";
+    }
+
     const features = buildDangerFeatures(geo, rows ?? [], highwayMetric, HIGHWAY_DANGER_COLORS, NO_DATA_COLOR);
     const fc: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
@@ -99,11 +113,13 @@ export default memo(function HighwayDangerLayer({ onSelectHighway }: HighwayDang
     try {
       // White casing underneath (non-interactive) so the colored lines pop.
       const casing = L.geoJSON(fc, {
+        pane: HIGHWAY_PANE,
         interactive: false,
         style: () => ({ color: CASING_COLOR, weight: 8, opacity: 0.9 }),
       });
       // Colored danger lines on top; these carry the click handler.
       const lines = L.geoJSON(fc, {
+        pane: HIGHWAY_PANE,
         style: (feature) => ({
           color: (feature?.properties?.color as string) ?? NO_DATA_COLOR,
           weight: 5,
