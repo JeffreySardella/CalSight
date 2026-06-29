@@ -66,6 +66,15 @@ def build_default_registry() -> JobRegistry:
         freshness_table="weather",
     ))
     registry.register(Job(
+        name="fars",
+        module="etl.nhtsa_fars",
+        schedule="monthly",
+        table_name="fars_county_year",
+        max_drop_pct=10,
+        source_type="federal",
+        freshness_table="fars_county_year",
+    ))
+    registry.register(Job(
         name="hospitals",
         module="etl.load_hospitals",
         schedule="monthly",

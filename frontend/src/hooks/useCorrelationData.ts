@@ -45,6 +45,8 @@ export const CORRELATION_FIELDS: CorrelationField[] = [
   { key: "vehicles_per_capita", label: "Vehicles/Cap", source: "derived" },
   { key: "avg_temp", label: "Avg Temp", source: "weather" },
   { key: "precip", label: "Rainfall", source: "weather" },
+  { key: "fars_fatalities", label: "FARS Deaths", source: "fars" },
+  { key: "pct_unrestrained", label: "Unrestrained %", source: "fars" },
 ];
 
 function pearsonR(xs: number[], ys: number[]): number {
@@ -65,6 +67,36 @@ function pearsonR(xs: number[], ys: number[]): number {
 }
 
 export type CountyRow = Record<string, number | string | undefined>;
+
+/**
+ * Pure helper: merge FARS rows into byCounty.
+ * Picks the most-recent year per county, then writes
+ * `fars_fatalities` and (when guard passes) `pct_unrestrained`.
+ * Mutates byCounty in place.
+ */
+export function applyFarsAggregation(
+  fars: Record<string, unknown>[],
+  byCounty: Record<string, CountyRow>,
+): void {
+  const farsByCounty: Record<string, Record<string, unknown>> = {};
+  for (const r of fars) {
+    const code = String(r.county_code ?? "");
+    const existing = farsByCounty[code];
+    if (!existing || (r.year as number) > (existing.year as number)) {
+      farsByCounty[code] = r;
+    }
+  }
+  for (const [code, r] of Object.entries(farsByCounty)) {
+    if (!byCounty[code]) continue;
+    const fatalities = r.fatalities as number | null;
+    if (fatalities != null) byCounty[code].fars_fatalities = fatalities;
+    const unrestrained = r.unrestrained_killed as number | null;
+    const known = r.restraint_known_killed as number | null;
+    if (unrestrained != null && known != null && known > 0) {
+      byCounty[code].pct_unrestrained = (unrestrained / known) * 100;
+    }
+  }
+}
 
 /** Fetch a single endpoint, returning an empty array on failure. */
 async function safeFetchJson<T = Record<string, unknown>[]>(
@@ -115,12 +147,13 @@ export function useCorrelationData(filters?: CorrelationFilters) {
       const stats = await statsRes.json();
 
       // Supplemental sources — fetch in parallel, gracefully skip failures
-      const [demographics, calenviro, unemployment, vehicles, weather] = await Promise.all([
+      const [demographics, calenviro, unemployment, vehicles, weather, fars] = await Promise.all([
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/demographics`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/calenviroscreen`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/unemployment`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/vehicles`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/weather`),
+        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/fars`),
       ]);
 
       const countyStats: Record<string, unknown>[] = stats.county ?? [];
@@ -231,6 +264,9 @@ export function useCorrelationData(filters?: CorrelationFilters) {
           byCounty[code].precip = data.precips.reduce((s, v) => s + v, 0);
         }
       }
+
+      // FARS — most recent year per county; derive pct_unrestrained
+      applyFarsAggregation(fars, byCounty);
 
       const countyNames: Record<string, string> = {};
       for (const r of countyStats) {

@@ -504,6 +504,34 @@ class Weather(Base):
     )
 
 
+class FarsCountyYear(Base):
+    """NHTSA FARS fatal-crash aggregates per county per year.
+
+    Federal census of fatal crashes (Fatality Analysis Reporting System).
+    Stores raw counts; the frontend derives pct_unrestrained from
+    unrestrained_killed / restraint_known_killed. CA only.
+
+    Source: NHTSA FARS yearly National CSV bundles.
+    """
+
+    __tablename__ = "fars_county_year"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    year = Column(SmallInteger, nullable=False)
+    fatalities = Column(Integer)               # killed persons (INJ_SEV==4)
+    unrestrained_killed = Column(Integer)      # killed w/ REST_USE in UNRESTRAINED_CODES
+    restraint_known_killed = Column(Integer)   # killed w/ a non-missing REST_USE
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("county_code", "year"),
+        Index("ix_fars_county_year", "county_code", "year"),
+    )
+
+
 class SpeedLimit(Base):
     """Posted speed limits aggregated per county.
 
