@@ -1,5 +1,7 @@
-import { toPng } from "html-to-image";
-import { jsPDF } from "jspdf";
+// `html-to-image` and `jspdf` are heavy and only needed when the user actually
+// exports a story, so they are dynamically imported inside the functions below.
+// This keeps them out of the main bundle (code-split into their own chunk,
+// fetched on first export) instead of loading on every page visit.
 
 // The export target is rendered off-screen with `position: fixed; left: -9999px`
 // so it never flashes to the user. html-to-image clones that node and KEEPS the
@@ -25,11 +27,13 @@ function triggerDownload(dataUrl: string, filename: string) {
 }
 
 export async function exportPng(node: HTMLElement, filename = defaultFilename()): Promise<void> {
+  const { toPng } = await import("html-to-image");
   const dataUrl = await toPng(node, CAPTURE_OPTIONS);
   triggerDownload(dataUrl, `${filename}.png`);
 }
 
 export async function exportPdf(node: HTMLElement, filename = defaultFilename()): Promise<void> {
+  const [{ toPng }, { jsPDF }] = await Promise.all([import("html-to-image"), import("jspdf")]);
   const rect = node.getBoundingClientRect();
   const dataUrl = await toPng(node, CAPTURE_OPTIONS);
 
