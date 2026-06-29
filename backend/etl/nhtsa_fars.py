@@ -77,7 +77,7 @@ def aggregate_fars(
         code = county_lookup.get(county)
         if code is None:
             continue
-        rest = str(r.get("REST_USE", "")).strip()
+        rest = str(r.get("REST_USE") or "").strip()
         t = tally[code]
         t["fatalities"] += 1
         if rest not in UNKNOWN_RESTRAINT_CODES:
