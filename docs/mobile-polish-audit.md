@@ -67,6 +67,15 @@ Severity: 🔴 collision/unusable · 🟠 visibly broken/clipped · 🟡 minor (
 2. ✅ **Missing icon glyphs** — fixed (PR #332): added `auto_stories`/`push_pin`/`delete_sweep` to the Google Fonts `icon_names` subset. Verified: all 3 render as glyphs.
 3. ✅ **Highway Danger legibility** — fixed (PR #332 palette + #333 casing): dedicated mono-danger ramp (orange→crimson, independent of choropleth) + white casing. Verified live: 150 lines in the danger palette + 152 white casings; routes now read distinctly (esp. the I-5 corridor). NOTE: dark-crimson high-danger routes are still a bit muted over the blue choropleth — optional future polish = dim the county choropleth opacity when Highway Danger is active (removes the competing blue entirely). PWA note: the update appears on the user's SECOND load (service worker serves cached bundle first).
 
+### 🛣️ Highways — next-up backlog (from 2026-06-28 review w/ Jeff)
+- **Highways now render ABOVE the county choropleth** (dedicated Leaflet pane, z-index 450) + this fixed click-to-select (the choropleth was eating clicks). Shipping now.
+- **Click → highway stats already works** (`HighwaySidePanelContent`): route, miles, crashes, killed, injured, fatality rate, crashes/mile. Verified (SR-1).
+- [ ] **Highway AI cards** — wrap the highway side-panel stats in the `Explainable`/"Go deeper" pattern (like stat numbers) so you can ask AI about a route. Own spec→build.
+- [ ] **"Most dangerous highway" ranking feature** — surface it (insight card / rankings table). Data is there: deadliest by deaths = **I-5** (2,672); by fatality rate = **SR-160** (4.39%) then I-40; by crashes/mile = **I-238** (3,169/mi), I-405. (`HighwayRankingsTable` exists — wire/feature it.)
+- [ ] **Highway geometry fidelity** — `ca-highways.geojson` is simplified → straight/coarse lines when zoomed in. Re-export at higher resolution, but balance against load size (adaptive simplify by zoom). Tradeoff with perf below.
+- [ ] **Performance / bundle audit (#302)** — measure the bundle delta from new features (Story Canvas pulls in `html-to-image` + `jspdf`); lazy-load the export libs so they only load on Export; check overall load times.
+- [ ] **Backend query efficiency (#310)** — verify `/api/stats/highways` (and choropleth/stats) hit aggregate/materialized tables + indexes, not raw 25M-row scans. Audit the SQL.
+
 ### ⏳ REMAINING (open backlog — not yet fixed)
 4. 🔴/🟠 **AI companion popover overlaps mobile bottom nav** (`AiCompanion.tsx` `fixed bottom-4`); filter chips clipped right (/stats).
 5. 🟡 "Ask AI" h1 wraps; map double bottom-bars; about spacing; redundant Filters chip.
