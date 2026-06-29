@@ -18,7 +18,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
+    // Force port 5174 to match baseURL — `npm run dev` (vite) otherwise defaults
+    // to 5173, so the auto-started server never matched the awaited URL.
+    command: "npm run dev -- --port 5174 --strictPort",
     url: "http://localhost:5174",
     reuseExistingServer: !process.env.CI,
   },

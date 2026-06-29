@@ -72,7 +72,7 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
         <div
           role="dialog"
           aria-label="AI explanation"
-          className="fixed bottom-4 right-4 z-[1000] max-w-sm rounded-xl bg-surface-container-high p-4 shadow-lg ghost-border md:bottom-4 md:right-4"
+          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-[1000] max-w-sm rounded-xl bg-surface-container-high p-4 shadow-lg ghost-border lg:bottom-4 lg:left-auto"
         >
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-sm font-semibold text-on-surface">{explanation.headline}</h2>

@@ -1,6 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { vi } from "vitest";
+
+vi.mock("../../hooks/useDistribution", () => ({
+  useDistribution: () => ({ data: undefined, isLoading: false }),
+}));
+
+import { MemoryRouter } from "react-router-dom";
+import { AiCompanionProvider } from "../ai/AiCompanion";
 import HighwaySidePanelContent from "./HighwaySidePanelContent";
 import type { HighwayRow } from "../../hooks/useHighwayRankings";
+import type { FilterSnapshot } from "../../lib/ai/dataContext";
 
 const baseRow: HighwayRow = {
   route_number: "I-5",
@@ -12,8 +21,24 @@ const baseRow: HighwayRow = {
   crashes_per_mile: 1.55,
 };
 
+const emptyFilters: FilterSnapshot = {
+  years: [], severities: [], counties: [], causes: [],
+  alcohol: null, distracted: null, pedestrian: null, cyclist: null, drug: null,
+  driverAge: null, weather: [], lighting: [], collisionType: [], roadType: null, hitRun: null,
+};
+
+function renderPanel(row: HighwayRow = baseRow) {
+  return render(
+    <MemoryRouter>
+      <AiCompanionProvider>
+        <HighwaySidePanelContent row={row} filters={emptyFilters} />
+      </AiCompanionProvider>
+    </MemoryRouter>,
+  );
+}
+
 it("renders the route id and formatted stats", () => {
-  render(<HighwaySidePanelContent row={baseRow} />);
+  renderPanel();
   expect(screen.getByText("I-5")).toBeInTheDocument();
   expect(screen.getByText("1,234")).toBeInTheDocument(); // crash_count
   expect(screen.getByText("56")).toBeInTheDocument(); // total_killed
@@ -23,6 +48,23 @@ it("renders the route id and formatted stats", () => {
 });
 
 it("shows an em dash when crashes_per_mile is null", () => {
-  render(<HighwaySidePanelContent row={{ ...baseRow, crashes_per_mile: null }} />);
+  renderPanel({ ...baseRow, crashes_per_mile: null });
   expect(screen.getByText("—")).toBeInTheDocument();
+});
+
+it("exposes each stat as an AI explain affordance", () => {
+  renderPanel();
+  expect(screen.getByRole("button", { name: "Explain: I-5 · crashes" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Explain: I-5 · fatality rate" })).toBeInTheDocument();
+});
+
+it("opens the AI companion when a stat is clicked", () => {
+  renderPanel();
+  fireEvent.click(screen.getByRole("button", { name: "Explain: I-5 · fatality rate" }));
+  expect(screen.getByRole("dialog", { name: "AI explanation" })).toBeInTheDocument();
+});
+
+it("does not make a null crashes-per-mile value explainable", () => {
+  renderPanel({ ...baseRow, crashes_per_mile: null });
+  expect(screen.queryByRole("button", { name: "Explain: I-5 · crashes per mile" })).not.toBeInTheDocument();
 });

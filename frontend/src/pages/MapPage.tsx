@@ -28,6 +28,7 @@ import DataExportPanel, {
 import MapCanvas from "../components/map/MapCanvas";
 import HighwaySidePanelContent from "../components/map/HighwaySidePanelContent";
 import type { HighwayRow } from "../hooks/useHighwayRankings";
+import { snapshotFilters } from "../lib/ai/contextBuilders";
 import AiInsightCard from "../components/map/AiInsightCard";
 import Breadcrumb from "../components/map/Breadcrumb";
 import StatewideHeatmapCard from "../components/map/StatewideHeatmapCard";
@@ -453,6 +454,25 @@ function MapPageInner() {
     ? { title: selectedHighway?.route_number ?? "Highway", subtitle: "Highway Danger" }
     : activePanel ? PANEL_META[activePanel] : null;
 
+  // Filter snapshot threaded into the highway side-panel AI deep-dive contexts.
+  const highwayFilterSnapshot = useMemo(() => snapshotFilters({
+    selectedYears,
+    selectedSeverities,
+    selectedCounties,
+    selectedCauses,
+    selectedAlcohol,
+    selectedDistracted,
+    selectedPedestrian,
+    selectedCyclist,
+    selectedDrug,
+    selectedDriverAge,
+    selectedWeather,
+    selectedLighting,
+    selectedCollisionType,
+    selectedRoadType,
+    selectedHitRun,
+  }), [selectedYears, selectedSeverities, selectedCounties, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedWeather, selectedLighting, selectedCollisionType, selectedRoadType, selectedHitRun]);
+
   const initialStagedFilters: StagedFilters = useMemo(() => ({
     selectedYears: new Set(selectedYears),
     dateRange: selectedDateRange,
@@ -524,7 +544,7 @@ function MapPageInner() {
       case "export":
         return <DataExportPanel />;
       case "highway":
-        return selectedHighway ? <HighwaySidePanelContent row={selectedHighway} /> : null;
+        return selectedHighway ? <HighwaySidePanelContent row={selectedHighway} filters={highwayFilterSnapshot} /> : null;
       default:
         return null;
     }

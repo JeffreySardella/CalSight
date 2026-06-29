@@ -7,7 +7,9 @@ import { defaultFilename, exportPng, exportPdf } from "./exportCanvas";
 import * as htmlToImageModule from "html-to-image";
 import { jsPDF as jsPDFConstructor } from "jspdf";
 
-const mockToPng = vi.fn(async () => "data:image/png;base64,AAAA");
+const mockToPng = vi.fn(
+  async (_node?: unknown, _opts?: { style?: Record<string, string> }) => "data:image/png;base64,AAAA",
+);
 const mockSave = vi.fn();
 const mockAddImage = vi.fn();
 const mockAddPage = vi.fn();
@@ -47,6 +49,24 @@ describe("exportCanvas", () => {
     expect(mockToPng).toHaveBeenCalledWith(node, expect.objectContaining({ pixelRatio: 2 }));
     expect(clickSpy).toHaveBeenCalledTimes(1);
     clickSpy.mockRestore();
+  });
+
+  // Regression guard for the blank-export bug (PR #332): the capture target is
+  // rendered off-screen (position:fixed; left:-9999px). html-to-image clones the
+  // node and KEEPS that offset, painting the content off-canvas → a blank PNG.
+  // The fix neutralizes position/left/top on the CLONE via the `style` option.
+  // The original mocked tests passed while the real export was blank because the
+  // mock ignored these options entirely — so we assert the override explicitly.
+  it("neutralizes the off-screen offset on the export clone (anti-blank-image guard)", async () => {
+    await exportPng(fakeNode(), "x");
+    const style = mockToPng.mock.calls[0][1]?.style;
+    expect(style).toMatchObject({ position: "static", left: "0", top: "0" });
+  });
+
+  it("exportPdf also neutralizes the off-screen offset on the export clone", async () => {
+    await exportPdf(fakeNode(), "x");
+    const style = mockToPng.mock.calls[0][1]?.style;
+    expect(style).toMatchObject({ position: "static", left: "0", top: "0" });
   });
 
   it("exportPdf rasterizes the node and saves a .pdf", async () => {

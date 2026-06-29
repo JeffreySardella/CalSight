@@ -166,7 +166,7 @@ function AskAiPageInner() {
       {/* STICKY HEADER */}
       <div className="flex-none flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-outline-variant bg-surface z-10">
         <div className="min-w-0">
-          <h1 className="font-headline text-lg md:text-2xl font-extrabold tracking-tighter text-on-surface">
+          <h1 className="font-headline text-lg md:text-2xl font-extrabold tracking-tighter text-on-surface whitespace-nowrap">
             Ask AI
           </h1>
           <p className="text-[10px] md:text-xs text-on-surface-variant truncate">
