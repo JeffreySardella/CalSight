@@ -18,6 +18,11 @@ const HIGHWAY_LIMIT = 300;
 // choropleth in either theme and never implies a road is "safe".
 const HIGHWAY_DANGER_COLORS = ["#fdba74", "#f97316", "#dc2626", "#7f1d1d"] as const;
 
+// A white halo drawn UNDER each colored line. The danger colors (esp. the dark
+// crimson high end) muddied into the blue choropleth without it; the casing
+// makes every route read as a distinct line on any background / theme.
+const CASING_COLOR = "#ffffff";
+
 interface HighwayDangerLayerProps {
   onSelectHighway: (row: HighwayRow) => void;
 }
@@ -72,7 +77,7 @@ export default memo(function HighwayDangerLayer({ onSelectHighway }: HighwayDang
   const onSelectRef = useRef(onSelectHighway);
   onSelectRef.current = onSelectHighway;
 
-  const layerRef = useRef<L.GeoJSON | null>(null);
+  const layerRef = useRef<L.Layer | null>(null);
 
   useEffect(() => {
     if (layerRef.current) {
@@ -92,11 +97,17 @@ export default memo(function HighwayDangerLayer({ onSelectHighway }: HighwayDang
     };
 
     try {
-      const layer = L.geoJSON(fc, {
+      // White casing underneath (non-interactive) so the colored lines pop.
+      const casing = L.geoJSON(fc, {
+        interactive: false,
+        style: () => ({ color: CASING_COLOR, weight: 8, opacity: 0.9 }),
+      });
+      // Colored danger lines on top; these carry the click handler.
+      const lines = L.geoJSON(fc, {
         style: (feature) => ({
           color: (feature?.properties?.color as string) ?? NO_DATA_COLOR,
           weight: 5,
-          opacity: 0.95,
+          opacity: 1,
         }),
         onEachFeature: (feature, featureLayer) => {
           const row = (feature.properties?.row ?? null) as HighwayRow | null;
@@ -107,8 +118,9 @@ export default memo(function HighwayDangerLayer({ onSelectHighway }: HighwayDang
           });
         },
       });
-      layer.addTo(map);
-      layerRef.current = layer;
+      const group = L.layerGroup([casing, lines]);
+      group.addTo(map);
+      layerRef.current = group;
     } catch (e) {
       console.error("[HighwayDangerLayer] failed to render geojson layer", e);
     }
