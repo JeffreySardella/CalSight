@@ -89,3 +89,88 @@ def aggregate_fars(
         {"county_code": code, "year": year, **counts}
         for code, counts in sorted(tally.items())
     ]
+
+
+def fetch_year(year: int) -> list[dict]:
+    """Download a FARS year bundle and return California person rows.
+
+    Reads person.csv from the zip, filtering STATE==6 while parsing to keep
+    memory small. Returns raw dict rows for aggregate_fars().
+    """
+    url = FARS_ZIP_URL.format(year=year)
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = httpx.get(url, timeout=120, follow_redirects=True)
+            resp.raise_for_status()
+            break
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            last_error = exc
+            if attempt < MAX_RETRIES - 1:
+                import time
+                time.sleep(BACKOFF_BASE ** (attempt + 1))
+    else:
+        logger.error("All retries failed for FARS %d", year)
+        raise last_error
+
+    rows: list[dict] = []
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+        name = next(
+            (n for n in zf.namelist() if n.lower().endswith("person.csv")), None
+        )
+        if name is None:
+            logger.warning("No person.csv in FARS %d bundle", year)
+            return rows
+        with zf.open(name) as fh:
+            text = io.TextIOWrapper(fh, encoding="latin-1", newline="")
+            for r in csv.DictReader(text):
+                if str(r.get("STATE")) == CA_STATE_FIPS:
+                    rows.append(r)
+    return rows
+
+
+@track_etl_run("fars")
+def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
+    """Fetch + aggregate + upsert FARS county/year rows for CA."""
+    db = SessionLocal()
+    try:
+        counties = db.query(County.code, County.fips).all()
+        lookup = build_county_lookup([(c.code, c.fips) for c in counties])
+        logger.info("Loaded %d counties", len(lookup))
+
+        total = 0
+        for year in range(start_year, end_year + 1):
+            try:
+                person_rows = fetch_year(year)
+                rows = aggregate_fars(person_rows, lookup, year)
+                if not rows:
+                    logger.info("Year %d: no rows", year)
+                    continue
+                stmt = pg_insert(FarsCountyYear).values(rows)
+                stmt = stmt.on_conflict_do_update(
+                    constraint="fars_county_year_county_code_year_key",
+                    set_={
+                        "fatalities": stmt.excluded.fatalities,
+                        "unrestrained_killed": stmt.excluded.unrestrained_killed,
+                        "restraint_known_killed": stmt.excluded.restraint_known_killed,
+                    },
+                )
+                db.execute(stmt)
+                db.commit()
+                total += len(rows)
+                logger.info("Year %d: %d county rows upserted", year, len(rows))
+            except Exception as exc:
+                logger.warning("FARS year %d failed: %s", year, exc)
+                db.rollback()
+
+        logger.info("Done. %d total FARS county/year rows upserted.", total)
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Load NHTSA FARS data into Postgres")
+    parser.add_argument("--start", type=int, default=DEFAULT_START_YEAR)
+    parser.add_argument("--end", type=int, default=DEFAULT_END_YEAR)
+    args = parser.parse_args()
+    run(start_year=args.start, end_year=args.end)

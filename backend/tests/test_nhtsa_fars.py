@@ -51,3 +51,13 @@ def test_aggregate_skips_non_ca_and_non_fatal_and_unmapped():
     assert len(out) == 1
     assert out[0]["county_code"] == 19
     assert out[0]["fatalities"] == 1
+
+
+def test_fars_job_registered():
+    from etl.jobs import build_default_registry
+
+    registry = build_default_registry()
+    job = registry.get("fars")
+    assert job is not None
+    assert job.module == "etl.nhtsa_fars"
+    assert job.table_name == "fars_county_year"
