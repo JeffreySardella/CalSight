@@ -1,6 +1,18 @@
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 
+// The export target is rendered off-screen with `position: fixed; left: -9999px`
+// so it never flashes to the user. html-to-image clones that node and KEEPS the
+// offset, which rasterizes the content off-canvas → a blank image. Neutralizing
+// position/left/top on the clone (via the `style` option, which only touches the
+// clone, never the live node) anchors it at the capture origin so the content
+// is actually painted.
+const CAPTURE_OPTIONS = {
+  pixelRatio: 2,
+  backgroundColor: "#ffffff",
+  style: { position: "static", left: "0", top: "0" },
+} as const;
+
 export function defaultFilename(date = new Date()): string {
   return `calsight-story-${date.toISOString().slice(0, 10)}`;
 }
@@ -13,13 +25,13 @@ function triggerDownload(dataUrl: string, filename: string) {
 }
 
 export async function exportPng(node: HTMLElement, filename = defaultFilename()): Promise<void> {
-  const dataUrl = await toPng(node, { pixelRatio: 2, backgroundColor: "#ffffff" });
+  const dataUrl = await toPng(node, CAPTURE_OPTIONS);
   triggerDownload(dataUrl, `${filename}.png`);
 }
 
 export async function exportPdf(node: HTMLElement, filename = defaultFilename()): Promise<void> {
   const rect = node.getBoundingClientRect();
-  const dataUrl = await toPng(node, { pixelRatio: 2, backgroundColor: "#ffffff" });
+  const dataUrl = await toPng(node, CAPTURE_OPTIONS);
 
   const pdf = new jsPDF({ unit: "px", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();

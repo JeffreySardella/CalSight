@@ -51,4 +51,11 @@ describe("CSP & font loading safety", () => {
     expect(headers).toContain("fonts.googleapis.com");
     expect(headers).toContain("fonts.gstatic.com");
   });
+
+  it("CSP font-src allows data: URIs (html-to-image embeds fonts for Story Canvas export)", () => {
+    // Without `data:` in font-src, the Story export renders in fallback fonts
+    // because html-to-image inlines fonts as data:font/woff2 URIs.
+    const fontSrc = /font-src ([^;]+);/.exec(headers)?.[1] ?? "";
+    expect(fontSrc).toContain("data:");
+  });
 });
