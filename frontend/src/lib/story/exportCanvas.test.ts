@@ -7,9 +7,14 @@ import { defaultFilename, exportPng, exportPdf } from "./exportCanvas";
 import * as htmlToImageModule from "html-to-image";
 import { jsPDF as jsPDFConstructor } from "jspdf";
 
-const mockToPng = vi.fn(
-  async (_node?: unknown, _opts?: { style?: Record<string, string> }) => "data:image/png;base64,AAAA",
-);
+const mockToPng = vi.fn(async () => "data:image/png;base64,AAAA");
+
+/** Read the options object passed to the most recent toPng call. The mock's
+ * inferred signature has no params, so index past the tuple type via a cast. */
+function lastToPngStyle(): Record<string, string> | undefined {
+  const call = mockToPng.mock.calls[0] as unknown as [unknown, { style?: Record<string, string> }?];
+  return call[1]?.style;
+}
 const mockSave = vi.fn();
 const mockAddImage = vi.fn();
 const mockAddPage = vi.fn();
@@ -59,14 +64,12 @@ describe("exportCanvas", () => {
   // mock ignored these options entirely — so we assert the override explicitly.
   it("neutralizes the off-screen offset on the export clone (anti-blank-image guard)", async () => {
     await exportPng(fakeNode(), "x");
-    const style = mockToPng.mock.calls[0][1]?.style;
-    expect(style).toMatchObject({ position: "static", left: "0", top: "0" });
+    expect(lastToPngStyle()).toMatchObject({ position: "static", left: "0", top: "0" });
   });
 
   it("exportPdf also neutralizes the off-screen offset on the export clone", async () => {
     await exportPdf(fakeNode(), "x");
-    const style = mockToPng.mock.calls[0][1]?.style;
-    expect(style).toMatchObject({ position: "static", left: "0", top: "0" });
+    expect(lastToPngStyle()).toMatchObject({ position: "static", left: "0", top: "0" });
   });
 
   it("exportPdf rasterizes the node and saves a .pdf", async () => {
