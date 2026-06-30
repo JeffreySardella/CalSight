@@ -36,8 +36,13 @@ DEFAULT_START_YEAR = 2001
 DEFAULT_END_YEAR = 2025
 CA_STATE_FIPS = "6"
 
-# REST_USE classification (best-effort, FARS codes drift across years).
-UNRESTRAINED_CODES = {"0"}
+# REST_USE classification (FARS codes drift across years). "None used" is code
+# "0" in older FARS and "20" in modern FARS (2010s+; verified against 2022 data,
+# where "20" = "None Used/Not Applicable" and "0" does not appear). Unknown /
+# not-an-occupant codes are excluded from the denominator: 96 = "Not a Motor
+# Vehicle Occupant" (pedestrians/cyclists), 97/98 = not reported, 99 = unknown,
+# and the older single-digit 8/9 unknowns.
+UNRESTRAINED_CODES = {"0", "20"}
 UNKNOWN_RESTRAINT_CODES = {"8", "9", "96", "97", "98", "99", ""}
 
 FARS_ZIP_URL = (
