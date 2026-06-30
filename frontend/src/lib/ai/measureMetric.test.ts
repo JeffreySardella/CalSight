@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { measureToMetric, normalizeCounty, adaptDistribution, distributionPopulationMatches } from "./measureMetric";
+import { measureToMetric, normalizeCounty, adaptDistribution, filtersToDistributionParams } from "./measureMetric";
 import type { FilterSnapshot } from "./dataContext";
 
 describe("measureToMetric", () => {
@@ -41,17 +41,27 @@ const allEmpty: FilterSnapshot = {
   driverAge: null, weather: [], lighting: [], collisionType: [], roadType: null, hitRun: null,
 };
 
-describe("distributionPopulationMatches", () => {
-  it("returns true when no population-narrowing filter is active", () => {
-    expect(distributionPopulationMatches(allEmpty)).toBe(true);
+describe("filtersToDistributionParams", () => {
+  it("emits no params for an unfiltered snapshot", () => {
+    expect(filtersToDistributionParams(allEmpty)).toEqual({});
   });
-  it("returns false when a severity is present", () => {
-    expect(distributionPopulationMatches({ ...allEmpty, severities: ["Fatal"] })).toBe(false);
+  it("excludes counties and years (distribution must span all counties)", () => {
+    const out = filtersToDistributionParams({ ...allEmpty, counties: ["Kern", "Inyo"], years: [2023] });
+    expect(out.county).toBeUndefined();
+    expect(out.year).toBeUndefined();
   });
-  it("returns false when an involvement flag (alcohol) is set", () => {
-    expect(distributionPopulationMatches({ ...allEmpty, alcohol: true })).toBe(false);
+  it("serializes severities and causes as CSV", () => {
+    const out = filtersToDistributionParams({ ...allEmpty, severities: ["Fatal", "Injury"], causes: ["dui"] });
+    expect(out.severity).toBe("Fatal,Injury");
+    expect(out.cause).toBe("dui");
   });
-  it("returns true for a county + single-year-only snapshot (no other filters)", () => {
-    expect(distributionPopulationMatches({ ...allEmpty, years: [2023], counties: ["Kern"] })).toBe(true);
+  it("serializes boolean involvement flags as 'true'/'false'", () => {
+    expect(filtersToDistributionParams({ ...allEmpty, alcohol: true }).alcohol).toBe("true");
+    expect(filtersToDistributionParams({ ...allEmpty, hitRun: false }).hit_run).toBe("false");
+  });
+  it("passes through driverAge and roadType strings", () => {
+    const out = filtersToDistributionParams({ ...allEmpty, driverAge: "25-34", roadType: "highway" });
+    expect(out.driver_age).toBe("25-34");
+    expect(out.road_type).toBe("highway");
   });
 });

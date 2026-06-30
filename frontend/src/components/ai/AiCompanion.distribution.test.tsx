@@ -52,14 +52,16 @@ describe("AiCompanion distribution tier", () => {
     expect(screen.getByRole("dialog").textContent).not.toMatch(/ranks #|safer than/i);
   });
 
-  it("does not show percentile when a population-narrowing filter (severity) is active", () => {
+  it("still shows percentile when a population-narrowing filter (severity) is active", () => {
+    // The distribution endpoint now reflects the same filters, so the
+    // percentile stays honest and is shown rather than suppressed.
     const filteredStat: DataContext = {
       ...countyStat,
       filters: { ...baseFilters, severities: ["Fatal"] },
     };
     renderWith(filteredStat);
     fireEvent.click(screen.getByText("open"));
-    expect(screen.getByRole("dialog").textContent).not.toMatch(/ranks #|safer than/i);
+    expect(screen.getByRole("dialog").textContent).toMatch(/ranks #|safer than/i);
   });
 
   it("does not show percentile when two years are selected", () => {

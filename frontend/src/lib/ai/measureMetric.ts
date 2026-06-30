@@ -18,26 +18,27 @@ export function normalizeCounty(name: string): string {
   return name.trim().toLowerCase();
 }
 
-/** True when no population-narrowing filter beyond county + year is active, so
- *  the subject value matches the year-only distribution population and the
- *  percentile is honest. (years and counties are intentionally NOT checked
- *  here — year is gated separately and the single county IS the subject.) */
-export function distributionPopulationMatches(f: FilterSnapshot): boolean {
-  return (
-    f.severities.length === 0 &&
-    f.causes.length === 0 &&
-    f.weather.length === 0 &&
-    f.lighting.length === 0 &&
-    f.collisionType.length === 0 &&
-    f.alcohol == null &&
-    f.distracted == null &&
-    f.pedestrian == null &&
-    f.cyclist == null &&
-    f.drug == null &&
-    f.roadType == null &&
-    f.hitRun == null &&
-    f.driverAge == null
-  );
+/** Serialize the population-narrowing filters into /api/stats/distribution
+ *  query params so the per-county distribution reflects the SAME population as
+ *  the subject. `counties` and `years` are deliberately excluded: the
+ *  distribution must span every county (else the percentile is meaningless),
+ *  and the year is passed separately via the `year` param. */
+export function filtersToDistributionParams(f: FilterSnapshot): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (f.severities.length) out.severity = f.severities.join(",");
+  if (f.causes.length) out.cause = f.causes.join(",");
+  if (f.weather.length) out.weather = f.weather.join(",");
+  if (f.lighting.length) out.lighting = f.lighting.join(",");
+  if (f.collisionType.length) out.collision_type = f.collisionType.join(",");
+  if (f.alcohol != null) out.alcohol = String(f.alcohol);
+  if (f.distracted != null) out.distracted = String(f.distracted);
+  if (f.pedestrian != null) out.pedestrian = String(f.pedestrian);
+  if (f.cyclist != null) out.cyclist = String(f.cyclist);
+  if (f.drug != null) out.drug = String(f.drug);
+  if (f.hitRun != null) out.hit_run = String(f.hitRun);
+  if (f.driverAge != null) out.driver_age = f.driverAge;
+  if (f.roadType != null) out.road_type = f.roadType;
+  return out;
 }
 
 export type DistributionRow = { county_code: number; county_name: string; value: number };

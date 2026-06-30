@@ -1096,22 +1096,65 @@ def stats_distribution(
     request: Request,
     response: Response,
     metric: str = Query("crash_count"),
-    year: int | None = Query(None),
+    year: str | None = Query(None),
+    start: str | None = Query(None),
+    end: str | None = Query(None),
+    county: str | None = Query(None),
+    severity: str | None = Query(None),
+    cause: str | None = Query(None),
+    alcohol: str | None = Query(None),
+    distracted: str | None = Query(None),
+    pedestrian: str | None = Query(None),
+    cyclist: str | None = Query(None),
+    drug: str | None = Query(None),
+    driver_age: str | None = Query(None),
+    weather: str | None = Query(None),
+    lighting: str | None = Query(None),
+    collision_type: str | None = Query(None),
+    road_type: str | None = Query(None),
+    hit_run: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
     """Per-county values for one metric — the distribution the frontend reduces
     into percentile/rank context ("safer than X% of counties").
 
-    Mirrors the rank_counties tool but returns every county (no small limit).
+    Accepts the same filter set as /api/stats so the per-county distribution
+    reflects the *same population* as the subject being compared. Without this,
+    the percentile is only honest for the unfiltered (year-only) view, which is
+    why the frontend used to suppress it whenever a filter was active. Mirrors
+    the rank_counties tool but returns every county (no small limit).
     """
     if metric not in _DISTRIBUTION_METRICS:
         raise HTTPException(status_code=422, detail=f"invalid metric: {metric}")
 
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
 
-    preds = []
-    if year is not None:
-        preds.append(Crash.crash_year == year)
+    date_range = parse_date_range(start, end)
+    years = years_from_date_range(date_range) if date_range is not None else parse_year(year)
+    county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
+    severities = parse_severity(severity)
+    causes = parse_cause(cause)
+
+    preds = build_crash_predicates(
+        years=years,
+        date_range=date_range,
+        county_codes=county_codes,
+        severities=severities,
+        causes=causes,
+        alcohol=parse_bool_flag(alcohol, "alcohol"),
+        distracted=parse_bool_flag(distracted, "distracted"),
+        pedestrian=parse_bool_flag(pedestrian, "pedestrian"),
+        cyclist=parse_bool_flag(cyclist, "cyclist"),
+        drug=parse_bool_flag(drug, "drug"),
+        driver_age=parse_driver_age(driver_age),
+        weather=parse_weather(weather),
+        lighting=parse_lighting(lighting),
+        collision_type=parse_collision_type(collision_type),
+        road_type=parse_road_type(road_type),
+        hit_run=parse_hit_run(hit_run),
+    )
+
+    # Metric-specific predicate + aggregate, AND-combined with the filters above.
     if metric == "fatal_crashes":
         preds.append(Crash.severity == "Fatal")
         agg = func.count(Crash.id)

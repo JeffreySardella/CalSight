@@ -6,7 +6,7 @@ import { useAskAi } from "../../hooks/useAskAi";
 import type { ChatMessage } from "../../hooks/useAskAi";
 import InlineChart from "../ask/InlineChart";
 import { useDistribution } from "../../hooks/useDistribution";
-import { measureToMetric, distributionPopulationMatches } from "../../lib/ai/measureMetric";
+import { measureToMetric, filtersToDistributionParams } from "../../lib/ai/measureMetric";
 
 export function buildDeepDivePrompt(ctx: DataContext): string {
   const parts: string[] = [`Explain this CalSight data point: "${ctx.label}".`];
@@ -50,14 +50,24 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
 
   const metric = current?.kind === "stat" ? measureToMetric(current.measure ?? "") : null;
   const years = current?.filters.years ?? [];
+  // Distribution is gated on a single-county, single-year stat. Population-
+  // narrowing filters (severity, cause, alcohol, …) no longer disable it — they
+  // are forwarded so the per-county distribution reflects the same population,
+  // keeping the percentile honest under any filter combination.
   const distEnabled =
     current?.kind === "stat" &&
     current.geography?.type === "county" &&
     metric != null &&
-    years.length <= 1 &&
-    distributionPopulationMatches(current.filters);
+    years.length <= 1;
   const distYear = years.length === 1 ? years[0] : null;
-  const { data: distribution } = useDistribution(metric ?? "crash_count", distYear, { enabled: distEnabled });
+  const distFilterParams = useMemo(
+    () => (current ? filtersToDistributionParams(current.filters) : {}),
+    [current],
+  );
+  const { data: distribution } = useDistribution(metric ?? "crash_count", distYear, {
+    enabled: distEnabled,
+    filterParams: distFilterParams,
+  });
 
   const explanation = current
     ? explainContext(current, distEnabled ? { distribution } : undefined)
