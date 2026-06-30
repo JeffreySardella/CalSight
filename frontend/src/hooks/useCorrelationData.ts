@@ -47,6 +47,7 @@ export const CORRELATION_FIELDS: CorrelationField[] = [
   { key: "precip", label: "Rainfall", source: "weather" },
   { key: "fars_fatalities", label: "FARS Deaths", source: "fars" },
   { key: "pct_unrestrained", label: "Unrestrained %", source: "fars" },
+  { key: "weighted_density", label: "Lived Density", source: "census" },
 ];
 
 function pearsonR(xs: number[], ys: number[]): number {
@@ -95,6 +96,30 @@ export function applyFarsAggregation(
     if (unrestrained != null && known != null && known > 0) {
       byCounty[code].pct_unrestrained = (unrestrained / known) * 100;
     }
+  }
+}
+
+/**
+ * Pure helper: merge tract density rows into byCounty.
+ * Picks the most-recent year per county, then writes `weighted_density`.
+ * Mutates byCounty in place.
+ */
+export function applyTractDensityAggregation(
+  density: Record<string, unknown>[],
+  byCounty: Record<string, CountyRow>,
+): void {
+  const latest: Record<string, Record<string, unknown>> = {};
+  for (const r of density) {
+    const code = String(r.county_code ?? "");
+    const existing = latest[code];
+    if (!existing || (r.year as number) > (existing.year as number)) {
+      latest[code] = r;
+    }
+  }
+  for (const [code, r] of Object.entries(latest)) {
+    if (!byCounty[code]) continue;
+    const wd = r.weighted_density as number | null;
+    if (wd != null) byCounty[code].weighted_density = wd;
   }
 }
 
@@ -147,13 +172,14 @@ export function useCorrelationData(filters?: CorrelationFilters) {
       const stats = await statsRes.json();
 
       // Supplemental sources — fetch in parallel, gracefully skip failures
-      const [demographics, calenviro, unemployment, vehicles, weather, fars] = await Promise.all([
+      const [demographics, calenviro, unemployment, vehicles, weather, fars, density] = await Promise.all([
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/demographics`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/calenviroscreen`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/unemployment`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/vehicles`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/weather`),
         safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/fars`),
+        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/tract-density`),
       ]);
 
       const countyStats: Record<string, unknown>[] = stats.county ?? [];
@@ -267,6 +293,9 @@ export function useCorrelationData(filters?: CorrelationFilters) {
 
       // FARS — most recent year per county; derive pct_unrestrained
       applyFarsAggregation(fars, byCounty);
+
+      // Tract density — most recent year per county
+      applyTractDensityAggregation(density, byCounty);
 
       const countyNames: Record<string, string> = {};
       for (const r of countyStats) {

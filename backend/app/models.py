@@ -532,6 +532,33 @@ class FarsCountyYear(Base):
     )
 
 
+class TractDensityCountyYear(Base):
+    """Population-weighted ("lived") density per county per year.
+
+    Computed from ACS tract populations joined to Census Gazetteer tract
+    land areas: weighted_density = sum(pop^2 / area_sqmi) / sum(pop).
+    Distinct from the crude demographics.population_density.
+
+    Source: Census ACS 5-year (tract population) + Census Gazetteer (land area).
+    """
+
+    __tablename__ = "tract_density_county_year"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    year = Column(SmallInteger, nullable=False)
+    weighted_density = Column(Float)   # persons per square mile (lived density)
+    tract_count = Column(Integer)      # tracts contributing to the calc
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("county_code", "year"),
+        Index("ix_tract_density_county_year", "county_code", "year"),
+    )
+
+
 class SpeedLimit(Base):
     """Posted speed limits aggregated per county.
 
