@@ -33,6 +33,14 @@ def test_weighted_density_excludes_invalid_tracts():
     assert out == (1000.0, 1)
 
 
+def test_weighted_density_excludes_negative_pop():
+    out = compute_weighted_density([
+        {"pop": 1000, "area_sqmi": 1.0},   # valid
+        {"pop": -50, "area_sqmi": 1.0},    # negative -> excluded
+    ])
+    assert out == (1000.0, 1)
+
+
 def test_weighted_density_none_when_no_contributing_tracts():
     assert compute_weighted_density([]) is None
     assert compute_weighted_density([{"pop": 0, "area_sqmi": 0.0}]) is None

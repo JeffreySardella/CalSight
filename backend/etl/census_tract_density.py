@@ -17,6 +17,7 @@ import argparse
 import csv
 import io
 import logging
+import time
 import zipfile
 from collections import defaultdict
 
@@ -121,7 +122,6 @@ def fetch_gazetteer_land(gaz_year: int) -> dict[str, float]:
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             last_error = exc
             if attempt < MAX_RETRIES - 1:
-                import time
                 time.sleep(BACKOFF_BASE ** (attempt + 1))
     else:
         logger.error("All retries failed for Gazetteer %d", gaz_year)
@@ -155,19 +155,21 @@ def fetch_tract_population(year: int, api_key: str) -> list[dict]:
     last_error = None
     for attempt in range(MAX_RETRIES):
         try:
-            resp = httpx.get(url, timeout=60)
+            resp = httpx.get(url, timeout=60, follow_redirects=True)
             resp.raise_for_status()
             data = resp.json()
             break
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             last_error = exc
             if attempt < MAX_RETRIES - 1:
-                import time
                 time.sleep(BACKOFF_BASE ** (attempt + 1))
     else:
         logger.error("All retries failed for ACS tract pop %d", year)
         raise last_error
 
+    if not isinstance(data, list) or not data:
+        logger.warning("ACS tract pop %d returned no rows (check CENSUS_API_KEY)", year)
+        return []
     header = data[0]
     idx = {name: i for i, name in enumerate(header)}
     rows: list[dict] = []
