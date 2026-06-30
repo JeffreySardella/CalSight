@@ -25,18 +25,25 @@ from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.freshness_logic import compute_staleness
 from app.models import EtlRun
 
 router = APIRouter(tags=["freshness"])
+
+# Statuses that count as "we confirmed sync with upstream": either we loaded
+# new rows (success) or we verified upstream is unchanged (skipped_unchanged).
+_SYNC_STATUSES = ("success", "skipped_unchanged")
 
 _limiter = Limiter(key_func=get_remote_address)
 
 
 class SourceFreshness(BaseModel):
     source: str
-    last_success_at: Optional[datetime]
+    last_success_at: Optional[datetime]      # last time rows actually loaded
+    last_checked_at: Optional[datetime]      # last time we confirmed sync w/ upstream
     rows_loaded: Optional[int]
-    hours_since_update: Optional[float]
+    hours_since_update: Optional[float]      # since last_success_at (data age)
+    hours_since_check: Optional[float]       # since last_checked_at (drives is_stale)
     is_stale: bool
     staleness_threshold_hours: int
 
@@ -109,31 +116,44 @@ def get_freshness(
         .all()
     )
 
+    # Last time we confirmed sync with upstream per source — a successful load
+    # OR a skipped_unchanged check both count. This is what staleness keys off,
+    # so static annual sources (checked daily, loaded rarely) don't read stale.
+    last_check_by_source = dict(
+        db.query(EtlRun.source, func.max(EtlRun.finished_at))
+        .filter(EtlRun.status.in_(_SYNC_STATUSES))
+        .group_by(EtlRun.source)
+        .all()
+    )
+
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     results = []
 
     for run in rows:
         threshold = _STALENESS_THRESHOLDS.get(run.source, 168)  # default 1 week
-        hours_ago = None
-        is_stale = False
-
-        if run.finished_at:
-            hours_ago = (now - run.finished_at).total_seconds() / 3600
-            is_stale = hours_ago > threshold
+        last_check = last_check_by_source.get(run.source, run.finished_at)
+        is_stale, hours_since_load, hours_since_check = compute_staleness(
+            now=now,
+            last_load_at=run.finished_at,
+            last_check_at=last_check,
+            threshold_hours=threshold,
+        )
 
         results.append(
             SourceFreshness(
                 source=run.source,
                 last_success_at=run.finished_at,
+                last_checked_at=last_check,
                 rows_loaded=run.rows_loaded,
-                hours_since_update=round(hours_ago, 1) if hours_ago is not None else None,
+                hours_since_update=hours_since_load,
+                hours_since_check=hours_since_check,
                 is_stale=is_stale,
                 staleness_threshold_hours=threshold,
             ).model_dump()
         )
 
-    # Sort: stale sources first, then by recency
-    results.sort(key=lambda x: (not x["is_stale"], x["hours_since_update"] or 9999))
+    # Sort: stale sources first, then by recency of last upstream check
+    results.sort(key=lambda x: (not x["is_stale"], x["hours_since_check"] or 9999))
 
     return results
 
@@ -189,15 +209,30 @@ def get_freshness_summary(
         .all()
     )
 
+    # Last confirmed-sync time per source (success OR skipped_unchanged).
+    last_check_by_source = dict(
+        db.query(EtlRun.source, func.max(EtlRun.finished_at))
+        .filter(EtlRun.status.in_(_SYNC_STATUSES))
+        .group_by(EtlRun.source)
+        .all()
+    )
+
     for source, last_at in runs:
         loaded_sources.add(source)
         if source not in _STALENESS_THRESHOLDS:
             continue
         threshold = _STALENESS_THRESHOLDS[source]
-        if last_at and (now - last_at).total_seconds() / 3600 <= threshold:
-            sources_fresh += 1
-        else:
+        last_check = last_check_by_source.get(source, last_at)
+        is_stale, _, _ = compute_staleness(
+            now=now,
+            last_load_at=last_at,
+            last_check_at=last_check,
+            threshold_hours=threshold,
+        )
+        if is_stale:
             sources_stale += 1
+        else:
+            sources_fresh += 1
 
     sources_never = len(all_sources - loaded_sources)
 
