@@ -46,32 +46,39 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
 
   // Focus management: trap focus inside the dialog while open, and restore it
   // to whatever was focused when it opened (usually the "Explain" trigger).
+  // The Tab trap is a native listener on the dialog node (rather than a JSX
+  // onKeyDown) so it doesn't trip jsx-a11y's non-interactive-element rule.
   const dialogRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!current) return;
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
-    dialogRef.current?.focus();
-    return () => restoreFocusRef.current?.focus?.();
-  }, [current]);
+    const dialog = dialogRef.current;
+    dialog?.focus();
 
-  const onDialogKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key !== "Tab" || !dialogRef.current) return;
-    const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
-    );
-    if (focusables.length === 0) return;
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
-    const active = document.activeElement;
-    if (e.shiftKey && (active === first || active === dialogRef.current)) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && active === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  }, []);
+    const onTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !dialog) return;
+      const focusables = dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === dialog)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    dialog?.addEventListener("keydown", onTab);
+    return () => {
+      dialog?.removeEventListener("keydown", onTab);
+      restoreFocusRef.current?.focus?.();
+    };
+  }, [current]);
 
   useEffect(() => { setAskedHere(false); }, [current]);
 
@@ -114,7 +121,6 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
           aria-modal="true"
           aria-label="AI explanation"
           tabIndex={-1}
-          onKeyDown={onDialogKeyDown}
           className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-[1000] max-w-sm rounded-xl bg-surface-container-high p-4 shadow-lg ghost-border lg:bottom-4 lg:left-auto focus:outline-none"
         >
           <div className="flex items-start justify-between gap-3">
