@@ -68,3 +68,12 @@ def test_aggregate_joins_groups_and_skips():
     assert out[1]["year"] == 2022
     assert out[19]["weighted_density"] == 250.0
     assert out[19]["tract_count"] == 1
+
+
+def test_tract_density_job_registered():
+    from etl.jobs import build_default_registry
+
+    registry = build_default_registry()
+    job = registry.get("tract_density")
+    assert job.module == "etl.census_tract_density"
+    assert job.table_name == "tract_density_county_year"

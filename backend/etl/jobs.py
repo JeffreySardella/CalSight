@@ -75,6 +75,15 @@ def build_default_registry() -> JobRegistry:
         freshness_table="fars_county_year",
     ))
     registry.register(Job(
+        name="tract_density",
+        module="etl.census_tract_density",
+        schedule="monthly",
+        table_name="tract_density_county_year",
+        max_drop_pct=10,
+        source_type="federal",
+        freshness_table="tract_density_county_year",
+    ))
+    registry.register(Job(
         name="hospitals",
         module="etl.load_hospitals",
         schedule="monthly",
