@@ -11,9 +11,16 @@ This is the data that powers insights like:
 
 Source: CCRS on data.ca.gov (Parties_YYYY and InjuredWitnessPassengers_YYYY)
 
+By default a run is INCREMENTAL — it only refreshes the current and previous
+year (where new/late records arrive); historical CCRS years are static and
+already loaded, and reloading all of them every daily run is what kept the
+process alive long enough to get OOM-killed (exit 137). Use --force for a
+full reload of the requested range (backfill / history repair).
+
 Usage:
-    python -m etl.load_parties_victims
-    python -m etl.load_parties_victims --start 2020 --end 2024
+    python -m etl.load_parties_victims                      # incremental (recent years)
+    python -m etl.load_parties_victims --force             # full reload, default range
+    python -m etl.load_parties_victims --start 2020 --end 2024 --force
     python -m etl.load_parties_victims --table parties
     python -m etl.load_parties_victims --table victims
 """
@@ -75,6 +82,24 @@ VICTIMS_RESOURCE_IDS = {
     2025: "10184ea3-7411-42d8-87a6-17039b58f04b",
     2026: "bbe0c38e-d0eb-4152-86e2-0b0895e66ba9",
 }
+
+
+def effective_start_year(start_year: int, force: bool, current_year: int) -> int:
+    """Year to start loading from.
+
+    Parties/victims is the largest CCRS load. A full multi-year reload every
+    daily run kept the process alive long enough for the OOM killer to take it
+    (exit 137) on the shared VM — and historical CCRS years are static once
+    published (already in the DB), so reloading them daily is wasted work.
+
+    Default (daily, ``force=False``): only refresh the current and previous
+    year — where new/late-arriving records land — bounding runtime and memory.
+    ``force=True`` reloads the full requested range (use for a backfill or to
+    repair history).
+    """
+    if force:
+        return start_year
+    return max(start_year, current_year - 1)
 
 
 def _safe_int(value):
@@ -277,6 +302,14 @@ def run(
     """Main entry point."""
     source_name = table if table in ("parties", "victims") else "parties_victims"
 
+    eff_start = effective_start_year(start_year, force, datetime.now().year)
+    logger.info(
+        "Loading %s for %d-%d (%s; requested start %d)",
+        source_name, eff_start, end_year,
+        "full reload" if force else "incremental: recent years only",
+        start_year,
+    )
+
     with etl_run(source_name):
         if table is None or table == "parties":
             load_table(
@@ -287,7 +320,7 @@ def run(
                 upsert_cols=_PARTY_UPSERT_COLS,
                 constraint_name="uq_parties_party_source",
                 id_field="party_id",
-                start_year=start_year,
+                start_year=eff_start,
                 end_year=end_year,
                 force=force,
             )
@@ -301,7 +334,7 @@ def run(
                 upsert_cols=_VICTIM_UPSERT_COLS,
                 constraint_name="uq_victims_victim_source",
                 id_field="victim_id",
-                start_year=start_year,
+                start_year=eff_start,
                 end_year=end_year,
                 force=force,
             )
@@ -315,6 +348,8 @@ if __name__ == "__main__":
     parser.add_argument("--end", type=int, default=DEFAULT_END_YEAR)
     parser.add_argument("--table", choices=["parties", "victims"], default=None,
                         help="Load only parties or victims (default: both)")
-    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--force", action="store_true",
+                        help="Full reload of the requested year range "
+                             "(default is incremental: current + previous year only)")
     args = parser.parse_args()
     run(start_year=args.start, end_year=args.end, table=args.table, force=args.force)

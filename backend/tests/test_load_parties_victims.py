@@ -3,11 +3,28 @@
 from etl.load_parties_victims import (
     transform_party,
     transform_victim,
+    effective_start_year,
     _safe_int,
     _safe_bool,
     PARTIES_RESOURCE_IDS,
     VICTIMS_RESOURCE_IDS,
 )
+
+
+class TestEffectiveStartYear:
+    """Incremental default vs --force full reload (OOM-prevention)."""
+
+    def test_incremental_narrows_to_recent_years(self):
+        # Daily run (not force): start from current_year - 1 even though the
+        # requested start is 2016 — historical years are static & already loaded.
+        assert effective_start_year(2016, force=False, current_year=2026) == 2025
+
+    def test_force_uses_full_requested_range(self):
+        assert effective_start_year(2016, force=True, current_year=2026) == 2016
+
+    def test_incremental_respects_a_later_requested_start(self):
+        # Never widen the range: an explicit recent start wins over the window.
+        assert effective_start_year(2026, force=False, current_year=2026) == 2026
 
 
 class TestSafeInt:
