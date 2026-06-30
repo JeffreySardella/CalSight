@@ -29,9 +29,24 @@ def test_aggregate_counts_fatalities_per_county():
 def test_aggregate_classifies_restraint():
     lookup = {37: 19}
     rows = [
-        _person(rest="0"),   # unrestrained + known
+        _person(rest="0"),   # unrestrained + known (older FARS "None Used")
         _person(rest="3"),   # restrained + known
         _person(rest="99"),  # unknown -> excluded from denominator
+    ]
+    out = aggregate_fars(rows, lookup, 2022)[0]
+    assert out["fatalities"] == 3
+    assert out["unrestrained_killed"] == 1
+    assert out["restraint_known_killed"] == 2
+
+
+def test_aggregate_counts_modern_none_used_code_20():
+    # Modern FARS (2010s+) codes "None Used" as 20, not 0. Code 96 = "Not a
+    # Motor Vehicle Occupant" (pedestrian) -> excluded from the denominator.
+    lookup = {37: 19}
+    rows = [
+        _person(rest="20"),  # unrestrained + known (modern "None Used")
+        _person(rest="3"),   # restrained + known
+        _person(rest="96"),  # non-occupant -> excluded from denominator
     ]
     out = aggregate_fars(rows, lookup, 2022)[0]
     assert out["fatalities"] == 3
