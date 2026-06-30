@@ -1,6 +1,10 @@
 """Integration tests for /api/freshness and /api/meta/data-freshness."""
 
+from datetime import datetime, timedelta
+
 import pytest
+
+from app.models import EtlRun
 
 pytestmark = pytest.mark.integration
 
@@ -36,6 +40,70 @@ def test_freshness_contains_seeded_sources(client):
 def test_freshness_has_cache_control(client):
     response = client.get("/api/freshness")
     assert "max-age" in response.headers.get("Cache-Control", "")
+
+
+# --- staleness keys off last upstream sync, not last row-load ---
+
+
+def _get_source(body, name):
+    return next((e for e in body if e["source"] == name), None)
+
+
+def test_static_source_recently_checked_is_not_stale(client, db_session):
+    """A source loaded long ago but confirmed unchanged recently is fresh."""
+    now = datetime.utcnow()
+    db_session.add_all([
+        EtlRun(source="hospitals", status="success", rows_loaded=500,
+               started_at=now - timedelta(days=50, hours=1),
+               finished_at=now - timedelta(days=50)),
+        EtlRun(source="hospitals", status="skipped_unchanged",
+               started_at=now - timedelta(hours=7),
+               finished_at=now - timedelta(hours=7)),
+    ])
+    db_session.flush()
+
+    body = client.get("/api/freshness").json()
+    entry = _get_source(body, "hospitals")
+    assert entry is not None
+    assert entry["is_stale"] is False
+    assert entry["hours_since_update"] > 1000   # data itself is old
+    assert entry["hours_since_check"] < 24       # but checked recently
+
+
+def test_source_not_checked_past_threshold_is_stale(client, db_session):
+    """A source the pipeline hasn't even checked in weeks is stale."""
+    now = datetime.utcnow()
+    db_session.add_all([
+        EtlRun(source="weather", status="success", rows_loaded=10,
+               started_at=now - timedelta(days=45, hours=1),
+               finished_at=now - timedelta(days=45)),
+        EtlRun(source="weather", status="skipped_unchanged",
+               started_at=now - timedelta(days=40),
+               finished_at=now - timedelta(days=40)),
+    ])
+    db_session.flush()
+
+    body = client.get("/api/freshness").json()
+    entry = _get_source(body, "weather")
+    assert entry is not None
+    assert entry["is_stale"] is True
+
+
+def test_summary_counts_recently_checked_static_source_as_fresh(client, db_session):
+    now = datetime.utcnow()
+    db_session.add_all([
+        EtlRun(source="demographics", status="success", rows_loaded=58,
+               started_at=now - timedelta(days=48, hours=1),
+               finished_at=now - timedelta(days=48)),
+        EtlRun(source="demographics", status="skipped_unchanged",
+               started_at=now - timedelta(hours=8),
+               finished_at=now - timedelta(hours=8)),
+    ])
+    db_session.flush()
+
+    summary = client.get("/api/freshness/summary").json()
+    # demographics (720h threshold) checked 8h ago → must not inflate the count
+    assert summary["sources_stale"] == 0
 
 
 # --- GET /api/freshness/summary ---
