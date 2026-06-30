@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import type { DataContext } from "../../lib/ai/dataContext";
 import { explainContext } from "../../lib/ai/explainContext";
@@ -44,6 +44,35 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [current, close]);
 
+  // Focus management: trap focus inside the dialog while open, and restore it
+  // to whatever was focused when it opened (usually the "Explain" trigger).
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!current) return;
+    restoreFocusRef.current = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => restoreFocusRef.current?.focus?.();
+  }, [current]);
+
+  const onDialogKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "Tab" || !dialogRef.current) return;
+    const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey && (active === first || active === dialogRef.current)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
   useEffect(() => { setAskedHere(false); }, [current]);
 
   const api = useMemo<CompanionApi>(() => ({ open, close, current }), [open, close, current]);
@@ -80,9 +109,13 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
       {children}
       {current && explanation && (
         <div
+          ref={dialogRef}
           role="dialog"
+          aria-modal="true"
           aria-label="AI explanation"
-          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-[1000] max-w-sm rounded-xl bg-surface-container-high p-4 shadow-lg ghost-border lg:bottom-4 lg:left-auto"
+          tabIndex={-1}
+          onKeyDown={onDialogKeyDown}
+          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-[1000] max-w-sm rounded-xl bg-surface-container-high p-4 shadow-lg ghost-border lg:bottom-4 lg:left-auto focus:outline-none"
         >
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-sm font-semibold text-on-surface">{explanation.headline}</h2>
