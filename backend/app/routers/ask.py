@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -23,7 +24,7 @@ from app.ai_prompt import (
     build_quick_facts,
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.llm_cache import get_ask_cache, make_cache_key
 from app.models import ChatFeedback
 from app.llm import (
@@ -40,6 +41,11 @@ limiter = Limiter(key_func=get_remote_address)
 _MAX_TOOL_ROUNDS = 3
 _MAX_TOOL_CALLS_PER_ROUND = 3
 _MAX_HISTORY = 10
+_ASK_TIMEOUT_SECONDS = 60.0
+
+
+class _AskAbandoned(Exception):
+    """The HTTP request already timed out; stop burning LLM quota."""
 
 
 class HistoryMessage(BaseModel):
@@ -125,7 +131,6 @@ async def ask(
     request: Request,
     response: Response,
     body: AskRequest,
-    db: Session = Depends(get_db),
 ):
     # Cache lookup happens before the LLM round trip — identical
     # (question, filters, history) produce the same answer, and the LLM
@@ -138,12 +143,19 @@ async def ask(
         response.headers["X-Cache"] = "HIT"
         return cached
 
+    # _handle_ask runs on a worker thread that can outlive this request
+    # (wait_for gives up, the thread keeps going). The thread owns its DB
+    # session — borrowing the request-scoped one would let FastAPI's
+    # teardown close it mid-query on timeout and hand the underlying
+    # connection back to the pool while the thread is still using it.
     try:
         result = await asyncio.wait_for(
-            asyncio.to_thread(_handle_ask, body, db),
-            timeout=60.0,
+            asyncio.to_thread(_handle_ask, body),
+            timeout=_ASK_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
+        result = None
+    if result is None:
         return JSONResponse(
             status_code=504,
             content={"message": "Request timed out. Please try again.", "retry_after": 5},
@@ -154,7 +166,19 @@ async def ask(
     return result
 
 
-def _handle_ask(body: AskRequest, db: Session) -> AskResponse:
+def _handle_ask(body: AskRequest) -> AskResponse | None:
+    deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
+    db = SessionLocal()
+    try:
+        return _handle_ask_inner(body, db, deadline)
+    except _AskAbandoned:
+        logger.warning("Ask request abandoned after timeout; stopped tool loop early")
+        return None
+    finally:
+        db.close()
+
+
+def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> AskResponse:
     filters_summary = build_filters_summary(body.filters)
     # Quick Facts pre-queries the totals/severity-split for the active filters
     # and injects them into the system prompt. Saves a tool call for basic
@@ -176,7 +200,7 @@ def _handle_ask(body: AskRequest, db: Session) -> AskResponse:
     tools_called: list[str] = []
 
     try:
-        answer, provider = _run_with_tools(db, messages, tools_called)
+        answer, provider = _run_with_tools(db, messages, tools_called, deadline)
     except AllProvidersExhausted:
         answer, provider = _run_simple_mode(db, body.filters, messages)
 
@@ -199,6 +223,7 @@ def _run_with_tools(
     db: Session,
     messages: list[dict],
     tools_called: list[str],
+    deadline: float,
 ) -> tuple[str, str]:
     """Run the tool-calling loop (max 3 rounds).
 
@@ -207,6 +232,10 @@ def _run_with_tools(
     """
     provider = "unknown"
     for round_num in range(_MAX_TOOL_ROUNDS):
+        # The client got its 504 once the deadline passed — every further
+        # LLM round would burn provider quota for an answer nobody reads.
+        if time.monotonic() >= deadline:
+            raise _AskAbandoned()
         tc = "required" if round_num == 0 else "auto"
         response, provider = generate_with_fallback(
             messages=messages,

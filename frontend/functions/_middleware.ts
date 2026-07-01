@@ -52,7 +52,22 @@ function isCrawler(userAgent: string): boolean {
   return CRAWLER_USER_AGENTS.some((bot) => ua.includes(bot.toLowerCase()));
 }
 
-function buildContext(url: URL): CrawlerContext {
+/**
+ * Escape a value for interpolation into an HTML attribute (or text node).
+ * User-controlled query params (counties, preset, …) flow into the rewritten
+ * meta tags, so every interpolated value must be escaped to prevent HTML
+ * injection. Exported for tests.
+ */
+export function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export function buildContext(url: URL): CrawlerContext {
   const pathname = url.pathname;
   const params = url.searchParams;
 
@@ -112,68 +127,77 @@ function buildContext(url: URL): CrawlerContext {
   return base;
 }
 
-function rewriteHtml(html: string, ctx: CrawlerContext): string {
+export function rewriteHtml(html: string, ctx: CrawlerContext): string {
+  // Escape every interpolated value once, up front. All replacements below
+  // use a function replacer so `$` sequences in user-influenced values are
+  // inserted literally instead of being interpreted as replacement patterns.
+  const title = escapeHtmlAttr(ctx.title);
+  const description = escapeHtmlAttr(ctx.description);
+  const ogImage = escapeHtmlAttr(ctx.ogImage);
+  const ogType = escapeHtmlAttr(ctx.ogType);
+  const canonicalUrl = escapeHtmlAttr(ctx.canonicalUrl);
+
   // Replace existing meta tags with dynamic values
   let result = html;
 
   // Title
   result = result.replace(
     /<title>[^<]*<\/title>/,
-    `<title>${ctx.title}</title>`
+    () => `<title>${title}</title>`
   );
 
   // Description
   result = result.replace(
     /<meta name="description" content="[^"]*"/,
-    `<meta name="description" content="${ctx.description}"`
+    () => `<meta name="description" content="${description}"`
   );
 
   // OG tags
   result = result.replace(
     /<meta property="og:title" content="[^"]*"/,
-    `<meta property="og:title" content="${ctx.title}"`
+    () => `<meta property="og:title" content="${title}"`
   );
   result = result.replace(
     /<meta property="og:description" content="[^"]*"/,
-    `<meta property="og:description" content="${ctx.description}"`
+    () => `<meta property="og:description" content="${description}"`
   );
   result = result.replace(
     /<meta property="og:image" content="[^"]*"/,
-    `<meta property="og:image" content="${ctx.ogImage}"`
+    () => `<meta property="og:image" content="${ogImage}"`
   );
   result = result.replace(
     /<meta property="og:type" content="[^"]*"/,
-    `<meta property="og:type" content="${ctx.ogType}"`
+    () => `<meta property="og:type" content="${ogType}"`
   );
 
   // Twitter tags
   result = result.replace(
     /<meta name="twitter:card" content="[^"]*"/,
-    `<meta name="twitter:card" content="summary_large_image"`
+    () => `<meta name="twitter:card" content="summary_large_image"`
   );
   result = result.replace(
     /<meta name="twitter:title" content="[^"]*"/,
-    `<meta name="twitter:title" content="${ctx.title}"`
+    () => `<meta name="twitter:title" content="${title}"`
   );
   result = result.replace(
     /<meta name="twitter:description" content="[^"]*"/,
-    `<meta name="twitter:description" content="${ctx.description}"`
+    () => `<meta name="twitter:description" content="${description}"`
   );
   result = result.replace(
     /<meta name="twitter:image" content="[^"]*"/,
-    `<meta name="twitter:image" content="${ctx.ogImage}"`
+    () => `<meta name="twitter:image" content="${ogImage}"`
   );
 
   // Inject canonical URL and additional OG tags after <title>
   const additionalTags = `
-    <meta property="og:url" content="${ctx.canonicalUrl}" />
+    <meta property="og:url" content="${canonicalUrl}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="CalSight" />
-    <meta name="twitter:image:alt" content="${ctx.title} — dashboard preview" />
-    <link rel="canonical" href="${ctx.canonicalUrl}" />`;
+    <meta name="twitter:image:alt" content="${title} — dashboard preview" />
+    <link rel="canonical" href="${canonicalUrl}" />`;
 
-  result = result.replace("</title>", `</title>${additionalTags}`);
+  result = result.replace("</title>", () => `</title>${additionalTags}`);
 
   return result;
 }

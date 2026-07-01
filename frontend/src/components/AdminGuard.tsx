@@ -1,21 +1,37 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { safeGetItem, safeSetItem } from "../lib/safeStorage";
+import { safeRemoveItem } from "../lib/safeStorage";
+import { getAdminKey, setAdminKey, ADMIN_KEY_CLEARED_EVENT } from "../lib/adminKey";
 import { API_BASE } from "../config";
 
-const STORAGE_KEY = "calsight-admin-authenticated";
+/** Old boolean flag from a previous version — never grants access anymore. */
+const LEGACY_STORAGE_KEY = "calsight-admin-authenticated";
 
 /**
- * Route guard for admin pages. Stores only a boolean flag in localStorage
- * (never the actual key) to remember authentication state across sessions.
+ * Route guard for admin pages. On successful verification the admin key is
+ * kept in sessionStorage (so it dies with the tab, unlike localStorage) and
+ * attached to /api/etl/* requests as the X-ETL-API-Key header. When the
+ * backend rejects the key (403), the stored key is cleared and this guard
+ * drops back to the locked state.
  */
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
-  const [authenticated, setAuthenticated] = useState(() => {
-    return safeGetItem(STORAGE_KEY) === "true";
-  });
+  const [authenticated, setAuthenticated] = useState(() => getAdminKey() !== null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Migrate away from the legacy localStorage boolean: it only recorded that
+  // a key was once verified, without the key itself, so it cannot be trusted.
+  useEffect(() => {
+    safeRemoveItem(LEGACY_STORAGE_KEY);
+  }, []);
+
+  // Re-lock when the stored key is cleared (e.g. an ETL request came back 403).
+  useEffect(() => {
+    const onCleared = () => setAuthenticated(false);
+    window.addEventListener(ADMIN_KEY_CLEARED_EVENT, onCleared);
+    return () => window.removeEventListener(ADMIN_KEY_CLEARED_EVENT, onCleared);
+  }, []);
 
   useEffect(() => {
     if (!authenticated) {
@@ -35,7 +51,8 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
         body: JSON.stringify({ key: password }),
       });
       if (res.ok) {
-        safeSetItem(STORAGE_KEY, "true");
+        setAdminKey(password);
+        setPassword("");
         setAuthenticated(true);
       } else {
         const data = await res.json().catch(() => null);

@@ -307,7 +307,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     byCountyCode,
     nameToCode,
     isLoading: statsQ.isLoading || demoQ.isLoading || yearStatsQ.isLoading || cesQ.isLoading || unempQ.isLoading,
-    isError: statsQ.isError || demoQ.isError || cesQ.isError || unempQ.isError,
+    isError: statsQ.isError || demoQ.isError || yearStatsQ.isError || cesQ.isError || unempQ.isError,
     is422: rawError?.status === 422,
     error: rawError,
     demographicsAvailable: !demoQ.isError && (demos?.length ?? 0) > 0,

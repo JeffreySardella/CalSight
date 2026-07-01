@@ -55,7 +55,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-DEFAULT_BACKUP_DIR = "/opt/calsight/backups"
+DEFAULT_BACKUP_DIR = os.environ.get("BACKUP_DIR", "/opt/calsight/backups")
 RETENTION_DAYS = 7
 # Always retain at least this many of the most-recent dumps regardless of age,
 # so a run of failed pg_dumps can never rotate away every recovery point.
@@ -264,8 +264,8 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
             filename, size_mb, elapsed,
         )
 
-        upload_to_r2(filepath)
-
+        # Offsite upload is the caller's job (main(), pipeline.run_backup) —
+        # doing it here too meant every scheduled run uploaded twice.
         return filepath
 
     except FileNotFoundError:

@@ -73,6 +73,20 @@ export interface DragHandleProps {
 const SCROLL_EDGE_PX = 60;
 const SCROLL_SPEED = 12;
 
+/**
+ * Convert an insertion index (0..items.length, as produced by getDropIndex —
+ * "insert before item i", with items.length meaning "after the last item")
+ * into the final item index the dragged card occupies after the move.
+ *
+ * When moving down, removing the dragged card first shifts every later item
+ * left by one, so the insertion index overshoots the final position by one.
+ * A result equal to fromIndex means the drop is a no-op (dropping a card on
+ * itself or immediately after itself).
+ */
+export function insertionIndexToItemIndex(fromIndex: number, insertionIndex: number): number {
+  return insertionIndex > fromIndex ? insertionIndex - 1 : insertionIndex;
+}
+
 export function useDragReorder({
   items,
   onReorder,
@@ -205,9 +219,13 @@ export function useDragReorder({
     handleActivatedRef.current = false;
 
     const { dragId, overIndex } = dragState;
-    if (dragId && overIndex !== null && overIndex !== dragSourceIndex.current) {
-      onReorder(dragSourceIndex.current, overIndex);
-      setAnnouncement(`Dropped chart at position ${overIndex + 1} of ${items.length}.`);
+    const fromIndex = dragSourceIndex.current;
+    // overIndex is an insertion index; onReorder (like the keyboard path)
+    // expects the final item index, so convert before dispatching.
+    const toIndex = overIndex !== null ? insertionIndexToItemIndex(fromIndex, overIndex) : null;
+    if (dragId && toIndex !== null && toIndex !== fromIndex) {
+      onReorder(fromIndex, toIndex);
+      setAnnouncement(`Dropped chart at position ${toIndex + 1} of ${items.length}.`);
     } else {
       setAnnouncement("Reorder cancelled.");
     }

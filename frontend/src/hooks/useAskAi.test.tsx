@@ -41,9 +41,35 @@ describe("useAskAi", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
+    // Jump past the 15s per-question cooldown; this test pins the
+    // inFlightRef reset, not the cooldown (covered below).
+    const realNow = Date.now.bind(Date);
+    vi.spyOn(Date, "now").mockImplementation(() => realNow() + 20_000);
+
     await act(async () => {
       await result.current.sendMessage("second question");
     });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("blocks a second question while the cooldown is active (no bypass via direct sendMessage)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse("hello"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useAskAi(), { wrapper });
+
+    await act(async () => {
+      await result.current.sendMessage("first question");
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // Still inside the 15s cooldown — every caller (Ask AI page, AI
+    // companion "Go deeper", retry) goes through sendMessage, so this
+    // must refuse rather than fire another request.
+    await act(async () => {
+      await result.current.sendMessage("second question");
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.current.error).toMatch(/wait/i);
   });
 });

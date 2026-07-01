@@ -28,10 +28,26 @@ concurrency:
   group: run-etl
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   run-etl:
     runs-on: self-hosted
+    env:
+      # Never interpolate inputs.job directly into a `run:` line — the
+      # expression expands before the shell parses the command, which is a
+      # shell-injection vector. Pass it through the environment instead and
+      # validate it below before anything else runs.
+      JOB: ${{ inputs.job }}
     steps:
+      - name: Validate job input
+        run: |
+          if ! printf '%s' "$JOB" | grep -Eq '^[a-z0-9_]+$'; then
+            echo "Invalid job input (must match ^[a-z0-9_]+\$): $JOB" >&2
+            exit 1
+          fi
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
@@ -74,7 +90,7 @@ jobs:
           printf 'SENTRY_DSN=%s\n' "$SENTRY" >> backend/.env
 
       - name: Run ETL job (${{ inputs.job }})
-        run: docker compose -f docker-compose.prod.yml exec -T backend python -m "etl.${{ inputs.job }}"
+        run: docker compose -f docker-compose.prod.yml exec -T backend python -m "etl.$JOB"
         timeout-minutes: 240
 
       - name: Refresh materialized views

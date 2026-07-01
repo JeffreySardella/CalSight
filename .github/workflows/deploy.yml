@@ -1,18 +1,36 @@
 name: Deploy to Production
 
+# Deploys are gated on CI: this fires when the "CI" workflow finishes, and the
+# jobs below only run if that CI run succeeded on main. A push to main
+# therefore deploys only after its CI run goes green — nothing deploys for
+# failed or cancelled CI runs (including runs superseded by CI's
+# cancel-in-progress; the newer commit's run deploys instead).
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
 
 concurrency:
   group: production-deploy
-  cancel-in-progress: true
+  # Queue deploys instead of cancelling in-flight ones — killing a deploy
+  # mid-run can interrupt a live database migration.
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
+env:
+  # The commit being deployed. For workflow_run events github.sha is the
+  # default-branch head at trigger time — which can already be NEWER than the
+  # commit CI validated — so use the SHA the CI run actually ran on. The
+  # github.sha fallback only applies if another trigger (e.g.
+  # workflow_dispatch) is ever added.
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
 jobs:
   check-backfill:
+    # Only deploy commits whose CI run succeeded on main.
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     runs-on: self-hosted
     outputs:
       needed: ${{ steps.check.outputs.needed }}
@@ -21,6 +39,9 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
+          # Check out the CI-validated commit, not the default-branch head
+          # (which workflow_run would otherwise give us).
+          ref: ${{ env.DEPLOY_SHA }}
       - name: Detect migration/backfill changes or [backfill] tag
         id: check
         run: |
@@ -39,12 +60,17 @@ jobs:
           echo "needed=$NEEDED" >> $GITHUB_OUTPUT
 
   deploy:
+    # Redundant with the check-backfill guard (a skipped `needs` job skips this
+    # one too), but explicit so the gate survives future refactors.
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     needs: check-backfill
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          # Same as check-backfill: deploy the CI-validated commit.
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Force HTTPS for git (no SSH keys needed)
         run: |
@@ -113,10 +139,21 @@ jobs:
 
       - name: Tag images with commit SHA for rollback
         run: |
-          docker tag calsight-backend:latest calsight-backend:${{ github.sha }}
+          docker tag calsight-backend:latest "calsight-backend:${DEPLOY_SHA}"
 
-      - name: Prune old images (keep last 5)
-        run: docker image prune -f --filter "until=168h"
+      - name: Prune old images (keep last 5 SHA tags)
+        run: |
+          # `docker image prune` only removes dangling images, so SHA-tagged
+          # rollback images accumulate forever. Instead keep the 5 newest SHA
+          # tags (docker images lists newest first) and remove the rest —
+          # never :latest, and never the SHA we just deployed.
+          docker images calsight-backend --format '{{.Tag}}' \
+            | grep -v '^latest$' \
+            | tail -n +6 \
+            | grep -v "^${DEPLOY_SHA}$" \
+            | while read -r TAG; do
+                docker rmi "calsight-backend:${TAG}" || true
+              done
 
       - name: Backfill derived fields (severity, flags, driver age, canonical cause)
         if: needs.check-backfill.outputs.needed == 'true'
@@ -160,8 +197,10 @@ jobs:
         if: failure()
         run: |
           echo "Deploy failed — attempting rollback..."
-          PREV_SHA=$(docker images calsight-backend --format '{{.Tag}}' | grep -v latest | head -1)
-          if [ -n "$PREV_SHA" ] && [ "$PREV_SHA" != "${{ github.sha }}" ]; then
+          # The just-deployed SHA is tagged before the health check, so it is
+          # the newest tag — skip it (and :latest) to find the previous deploy.
+          PREV_SHA=$(docker images calsight-backend --format '{{.Tag}}' | grep -v -e '^latest$' -e "^${DEPLOY_SHA}$" | head -1)
+          if [ -n "$PREV_SHA" ]; then
             echo "Rolling back to calsight-backend:$PREV_SHA"
             docker tag calsight-backend:$PREV_SHA calsight-backend:latest
             docker compose -f docker-compose.prod.yml up -d backend
@@ -186,11 +225,13 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GH_STATUS: ${{ job.status }}
-          GH_SHA: ${{ github.sha }}
-          GH_MSG: ${{ github.event.head_commit.message }}
+          GH_SHA: ${{ env.DEPLOY_SHA }}
+          # workflow_run events carry the commit info under workflow_run.*;
+          # head_commit/ref_name describe the triggering event, not the deploy.
+          GH_MSG: ${{ github.event.workflow_run.head_commit.message || github.event.head_commit.message }}
           GH_REPO: ${{ github.repository }}
           GH_RUN_ID: ${{ github.run_id }}
-          GH_BRANCH: ${{ github.ref_name }}
+          GH_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
           GH_ACTOR: ${{ github.actor }}
           DISK: ${{ env.DISK }}
         run: |

@@ -183,6 +183,53 @@ def upsert_crashes(
     return len(rows)
 
 
+def select_years_to_load(
+    start_year: int,
+    end_year: int,
+    loaded: dict[int, int],
+    source_filter: str | None = None,
+    force: bool = False,
+    today_year: int | None = None,
+) -> tuple[list[int], list[int], list[int]]:
+    """Partition the requested year range into SWITRS/CCRS years to load.
+
+    Years that already have rows are skipped — except the current and
+    previous year, which keep receiving new CHP records nightly and are
+    always reloaded (the ON CONFLICT upsert makes re-loading them safe).
+    Without that exception, the daily job would no-op as soon as a year
+    had a single batch loaded.
+
+    Returns (switrs_years, ccrs_years, skipped_years).
+    """
+    if today_year is None:
+        today_year = datetime.now(timezone.utc).year
+
+    switrs_years = [
+        y for y in range(start_year, end_year + 1)
+        if determine_source(y) == "switrs"
+        and (source_filter is None or source_filter == "switrs")
+    ]
+    ccrs_years = [
+        y for y in range(start_year, end_year + 1)
+        if determine_source(y) == "ccrs"
+        and (source_filter is None or source_filter == "ccrs")
+    ]
+
+    skipped: list[int] = []
+    if not force:
+        refresh_years = {today_year, today_year - 1}
+        skipped = sorted(
+            [y for y in switrs_years if y in loaded]
+            + [y for y in ccrs_years if y in loaded and y not in refresh_years]
+        )
+        switrs_years = [y for y in switrs_years if y not in loaded]
+        ccrs_years = [
+            y for y in ccrs_years if y not in loaded or y in refresh_years
+        ]
+
+    return switrs_years, ccrs_years, skipped
+
+
 def run(
     start_year: int = DEFAULT_START_YEAR,
     end_year: int = DEFAULT_END_YEAR,
@@ -237,29 +284,16 @@ def run(
     error_message = None
 
     try:
-        # Partition years into SWITRS vs CCRS based on source routing
-        switrs_years = [
-            y for y in range(start_year, end_year + 1)
-            if determine_source(y) == "switrs"
-            and (source_filter is None or source_filter == "switrs")
-        ]
-        ccrs_years = [
-            y for y in range(start_year, end_year + 1)
-            if determine_source(y) == "ccrs"
-            and (source_filter is None or source_filter == "ccrs")
-        ]
-
-        # Skip years that already have data (unless --force)
-        if not force:
-            skipped_switrs = [y for y in switrs_years if y in loaded]
-            skipped_ccrs = [y for y in ccrs_years if y in loaded]
-            switrs_years = [y for y in switrs_years if y not in loaded]
-            ccrs_years = [y for y in ccrs_years if y not in loaded]
-            if skipped_switrs or skipped_ccrs:
-                logger.info(
-                    "Skipping already-loaded years: %s (use --force to reload)",
-                    sorted(skipped_switrs + skipped_ccrs),
-                )
+        # Partition years into SWITRS vs CCRS and drop already-loaded years
+        # (current + previous year are always reloaded; see the helper).
+        switrs_years, ccrs_years, skipped = select_years_to_load(
+            start_year, end_year, loaded, source_filter=source_filter, force=force,
+        )
+        if skipped:
+            logger.info(
+                "Skipping already-loaded years: %s (use --force to reload)",
+                skipped,
+            )
 
         logger.info(
             "Year range %d–%d: %d SWITRS years, %d CCRS years to load",

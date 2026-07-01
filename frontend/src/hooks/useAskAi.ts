@@ -78,6 +78,8 @@ export function useAskAi() {
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const cooldownEndRef = useRef(cooldownEnd);
+  cooldownEndRef.current = cooldownEnd;
   const inFlightRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -99,6 +101,14 @@ export function useAskAi() {
 
   const sendMessage = useCallback(async (question: string) => {
     if (!question.trim() || isLoading || inFlightRef.current) return;
+    // Respect the cooldown (including server 429/503 backoff) for every
+    // caller, not just the Ask AI page's send button — e.g. the AI
+    // companion's "Go deeper" and retry() must not bypass it.
+    if (Date.now() < cooldownEndRef.current) {
+      const remaining = Math.ceil((cooldownEndRef.current - Date.now()) / 1000);
+      setError(`Please wait ${remaining}s before asking again.`);
+      return;
+    }
     inFlightRef.current = true;
     abortRef.current?.abort();
 

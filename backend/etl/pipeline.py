@@ -28,11 +28,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import subprocess
 import sys
-import time
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -168,93 +164,57 @@ def run_weekly_pipeline():
 
 
 def run_backup():
-    """Run pg_dump with 7-day rotation.
+    """Daily pg_dump + offsite R2 sync with 7-day rotation.
 
-    Backup strategy:
-      - Daily pg_dump to /backups/calsight_YYYY-MM-DD.sql.gz
-      - Keep 7 days of backups, delete older ones
-      - Uses custom format (-Fc) for parallel restore capability
-      - Excludes etl_runs (easily regenerated) to save space
+    Delegates to etl.backup — the one implementation of the dump itself.
+    That module keeps the password off the pg_dump command line (PGPASSWORD
+    instead of an inline URL, so it can't leak via /proc/<pid>/cmdline),
+    applies the min_keep rotation guard locally and in R2, and gives the
+    11M-row dump a 2-hour budget. This wrapper adds the scheduler-side
+    concerns: alerting and the dead-man's-switch heartbeat.
 
     The backup directory is /backups inside the container, mounted as a
     Docker volume that maps to the host's /opt/calsight/backups on LXC 100.
     """
-    backup_dir = Path(os.environ.get("BACKUP_DIR", "/backups"))
-    backup_dir.mkdir(parents=True, exist_ok=True)
+    from etl.backup import (  # noqa: PLC0415
+        rotate_backups,
+        rotate_r2_backups,
+        run_backup as run_pg_dump,
+        upload_to_r2,
+    )
 
-    today = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
-    backup_file = backup_dir / f"calsight_{today}.dump"
-
-    # Build pg_dump command from the ETL database URL
-    db_url = os.environ.get("ETL_DATABASE_URL") or os.environ.get("DATABASE_URL", "")
-    if not db_url:
-        logger.error("No DATABASE_URL configured — skipping backup")
-        send_alert(AlertLevel.WARNING, "Backup skipped", "No DATABASE_URL configured")
-        send_heartbeat(success=False)
-        return
-
-    logger.info("Starting backup: %s", backup_file)
-    start = time.monotonic()
+    backup_dir = os.environ.get("BACKUP_DIR", "/backups")
 
     try:
-        result = subprocess.run(
-            [
-                "pg_dump",
-                "--format=custom",
-                "--compress=6",
-                "--exclude-table=etl_runs",  # easily regenerated, saves space
-                f"--file={backup_file}",
-                db_url,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=3600,  # 1 hour max
-        )
+        backup_file = run_pg_dump(backup_dir)
+        if backup_file is None:
+            raise RuntimeError("pg_dump failed — see container logs")
 
-        if result.returncode != 0:
-            raise RuntimeError(f"pg_dump failed (exit {result.returncode}): {result.stderr[:500]}")
-
-        elapsed = time.monotonic() - start
         size_mb = backup_file.stat().st_size / (1024 * 1024)
-        logger.info("Backup complete: %.1f MB in %.0fs", size_mb, elapsed)
 
-        # Rotate: delete backups older than 7 days, but ALWAYS keep at least
-        # `min_keep` most-recent dumps regardless of age. Without this guard, if
-        # pg_dump fails for 7+ consecutive days the rotation would delete every
-        # surviving backup, leaving zero recovery points.
-        min_keep = 3
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
+        r2_ok = upload_to_r2(backup_file)
+        if not r2_ok and os.environ.get("R2_BUCKET_NAME"):
+            # R2 is configured but the upload failed — the local dump exists,
+            # so warn rather than error, but don't stay silent: offsite is
+            # the copy that survives the host dying.
+            send_alert(
+                AlertLevel.WARNING,
+                "Backup offsite upload failed",
+                f"{backup_file.name} ({size_mb:.1f} MB) saved locally but R2 upload failed",
+            )
 
-        dated_backups = []
-        for old_file in backup_dir.glob("calsight_*.dump"):
-            try:
-                date_str = old_file.stem.replace("calsight_", "")
-                file_date = datetime.strptime(date_str, "%Y-%m-%d")
-                dated_backups.append((file_date, old_file))
-            except ValueError:
-                continue
+        rotate_backups(backup_dir)
+        rotate_r2_backups()
 
-        # Newest first; the first `min_keep` are protected from deletion.
-        dated_backups.sort(key=lambda pair: pair[0], reverse=True)
-
-        removed = 0
-        for file_date, old_file in dated_backups[min_keep:]:
-            if file_date < cutoff:
-                old_file.unlink()
-                removed += 1
-                logger.info("Rotated old backup: %s", old_file.name)
-
-        if removed:
-            logger.info("Removed %d backup(s) older than 7 days", removed)
+        logger.info(
+            "Backup complete: %s (%.1f MB)%s",
+            backup_file.name, size_mb, " — uploaded to R2" if r2_ok else "",
+        )
 
         # Backup succeeded — ping the dead-man's-switch so the external monitor
         # knows the box is alive and ran the job on schedule.
         send_heartbeat(success=True)
 
-    except subprocess.TimeoutExpired:
-        send_alert(AlertLevel.ERROR, "Backup timed out", "pg_dump exceeded 1 hour timeout")
-        logger.error("Backup timed out after 1 hour")
-        send_heartbeat(success=False)
     except Exception as exc:
         send_alert(AlertLevel.ERROR, "Backup failed", str(exc)[:500])
         logger.exception("Backup failed: %s", exc)
