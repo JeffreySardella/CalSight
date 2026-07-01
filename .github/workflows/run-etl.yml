@@ -71,23 +71,59 @@ jobs:
           CEREBRAS_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           SENTRY: ${{ secrets.SENTRY_DSN }}
         run: |
-          : > backend/.env
-          printf 'DATABASE_URL=%s\n' "$DB_URL" >> backend/.env
-          printf 'CORS_ORIGINS=%s\n' "$CORS" >> backend/.env
-          printf 'CENSUS_API_KEY=%s\n' "$CENSUS" >> backend/.env
-          printf 'NOAA_API_TOKEN=%s\n' "$NOAA" >> backend/.env
-          printf 'BLS_API_KEY=%s\n' "$BLS" >> backend/.env
-          printf 'LLM_PROVIDER=groq\n' >> backend/.env
-          printf 'LLM_API_KEY=%s\n' "$GROQ_KEY" >> backend/.env
-          printf 'LLM_API_KEY_2=%s\n' "$GROQ_KEY_2" >> backend/.env
-          printf 'LLM_FALLBACK_1_PROVIDER=gemini\n' >> backend/.env
-          printf 'LLM_FALLBACK_1_KEY=%s\n' "$GEMINI_KEY" >> backend/.env
-          printf 'LLM_FALLBACK_2_PROVIDER=openrouter\n' >> backend/.env
-          printf 'LLM_FALLBACK_2_KEY=%s\n' "$OPENROUTER_KEY" >> backend/.env
-          printf 'LLM_FALLBACK_3_PROVIDER=cerebras\n' >> backend/.env
-          printf 'LLM_FALLBACK_3_KEY=%s\n' "$CEREBRAS_KEY" >> backend/.env
-          printf 'DEBUG=false\n' >> backend/.env
-          printf 'SENTRY_DSN=%s\n' "$SENTRY" >> backend/.env
+          # Non-destructive write (kept in sync with deploy.yml): operators set
+          # keys the workflow does NOT manage (HEARTBEAT_URL, R2_*,
+          # DISCORD_BACKUP_WEBHOOK, ETL_API_KEY, ALERT_WEBHOOK_URL,
+          # MAINTENANCE_MODE, ETL_DATABASE_URL, ...) directly in backend/.env
+          # on the runner. Truncating the file wiped them on every run, so
+          # write the managed keys to a temp file, carry over every unmanaged
+          # line from the existing file, then swap the merged file into place.
+          TMP_ENV=$(mktemp backend/.env.XXXXXX)
+          printf 'DATABASE_URL=%s\n' "$DB_URL" >> "$TMP_ENV"
+          printf 'CORS_ORIGINS=%s\n' "$CORS" >> "$TMP_ENV"
+          printf 'CENSUS_API_KEY=%s\n' "$CENSUS" >> "$TMP_ENV"
+          printf 'NOAA_API_TOKEN=%s\n' "$NOAA" >> "$TMP_ENV"
+          printf 'BLS_API_KEY=%s\n' "$BLS" >> "$TMP_ENV"
+          printf 'LLM_PROVIDER=groq\n' >> "$TMP_ENV"
+          printf 'LLM_API_KEY=%s\n' "$GROQ_KEY" >> "$TMP_ENV"
+          printf 'LLM_API_KEY_2=%s\n' "$GROQ_KEY_2" >> "$TMP_ENV"
+          printf 'LLM_FALLBACK_1_PROVIDER=gemini\n' >> "$TMP_ENV"
+          printf 'LLM_FALLBACK_1_KEY=%s\n' "$GEMINI_KEY" >> "$TMP_ENV"
+          printf 'LLM_FALLBACK_2_PROVIDER=openrouter\n' >> "$TMP_ENV"
+          printf 'LLM_FALLBACK_2_KEY=%s\n' "$OPENROUTER_KEY" >> "$TMP_ENV"
+          printf 'LLM_FALLBACK_3_PROVIDER=cerebras\n' >> "$TMP_ENV"
+          printf 'LLM_FALLBACK_3_KEY=%s\n' "$CEREBRAS_KEY" >> "$TMP_ENV"
+          printf 'DEBUG=false\n' >> "$TMP_ENV"
+          printf 'SENTRY_DSN=%s\n' "$SENTRY" >> "$TMP_ENV"
+          # Keys this workflow owns — must match the printf list above exactly.
+          MANAGED='DATABASE_URL CORS_ORIGINS CENSUS_API_KEY NOAA_API_TOKEN BLS_API_KEY LLM_PROVIDER LLM_API_KEY LLM_API_KEY_2 LLM_FALLBACK_1_PROVIDER LLM_FALLBACK_1_KEY LLM_FALLBACK_2_PROVIDER LLM_FALLBACK_2_KEY LLM_FALLBACK_3_PROVIDER LLM_FALLBACK_3_KEY DEBUG SENTRY_DSN'
+          if [ -f backend/.env ]; then
+            SEEN=" $MANAGED "
+            while IFS= read -r LINE || [ -n "$LINE" ]; do
+              case "$LINE" in
+                ''|'#'*)
+                  # Preserve comments and blank lines as-is.
+                  printf '%s\n' "$LINE" >> "$TMP_ENV"
+                  continue
+                  ;;
+                *=*)
+                  KEY=${LINE%%=*}
+                  ;;
+                *)
+                  printf '%s\n' "$LINE" >> "$TMP_ENV"
+                  continue
+                  ;;
+              esac
+              case "$SEEN" in
+                *" $KEY "*) ;;  # managed key or duplicate: drop the stale line
+                *)
+                  printf '%s\n' "$LINE" >> "$TMP_ENV"
+                  SEEN="$SEEN$KEY "
+                  ;;
+              esac
+            done < backend/.env
+          fi
+          mv "$TMP_ENV" backend/.env
 
       - name: Run ETL job (${{ inputs.job }})
         run: docker compose -f docker-compose.prod.yml exec -T backend python -m "etl.$JOB"

@@ -292,6 +292,14 @@ def test_stats_group_by_rate_la_2023_has_rates(client):
     assert response.status_code == 200
 
 
+def test_stats_group_by_rate_rejects_cause_filter(client):
+    """mv_crash_rates carries no canonical_cause — combining the two must
+    422 rather than silently return unfiltered rates as filtered."""
+    response = client.get("/api/stats?group_by=rate&cause=dui")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "cause"
+
+
 # --- cause filter accepts new categories ---
 
 

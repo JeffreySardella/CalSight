@@ -10,7 +10,7 @@ from typing import Literal
 
 from sqlalchemy import text
 
-from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
+from app.database import EtlSessionLocal as SessionLocal, etl_engine  # write/DDL role
 from app.models import EtlRun
 
 logger = logging.getLogger(__name__)
@@ -220,26 +220,35 @@ def run_pipeline(
     skip_static: bool = True,
     force_refresh: bool = False,
 ) -> list[EtlRun]:
-    db = SessionLocal()
+    # Hold the advisory lock on a dedicated AUTOCOMMIT connection. A session
+    # would auto-begin a transaction here and keep it open ("idle in
+    # transaction") for the entire multi-hour run, pinning the xmin horizon
+    # so autovacuum — and our own tail-end vacuum job — couldn't reclaim any
+    # dead tuples the load itself produces on the 11M-row table. Session-level
+    # advisory locks live on the connection, not a transaction, so AUTOCOMMIT
+    # holds the lock just as well without blocking vacuum.
+    lock_conn = etl_engine.connect().execution_options(isolation_level="AUTOCOMMIT")
     try:
-        acquired = db.execute(
+        acquired = lock_conn.execute(
             text("SELECT pg_try_advisory_lock(:id)"), {"id": _PIPELINE_LOCK_ID}
         ).scalar()
         if not acquired:
             logger.warning("Pipeline already running (advisory lock held), skipping")
+            lock_conn.close()
             return []
     except Exception:
-        db.close()
+        lock_conn.close()
         raise
 
     try:
         return _run_pipeline_locked(registry, triggered_by, only, skip_static, force_refresh)
     finally:
         try:
-            db.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": _PIPELINE_LOCK_ID})
-            db.commit()
+            lock_conn.execute(
+                text("SELECT pg_advisory_unlock(:id)"), {"id": _PIPELINE_LOCK_ID}
+            )
         finally:
-            db.close()
+            lock_conn.close()
 
 
 def _run_pipeline_locked(

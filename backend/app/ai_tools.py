@@ -119,8 +119,12 @@ def query_crashes(
     preds = []
     if county:
         code = _county_code(db, county)
-        if code is not None:
-            preds.append(Crash.county_code == code)
+        if code is None:
+            # Never silently drop the filter: an unresolvable county would
+            # return the 11M-row statewide total, which the model then
+            # confidently cites as the county figure.
+            return [{"error": f"County not found: {county}"}]
+        preds.append(Crash.county_code == code)
     if years:
         preds.append(Crash.crash_year.in_(years))
     if severity:
@@ -356,8 +360,11 @@ def get_trend(
     preds = []
     if county:
         code = _county_code(db, county)
-        if code is not None:
-            preds.append(Crash.county_code == code)
+        if code is None:
+            # Same as query_crashes: dropping the filter would present
+            # statewide numbers as the county's trend.
+            return [{"error": f"County not found: {county}"}]
+        preds.append(Crash.county_code == code)
     if year_start:
         preds.append(Crash.crash_year >= year_start)
     if year_end:
@@ -784,12 +791,13 @@ def get_crash_rate(
     """Get crash rates per capita, per licensed driver, and per vehicle for a county."""
     code = _county_code(db, county)
     if not code:
-        return None
+        return {"error": f"County not found: {county}"}
 
     crash_q = db.query(
         func.count(Crash.id).label("total_crashes"),
         func.sum(Crash.number_killed).label("total_killed"),
         func.sum(Crash.number_injured).label("total_injured"),
+        func.count(func.distinct(Crash.crash_year)).label("years_covered"),
     ).filter(Crash.county_code == code)
     if years:
         crash_q = crash_q.filter(Crash.crash_year.in_(years))
@@ -807,23 +815,33 @@ def get_crash_rate(
     ).order_by(VehicleRegistration.year.desc()).first()
     vehicles = vr[0] if vr else None
 
+    # The denominators (population, drivers, vehicles) are single-year
+    # figures, so normalize the numerator to an annual average. Without
+    # this, an unrestricted query divides ~25 years of crashes by one
+    # year's population and reports a rate inflated ~25x.
+    years_covered = crash_row.years_covered or 1
+    crashes_per_year = crash_row.total_crashes / years_covered
+    killed_per_year = int(crash_row.total_killed or 0) / years_covered
+
     result = {
         "county": county,
         "total_crashes": crash_row.total_crashes,
         "total_killed": int(crash_row.total_killed or 0),
         "total_injured": int(crash_row.total_injured or 0),
+        "years_covered": years_covered,
+        "rate_basis": f"annual average over {years_covered} year(s) of crash data",
         "population": pop,
         "licensed_drivers": drivers,
         "registered_vehicles": vehicles,
     }
 
     if pop and pop > 0:
-        result["crashes_per_100k_pop"] = round(crash_row.total_crashes / pop * 100_000, 1)
-        result["fatalities_per_100k_pop"] = round(int(crash_row.total_killed or 0) / pop * 100_000, 1)
+        result["crashes_per_100k_pop"] = round(crashes_per_year / pop * 100_000, 1)
+        result["fatalities_per_100k_pop"] = round(killed_per_year / pop * 100_000, 1)
     if drivers and drivers > 0:
-        result["crashes_per_10k_drivers"] = round(crash_row.total_crashes / drivers * 10_000, 1)
+        result["crashes_per_10k_drivers"] = round(crashes_per_year / drivers * 10_000, 1)
     if vehicles and vehicles > 0:
-        result["crashes_per_10k_vehicles"] = round(crash_row.total_crashes / vehicles * 10_000, 1)
+        result["crashes_per_10k_vehicles"] = round(crashes_per_year / vehicles * 10_000, 1)
     if crash_row.total_crashes > 0:
         result["fatality_rate_pct"] = round(int(crash_row.total_killed or 0) / crash_row.total_crashes * 100, 2)
         result["injury_rate_pct"] = round(int(crash_row.total_injured or 0) / crash_row.total_crashes * 100, 2)

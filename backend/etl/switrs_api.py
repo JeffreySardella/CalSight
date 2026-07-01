@@ -93,10 +93,17 @@ def _parse_switrs_datetime(date_str, time_str):
     if time_str is None or time_str == "":
         hour, minute = 0, 0
     else:
-        # Format is "HH:MM:SS" — split on colons
+        # Format is "HH:MM:SS" — split on colons. Malformed values
+        # ("UNK:00", "2500") appear in the archive; fall back to midnight
+        # rather than letting one bad row abort the whole multi-hour load.
         parts = str(time_str).split(":")
-        hour = int(parts[0]) if len(parts) >= 1 else 0
-        minute = int(parts[1]) if len(parts) >= 2 else 0
+        try:
+            hour = int(parts[0]) if len(parts) >= 1 else 0
+            minute = int(parts[1]) if len(parts) >= 2 else 0
+        except ValueError:
+            hour, minute = 0, 0
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            hour, minute = 0, 0
 
     try:
         date = datetime.fromisoformat(date_str)
@@ -253,10 +260,16 @@ def download_switrs_archive(dest_dir: str) -> str:
     return str(sqlite_path)
 
 
-def read_crashes_from_sqlite(
-    sqlite_path: str, start_year: int, end_year: int
-) -> list[dict]:
-    """Read and transform collision records from the SWITRS SQLite database.
+def iter_crashes_from_sqlite(
+    sqlite_path: str, start_year: int, end_year: int, batch_size: int = 5000,
+):
+    """Stream transformed collision records from the SWITRS SQLite database.
+
+    Yields lists of up to `batch_size` dicts (keys matching the Crash model
+    columns) so the caller can upsert each batch before the next is read.
+    Materializing all 15 years at once (~6-7M dicts) needs multiple GB of
+    RSS and has OOM-killed the ETL VM before — streaming keeps memory flat
+    at one batch regardless of the year range.
 
     Queries the `collisions` table one year at a time using COLLISION_DATE
     prefix matching, transforms each row via transform_switrs(), and skips
@@ -269,11 +282,9 @@ def read_crashes_from_sqlite(
         sqlite_path: Path to the extracted SWITRS .sqlite file.
         start_year: First year to load (inclusive).
         end_year: Last year to load (inclusive).
-
-    Returns:
-        List of dicts with keys matching the Crash model column names.
+        batch_size: Max records per yielded batch.
     """
-    results = []
+    total = 0
 
     with sqlite3.connect(sqlite_path) as conn:
         conn.row_factory = sqlite3.Row  # enables dict-style column access
@@ -287,6 +298,7 @@ def read_crashes_from_sqlite(
             )
 
             year_count = 0
+            batch: list[dict] = []
             for raw_row in cursor:
                 # Convert sqlite3.Row to plain dict for consistent handling
                 row = dict(raw_row)
@@ -303,13 +315,33 @@ def read_crashes_from_sqlite(
                     )
                     continue
 
-                results.append(transformed)
+                batch.append(transformed)
                 year_count += 1
+                if len(batch) >= batch_size:
+                    yield batch
+                    batch = []
 
+            if batch:
+                yield batch
+
+            total += year_count
             logger.info("Year %d: loaded %d records", year, year_count)
 
     logger.info(
         "Total SWITRS records loaded (%d–%d): %d",
-        start_year, end_year, len(results),
+        start_year, end_year, total,
     )
+
+
+def read_crashes_from_sqlite(
+    sqlite_path: str, start_year: int, end_year: int
+) -> list[dict]:
+    """Materialize the full year range as one list.
+
+    Prefer iter_crashes_from_sqlite() for multi-year loads — this exists for
+    small ranges and tests where a flat list is convenient.
+    """
+    results: list[dict] = []
+    for batch in iter_crashes_from_sqlite(sqlite_path, start_year, end_year):
+        results.extend(batch)
     return results

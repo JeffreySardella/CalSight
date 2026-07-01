@@ -303,10 +303,12 @@ def run(
         failed_batches = 0
 
         # --- SWITRS years ---
-        # Download the archive once, then read all years from the SQLite file.
-        # This avoids re-downloading for each year (the archive is ~1 GB).
+        # Download the archive once, then STREAM batches from the SQLite
+        # file. Materializing all 15 years at once (~6-7M dicts, multiple GB
+        # of RSS) has OOM-killed this VM before — each batch is upserted
+        # before the next is read, so memory stays flat.
         if switrs_years:
-            from etl.switrs_api import download_switrs_archive, read_crashes_from_sqlite  # noqa: PLC0415
+            from etl.switrs_api import download_switrs_archive, iter_crashes_from_sqlite  # noqa: PLC0415
 
             tmp_dir = tempfile.mkdtemp(prefix="switrs_")
             logger.info("Downloading SWITRS archive to %s", tmp_dir)
@@ -314,26 +316,28 @@ def run(
 
             switrs_start = min(switrs_years)
             switrs_end = max(switrs_years)
-            all_switrs_rows = read_crashes_from_sqlite(sqlite_path, switrs_start, switrs_end)
-
             logger.info(
-                "SWITRS: %d records for years %d–%d, upserting in batches of %d",
-                len(all_switrs_rows), switrs_start, switrs_end, BATCH_SIZE,
+                "SWITRS: streaming years %d–%d in batches of %d",
+                switrs_start, switrs_end, BATCH_SIZE,
             )
 
-            for batch_start in range(0, len(all_switrs_rows), BATCH_SIZE):
-                batch = all_switrs_rows[batch_start: batch_start + BATCH_SIZE]
+            switrs_rows_seen = 0
+            for batch in iter_crashes_from_sqlite(
+                sqlite_path, switrs_start, switrs_end, batch_size=BATCH_SIZE,
+            ):
+                batch_start = switrs_rows_seen
+                switrs_rows_seen += len(batch)
                 try:
                     count = upsert_crashes(db, batch, city_lookup=city_lookup)
                     db.commit()
                     total_rows += count
                     logger.info(
                         "SWITRS batch [%d:%d]: %d rows upserted",
-                        batch_start, batch_start + len(batch), count,
+                        batch_start, switrs_rows_seen, count,
                     )
                 except Exception as exc:
                     failed_batches += 1
-                    logger.error("SWITRS batch [%d:%d] failed: %s", batch_start, batch_start + len(batch), exc)
+                    logger.error("SWITRS batch [%d:%d] failed: %s", batch_start, switrs_rows_seen, exc)
                     db.rollback()
 
         # --- CCRS years ---
