@@ -5,6 +5,7 @@ import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 import { useLiteMode } from "../../context/LiteModeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
+import { getMapSeverityColors } from "../../lib/theme/tokens";
 
 interface CrashDotLayerProps {
   points: HeatmapPoint[];
@@ -37,12 +38,14 @@ function formatCause(cause: string | null | undefined): string {
 
 const MIN_ZOOM = 14;
 
-export default memo(function CrashDotLayer({ points, enabled }: CrashDotLayerProps) {
+export default memo(function CrashDotLayer({ points, enabled, palette }: CrashDotLayerProps) {
   const map = useMap();
   const isDark = useIsDark();
   const { isLite } = useLiteMode();
   const tokens = useDesignTokens();
-  const dotColors: DotColors = tokens.severity;
+  // Severity colors follow the map palette selected in the Layers panel, so
+  // e.g. the colorblind-safe palette reaches the dots (see getMapSeverityColors).
+  const dotColors: DotColors = getMapSeverityColors(palette, isDark, tokens.severity);
   const [zoom, setZoom] = useState(map.getZoom());
   const [center, setCenter] = useState(map.getCenter());
   const maxDots = isLite ? 400 : 800;

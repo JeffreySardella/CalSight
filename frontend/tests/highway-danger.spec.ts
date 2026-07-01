@@ -15,13 +15,11 @@ test("toggle highway-danger layer draws lines and clicking one opens its stats",
   // Open the Layers panel from the icon rail.
   await page.getByRole("button", { name: "Layers" }).click();
 
-  // The Highway Danger toggle is an unlabeled button in its row; target the
-  // row by its text, then click the toggle inside it.
-  const highwayRow = page
-    .locator("div.flex.justify-between")
-    .filter({ hasText: "Highway Danger" })
-    .first();
-  await highwayRow.getByRole("button").click();
+  // The Highway Danger toggle is a labeled switch — target it by role + name.
+  const highwayToggle = page.getByRole("switch", { name: "Highway Danger" });
+  await expect(highwayToggle).toHaveAttribute("aria-checked", "false");
+  await highwayToggle.click();
+  await expect(highwayToggle).toHaveAttribute("aria-checked", "true");
 
   // Leaflet draws polylines as <path> in the overlay pane.
   const line = page.locator(".leaflet-overlay-pane path").first();

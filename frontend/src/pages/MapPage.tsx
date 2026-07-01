@@ -200,6 +200,18 @@ function MapPageInner() {
     ? { points: countyHeatmap.points, totalCrashes: countyHeatmap.totalCrashes, isLoading: countyHeatmap.isLoading, error: countyHeatmap.error }
     : statewideHeatmap;
 
+  // Surface heatmap failures instead of leaving a silently blank map. The
+  // card is dismissible; a fresh error (or a successful retry) re-arms it.
+  const heatmapError = useCountyDetail ? countyHeatmap.error : statewideHeatmap.error;
+  const [heatmapErrorDismissed, setHeatmapErrorDismissed] = useState(false);
+  useEffect(() => {
+    if (!heatmapError) setHeatmapErrorDismissed(false);
+  }, [heatmapError]);
+  const retryHeatmap = () => {
+    if (useCountyDetail) countyHeatmap.retry();
+    else void statewideHeatmap.refetch();
+  };
+
   const mismatchCountySlug = focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null;
   const mismatchHeatmap = useCrashHeatmap({
     enabled: otherLayers.coordMismatches && !!mismatchCountySlug,
@@ -811,18 +823,32 @@ function MapPageInner() {
             </div>
           </div>
         )}
-        {useCountyDetail && countyHeatmap.error && countyHeatmap.points.length > 0 && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20">
-            <button
-              onClick={() => countyHeatmap.retry()}
-              className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-full ghost-border shadow-lg flex items-center gap-2 hover:bg-surface-container-low/95 transition-colors cursor-pointer"
+        {heatmapEnabled && !!heatmapError && !heatmapErrorDismissed && (
+          <div className="absolute top-14 md:top-3 left-1/2 -translate-x-1/2 z-20">
+            <div
+              role="alert"
+              className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2.5 rounded-xl ghost-border shadow-lg min-w-[220px] flex items-center gap-2"
             >
-              <span className="material-symbols-outlined text-[14px] text-error">wifi_off</span>
-              <span className="text-xs font-medium text-on-surface-variant">
-                {countyHeatmap.points.length.toLocaleString()} / {countyHeatmap.totalCrashes.toLocaleString()} loaded
+              <span className="material-symbols-outlined text-[14px] text-error shrink-0" aria-hidden="true">wifi_off</span>
+              <span className="text-xs font-medium text-on-surface-variant flex-1">
+                {useCountyDetail && countyHeatmap.points.length > 0
+                  ? `Heatmap interrupted — ${countyHeatmap.points.length.toLocaleString()} / ${countyHeatmap.totalCrashes.toLocaleString()} loaded`
+                  : "Couldn't load the crash heatmap"}
               </span>
-              <span className="text-xs text-primary font-semibold">Retry</span>
-            </button>
+              <button
+                onClick={retryHeatmap}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setHeatmapErrorDismissed(true)}
+                className="text-on-surface-variant hover:text-on-surface transition-colors -mr-1"
+                aria-label="Dismiss"
+              >
+                <span className="material-symbols-outlined text-[14px]" aria-hidden="true">close</span>
+              </button>
+            </div>
           </div>
         )}
       </section>

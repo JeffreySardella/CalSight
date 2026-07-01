@@ -95,7 +95,7 @@ async function fetchHeatmap(params: HeatmapParams): Promise<HeatmapApiResponse> 
 }
 
 export function useCrashHeatmap(params: HeatmapParams) {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: [
       "crashHeatmap",
       params.county,
@@ -132,6 +132,7 @@ export function useCrashHeatmap(params: HeatmapParams) {
     totalBatches: data?.total_batches ?? null,
     isLoading,
     error,
+    refetch,
   };
 }
 
@@ -160,11 +161,15 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     }
   }, [points, batch, currentBatch, filterKey]);
 
+  // Auto-advance after any *successful* response while batches remain — a
+  // legitimately empty page must not stall the sequence. Only stop on error
+  // or completion. `batch === currentBatch` ensures the response we advance
+  // from actually belongs to the batch we asked for.
   useEffect(() => {
-    if (!isLoading && totalBatches && currentBatch < totalBatches && points.length > 0) {
+    if (!isLoading && !error && totalBatches && batch === currentBatch && currentBatch < totalBatches) {
       setCurrentBatch((b) => b + 1);
     }
-  }, [isLoading, totalBatches, currentBatch, points.length]);
+  }, [isLoading, error, totalBatches, batch, currentBatch]);
 
   const loadNextBatch = useCallback(() => {
     if (totalBatches && currentBatch < totalBatches) {

@@ -158,6 +158,27 @@ export function getTokens(
 }
 
 /**
+ * Resolve severity dot colors for a map-layer palette selection (LayersPanel).
+ *
+ * The "default" map palette defers to the theme's severity tokens (which honor
+ * the user's chart palette and custom theme colors). Any other map palette
+ * (warm / cool / colorblind) uses that palette's hand-picked severity colors —
+ * so e.g. selecting "Colorblind Safe" in the Layers panel actually reaches the
+ * crash dots. Dark mode gets the same lighten treatment as `getTokens`.
+ */
+export function getMapSeverityColors(
+  paletteKey: ChartPaletteKey,
+  isDark: boolean,
+  themeSeverity: SeverityTokens,
+): SeverityTokens {
+  if (paletteKey === "default") return themeSeverity;
+  const sev = getPaletteSeverity(paletteKey);
+  return isDark
+    ? { fatal: lighten(sev.fatal, 0.2), injury: lighten(sev.injury, 0.2), pdo: lighten(sev.pdo, 0.3) }
+    : { ...sev };
+}
+
+/**
  * Derive a 5-color choropleth scale from the categorical palette.
  * Picks evenly-spaced colors from the palette array.
  */
