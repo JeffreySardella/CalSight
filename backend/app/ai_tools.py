@@ -831,6 +831,42 @@ def get_crash_rate(
     return result
 
 
+def get_top_intersections(
+    db: Session,
+    county: str | None = None,
+    years: list[int] | None = None,
+    corridors: bool = False,
+    limit: int = 10,
+) -> list[dict]:
+    """Street-level crash aggregation, ranked by crash count.
+
+    Groups crashes by (primary_road x secondary_road) — or by primary_road
+    alone when corridors=True — using the road-pair model. Returns roads,
+    crash_count, and the fatal/injury/pdo split. Presents counts only; the
+    ranking is by count and the caller draws conclusions.
+    """
+    from app.routers.intersections import _aggregate  # noqa: PLC0415 (avoid import cycle)
+
+    code = None
+    if county:
+        code = _county_code(db, county)
+        if code is None:
+            return [{"error": f"County not found: {county}"}]
+
+    year_start = min(years) if years else None
+    year_end = max(years) if years else None
+    rows = _aggregate(
+        db,
+        by_secondary=not corridors,
+        county_code=code,
+        year_start=year_start,
+        year_end=year_end,
+        min_crashes=1,
+        limit=min(limit, _MAX_ROWS),
+    )
+    return [r.model_dump() for r in rows]
+
+
 # Tool registry
 # ---------------------------------------------------------------------------
 
@@ -848,4 +884,5 @@ TOOL_REGISTRY: dict[str, Any] = {
     "get_unemployment": get_unemployment,
     "get_vehicle_stats": get_vehicle_stats,
     "get_crash_rate": get_crash_rate,
+    "get_top_intersections": get_top_intersections,
 }
