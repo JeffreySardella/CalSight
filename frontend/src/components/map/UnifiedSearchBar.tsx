@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useId } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { CA_COUNTIES } from "../../hooks/useFilterParams";
 import { useNominatim } from "../../hooks/useNominatim";
@@ -29,6 +29,10 @@ export default function UnifiedSearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
+  const baseId = useId();
+  const desktopListId = `${baseId}-d`;
+  const mobileListId = `${baseId}-m`;
+  const optionId = (listId: string, idx: number) => `${listId}-opt-${idx}`;
 
   const { favorites, addFavorite, removeFavorite, isFavorite } = useFavoriteLocations();
 
@@ -145,8 +149,14 @@ export default function UnifiedSearchBar({
 
   const renderResults = (isMobile: boolean) => {
     if (!expanded || allResults.length === 0) return null;
+    const listId = isMobile ? mobileListId : desktopListId;
     return (
-      <div className={`${isMobile ? "mt-1" : "mt-1.5"} bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-2xl shadow-lg overflow-hidden max-h-72 overflow-y-auto`}>
+      <div
+        id={listId}
+        role="listbox"
+        aria-label="Search results"
+        className={`${isMobile ? "mt-1" : "mt-1.5"} bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-2xl shadow-lg overflow-hidden max-h-72 overflow-y-auto`}
+      >
         {showFavorites && (
           <div className="px-4 pt-3 pb-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Favorites</span>
@@ -166,37 +176,49 @@ export default function UnifiedSearchBar({
                 </span>
               </div>
             )}
-            <button
-              onClick={() => handleSelect(item)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+            <div
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                 idx === highlightIdx ? "bg-primary-container text-on-primary-container" : "text-on-surface hover:bg-surface-container"
               }`}
             >
-              <span className="material-symbols-outlined text-[16px] text-on-surface-variant shrink-0">
-                {iconForType(item.type)}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="truncate font-medium">{item.label}{item.type === "county" ? " County" : ""}</div>
-                {item.sub && <div className="text-[11px] text-on-surface-variant truncate">{item.sub}</div>}
-              </div>
+              <button
+                type="button"
+                id={optionId(listId, idx)}
+                role="option"
+                aria-selected={idx === highlightIdx}
+                onClick={() => handleSelect(item)}
+                onMouseEnter={() => setHighlightIdx(idx)}
+                className="flex-1 min-w-0 flex items-center gap-3 text-left"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-on-surface-variant shrink-0">
+                  {iconForType(item.type)}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate font-medium">{item.label}{item.type === "county" ? " County" : ""}</div>
+                  {item.sub && <div className="text-[11px] text-on-surface-variant truncate">{item.sub}</div>}
+                </div>
+              </button>
               {item.type === "favorite" ? (
                 <button
+                  type="button"
                   onClick={(e) => handleRemoveFavorite(item, e)}
                   className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center"
                   aria-label={`Remove ${item.label} from favorites`}
                 >
-                  <span className="material-symbols-outlined text-[14px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[14px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                 </button>
               ) : item.type === "place" && item.lat != null ? (
                 (() => {
                   const saved = isFavorite(item.lat!, item.lng!);
                   return (
                     <button
+                      type="button"
                       onClick={(e) => saved ? handleRemoveFavorite(item, e) : handleSaveFavorite(item, e)}
                       className="p-1 hover:bg-surface-container-high rounded-full transition-colors shrink-0 min-w-[24px] min-h-[24px] flex items-center justify-center"
                       aria-label={saved ? `Remove ${item.label} from favorites` : `Save ${item.label} to favorites`}
                     >
                       <span
+                        aria-hidden="true"
                         className={`material-symbols-outlined text-[14px] ${saved ? "text-primary" : "text-on-surface-variant"}`}
                         style={saved ? { fontVariationSettings: "'FILL' 1" } : undefined}
                       >star</span>
@@ -204,7 +226,7 @@ export default function UnifiedSearchBar({
                   );
                 })()
               ) : null}
-            </button>
+            </div>
           </div>
         ))}
         {trimmed && countyMatches.length === 0 && nominatimResults.length === 0 && !nominatimLoading && trimmed.length >= 3 && (
@@ -246,19 +268,21 @@ export default function UnifiedSearchBar({
       {!mobileExpanded && (
         <div className="absolute top-3 right-28 z-20 md:hidden flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setMobileExpanded(true)}
             className="flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface"
             aria-label="Search"
           >
-            <span className="material-symbols-outlined text-[20px]">search</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">search</span>
           </button>
           <button
+            type="button"
             onClick={onGeolocate}
             disabled={locating}
             className={`flex items-center justify-center w-11 h-11 bg-surface-container-lowest/90 backdrop-blur-md rounded-full shadow-lg ghost-border text-on-surface-variant ${locating ? "animate-pulse" : ""}`}
             aria-label="My location"
           >
-            <span className="material-symbols-outlined text-[20px]">my_location</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">my_location</span>
           </button>
         </div>
       )}
@@ -268,10 +292,16 @@ export default function UnifiedSearchBar({
         <div className="absolute top-3 left-4 right-4 z-[45] md:hidden">
           <div ref={containerRef}>
             <div className="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest rounded-full shadow-lg ghost-border">
-              <span className="material-symbols-outlined text-lg text-on-surface-variant">search</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-lg text-on-surface-variant">search</span>
               <input
                 ref={mobileInputRef}
                 type="text"
+                role="combobox"
+                aria-expanded={expanded && allResults.length > 0}
+                aria-controls={mobileListId}
+                aria-haspopup="listbox"
+                aria-autocomplete="list"
+                aria-activedescendant={highlightIdx >= 0 ? optionId(mobileListId, highlightIdx) : undefined}
                 value={mobileQuery}
                 onChange={(e) => setMobileQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -281,10 +311,12 @@ export default function UnifiedSearchBar({
                 className="flex-1 bg-transparent text-[16px] text-on-surface placeholder:text-on-surface-variant/60 outline-none ring-0 border-none"
               />
               <button
+                type="button"
                 onClick={() => { setMobileExpanded(false); setMobileQuery(""); close(); }}
                 className="p-1 hover:bg-surface-container rounded-full transition-colors"
+                aria-label="Close search"
               >
-                <span className="material-symbols-outlined text-[18px] text-on-surface-variant">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-on-surface-variant">close</span>
               </button>
             </div>
             {renderResults(true)}
@@ -307,12 +339,18 @@ export default function UnifiedSearchBar({
           onKeyDown={(e) => { if (!expanded && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setExpanded(true); } }}
           aria-label={expanded ? undefined : "Open search"}
         >
-          <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">search</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">search</span>
           {expanded ? (
             <>
               <input
                 ref={inputRef}
                 type="text"
+                role="combobox"
+                aria-expanded={expanded && allResults.length > 0}
+                aria-controls={desktopListId}
+                aria-haspopup="listbox"
+                aria-autocomplete="list"
+                aria-activedescendant={highlightIdx >= 0 ? optionId(desktopListId, highlightIdx) : undefined}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -325,10 +363,12 @@ export default function UnifiedSearchBar({
                 <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
               )}
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); close(); }}
                 className="p-0.5 rounded-full hover:bg-surface-container transition-colors"
+                aria-label="Close search"
               >
-                <span className="material-symbols-outlined text-[18px] text-on-surface-variant">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-on-surface-variant">close</span>
               </button>
             </>
           ) : (
@@ -343,24 +383,30 @@ export default function UnifiedSearchBar({
       {/* ── Desktop: bottom controls (location + zoom) ── */}
       <div className="hidden md:flex absolute bottom-6 right-4 z-[35] flex-col items-center gap-1 p-1 bg-surface-container-lowest rounded-full shadow-lg">
         <button
+          type="button"
           onClick={onGeolocate}
           disabled={locating}
+          aria-label="My location"
           className={`p-3 text-on-surface-variant hover:text-on-surface transition-colors ${locating ? "animate-pulse" : ""}`}
         >
-          <span className="material-symbols-outlined">my_location</span>
+          <span aria-hidden="true" className="material-symbols-outlined">my_location</span>
         </button>
         <div className="h-[1px] w-6 bg-outline-variant/30" />
         <button
+          type="button"
           onClick={() => map?.zoomIn(1, { animate: true })}
+          aria-label="Zoom in"
           className="p-3 text-on-surface-variant hover:text-on-surface transition-colors"
         >
-          <span className="material-symbols-outlined">zoom_in</span>
+          <span aria-hidden="true" className="material-symbols-outlined">zoom_in</span>
         </button>
         <button
+          type="button"
           onClick={() => map?.zoomOut(1, { animate: true })}
+          aria-label="Zoom out"
           className="p-3 text-on-surface-variant hover:text-on-surface transition-colors"
         >
-          <span className="material-symbols-outlined">zoom_out</span>
+          <span aria-hidden="true" className="material-symbols-outlined">zoom_out</span>
         </button>
       </div>
     </>
