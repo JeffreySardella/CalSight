@@ -6,6 +6,7 @@ vi.mock("../../hooks/useDistribution", () => ({
 }));
 import { MemoryRouter } from "react-router-dom";
 import { AiCompanionProvider, useAiCompanion } from "./AiCompanion";
+import { AskAiProvider } from "../../hooks/useAskAi";
 import type { DataContext } from "../../lib/ai/dataContext";
 
 const filters = {
@@ -22,7 +23,7 @@ function Trigger() {
 
 describe("AiCompanion", () => {
   it("opens on demand and shows the instant explanation", () => {
-    render(<MemoryRouter><AiCompanionProvider><Trigger /></AiCompanionProvider></MemoryRouter>);
+    render(<MemoryRouter><AskAiProvider><AiCompanionProvider><Trigger /></AiCompanionProvider></AskAiProvider></MemoryRouter>);
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getByText("explain"));
     const dialog = screen.getByRole("dialog", { name: "AI explanation" });
@@ -31,7 +32,7 @@ describe("AiCompanion", () => {
   });
 
   it("closes on Escape", () => {
-    render(<MemoryRouter><AiCompanionProvider><Trigger /></AiCompanionProvider></MemoryRouter>);
+    render(<MemoryRouter><AskAiProvider><AiCompanionProvider><Trigger /></AiCompanionProvider></AskAiProvider></MemoryRouter>);
     fireEvent.click(screen.getByText("explain"));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();

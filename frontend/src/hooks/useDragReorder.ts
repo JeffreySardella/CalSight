@@ -102,6 +102,11 @@ export function useDragReorder({
   const containerRef = useRef<HTMLElement | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const dragSourceIndex = useRef<number>(-1);
+  // Mirror the latest dragState so handleDragEnd can read dragId/overIndex
+  // without depending on dragState — that dependency previously rebuilt
+  // getItemProps on every dragover, handing every card fresh props.
+  const dragStateRef = useRef(dragState);
+  dragStateRef.current = dragState;
   // Track which handle was activated so we can cancel drags started elsewhere
   const handleActivatedRef = useRef(false);
 
@@ -218,7 +223,7 @@ export function useDragReorder({
     stopAutoScroll();
     handleActivatedRef.current = false;
 
-    const { dragId, overIndex } = dragState;
+    const { dragId, overIndex } = dragStateRef.current;
     const fromIndex = dragSourceIndex.current;
     // overIndex is an insertion index; onReorder (like the keyboard path)
     // expects the final item index, so convert before dispatching.
@@ -232,7 +237,7 @@ export function useDragReorder({
 
     setDragState({ dragId: null, overIndex: null, isDragging: false });
     dragSourceIndex.current = -1;
-  }, [dragState, onReorder, items.length, stopAutoScroll]);
+  }, [onReorder, items.length, stopAutoScroll]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();

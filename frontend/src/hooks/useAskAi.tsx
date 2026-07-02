@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE } from "../config";
 
@@ -43,6 +43,16 @@ interface AskResponse {
   tools_called: string[];
 }
 
+export interface AskAiApi {
+  messages: ChatMessage[];
+  isLoading: boolean;
+  error: string | null;
+  cooldownEnd: number;
+  sendMessage: (question: string) => Promise<void>;
+  retry: () => void;
+  clearConversation: () => void;
+}
+
 function loadMessages(): ChatMessage[] {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -66,7 +76,20 @@ function saveMessages(messages: ChatMessage[]) {
   }
 }
 
-export function useAskAi() {
+/**
+ * The single, shared source of truth for the Ask AI conversation. All of the
+ * conversation state (messages, cooldown, in-flight request) lives in exactly
+ * ONE instance of this hook, owned by <AskAiProvider>. Consumers reach it via
+ * the useAskAi() context hook below.
+ *
+ * Because there is only ever one live instance, the sessionStorage persistence
+ * runs once (not double-written by two providers), and the in-flight guard
+ * (inFlightRef / abortRef) is a single shared latch — if two consumers fire a
+ * request at the same instant, the second is refused by the same guard the Ask
+ * AI page already relies on. That's the simpler, safer choice: at most one
+ * outstanding /api/ask request across the whole app.
+ */
+function useAskAiState(): AskAiApi {
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -260,4 +283,32 @@ export function useAskAi() {
     retry,
     clearConversation,
   };
+}
+
+const AskAiContext = createContext<AskAiApi | null>(null);
+
+/**
+ * Owns the one and only Ask AI conversation instance. Mount this once, high
+ * enough in the tree to wrap every useAskAi() consumer (see App.tsx — it sits
+ * above both <AiCompanionProvider> and the <AskAiPage> route). Requires a
+ * router ancestor because the underlying state reads useSearchParams().
+ */
+export function AskAiProvider({ children }: { children: ReactNode }) {
+  const value = useAskAiState();
+  return <AskAiContext.Provider value={value}>{children}</AskAiContext.Provider>;
+}
+
+/**
+ * Access the shared Ask AI conversation. Public API is unchanged from the
+ * former standalone hook (messages, isLoading, error, cooldownEnd, sendMessage,
+ * retry, clearConversation) — but every consumer now reads/writes the SAME
+ * state, so the AI companion and the Ask AI page can no longer clobber each
+ * other's history.
+ */
+export function useAskAi(): AskAiApi {
+  const ctx = useContext(AskAiContext);
+  if (!ctx) {
+    throw new Error("useAskAi must be used within an <AskAiProvider>");
+  }
+  return ctx;
 }
