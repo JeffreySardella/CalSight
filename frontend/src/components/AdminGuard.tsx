@@ -8,10 +8,10 @@ const LEGACY_STORAGE_KEY = "calsight-admin-authenticated";
 
 /**
  * Route guard for admin pages. On successful verification the admin key is
- * kept in sessionStorage (so it dies with the tab, unlike localStorage) and
- * attached to /api/etl/* requests as the X-ETL-API-Key header. When the
- * backend rejects the key (403), the stored key is cleared and this guard
- * drops back to the locked state.
+ * kept in memory (never web storage — see lib/adminKey) and attached to
+ * /api/etl/* requests as the X-ETL-API-Key header. When the backend rejects
+ * the key (403), the key is cleared and this guard drops back to the locked
+ * state. A full page reload drops the in-memory key and re-prompts.
  */
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(() => getAdminKey() !== null);
