@@ -136,11 +136,27 @@ export function useCrashHeatmap(params: HeatmapParams) {
   };
 }
 
+// Hard ceiling on accumulated heatmap points for a single county view. A
+// dense county (e.g. Los Angeles) can return several million rows; holding
+// them all means multi-GB arrays, O(total) rebuilds per batch, and a full
+// rescan of the array on every pan. This many points already saturate the
+// heatmap's visual density and the dot layer is viewport-culled to ≤800, so
+// past this bound extra points cost memory and main-thread time for no
+// visible gain. When we hit it we stop fetching further batches and surface
+// `capped` so the UI can say it's showing a sample rather than looking stuck.
+export const MAX_HEATMAP_POINTS = 600_000;
+
 export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSize"> & { batchSize?: number }) {
   const size = params.batchSize ?? 150_000;
   const [currentBatch, setCurrentBatch] = useState(1);
   const [allPoints, setAllPoints] = useState<HeatmapPoint[]>([]);
+  // Highest batch number already folded into allPoints. Advancement waits on
+  // this so we never request batch N+1 before batch N is accounted for —
+  // otherwise the cap check (below) races the accumulation and lets one extra
+  // batch through.
+  const [loadedUpTo, setLoadedUpTo] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
+  const capped = allPoints.length >= MAX_HEATMAP_POINTS;
 
   const { points, totalCrashes, batch, totalBatches, isLoading, error } = useCrashHeatmap({
     ...params,
@@ -153,23 +169,38 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
   useEffect(() => {
     setCurrentBatch(1);
     setAllPoints([]);
+    setLoadedUpTo(0);
   }, [filterKey]);
 
+  // Fold each completed batch into the accumulator and mark it loaded. Runs
+  // for empty batches too (points can be legitimately empty) so advancement
+  // isn't stalled. `batch === currentBatch` ensures the response belongs to
+  // the batch we asked for.
   useEffect(() => {
-    if (points.length > 0 && batch === currentBatch) {
-      setAllPoints((prev) => currentBatch === 1 ? points : [...prev, ...points]);
+    if (!isLoading && !error && batch === currentBatch && loadedUpTo < currentBatch) {
+      if (points.length > 0) {
+        setAllPoints((prev) => {
+          if (currentBatch === 1) return points.slice(0, MAX_HEATMAP_POINTS);
+          if (prev.length >= MAX_HEATMAP_POINTS) return prev;
+          const remaining = MAX_HEATMAP_POINTS - prev.length;
+          // concat (not [...prev, ...points]) avoids spreading a multi-million
+          // element array into a fresh literal on every batch.
+          return prev.concat(remaining >= points.length ? points : points.slice(0, remaining));
+        });
+      }
+      setLoadedUpTo(currentBatch);
     }
-  }, [points, batch, currentBatch, filterKey]);
+  }, [points, batch, currentBatch, loadedUpTo, isLoading, error]);
 
-  // Auto-advance after any *successful* response while batches remain — a
-  // legitimately empty page must not stall the sequence. Only stop on error
-  // or completion. `batch === currentBatch` ensures the response we advance
-  // from actually belongs to the batch we asked for.
+  // Auto-advance once the current batch is folded in and batches remain. Stop
+  // on error, completion, or once we've hit the accumulation cap (fetching
+  // further batches would just discard them). Gating on loadedUpTo (not the
+  // raw response) keeps the cap check from racing the accumulation.
   useEffect(() => {
-    if (!isLoading && !error && totalBatches && batch === currentBatch && currentBatch < totalBatches) {
+    if (!capped && loadedUpTo === currentBatch && totalBatches && currentBatch < totalBatches) {
       setCurrentBatch((b) => b + 1);
     }
-  }, [isLoading, error, totalBatches, batch, currentBatch]);
+  }, [capped, loadedUpTo, totalBatches, currentBatch]);
 
   const loadNextBatch = useCallback(() => {
     if (totalBatches && currentBatch < totalBatches) {
@@ -186,7 +217,9 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     totalCrashes,
     currentBatch,
     totalBatches,
-    hasMore: totalBatches != null && currentBatch < totalBatches,
+    // Once capped we stop advancing, so there's no "more" to load.
+    hasMore: !capped && totalBatches != null && currentBatch < totalBatches,
+    capped,
     loadNextBatch,
     retry,
     isLoading,

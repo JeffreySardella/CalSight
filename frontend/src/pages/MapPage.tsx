@@ -851,6 +851,16 @@ function MapPageInner() {
             </div>
           </div>
         )}
+        {heatmapEnabled && useCountyDetail && countyHeatmap.capped && !countyHeatmap.error && (
+          <div className="absolute top-14 md:top-3 left-1/2 -translate-x-1/2 z-20">
+            <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-xl ghost-border shadow-lg min-w-[220px]">
+              <p className="text-[10px] text-on-surface-variant/70 text-center">
+                Showing a {countyHeatmap.points.length.toLocaleString()}-point sample
+                of {countyHeatmap.totalCrashes.toLocaleString()} crashes
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Mobile filter bottom sheet */}
