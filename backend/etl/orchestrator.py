@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import sys
 import time
@@ -81,6 +82,70 @@ def resolve_execution_order(registry: JobRegistry) -> list[Job]:
     return order
 
 
+_IDENT_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+
+
+def _table_row_count(db, table_name: str | None) -> int | None:
+    """COUNT(*) for a job's target table, or None if it has none / errors.
+
+    table_name comes from the trusted Job registry, never user input, but we
+    still validate the identifier before interpolating it into SQL.
+    """
+    if not table_name:
+        return None
+    if not _IDENT_RE.match(table_name):
+        logger.warning("Refusing to count suspicious table name: %r", table_name)
+        return None
+    try:
+        return db.execute(text(f"SELECT COUNT(*) FROM {table_name}")).scalar()
+    except Exception as exc:
+        logger.warning("Row count for %s failed: %s", table_name, exc)
+        return None
+
+
+def _validate_job(db, job: Job, rows_before: int | None) -> tuple[str, str | None]:
+    """Run validation for a successful load and return (status, summary).
+
+    status is one of: "passed", "warning", "failed", "skipped".
+    Non-blocking: the caller keeps status="success" regardless — this only
+    records what the checks found. A critical failure (e.g. a row-count drop
+    beyond job.max_drop_pct) yields "failed"; non-critical issues yield
+    "warning".
+    """
+    from etl.validation import check_row_count_growth, run_validation_suite
+
+    try:
+        report = run_validation_suite(db, source=job.name)
+
+        # Row-count guard is per-job (max_drop_pct) and needs the before/after
+        # counts, so it's added here rather than inside the source suite.
+        if job.table_name and rows_before is not None:
+            report.checks.append(
+                check_row_count_growth(
+                    db, job.table_name, rows_before, max_drop_pct=job.max_drop_pct,
+                )
+            )
+
+        if not report.checks:
+            return "skipped", None
+
+        summary = "; ".join(
+            f"{c.name}: {c.message}" for c in report.checks if not c.passed
+        ) or report.summary()
+
+        if report.critical_failures:
+            logger.warning("Validation FAILED for %s: %s", job.name, summary)
+            return "failed", summary[:2000]
+        if report.warnings:
+            logger.warning("Validation warnings for %s: %s", job.name, summary)
+            return "warning", summary[:2000]
+        return "passed", report.summary()
+    except Exception as exc:
+        # A broken check must not fail an otherwise-successful load.
+        logger.exception("Validation errored for %s: %s", job.name, exc)
+        return "skipped", f"validation error: {str(exc)[:500]}"
+
+
 def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False) -> EtlRun:
     from etl._utils import check_source_freshness
 
@@ -110,11 +175,14 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             db.close()
             return record
 
+    rows_before = _table_row_count(db, job.table_name)
+
     record = EtlRun(
         source=job.name,
         status="running",
         started_at=datetime.now(timezone.utc),
         triggered_by=triggered_by,
+        rows_before=rows_before,
     )
     db.add(record)
     db.commit()
@@ -141,10 +209,18 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             record.validation_status = "skipped"
         else:
             record.status = "success"
-            record.validation_status = "passed"
             if freshness:
                 record.last_source_modified = freshness.last_source_modified
                 record.source_row_count = freshness.source_row_count
+            # Run the validation suite against the freshly-loaded data and
+            # record the REAL outcome. Validation is non-blocking (a failure
+            # doesn't flip the load to error), but the status must reflect
+            # what actually happened — a truncated source that halved a table
+            # should read "failed", not a fabricated "passed".
+            record.rows_after = _table_row_count(db, job.table_name)
+            val_status, diff_summary = _validate_job(db, job, record.rows_before)
+            record.validation_status = val_status
+            record.diff_summary = diff_summary
 
         record.finished_at = datetime.now(timezone.utc)
         db.commit()
