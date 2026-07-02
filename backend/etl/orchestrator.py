@@ -9,7 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from sqlalchemy import text
+from sqlalchemy import func, select, text
+from sqlalchemy import table as sa_table
 
 from app.database import EtlSessionLocal as SessionLocal, etl_engine  # write/DDL role
 from app.models import EtlRun
@@ -88,8 +89,11 @@ _IDENT_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
 def _table_row_count(db, table_name: str | None) -> int | None:
     """COUNT(*) for a job's target table, or None if it has none / errors.
 
-    table_name comes from the trusted Job registry, never user input, but we
-    still validate the identifier before interpolating it into SQL.
+    table_name comes from the trusted Job registry, never user input. We both
+    validate the identifier AND build the statement with SQLAlchemy Core
+    (func.count() over a table() clause) rather than interpolating the name
+    into a raw SQL string — SQLAlchemy renders it as a quoted identifier, so
+    the table name never flows into query text as concatenated SQL.
     """
     if not table_name:
         return None
@@ -97,7 +101,8 @@ def _table_row_count(db, table_name: str | None) -> int | None:
         logger.warning("Refusing to count suspicious table name: %r", table_name)
         return None
     try:
-        return db.execute(text(f"SELECT COUNT(*) FROM {table_name}")).scalar()
+        stmt = select(func.count()).select_from(sa_table(table_name))
+        return db.execute(stmt).scalar()
     except Exception as exc:
         logger.warning("Row count for %s failed: %s", table_name, exc)
         return None
