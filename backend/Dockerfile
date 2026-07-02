@@ -1,20 +1,18 @@
-FROM python:3.12-slim
+# Pin to Debian 13 (trixie) explicitly. The floating `python:3.12-slim` tag
+# already moved bookworm -> trixie, which is what broke the previous PGDG
+# pin (its bookworm libpq5 wants libldap-2.5, absent on trixie). Pinning the
+# codename keeps the base from shifting under us again.
+FROM python:3.12-slim-trixie
 
 WORKDIR /app
 
-# pg_dump must match the server's major version (17) — Debian bookworm's
-# postgresql-client is v15, which refuses to dump a newer server. Pull the
-# client from the PGDG repo instead. apt runs in its own layer, before the
-# requirements COPY, so a dependency bump doesn't re-run it.
+# pg_dump must match the server's major version (17) so it can dump it —
+# an older client refuses a newer server. Debian 13 (trixie) ships
+# postgresql-client-17 in its own repos, so no PGDG repo is needed. apt runs
+# in its own layer, before the requirements COPY, so a dependency bump
+# doesn't re-run it.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
-    && install -d /usr/share/postgresql-common/pgdg \
-    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
-        > /etc/apt/sources.list.d/pgdg.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends postgresql-client-17 \
+    && apt-get install -y --no-install-recommends curl ca-certificates postgresql-client-17 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
