@@ -16,6 +16,7 @@ const INTERSECTION_ROWS = [
     fatal_count: 1,
     injury_count: 20,
     pdo_count: 21,
+    severity_score: 321,
     killed: 1,
     injured: 25,
     latitude: 34.0,
@@ -33,6 +34,7 @@ const CORRIDOR_ROWS = [
     fatal_count: 2,
     injury_count: 50,
     pdo_count: 38,
+    severity_score: 738,
     killed: 2,
     injured: 60,
     latitude: 34.1,
@@ -115,6 +117,21 @@ describe("IntersectionsPanel", () => {
 
     await vi.waitFor(() =>
       expect(spy.mock.calls.some((c) => String(c[0]).includes("pedestrian=true"))).toBe(true),
+    );
+  });
+
+  it("severity-weighted sort sends sort=severity and shows the Score column", async () => {
+    const spy = mockFetchByScope();
+    renderPanel();
+    await screen.findByText("Main St & 1st Ave");
+    // Score column is present, showing the severity_score.
+    expect(screen.getByRole("columnheader", { name: "Score" })).toBeInTheDocument();
+    expect(screen.getByText("321")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("radio", { name: "Severity-weighted" }));
+
+    await vi.waitFor(() =>
+      expect(spy.mock.calls.some((c) => String(c[0]).includes("sort=severity"))).toBe(true),
     );
   });
 

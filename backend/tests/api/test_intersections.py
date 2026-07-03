@@ -94,6 +94,28 @@ def test_unknown_county_404(client):
     assert r.status_code == 404
 
 
+def test_severity_score_and_sort(client, db_session):
+    """severity=fatal*100+injury*10+pdo*1; sort=severity ranks by it, so a
+    low-count-but-fatal intersection can outrank a high-count-but-minor one."""
+    db_session.add_all([
+        # HIGH ST x A: many minor crashes (10 PDO) -> count 10, score 10
+        *[_crash(9300 + i, "HIGH ST", "A AVE", severity="Property Damage Only", injured=0)
+          for i in range(10)],
+        # FATAL ST x B: 2 crashes, both fatal -> count 2, score 200
+        _crash(9350, "FATAL ST", "B AVE", severity="Fatal", killed=1, injured=0),
+        _crash(9351, "FATAL ST", "B AVE", severity="Fatal", killed=1, injured=0),
+    ])
+    db_session.flush()
+
+    by_count = client.get("/api/intersections?county=los-angeles&min_crashes=1&sort=count").json()
+    assert by_count[0]["primary_road"] == "HIGH ST"      # 10 > 2 by count
+    assert by_count[0]["severity_score"] == 10
+
+    by_sev = client.get("/api/intersections?county=los-angeles&min_crashes=1&sort=severity").json()
+    assert by_sev[0]["primary_road"] == "FATAL ST"       # 200 > 10 by severity
+    assert by_sev[0]["severity_score"] == 200
+
+
 def test_pedestrian_mode_filter(client, db_session):
     """A pedestrian filter restricts to pedestrian-involved crashes only."""
     db_session.add_all([

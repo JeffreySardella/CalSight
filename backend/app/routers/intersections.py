@@ -19,6 +19,8 @@ the counts and lets the reader draw conclusions.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
@@ -36,6 +38,15 @@ _limiter = Limiter(key_func=get_remote_address)
 
 _MAX_LIMIT = 200
 
+# Relative severity weights for the optional severity-weighted score
+# (EPDO-style — "equivalent property-damage-only"). These are a presentation
+# choice for ranking, not a statement about the value of a life; an order-of-
+# magnitude scale (fatal 100 : injury 10 : pdo 1) kept intentionally modest so
+# a single fatality doesn't wholly dominate the ranking. Documented so the
+# user knows how "severity-weighted" is computed and can weigh it against the
+# plain crash count.
+_W_FATAL, _W_INJURY, _W_PDO = 100, 10, 1
+
 
 class IntersectionOut(BaseModel):
     county_code: int
@@ -46,6 +57,7 @@ class IntersectionOut(BaseModel):
     fatal_count: int
     injury_count: int
     pdo_count: int
+    severity_score: int
     killed: int
     injured: int
     latitude: float | None = None
@@ -68,6 +80,7 @@ def _aggregate(
     limit: int,
     pedestrian: bool | None = None,
     cyclist: bool | None = None,
+    sort: str = "count",
 ) -> list[IntersectionOut]:
     primary = _norm(Crash.primary_road)
     preds = [Crash.primary_road.isnot(None), func.trim(Crash.primary_road) != ""]
@@ -93,6 +106,9 @@ def _aggregate(
     fatal = func.count(case((Crash.severity == "Fatal", 1)))
     injury = func.count(case((Crash.severity == "Injury", 1)))
     pdo = func.count(case((Crash.severity == "Property Damage Only", 1)))
+    severity_score = fatal * _W_FATAL + injury * _W_INJURY + pdo * _W_PDO
+
+    primary_order = severity_score.desc() if sort == "severity" else func.count(Crash.id).desc()
 
     stmt = (
         select(
@@ -104,6 +120,7 @@ def _aggregate(
             fatal.label("fatal_count"),
             injury.label("injury_count"),
             pdo.label("pdo_count"),
+            severity_score.label("severity_score"),
             func.coalesce(func.sum(Crash.number_killed), 0).label("killed"),
             func.coalesce(func.sum(Crash.number_injured), 0).label("injured"),
             cast(func.avg(Crash.latitude), Float).label("latitude"),
@@ -114,7 +131,7 @@ def _aggregate(
         .where(and_(*preds))
         .group_by(*group_cols, County.name)
         .having(func.count(Crash.id) >= min_crashes)
-        .order_by(func.count(Crash.id).desc(), fatal.desc())
+        .order_by(primary_order, fatal.desc())
         .limit(limit)
     )
 
@@ -129,6 +146,7 @@ def _aggregate(
             fatal_count=r.fatal_count,
             injury_count=r.injury_count,
             pdo_count=r.pdo_count,
+            severity_score=int(r.severity_score or 0),
             killed=int(r.killed or 0),
             injured=int(r.injured or 0),
             latitude=r.latitude,
@@ -159,15 +177,16 @@ def get_intersections(
     limit: int = Query(25, ge=1, le=_MAX_LIMIT),
     pedestrian: bool | None = Query(None, description="Only crashes involving a pedestrian"),
     cyclist: bool | None = Query(None, description="Only crashes involving a bicyclist"),
+    sort: Literal["count", "severity"] = Query("count", description="Rank by crash count or by severity-weighted score"),
     db: Session = Depends(get_db),
 ):
-    """Crashes aggregated by (primary_road x secondary_road), ranked by count."""
+    """Crashes aggregated by (primary_road x secondary_road), ranked by count or severity-weighted score."""
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     code = _resolve_county(db, county)
     return _aggregate(
         db, by_secondary=True, county_code=code, year_start=year_start,
         year_end=year_end, min_crashes=min_crashes, limit=limit,
-        pedestrian=pedestrian, cyclist=cyclist,
+        pedestrian=pedestrian, cyclist=cyclist, sort=sort,
     )
 
 
@@ -183,13 +202,14 @@ def get_corridors(
     limit: int = Query(25, ge=1, le=_MAX_LIMIT),
     pedestrian: bool | None = Query(None, description="Only crashes involving a pedestrian"),
     cyclist: bool | None = Query(None, description="Only crashes involving a bicyclist"),
+    sort: Literal["count", "severity"] = Query("count", description="Rank by crash count or by severity-weighted score"),
     db: Session = Depends(get_db),
 ):
-    """Crashes aggregated by primary_road (corridor), ranked by count."""
+    """Crashes aggregated by primary_road (corridor), ranked by count or severity-weighted score."""
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     code = _resolve_county(db, county)
     return _aggregate(
         db, by_secondary=False, county_code=code, year_start=year_start,
         year_end=year_end, min_crashes=min_crashes, limit=limit,
-        pedestrian=pedestrian, cyclist=cyclist,
+        pedestrian=pedestrian, cyclist=cyclist, sort=sort,
     )

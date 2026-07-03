@@ -12,6 +12,8 @@ export interface StreetAggRow {
   fatal_count: number;
   injury_count: number;
   pdo_count: number;
+  /** Severity-weighted score (fatal×100 + injury×10 + pdo×1). */
+  severity_score: number;
   killed: number;
   injured: number;
   latitude: number | null;
@@ -19,6 +21,7 @@ export interface StreetAggRow {
 }
 
 export type StreetScope = "intersections" | "corridors";
+export type StreetSort = "count" | "severity";
 
 export interface StreetAggParams {
   scope: StreetScope;
@@ -32,11 +35,13 @@ export interface StreetAggParams {
   pedestrian?: boolean;
   /** Restrict to bicyclist-involved crashes. */
   cyclist?: boolean;
+  /** Rank by raw crash count (default) or severity-weighted score. */
+  sort?: StreetSort;
   enabled?: boolean;
 }
 
 function buildUrl(params: StreetAggParams): string {
-  const { scope, county, yearStart, yearEnd, minCrashes, limit, pedestrian, cyclist } = params;
+  const { scope, county, yearStart, yearEnd, minCrashes, limit, pedestrian, cyclist, sort } = params;
   const p = new URLSearchParams();
   if (county) p.set("county", county);
   if (yearStart != null) p.set("year_start", String(yearStart));
@@ -45,6 +50,7 @@ function buildUrl(params: StreetAggParams): string {
   if (limit != null) p.set("limit", String(limit));
   if (pedestrian) p.set("pedestrian", "true");
   if (cyclist) p.set("cyclist", "true");
+  if (sort && sort !== "count") p.set("sort", sort);
   const qs = p.toString();
   return `${API_BASE}/api/${scope}${qs ? `?${qs}` : ""}`;
 }
@@ -64,6 +70,7 @@ export function useStreetAggregation(params: StreetAggParams) {
     limit = null,
     pedestrian = false,
     cyclist = false,
+    sort = "count",
     enabled = true,
   } = params;
 
@@ -79,9 +86,10 @@ export function useStreetAggregation(params: StreetAggParams) {
       limit,
       pedestrian,
       cyclist,
+      sort,
     ],
     queryFn: async () => {
-      const res = await fetch(buildUrl({ scope, county, yearStart, yearEnd, minCrashes, limit, pedestrian, cyclist }));
+      const res = await fetch(buildUrl({ scope, county, yearStart, yearEnd, minCrashes, limit, pedestrian, cyclist, sort }));
       if (!res.ok) throw new Error(`${scope} ${res.status}`);
       return res.json();
     },

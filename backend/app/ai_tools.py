@@ -838,15 +838,17 @@ def get_top_intersections(
     corridors: bool = False,
     pedestrian: bool | None = None,
     cyclist: bool | None = None,
+    sort: str = "count",
     limit: int = 10,
 ) -> list[dict]:
-    """Street-level crash aggregation, ranked by crash count.
+    """Street-level crash aggregation, ranked by crash count or severity.
 
     Groups crashes by (primary_road x secondary_road) — or by primary_road
     alone when corridors=True — using the road-pair model. Optional pedestrian
-    / cyclist filters restrict to those involvements. Returns roads,
-    crash_count, and the fatal/injury/pdo split. Presents counts only; the
-    ranking is by count and the caller draws conclusions.
+    / cyclist filters restrict to those involvements. sort='severity' ranks by
+    a severity-weighted score instead of raw crash count. Returns roads,
+    crash_count, severity_score, and the fatal/injury/pdo split. Presents the
+    numbers; the caller draws conclusions.
     """
     from app.routers.intersections import _aggregate  # noqa: PLC0415 (avoid import cycle)
 
@@ -868,6 +870,7 @@ def get_top_intersections(
         limit=min(limit, _MAX_ROWS),
         pedestrian=pedestrian,
         cyclist=cyclist,
+        sort="severity" if sort == "severity" else "count",
     )
     return [r.model_dump() for r in rows]
 

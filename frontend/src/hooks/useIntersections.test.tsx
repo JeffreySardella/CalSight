@@ -71,6 +71,22 @@ describe("useStreetAggregation", () => {
     expect(url).not.toContain("cyclist=");
   });
 
+  it("sends sort=severity only when severity ranking is chosen", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("[]"));
+    const { rerender } = renderHook(
+      ({ sort }: { sort: "count" | "severity" }) =>
+        useStreetAggregation({ scope: "intersections", sort }),
+      { wrapper: wrapper(), initialProps: { sort: "count" } as { sort: "count" | "severity" } },
+    );
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(String(spy.mock.calls[0][0])).not.toContain("sort=");
+
+    rerender({ sort: "severity" });
+    await waitFor(() =>
+      expect(spy.mock.calls.some((c) => String(c[0]).includes("sort=severity"))).toBe(true),
+    );
+  });
+
   it("hits /api/corridors and omits county when statewide", async () => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("[]"));
     renderHook(

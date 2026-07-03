@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   useStreetAggregation,
   type StreetScope,
+  type StreetSort,
   type StreetAggRow,
 } from "../../hooks/useIntersections";
 import { useFilterParams, slugify } from "../../hooks/useFilterParams";
@@ -24,6 +25,14 @@ const MODES: { value: Mode; label: string }[] = [
   { value: "all", label: "All" },
   { value: "pedestrian", label: "Pedestrian" },
   { value: "cyclist", label: "Bicycle" },
+];
+
+// Ranking option. "count" = raw crash count; "severity" = severity-weighted
+// score (fatal×100 + injury×10 + pdo×1). Presented as a user choice, not a
+// verdict — the score weighting is documented in the column tooltip.
+const SORTS: { value: StreetSort; label: string }[] = [
+  { value: "count", label: "Crashes" },
+  { value: "severity", label: "Severity-weighted" },
 ];
 
 // Street-level zoom for the map deep-link — close enough to read the
@@ -59,6 +68,7 @@ function roadLabel(row: StreetAggRow): string {
 export default function IntersectionsPanel() {
   const [scope, setScope] = useState<StreetScope>("intersections");
   const [mode, setMode] = useState<Mode>("all");
+  const [sort, setSort] = useState<StreetSort>("count");
   const filters = useFilterParams();
 
   // Exactly one county selected → scope the query to that county; otherwise
@@ -80,6 +90,7 @@ export default function IntersectionsPanel() {
     limit: 25,
     pedestrian: mode === "pedestrian",
     cyclist: mode === "cyclist",
+    sort,
   });
 
   const rows = data ?? [];
@@ -92,10 +103,33 @@ export default function IntersectionsPanel() {
             {scope === "intersections" ? "Intersections by crash count" : "Corridors by crash count"}
           </h2>
           <p className="text-[11px] text-on-surface-variant mt-0.5">
-            {singleCounty ? `${singleCounty} County` : "Statewide"} · Ranked by crash count
+            {singleCounty ? `${singleCounty} County` : "Statewide"} ·{" "}
+            {sort === "severity" ? "Ranked by severity-weighted score" : "Ranked by crash count"}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <div
+            role="radiogroup"
+            aria-label="Rank by"
+            className="flex gap-1 rounded-lg bg-surface-container p-1"
+          >
+            {SORTS.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                role="radio"
+                aria-checked={sort === s.value}
+                onClick={() => setSort(s.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                  sort === s.value
+                    ? "bg-primary-container text-on-primary-container"
+                    : "text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
           <div
             role="radiogroup"
             aria-label="Mode"
@@ -178,6 +212,13 @@ export default function IntersectionsPanel() {
                 <th scope="col" className="text-right px-3 py-2 font-bold">Fatal</th>
                 <th scope="col" className="text-right px-3 py-2 font-bold">Injury</th>
                 <th scope="col" className="text-right px-3 py-2 font-bold">PDO</th>
+                <th
+                  scope="col"
+                  className="text-right px-3 py-2 font-bold"
+                  title="Severity-weighted score: fatal×100 + injury×10 + PDO×1"
+                >
+                  Score
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -216,6 +257,9 @@ export default function IntersectionsPanel() {
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-on-surface-variant">
                     {r.pdo_count.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-on-surface">
+                    {r.severity_score.toLocaleString()}
                   </td>
                 </tr>
               ))}
