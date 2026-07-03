@@ -89,10 +89,30 @@ function createBoundsMock() {
   return bounds;
 }
 
+/** Records every circleMarker created, so tests can inspect coords + popup content. */
+export interface CircleMarkerInstance {
+  latlng: [number, number];
+  opts: Record<string, unknown>;
+  bindPopup: ReturnType<typeof vi.fn>;
+  addTo: ReturnType<typeof vi.fn>;
+}
+export const circleMarkerInstances: CircleMarkerInstance[] = [];
+
 const L = {
   geoJSON: vi.fn(() => geoJSONLayerMock),
   tooltip: vi.fn(() => tooltipMock),
   latLngBounds: vi.fn(() => createBoundsMock()),
+  circleMarker: vi.fn((latlng: [number, number], opts: Record<string, unknown>) => {
+    const inst: CircleMarkerInstance = {
+      latlng,
+      opts,
+      bindPopup: vi.fn().mockReturnThis(),
+      addTo: vi.fn().mockReturnThis(),
+    };
+    circleMarkerInstances.push(inst);
+    return inst;
+  }),
+  layerGroup: vi.fn(() => ({ addTo: vi.fn().mockReturnThis() })),
   Icon: { Default: { mergeOptions: vi.fn() } },
   DomUtil: { create: vi.fn(), remove: vi.fn() },
   DomEvent: { disableClickPropagation: vi.fn(), disableScrollPropagation: vi.fn() },

@@ -253,6 +253,29 @@ export default function LayersPanel() {
         </div>
       </div>
 
+      {/* Intersections */}
+      <div className="space-y-4">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          Intersections
+        </span>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.topIntersections ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Top intersections
+            </span>
+            <Toggle
+              enabled={otherLayers.topIntersections}
+              onToggle={() => toggleOtherLayer("topIntersections")}
+            />
+          </div>
+          <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+            {otherLayers.topIntersections
+              ? "Plots the top intersections by severity score. Click a marker for its stats."
+              : "Ranked by severity"}
+          </p>
+        </div>
+      </div>
+
       {/* Measure */}
       <div className="space-y-4">
         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
