@@ -1,21 +1,33 @@
+import { type ReactNode } from "react";
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { LayersStateProvider } from "../../hooks/useLayersState";
-import { ThemeProvider } from "../../context/ThemeContext";
+import { LayersStateProvider, useLayersState } from "../../hooks/useLayersState";
 import { CustomThemeProvider } from "../../context/CustomThemeContext";
+import { ThemeProvider } from "../../context/ThemeContext";
+import { MemoryRouter } from "react-router-dom";
 import LayersPanel from "./LayersPanel";
+
+function Providers({ children }: { children: ReactNode }) {
+  return (
+    <MemoryRouter>
+      <ThemeProvider>
+        <CustomThemeProvider>
+          <LayersStateProvider>{children}</LayersStateProvider>
+        </CustomThemeProvider>
+      </ThemeProvider>
+    </MemoryRouter>
+  );
+}
 
 function Harness() {
   return (
-    <ThemeProvider>
-      <CustomThemeProvider>
-        <LayersStateProvider>
-          <LayersPanel />
-        </LayersStateProvider>
-      </CustomThemeProvider>
-    </ThemeProvider>
+    <Providers>
+      <LayersPanel />
+    </Providers>
   );
 }
+
+// ── Toggle accessibility (from the audit's H-F11 fix) ──────────────────
 
 describe("LayersPanel toggle accessibility", () => {
   beforeEach(() => {
@@ -31,6 +43,7 @@ describe("LayersPanel toggle accessibility", () => {
       "Coord Mismatches",
       "Hide River Crashes",
       "Highway Danger",
+      "Top intersections",
     ]) {
       expect(screen.getByRole("switch", { name })).toBeInTheDocument();
     }
@@ -69,5 +82,38 @@ describe("LayersPanel toggle accessibility", () => {
     const choropleth = screen.getByRole("switch", { name: "Shade by Measure" });
     expect(choropleth).toHaveAttribute("aria-checked", "false");
     expect(choropleth).not.toHaveAttribute("aria-disabled");
+  });
+});
+
+// ── Top intersections toggle (from #349 street-level work) ─────────────
+
+function TopIntersectionsProbe() {
+  const { otherLayers } = useLayersState();
+  return <div data-testid="ti-state">{String(otherLayers.topIntersections)}</div>;
+}
+
+describe("LayersPanel — Top intersections toggle", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("shows the neutral toggle row", () => {
+    render(<Harness />);
+    expect(screen.getByRole("switch", { name: "Top intersections" })).toBeInTheDocument();
+    expect(screen.getByText("Ranked by severity")).toBeInTheDocument();
+  });
+
+  it("flips topIntersections when clicked", () => {
+    render(
+      <Providers>
+        <TopIntersectionsProbe />
+        <LayersPanel />
+      </Providers>,
+    );
+    expect(screen.getByTestId("ti-state").textContent).toBe("false");
+
+    fireEvent.click(screen.getByRole("switch", { name: "Top intersections" }));
+
+    expect(screen.getByTestId("ti-state").textContent).toBe("true");
   });
 });

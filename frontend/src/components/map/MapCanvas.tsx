@@ -14,6 +14,7 @@ L.Icon.Default.mergeOptions({
 });
 import CountyBoundaries from "./CountyBoundaries";
 import HighwayDangerLayer from "./HighwayDangerLayer";
+import TopIntersectionsLayer from "./TopIntersectionsLayer";
 import CrashHeatmap from "./CrashHeatmap";
 import CoordMismatchLayer from "./CoordMismatchLayer";
 import CaliforniaMask from "./CaliforniaMask";
@@ -182,6 +183,7 @@ function MapInternals({
         onSelectCounty={onSelectCounty}
       />
       <HighwayDangerLayer onSelectHighway={onSelectHighway} />
+      <TopIntersectionsLayer county={focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null} />
       {heatmapActive && (
         <CrashHeatmap
           points={heatmapPoints}

@@ -849,6 +849,111 @@ def get_crash_rate(
     return result
 
 
+def get_top_intersections(
+    db: Session,
+    county: str | None = None,
+    years: list[int] | None = None,
+    corridors: bool = False,
+    pedestrian: bool | None = None,
+    cyclist: bool | None = None,
+    sort: str = "count",
+    limit: int = 10,
+) -> list[dict]:
+    """Street-level crash aggregation, ranked by crash count or severity.
+
+    Groups crashes by (primary_road x secondary_road) — or by primary_road
+    alone when corridors=True — using the road-pair model. Optional pedestrian
+    / cyclist filters restrict to those involvements. sort='severity' ranks by
+    a severity-weighted score instead of raw crash count. Returns roads,
+    crash_count, severity_score, and the fatal/injury/pdo split. Presents the
+    numbers; the caller draws conclusions.
+    """
+    from app.routers.intersections import _aggregate  # noqa: PLC0415 (avoid import cycle)
+
+    code = None
+    if county:
+        code = _county_code(db, county)
+        if code is None:
+            return [{"error": f"County not found: {county}"}]
+
+    year_start = min(years) if years else None
+    year_end = max(years) if years else None
+    rows = _aggregate(
+        db,
+        by_secondary=not corridors,
+        county_code=code,
+        year_start=year_start,
+        year_end=year_end,
+        min_crashes=1,
+        limit=min(limit, _MAX_ROWS),
+        pedestrian=pedestrian,
+        cyclist=cyclist,
+        sort="severity" if sort == "severity" else "count",
+    )
+    return [r.model_dump() for r in rows]
+
+
+def get_street_concentration(
+    db: Session,
+    county: str | None = None,
+    years: list[int] | None = None,
+    corridors: bool = True,
+) -> dict:
+    """How concentrated fatal+injury crashes are across streets.
+
+    Returns the share of severe (fatal+injury) crashes held by the top
+    1/5/10/25% of crash-carrying streets — the "a small share of streets
+    carries most of the harm" statistic. corridors=True groups by a single
+    street; False by intersection pairs. The denominator is crash-carrying
+    streets, not all road miles. Presents the numbers; no framing.
+    """
+    from app.routers.intersections import _concentration  # noqa: PLC0415 (avoid import cycle)
+
+    code = None
+    name = None
+    if county:
+        code = _county_code(db, county)
+        if code is None:
+            return {"error": f"County not found: {county}"}
+        name = db.query(County.name).filter(County.code == code).scalar()
+
+    year_start = min(years) if years else None
+    year_end = max(years) if years else None
+    out = _concentration(
+        db,
+        by_secondary=not corridors,
+        county_code=code,
+        county_name=name,
+        year_start=year_start,
+        year_end=year_end,
+    )
+    return out.model_dump()
+
+
+def get_yoy_changes(
+    db: Session,
+    metric: str = "crashes",
+    year: int | None = None,
+    limit: int = 10,
+) -> dict:
+    """Which counties changed the most year-over-year for a metric.
+
+    Compares `year` (default: latest year with data) against the prior year
+    for all counties. Rows whose baseline is below the metric's minimum are
+    flagged small_baseline and ranked after solid-baseline rows — percent
+    changes on tiny baselines are noise-prone. partial_year=True means the
+    comparison year is still accumulating data. Reports numbers only.
+    """
+    from app.routers.changes import compute_yoy_changes  # noqa: PLC0415 (avoid import cycle)
+
+    if metric not in ("crashes", "fatal_crashes", "killed", "injured"):
+        return {"error": f"Unknown metric: {metric}. Use crashes, fatal_crashes, killed, or injured."}
+
+    data = compute_yoy_changes(db, metric=metric, year=year).model_dump()
+    data["rows"] = data["rows"][: min(limit, _MAX_ROWS)]
+    return data
+
+
 # Tool registry
 # ---------------------------------------------------------------------------
 
@@ -866,4 +971,7 @@ TOOL_REGISTRY: dict[str, Any] = {
     "get_unemployment": get_unemployment,
     "get_vehicle_stats": get_vehicle_stats,
     "get_crash_rate": get_crash_rate,
+    "get_top_intersections": get_top_intersections,
+    "get_street_concentration": get_street_concentration,
+    "get_yoy_changes": get_yoy_changes,
 }

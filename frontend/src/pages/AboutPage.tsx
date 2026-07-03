@@ -250,6 +250,15 @@ export default function AboutPage() {
               body: "Only crashes that receive a police report end up in the database. NHTSA estimates 50-60% of injury crashes and ~30% of property-damage-only crashes go unreported. Fatal crashes are close to 100% reported. The underreporting rate varies by county, income level, and language access.",
             },
             {
+              title: "Pedestrian and bicyclist crashes are undercounted the most",
+              body: "Studies that link police crash reports to hospital records find police data captures roughly 44-75% of pedestrian injury crashes and 7-46% of bicyclist injury crashes. Counts for pedestrians and cyclists here reflect police-reported crashes only, so they understate the true number of injuries.",
+              source: { label: "Hospital-linkage study (UC eScholarship)", url: "https://escholarship.org/uc/item/0jq5h6f5" },
+            },
+            {
+              title: "Street-level grouping uses reported road names",
+              body: "Intersections and corridors are grouped by the primary and secondary road names written on each crash report. Spelling variants (\"Main St\" / \"MAIN  ST\") are normalized together, but crashes with missing or blank road names are excluded from those views, so street-level counts are a lower bound.",
+            },
+            {
               title: "Education data missing before 2012",
               body: "The Census Bureau didn't publish the B15003 table (educational attainment) in ACS 5-year estimates before 2012. Bachelor's degree and high school rates are null for earlier years.",
             },
@@ -261,10 +270,15 @@ export default function AboutPage() {
               title: "Traffic volumes cover state highways only",
               body: "Caltrans AADT data is limited to state-managed roads. Local streets, county roads, and city streets — where many crashes occur — are not included. Per-road-mile rates should be interpreted with this in mind.",
             },
-          ].map(({ title, body }) => (
+          ].map(({ title, body, source }: { title: string; body: string; source?: { label: string; url: string } }) => (
             <div key={title} className="border-t border-outline-variant/20 pt-4">
               <h3 className="text-sm font-semibold text-on-surface mb-1">{title}</h3>
               <p className="text-sm text-on-surface-variant leading-relaxed">{body}</p>
+              {source && (
+                <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline mt-1 inline-block">
+                  {source.label}
+                </a>
+              )}
             </div>
           ))}
         </div>

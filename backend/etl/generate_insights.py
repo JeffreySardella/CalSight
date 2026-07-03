@@ -56,11 +56,16 @@ logger = logging.getLogger(__name__)
 # Prompt
 # ---------------------------------------------------------------------------
 
+# Neutral, present-don't-persuade voice: CalSight describes what the data
+# shows and lets the reader draw their own conclusions. No recommendations,
+# no causal claims, no loaded adjectives, no advocacy framing.
 _PROMPT_TEMPLATE = (
-    "You're a data analyst writing a 2-3 sentence insight about {county} County's "
-    "crash data. Be engaging — mix one surprising comparison or fun fact with the "
-    "key trend. Data: {stats}. Don't restate raw numbers — the UI already shows "
-    "those. Focus on what's *interesting*."
+    "Write 2-3 plain, factual sentences describing the most notable patterns in "
+    "{county} County's crash data. Use a neutral, descriptive tone. Do NOT make "
+    "recommendations, do NOT assert causes (say 'associated with', never 'because "
+    "of'), and avoid loaded adjectives (no 'alarming', 'shocking', 'deadly', "
+    "'worst'). Data: {stats}. Don't restate every raw number — the UI already shows "
+    "those; describe the patterns a reader would notice and how they compare."
 )
 
 
