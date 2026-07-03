@@ -875,6 +875,43 @@ def get_top_intersections(
     return [r.model_dump() for r in rows]
 
 
+def get_street_concentration(
+    db: Session,
+    county: str | None = None,
+    years: list[int] | None = None,
+    corridors: bool = True,
+) -> dict:
+    """How concentrated fatal+injury crashes are across streets.
+
+    Returns the share of severe (fatal+injury) crashes held by the top
+    1/5/10/25% of crash-carrying streets — the "a small share of streets
+    carries most of the harm" statistic. corridors=True groups by a single
+    street; False by intersection pairs. The denominator is crash-carrying
+    streets, not all road miles. Presents the numbers; no framing.
+    """
+    from app.routers.intersections import _concentration  # noqa: PLC0415 (avoid import cycle)
+
+    code = None
+    name = None
+    if county:
+        code = _county_code(db, county)
+        if code is None:
+            return {"error": f"County not found: {county}"}
+        name = db.query(County.name).filter(County.code == code).scalar()
+
+    year_start = min(years) if years else None
+    year_end = max(years) if years else None
+    out = _concentration(
+        db,
+        by_secondary=not corridors,
+        county_code=code,
+        county_name=name,
+        year_start=year_start,
+        year_end=year_end,
+    )
+    return out.model_dump()
+
+
 # Tool registry
 # ---------------------------------------------------------------------------
 
@@ -893,4 +930,5 @@ TOOL_REGISTRY: dict[str, Any] = {
     "get_vehicle_stats": get_vehicle_stats,
     "get_crash_rate": get_crash_rate,
     "get_top_intersections": get_top_intersections,
+    "get_street_concentration": get_street_concentration,
 }

@@ -10,7 +10,11 @@ from datetime import datetime
 
 import pytest
 
-from app.ai_tools import TOOL_REGISTRY, get_top_intersections
+from app.ai_tools import (
+    TOOL_REGISTRY,
+    get_street_concentration,
+    get_top_intersections,
+)
 from app.ai_prompt import TOOL_DEFINITIONS
 from app.models import Crash
 
@@ -67,3 +71,30 @@ def test_corridors_roll_up_primary(db_session, seed):
 def test_unknown_county_returns_error(db_session):
     rows = get_top_intersections(db_session, county="Narnia")
     assert rows == [{"error": "County not found: Narnia"}]
+
+
+def test_street_concentration_tool(db_session):
+    # 1 severe corridor (3 injuries) + 3 PDO-only corridors -> 4 units, 3 severe.
+    rows = [
+        _crash(9501, "SEV ST", "A", severity="Injury"),
+        _crash(9502, "SEV ST", "A", severity="Injury"),
+        _crash(9503, "SEV ST", "A", severity="Injury"),
+        _crash(9504, "M1 ST", "B", severity="Property Damage Only", injured=0),
+        _crash(9505, "M2 ST", "B", severity="Property Damage Only", injured=0),
+        _crash(9506, "M3 ST", "B", severity="Property Damage Only", injured=0),
+    ]
+    db_session.add_all(rows)
+    db_session.flush()
+
+    out = get_street_concentration(db_session, county="Los Angeles", corridors=True)
+    assert out["total_units"] == 4
+    assert out["total_severe_crashes"] == 3
+    top25 = next(b for b in out["breakpoints"] if b["top_pct"] == 25)
+    assert top25["unit_count"] == 1          # ceil(4 * 0.25) = 1
+    assert top25["severe_share_pct"] == 100.0
+
+
+def test_street_concentration_unknown_county(db_session):
+    assert get_street_concentration(db_session, county="Narnia") == {
+        "error": "County not found: Narnia"
+    }
