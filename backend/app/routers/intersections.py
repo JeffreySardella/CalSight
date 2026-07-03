@@ -66,6 +66,8 @@ def _aggregate(
     year_end: int | None,
     min_crashes: int,
     limit: int,
+    pedestrian: bool | None = None,
+    cyclist: bool | None = None,
 ) -> list[IntersectionOut]:
     primary = _norm(Crash.primary_road)
     preds = [Crash.primary_road.isnot(None), func.trim(Crash.primary_road) != ""]
@@ -77,6 +79,10 @@ def _aggregate(
         preds.append(Crash.crash_year >= year_start)
     if year_end is not None:
         preds.append(Crash.crash_year <= year_end)
+    if pedestrian is not None:
+        preds.append(Crash.pedestrian_involved.is_(pedestrian))
+    if cyclist is not None:
+        preds.append(Crash.cyclist_involved.is_(cyclist))
 
     secondary = _norm(Crash.secondary_road) if by_secondary else None
 
@@ -151,6 +157,8 @@ def get_intersections(
     year_end: int | None = Query(None, ge=2001, le=2100),
     min_crashes: int = Query(2, ge=1, le=1000, description="Minimum crashes for an intersection to appear"),
     limit: int = Query(25, ge=1, le=_MAX_LIMIT),
+    pedestrian: bool | None = Query(None, description="Only crashes involving a pedestrian"),
+    cyclist: bool | None = Query(None, description="Only crashes involving a bicyclist"),
     db: Session = Depends(get_db),
 ):
     """Crashes aggregated by (primary_road x secondary_road), ranked by count."""
@@ -159,6 +167,7 @@ def get_intersections(
     return _aggregate(
         db, by_secondary=True, county_code=code, year_start=year_start,
         year_end=year_end, min_crashes=min_crashes, limit=limit,
+        pedestrian=pedestrian, cyclist=cyclist,
     )
 
 
@@ -172,6 +181,8 @@ def get_corridors(
     year_end: int | None = Query(None, ge=2001, le=2100),
     min_crashes: int = Query(5, ge=1, le=5000),
     limit: int = Query(25, ge=1, le=_MAX_LIMIT),
+    pedestrian: bool | None = Query(None, description="Only crashes involving a pedestrian"),
+    cyclist: bool | None = Query(None, description="Only crashes involving a bicyclist"),
     db: Session = Depends(get_db),
 ):
     """Crashes aggregated by primary_road (corridor), ranked by count."""
@@ -180,4 +191,5 @@ def get_corridors(
     return _aggregate(
         db, by_secondary=False, county_code=code, year_start=year_start,
         year_end=year_end, min_crashes=min_crashes, limit=limit,
+        pedestrian=pedestrian, cyclist=cyclist,
     )

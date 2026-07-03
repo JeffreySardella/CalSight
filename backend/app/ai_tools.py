@@ -836,12 +836,15 @@ def get_top_intersections(
     county: str | None = None,
     years: list[int] | None = None,
     corridors: bool = False,
+    pedestrian: bool | None = None,
+    cyclist: bool | None = None,
     limit: int = 10,
 ) -> list[dict]:
     """Street-level crash aggregation, ranked by crash count.
 
     Groups crashes by (primary_road x secondary_road) — or by primary_road
-    alone when corridors=True — using the road-pair model. Returns roads,
+    alone when corridors=True — using the road-pair model. Optional pedestrian
+    / cyclist filters restrict to those involvements. Returns roads,
     crash_count, and the fatal/injury/pdo split. Presents counts only; the
     ranking is by count and the caller draws conclusions.
     """
@@ -863,6 +866,8 @@ def get_top_intersections(
         year_end=year_end,
         min_crashes=1,
         limit=min(limit, _MAX_ROWS),
+        pedestrian=pedestrian,
+        cyclist=cyclist,
     )
     return [r.model_dump() for r in rows]
 

@@ -16,7 +16,8 @@ pytestmark = pytest.mark.integration
 
 
 def _crash(cid, primary, secondary, *, severity="Injury", killed=0, injured=1,
-           county=19, year=2022, lat=34.0, lon=-118.0):
+           county=19, year=2022, lat=34.0, lon=-118.0,
+           pedestrian=False, cyclist=False):
     return Crash(
         id=cid, collision_id=cid, data_source="ccrs",
         crash_datetime=datetime(year, 3, 10, 12, 0), county_code=county,
@@ -25,6 +26,7 @@ def _crash(cid, primary, secondary, *, severity="Injury", killed=0, injured=1,
         number_killed=killed, number_injured=injured,
         county_name="Los Angeles", latitude=lat, longitude=lon,
         primary_road=primary, secondary_road=secondary,
+        pedestrian_involved=pedestrian, cyclist_involved=cyclist,
     )
 
 
@@ -90,6 +92,20 @@ def test_corridors_group_by_primary(client, seed_intersections):
 def test_unknown_county_404(client):
     r = client.get("/api/intersections?county=atlantis")
     assert r.status_code == 404
+
+
+def test_pedestrian_mode_filter(client, db_session):
+    """A pedestrian filter restricts to pedestrian-involved crashes only."""
+    db_session.add_all([
+        _crash(9201, "PED ST", "CROSS AVE", pedestrian=True),
+        _crash(9202, "PED ST", "CROSS AVE", pedestrian=True),
+        _crash(9203, "CAR ST", "AUTO AVE", pedestrian=False),
+    ])
+    db_session.flush()
+    r = client.get("/api/intersections?county=los-angeles&min_crashes=1&pedestrian=true")
+    body = r.json()
+    assert [x["primary_road"] for x in body] == ["PED ST"]
+    assert body[0]["crash_count"] == 2
 
 
 def test_centroid_coordinates_present(client, seed_intersections):
