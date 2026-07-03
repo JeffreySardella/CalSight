@@ -59,6 +59,18 @@ describe("useStreetAggregation", () => {
     expect(result.current.data?.[0].primary_road).toBe("Main St");
   });
 
+  it("sends the pedestrian flag when the pedestrian mode is active", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("[]"));
+    renderHook(
+      () => useStreetAggregation({ scope: "intersections", pedestrian: true }),
+      { wrapper: wrapper() },
+    );
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    const url = String(spy.mock.calls[0][0]);
+    expect(url).toContain("pedestrian=true");
+    expect(url).not.toContain("cyclist=");
+  });
+
   it("hits /api/corridors and omits county when statewide", async () => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("[]"));
     renderHook(

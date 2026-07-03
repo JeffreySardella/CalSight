@@ -28,17 +28,23 @@ export interface StreetAggParams {
   yearEnd?: number | null;
   minCrashes?: number | null;
   limit?: number | null;
+  /** Restrict to pedestrian-involved crashes. */
+  pedestrian?: boolean;
+  /** Restrict to bicyclist-involved crashes. */
+  cyclist?: boolean;
   enabled?: boolean;
 }
 
 function buildUrl(params: StreetAggParams): string {
-  const { scope, county, yearStart, yearEnd, minCrashes, limit } = params;
+  const { scope, county, yearStart, yearEnd, minCrashes, limit, pedestrian, cyclist } = params;
   const p = new URLSearchParams();
   if (county) p.set("county", county);
   if (yearStart != null) p.set("year_start", String(yearStart));
   if (yearEnd != null) p.set("year_end", String(yearEnd));
   if (minCrashes != null) p.set("min_crashes", String(minCrashes));
   if (limit != null) p.set("limit", String(limit));
+  if (pedestrian) p.set("pedestrian", "true");
+  if (cyclist) p.set("cyclist", "true");
   const qs = p.toString();
   return `${API_BASE}/api/${scope}${qs ? `?${qs}` : ""}`;
 }
@@ -56,6 +62,8 @@ export function useStreetAggregation(params: StreetAggParams) {
     yearEnd = null,
     minCrashes = null,
     limit = null,
+    pedestrian = false,
+    cyclist = false,
     enabled = true,
   } = params;
 
@@ -69,9 +77,11 @@ export function useStreetAggregation(params: StreetAggParams) {
       yearEnd,
       minCrashes,
       limit,
+      pedestrian,
+      cyclist,
     ],
     queryFn: async () => {
-      const res = await fetch(buildUrl({ scope, county, yearStart, yearEnd, minCrashes, limit }));
+      const res = await fetch(buildUrl({ scope, county, yearStart, yearEnd, minCrashes, limit, pedestrian, cyclist }));
       if (!res.ok) throw new Error(`${scope} ${res.status}`);
       return res.json();
     },

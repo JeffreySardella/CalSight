@@ -106,6 +106,28 @@ describe("IntersectionsPanel", () => {
     expect(spy.mock.calls.some((c) => String(c[0]).includes("/api/corridors"))).toBe(true);
   });
 
+  it("mode filter sends the pedestrian flag to the query", async () => {
+    const spy = mockFetchByScope();
+    renderPanel();
+    await screen.findByText("Main St & 1st Ave");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Pedestrian" }));
+
+    await vi.waitFor(() =>
+      expect(spy.mock.calls.some((c) => String(c[0]).includes("pedestrian=true"))).toBe(true),
+    );
+  });
+
+  it("links each row to the map centered on its coordinates", async () => {
+    mockFetchByScope();
+    renderPanel();
+    const link = await screen.findByRole("link", { name: /View Main St & 1st Ave on the map/i });
+    const href = link.getAttribute("href") ?? "";
+    expect(href).toContain("lat=34.0000");
+    expect(href).toContain("lng=-118.2000");
+    expect(href).toContain("zoom=16");
+  });
+
   it("renders the neutral empty state when there are no results", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("[]"));
     renderPanel();

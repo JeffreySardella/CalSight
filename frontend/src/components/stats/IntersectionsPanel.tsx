@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   useStreetAggregation,
   type StreetScope,
@@ -13,6 +14,31 @@ const SCOPES: { value: StreetScope; label: string }[] = [
   { value: "intersections", label: "Intersections" },
   { value: "corridors", label: "Corridors" },
 ];
+
+// Travel mode filter. "all" passes neither flag; pedestrian/cyclist map to the
+// backend's `pedestrian`/`cyclist` query params (Motorcycle has no backend
+// support, so it is intentionally not offered).
+type Mode = "all" | "pedestrian" | "cyclist";
+
+const MODES: { value: Mode; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "pedestrian", label: "Pedestrian" },
+  { value: "cyclist", label: "Bicycle" },
+];
+
+// Street-level zoom for the map deep-link — close enough to read the
+// intersection but not so tight the surrounding streets fall off screen.
+const LOCATE_ZOOM = 16;
+
+/** Deep-link to the map centered on a row's centroid, reusing the map's own
+ *  `lat`/`lng`/`zoom` viewport params (see useViewportParams). */
+function mapHref(lat: number, lng: number): string {
+  const p = new URLSearchParams();
+  p.set("lat", lat.toFixed(4));
+  p.set("lng", lng.toFixed(4));
+  p.set("zoom", String(LOCATE_ZOOM));
+  return `/?${p.toString()}`;
+}
 
 // Backend defaults differ per scope; mirror them so counts read consistently.
 const MIN_CRASHES: Record<StreetScope, number> = {
@@ -32,6 +58,7 @@ function roadLabel(row: StreetAggRow): string {
 
 export default function IntersectionsPanel() {
   const [scope, setScope] = useState<StreetScope>("intersections");
+  const [mode, setMode] = useState<Mode>("all");
   const filters = useFilterParams();
 
   // Exactly one county selected → scope the query to that county; otherwise
@@ -51,6 +78,8 @@ export default function IntersectionsPanel() {
     yearEnd,
     minCrashes: MIN_CRASHES[scope],
     limit: 25,
+    pedestrian: mode === "pedestrian",
+    cyclist: mode === "cyclist",
   });
 
   const rows = data ?? [];
@@ -66,27 +95,51 @@ export default function IntersectionsPanel() {
             {singleCounty ? `${singleCounty} County` : "Statewide"} · Ranked by crash count
           </p>
         </div>
-        <div
-          role="radiogroup"
-          aria-label="Aggregation scope"
-          className="flex gap-1 rounded-lg bg-surface-container p-1"
-        >
-          {SCOPES.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              role="radio"
-              aria-checked={scope === s.value}
-              onClick={() => setScope(s.value)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                scope === s.value
-                  ? "bg-primary-container text-on-primary-container"
-                  : "text-on-surface-variant hover:text-on-surface"
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div
+            role="radiogroup"
+            aria-label="Mode"
+            className="flex gap-1 rounded-lg bg-surface-container p-1"
+          >
+            {MODES.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                role="radio"
+                aria-checked={mode === m.value}
+                onClick={() => setMode(m.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                  mode === m.value
+                    ? "bg-primary-container text-on-primary-container"
+                    : "text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <div
+            role="radiogroup"
+            aria-label="Aggregation scope"
+            className="flex gap-1 rounded-lg bg-surface-container p-1"
+          >
+            {SCOPES.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                role="radio"
+                aria-checked={scope === s.value}
+                onClick={() => setScope(s.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                  scope === s.value
+                    ? "bg-primary-container text-on-primary-container"
+                    : "text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -139,7 +192,19 @@ export default function IntersectionsPanel() {
                   >
                     {i + 1}
                   </th>
-                  <td className="px-3 py-2 font-bold text-on-surface">{roadLabel(r)}</td>
+                  <td className="px-3 py-2 font-bold text-on-surface">
+                    {r.latitude != null && r.longitude != null ? (
+                      <Link
+                        to={mapHref(r.latitude, r.longitude)}
+                        className="text-primary hover:underline"
+                        aria-label={`View ${roadLabel(r)} on the map`}
+                      >
+                        {roadLabel(r)}
+                      </Link>
+                    ) : (
+                      roadLabel(r)
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums font-bold text-on-surface">
                     {r.crash_count.toLocaleString()}
                   </td>
