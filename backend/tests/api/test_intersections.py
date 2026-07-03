@@ -116,6 +116,33 @@ def test_severity_score_and_sort(client, db_session):
     assert by_sev[0]["severity_score"] == 200
 
 
+def test_street_concentration(client, db_session):
+    """10 corridors: one 'CONC ST' holds all 5 fatal+injury crashes; the other
+    9 have PDO-only. Top 10% of streets (=1 street) should hold 100% of severe
+    crashes."""
+    rows = []
+    cid = 9400
+    # 1 severe-heavy corridor: 5 injury crashes
+    for _ in range(5):
+        rows.append(_crash(cid, "CONC ST", f"X{cid} AVE", severity="Injury", injured=1))
+        cid += 1
+    # 9 PDO-only corridors (no severe)
+    for j in range(9):
+        rows.append(_crash(cid, f"MINOR{j} ST", "Y AVE", severity="Property Damage Only", injured=0))
+        cid += 1
+    db_session.add_all(rows)
+    db_session.flush()
+
+    r = client.get("/api/street-concentration?county=los-angeles&scope=corridors")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total_units"] == 10           # 10 distinct corridors
+    assert body["total_severe_crashes"] == 5   # only CONC ST's 5 injuries
+    top10 = next(b for b in body["breakpoints"] if b["top_pct"] == 10)
+    assert top10["unit_count"] == 1            # ceil(10 * 0.10) = 1
+    assert top10["severe_share_pct"] == 100.0  # that 1 street holds all severe
+
+
 def test_pedestrian_mode_filter(client, db_session):
     """A pedestrian filter restricts to pedestrian-involved crashes only."""
     db_session.add_all([

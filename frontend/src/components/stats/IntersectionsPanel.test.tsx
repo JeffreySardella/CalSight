@@ -52,9 +52,27 @@ function renderPanel(initialEntry = "/stats") {
   return render(<IntersectionsPanel />, { wrapper: wrap });
 }
 
+const CONCENTRATION = {
+  scope: "intersections",
+  county_code: 19,
+  county_name: "Los Angeles",
+  total_units: 100,
+  total_crashes: 500,
+  total_severe_crashes: 200,
+  breakpoints: [
+    { label: "Top 1%", top_pct: 1, unit_count: 1, severe_share_pct: 20.0 },
+    { label: "Top 5%", top_pct: 5, unit_count: 5, severe_share_pct: 45.0 },
+    { label: "Top 10%", top_pct: 10, unit_count: 10, severe_share_pct: 66.0 },
+    { label: "Top 25%", top_pct: 25, unit_count: 25, severe_share_pct: 85.0 },
+  ],
+};
+
 function mockFetchByScope() {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
+    if (url.includes("/api/street-concentration")) {
+      return new Response(JSON.stringify(CONCENTRATION));
+    }
     if (url.includes("/api/corridors")) {
       return new Response(JSON.stringify(CORRIDOR_ROWS));
     }
@@ -92,7 +110,8 @@ describe("IntersectionsPanel", () => {
     const spy = mockFetchByScope();
     renderPanel("/stats?county=los-angeles");
     await screen.findByText("Main St & 1st Ave");
-    expect(screen.getByText(/Los Angeles County/)).toBeInTheDocument();
+    // County appears in the sub-heading (and the concentration summary); at least one.
+    expect(screen.getAllByText(/Los Angeles County/).length).toBeGreaterThan(0);
     expect(String(spy.mock.calls[0][0])).toContain("county=los-angeles");
   });
 
@@ -143,6 +162,16 @@ describe("IntersectionsPanel", () => {
     expect(href).toContain("lat=34.0000");
     expect(href).toContain("lng=-118.2000");
     expect(href).toContain("zoom=16");
+  });
+
+  it("shows the neutral concentration summary", async () => {
+    mockFetchByScope();
+    renderPanel();
+    const summary = await screen.findByText(/The top 10% of/i);
+    expect(summary).toHaveTextContent("66%");
+    expect(summary).toHaveTextContent("fatal & injury crashes");
+    // honest denominator disclaimer, not "all roads"
+    expect(summary).toHaveTextContent(/at least one recorded crash, not all roads/i);
   });
 
   it("renders the neutral empty state when there are no results", async () => {

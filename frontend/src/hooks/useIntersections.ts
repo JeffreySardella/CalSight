@@ -97,3 +97,52 @@ export function useStreetAggregation(params: StreetAggParams) {
     enabled,
   });
 }
+
+// ── Street concentration (High-Injury-Network-style) ───────────────────
+
+export interface ConcentrationBreakpoint {
+  label: string;
+  top_pct: number;
+  unit_count: number;
+  severe_share_pct: number;
+}
+
+export interface StreetConcentration {
+  scope: StreetScope;
+  county_code: number | null;
+  county_name: string | null;
+  total_units: number;
+  total_crashes: number;
+  total_severe_crashes: number;
+  breakpoints: ConcentrationBreakpoint[];
+}
+
+export interface ConcentrationParams {
+  scope: StreetScope;
+  county?: string | null;
+  yearStart?: number | null;
+  yearEnd?: number | null;
+  enabled?: boolean;
+}
+
+/**
+ * How concentrated fatal+injury crashes are across crash-carrying streets —
+ * the "top X% of streets hold Y% of severe crashes" statistic.
+ */
+export function useStreetConcentration(params: ConcentrationParams) {
+  const { scope, county = null, yearStart = null, yearEnd = null, enabled = true } = params;
+  return useQuery<StreetConcentration>({
+    queryKey: ["street-concentration", scope, county, yearStart, yearEnd],
+    queryFn: async () => {
+      const p = new URLSearchParams({ scope });
+      if (county) p.set("county", county);
+      if (yearStart != null) p.set("year_start", String(yearStart));
+      if (yearEnd != null) p.set("year_end", String(yearEnd));
+      const res = await fetch(`${API_BASE}/api/street-concentration?${p.toString()}`);
+      if (!res.ok) throw new Error(`street-concentration ${res.status}`);
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled,
+  });
+}

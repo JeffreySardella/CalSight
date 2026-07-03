@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   useStreetAggregation,
+  useStreetConcentration,
   type StreetScope,
   type StreetSort,
   type StreetAggRow,
@@ -93,7 +94,15 @@ export default function IntersectionsPanel() {
     sort,
   });
 
+  const { data: conc } = useStreetConcentration({
+    scope,
+    county: countySlug,
+    yearStart,
+    yearEnd,
+  });
+
   const rows = data ?? [];
+  const unit = scope === "intersections" ? "intersections" : "corridors";
 
   return (
     <section className="space-y-3" aria-label="Street-level crash aggregation">
@@ -176,6 +185,25 @@ export default function IntersectionsPanel() {
           </div>
         </div>
       </header>
+
+      {conc && conc.total_severe_crashes > 0 && (() => {
+        const top10 = conc.breakpoints.find((b) => b.top_pct === 10);
+        const top25 = conc.breakpoints.find((b) => b.top_pct === 25);
+        if (!top10) return null;
+        return (
+          <p className="text-xs text-on-surface-variant bg-surface-container-lowest ghost-border rounded-lg px-3 py-2 leading-relaxed">
+            The top 10% of {unit} ({top10.unit_count.toLocaleString()} of{" "}
+            {conc.total_units.toLocaleString()}) account for{" "}
+            <span className="font-bold text-on-surface">{top10.severe_share_pct}%</span> of the{" "}
+            {conc.total_severe_crashes.toLocaleString()} fatal &amp; injury crashes
+            {conc.county_name ? ` in ${conc.county_name} County` : " statewide"}
+            {top25 ? `; the top 25% account for ${top25.severe_share_pct}%.` : "."}{" "}
+            <span className="text-on-surface-variant/70">
+              (Among {unit} with at least one recorded crash, not all roads.)
+            </span>
+          </p>
+        );
+      })()}
 
       {isLoading ? (
         <div className="space-y-1.5" aria-busy="true" aria-label="Loading results">

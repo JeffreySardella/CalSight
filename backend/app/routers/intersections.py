@@ -64,9 +64,52 @@ class IntersectionOut(BaseModel):
     longitude: float | None = None
 
 
+class ConcentrationBreakpoint(BaseModel):
+    """One point on the concentration curve: the top `unit_count` streets
+    (a `top_pct` share of all crash-carrying streets) hold `severe_share_pct`
+    of the fatal+injury crashes."""
+    label: str
+    top_pct: int
+    unit_count: int
+    severe_share_pct: float
+
+
+class ConcentrationOut(BaseModel):
+    """How concentrated fatal+injury crashes are across crash-carrying streets.
+
+    NOTE the denominator is streets that HAVE at least one crash, not all
+    roads in the area (CalSight has no total road-mile inventory), so this is
+    'X% of crash-carrying streets', not 'X% of road miles'.
+    """
+    scope: str
+    county_code: int | None = None
+    county_name: str | None = None
+    total_units: int
+    total_crashes: int
+    total_severe_crashes: int
+    breakpoints: list[ConcentrationBreakpoint]
+
+
 def _norm(col):
     """Normalize a road-name column for grouping: UPPER(collapse-whitespace(TRIM()))."""
     return func.upper(func.regexp_replace(func.trim(col), r"\s+", " ", "g"))
+
+
+def _street_preds_and_groups(by_secondary, county_code, year_start, year_end):
+    """Shared WHERE predicates + GROUP BY columns for street-level queries."""
+    primary = _norm(Crash.primary_road)
+    preds = [Crash.primary_road.isnot(None), func.trim(Crash.primary_road) != ""]
+    group_cols = [primary]
+    if by_secondary:
+        preds += [Crash.secondary_road.isnot(None), func.trim(Crash.secondary_road) != ""]
+        group_cols.append(_norm(Crash.secondary_road))
+    if county_code is not None:
+        preds.append(Crash.county_code == county_code)
+    if year_start is not None:
+        preds.append(Crash.crash_year >= year_start)
+    if year_end is not None:
+        preds.append(Crash.crash_year <= year_end)
+    return preds, group_cols
 
 
 def _aggregate(
@@ -165,6 +208,97 @@ def _resolve_county(db: Session, county: str | None) -> int | None:
     return code
 
 
+# Concentration curve breakpoints: (label, top-percent-of-streets).
+_CONCENTRATION_POINTS = [("Top 1%", 1), ("Top 5%", 5), ("Top 10%", 10), ("Top 25%", 25)]
+
+
+def _concentration(
+    db: Session,
+    *,
+    by_secondary: bool,
+    county_code: int | None,
+    county_name: str | None,
+    year_start: int | None,
+    year_end: int | None,
+) -> ConcentrationOut:
+    """Compute how concentrated fatal+injury crashes are across streets.
+
+    Aggregates crashes per street, ranks by severe (fatal+injury) count, and
+    reports what share of severe crashes the top 1/5/10/25% of crash-carrying
+    streets hold. Computed entirely in SQL (CTE + window functions) so the
+    long tail never has to leave the database.
+    """
+    preds, group_cols = _street_preds_and_groups(
+        by_secondary, county_code, year_start, year_end,
+    )
+    severe = func.count(case((Crash.severity.in_(("Fatal", "Injury")), 1)))
+
+    units = (
+        select(
+            func.count(Crash.id).label("crash_count"),
+            severe.label("severe"),
+        )
+        .select_from(Crash)
+        .where(and_(*preds))
+        .group_by(*group_cols)
+        .subquery()
+    )
+    ranked = (
+        select(
+            units.c.crash_count,
+            units.c.severe,
+            func.row_number().over(order_by=units.c.severe.desc()).label("rn"),
+            func.count().over().label("total_units"),
+            func.sum(units.c.severe).over().label("total_severe"),
+            func.sum(units.c.crash_count).over().label("total_crashes"),
+        )
+        .subquery()
+    )
+
+    cols = [
+        func.max(ranked.c.total_units).label("total_units"),
+        func.coalesce(func.max(ranked.c.total_severe), 0).label("total_severe"),
+        func.coalesce(func.max(ranked.c.total_crashes), 0).label("total_crashes"),
+    ]
+    for _label, pct in _CONCENTRATION_POINTS:
+        cutoff = func.ceil(ranked.c.total_units * (pct / 100.0))
+        cols.append(
+            func.coalesce(
+                func.sum(case((ranked.c.rn <= cutoff, ranked.c.severe), else_=0)), 0
+            ).label(f"top{pct}_severe")
+        )
+        cols.append(
+            func.coalesce(
+                func.sum(case((ranked.c.rn <= cutoff, 1), else_=0)), 0
+            ).label(f"top{pct}_units")
+        )
+
+    row = db.execute(select(*cols)).one()
+
+    total_severe = int(row.total_severe or 0)
+    breakpoints = []
+    for _label, pct in _CONCENTRATION_POINTS:
+        severe_in_top = int(getattr(row, f"top{pct}_severe") or 0)
+        units_in_top = int(getattr(row, f"top{pct}_units") or 0)
+        share = round(severe_in_top / total_severe * 100, 1) if total_severe else 0.0
+        breakpoints.append(
+            ConcentrationBreakpoint(
+                label=_label, top_pct=pct, unit_count=units_in_top,
+                severe_share_pct=share,
+            )
+        )
+
+    return ConcentrationOut(
+        scope="corridors" if not by_secondary else "intersections",
+        county_code=county_code,
+        county_name=county_name,
+        total_units=int(row.total_units or 0),
+        total_crashes=int(row.total_crashes or 0),
+        total_severe_crashes=total_severe,
+        breakpoints=breakpoints,
+    )
+
+
 @router.get("/intersections", response_model=list[IntersectionOut])
 @_limiter.limit("120/minute;5000/hour")
 def get_intersections(
@@ -212,4 +346,33 @@ def get_corridors(
         db, by_secondary=False, county_code=code, year_start=year_start,
         year_end=year_end, min_crashes=min_crashes, limit=limit,
         pedestrian=pedestrian, cyclist=cyclist, sort=sort,
+    )
+
+
+@router.get("/street-concentration", response_model=ConcentrationOut)
+@_limiter.limit("120/minute;5000/hour")
+def get_street_concentration(
+    request: Request,
+    response: Response,
+    county: str | None = Query(None, description="County slug; omit for statewide"),
+    year_start: int | None = Query(None, ge=2001, le=2100),
+    year_end: int | None = Query(None, ge=2001, le=2100),
+    scope: Literal["corridors", "intersections"] = Query("corridors", description="Aggregate by single road (corridor) or road pair (intersection)"),
+    db: Session = Depends(get_db),
+):
+    """How concentrated fatal+injury crashes are across crash-carrying streets.
+
+    Returns the share of severe (fatal+injury) crashes held by the top
+    1/5/10/25% of streets — the 'a small share of streets carries most of the
+    harm' statistic. Denominator is crash-carrying streets, not all road miles
+    (see ConcentrationOut). Neutral: the numbers are reported without framing.
+    """
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    code = _resolve_county(db, county)
+    name = None
+    if code is not None:
+        name = db.query(County.name).filter(County.code == code).scalar()
+    return _concentration(
+        db, by_secondary=(scope == "intersections"), county_code=code,
+        county_name=name, year_start=year_start, year_end=year_end,
     )
