@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import type { ChartSlot, Dimension, Measure, ChartType } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
+import type { DragHandleProps } from "../../hooks/useDragReorder";
 import type { ChartNarrativeResult } from "../../hooks/useNarrativeInsights";
 import type { CrossFilterAPI } from "../../hooks/useCrossFilter";
 import { useDragReorder } from "../../hooks/useDragReorder";
@@ -10,6 +11,17 @@ import AddChartCard from "./AddChartCard";
 import ChartConfigPanel from "./ChartConfigPanel";
 import ChartConfigSheet from "./ChartConfigSheet";
 import DragDropIndicator from "./DragDropIndicator";
+
+// Shared empty-data sentinel so charts without data keep a stable prop
+// reference across renders (a fresh `[]` per render would defeat React.memo).
+const EMPTY_DATA: ChartDataItem[] = [];
+
+type ChartHandlers = {
+  onEdit: () => void;
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+};
 
 function slotKey(slot: ChartSlot): string {
   const opts = slot.options ?? {};
@@ -86,6 +98,33 @@ export default function DashboardGrid({
     enabled: isAdvanced && !!onReorderChart,
   });
 
+  // Stable per-chart callbacks keyed by id. Rebuilt only when the chart list or
+  // the underlying dashboard callbacks change — NOT on every grid re-render (e.g.
+  // per-pixel during a drag). Inline closures here previously handed each ChartCard
+  // fresh onEdit/onRemove/onMoveUp/onMoveDown props, defeating React.memo(ChartCard).
+  const chartHandlers = useMemo(() => {
+    const map: Record<string, ChartHandlers> = {};
+    for (const slot of charts) {
+      const id = slot.id;
+      map[id] = {
+        onEdit: () => setEditingId(id),
+        onRemove: () => onRemoveChart(id),
+        onMoveUp: () => onMoveChart(id, "up"),
+        onMoveDown: () => onMoveChart(id, "down"),
+      };
+    }
+    return map;
+  }, [charts, onRemoveChart, onMoveChart]);
+
+  // Stable per-chart drag-handle props. getHandleProps returns a fresh object per
+  // call, so memoize one per id; identity only changes when the chart list (or the
+  // handle handlers) change — keeping non-dragged ChartCard props referentially stable.
+  const handlePropsById = useMemo(() => {
+    const map: Record<string, DragHandleProps> = {};
+    for (const slot of charts) map[slot.id] = getHandleProps(slot.id);
+    return map;
+  }, [charts, getHandleProps]);
+
   const sheetOpen = isMobile && (configOpen || !!editingId);
   const sheetInitial = editingId ? editingSlot : undefined;
 
@@ -144,7 +183,8 @@ export default function DashboardGrid({
       >
         {charts.map((slot, idx) => {
           const itemProps = isAdvanced && onReorderChart ? getItemProps(slot.id, idx) : {};
-          const handleProps = isAdvanced && onReorderChart ? getHandleProps(slot.id) : null;
+          const handleProps = isAdvanced && onReorderChart ? handlePropsById[slot.id] : null;
+          const handlers = chartHandlers[slot.id];
 
           return editingId === slot.id && !isMobile ? (
             <ChartConfigPanel
@@ -161,14 +201,14 @@ export default function DashboardGrid({
               <ErrorBoundary>
                 <ChartCard
                   slot={slot}
-                  data={dataBySlot[slotKey(slot)] ?? []}
+                  data={dataBySlot[slotKey(slot)] ?? EMPTY_DATA}
                   secondaryData={secondarySlotKey(slot) ? dataBySlot[secondarySlotKey(slot)!] : undefined}
                   editing={isAdvanced}
                   loading={loading}
-                  onEdit={() => setEditingId(slot.id)}
-                  onRemove={() => onRemoveChart(slot.id)}
-                  onMoveUp={() => onMoveChart(slot.id, "up")}
-                  onMoveDown={() => onMoveChart(slot.id, "down")}
+                  onEdit={handlers.onEdit}
+                  onRemove={handlers.onRemove}
+                  onMoveUp={handlers.onMoveUp}
+                  onMoveDown={handlers.onMoveDown}
                   isFirst={idx === 0}
                   isLast={idx === charts.length - 1}
                   enterDelay={idx * 40}

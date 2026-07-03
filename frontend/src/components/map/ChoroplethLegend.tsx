@@ -4,6 +4,7 @@ import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
+import { getMapSeverityColors } from "../../lib/theme/tokens";
 
 
 const MISMATCH_DOT_COLORS: Record<PaletteKey, string> = {
@@ -73,6 +74,8 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
   if (!choroplethOn && !countyActive) return null;
 
   const colors = getPalette(palette, isDark);
+  // Same severity colors CrashDotLayer uses, so the legend matches the dots.
+  const severityColors = getMapSeverityColors(palette, isDark, tokens.severity);
   const activeMeasure = MEASURES[measure];
   const allMeasures = Object.values(MEASURES);
 
@@ -180,15 +183,15 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             <span className="text-[10px] text-on-surface-variant font-semibold">Crash</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tokens.severity.fatal }} />
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.fatal }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Fatal</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tokens.severity.injury }} />
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.injury }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Injury</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tokens.severity.pdo }} />
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.pdo }} />
             <span className="text-[10px] text-on-surface-variant font-semibold" title="Property Damage Only">PDO</span>
           </div>
           {mismatchCount != null && mismatchCount > 0 && (

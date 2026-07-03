@@ -89,6 +89,83 @@ def test_default_registry_resolves_without_error():
     assert names.index("insights") < names.index("vacuum")
 
 
+class _FakeResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar(self):
+        return self._value
+
+
+class _FakeDB:
+    """Minimal Session stand-in: returns queued COUNT(*) results in order."""
+
+    def __init__(self, counts):
+        self._counts = list(counts)
+
+    def execute(self, *_args, **_kwargs):
+        return _FakeResult(self._counts.pop(0) if self._counts else 0)
+
+
+def test_validate_job_no_table_is_skipped():
+    from etl.orchestrator import _validate_job
+
+    job = Job(name="demographics", module="etl.load_demographics", table_name=None)
+    status, summary = _validate_job(_FakeDB([]), job, rows_before=None)
+    assert status == "skipped"
+    assert summary is None
+
+
+def test_validate_job_growth_passes():
+    from etl.orchestrator import _validate_job
+
+    job = Job(name="parties", module="etl.x", table_name="crash_parties", max_drop_pct=5)
+    # current count (queried by check_row_count_growth) grew vs rows_before
+    status, _ = _validate_job(_FakeDB([1_050_000]), job, rows_before=1_000_000)
+    assert status == "passed"
+
+
+def test_validate_job_large_drop_fails():
+    from etl.orchestrator import _validate_job
+
+    job = Job(name="parties", module="etl.x", table_name="crash_parties", max_drop_pct=5)
+    # 50% drop, well beyond max_drop_pct=5 → critical failure → "failed"
+    status, summary = _validate_job(_FakeDB([500_000]), job, rows_before=1_000_000)
+    assert status == "failed"
+    assert "crash_parties_row_count" in summary
+
+
+def test_validate_job_small_drop_within_threshold_passes():
+    from etl.orchestrator import _validate_job
+
+    job = Job(name="parties", module="etl.x", table_name="crash_parties", max_drop_pct=10)
+    # 2% drop, within max_drop_pct=10 → not a failure
+    status, _ = _validate_job(_FakeDB([980_000]), job, rows_before=1_000_000)
+    assert status == "passed"
+
+
+def test_validate_job_swallows_check_errors():
+    from etl.orchestrator import _validate_job
+
+    class _BoomDB:
+        def execute(self, *_a, **_k):
+            raise RuntimeError("connection lost")
+
+    job = Job(name="parties", module="etl.x", table_name="crash_parties")
+    status, summary = _validate_job(_BoomDB(), job, rows_before=1_000_000)
+    # A broken check must not fail an otherwise-successful load.
+    assert status == "skipped"
+    assert "validation error" in summary
+
+
+def test_table_row_count_rejects_bad_identifier():
+    from etl.orchestrator import _table_row_count
+
+    # Never interpolate a suspicious identifier into SQL.
+    assert _table_row_count(_FakeDB([5]), "crashes; DROP TABLE x") is None
+    assert _table_row_count(_FakeDB([]), None) is None
+
+
 def test_cli_dry_run():
     result = subprocess.run(
         [sys.executable, "-m", "etl.run_all", "--dry-run"],

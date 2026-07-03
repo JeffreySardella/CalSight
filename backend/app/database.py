@@ -8,8 +8,10 @@ from app.settings import settings
 # request load — every router shares this pool via get_db().
 engine = create_engine(
     settings.effective_database_url,
-    pool_size=20,
-    max_overflow=20,
+    # Per-worker pool — see settings.db_pool_size for the sizing math
+    # against the server's max_connections.
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
     pool_recycle=3600,
     pool_pre_ping=True,
 )

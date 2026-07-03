@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import AskAiPage from "./AskAiPage";
+import { AskAiProvider } from "../hooks/useAskAi";
 
 // Avoid real export side effects in jsdom.
 vi.mock("../lib/story/exportCanvas", () => ({
@@ -12,7 +13,7 @@ beforeEach(() => sessionStorage.clear());
 
 describe("AskAiPage story canvas integration", () => {
   it("shows a Story toggle that opens the panel", () => {
-    render(<MemoryRouter><AskAiPage /></MemoryRouter>);
+    render(<MemoryRouter><AskAiProvider><AskAiPage /></AskAiProvider></MemoryRouter>);
     const toggle = screen.getByRole("button", { name: /story/i });
     fireEvent.click(toggle);
     expect(screen.getByRole("dialog", { name: /story/i })).toBeTruthy();

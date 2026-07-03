@@ -139,8 +139,65 @@ class TestTransformSwitrs:
         assert dt.hour == 0
         assert dt.minute == 0
 
+    def test_malformed_time_falls_back_to_midnight(self):
+        """Non-numeric time values ('UNK:00') appear in the archive; one bad
+        row must not abort the multi-hour load — fall back to midnight."""
+        for bad in ("UNK:00", "abc", "25:99:00", "-1:30"):
+            result = transform_switrs({**SAMPLE_SWITRS_ROW, "collision_time": bad})
+            dt = result["crash_datetime"]
+            assert isinstance(dt, datetime), f"Failed for {bad!r}"
+            assert (dt.hour, dt.minute) == (0, 0), f"Failed for {bad!r}"
+
     def test_handles_two_digit_county(self):
         """county_city_location '1900' should yield county_code 19."""
         result = transform_switrs({**SAMPLE_SWITRS_ROW, "county_city_location": "1900"})
 
         assert result["county_code"] == 19
+
+
+class TestIterCrashesFromSqlite:
+    """The streaming reader must yield bounded batches — materializing the
+    full 15-year archive (~6-7M dicts) has OOM-killed the ETL VM before."""
+
+    def _make_db(self, tmp_path, rows):
+        import sqlite3
+
+        path = tmp_path / "switrs.sqlite"
+        conn = sqlite3.connect(path)
+        cols = ", ".join(SAMPLE_SWITRS_ROW.keys())
+        placeholders = ", ".join("?" for _ in SAMPLE_SWITRS_ROW)
+        conn.execute(f"CREATE TABLE collisions ({cols})")
+        conn.executemany(
+            f"INSERT INTO collisions ({cols}) VALUES ({placeholders})",
+            [tuple(r[k] for k in SAMPLE_SWITRS_ROW) for r in rows],
+        )
+        conn.commit()
+        conn.close()
+        return str(path)
+
+    def test_yields_batches_of_at_most_batch_size(self, tmp_path):
+        from etl.switrs_api import iter_crashes_from_sqlite
+
+        rows = [
+            {**SAMPLE_SWITRS_ROW, "case_id": 1000 + i, "collision_date": "2012-07-15"}
+            for i in range(5)
+        ]
+        path = self._make_db(tmp_path, rows)
+
+        batches = list(iter_crashes_from_sqlite(path, 2012, 2012, batch_size=2))
+        assert [len(b) for b in batches] == [2, 2, 1]
+        assert {r["collision_id"] for b in batches for r in b} == {1000, 1001, 1002, 1003, 1004}
+
+    def test_skips_rows_without_id_or_date(self, tmp_path):
+        from etl.switrs_api import iter_crashes_from_sqlite
+
+        rows = [
+            {**SAMPLE_SWITRS_ROW, "case_id": 1},
+            {**SAMPLE_SWITRS_ROW, "case_id": None},
+            {**SAMPLE_SWITRS_ROW, "case_id": 3, "collision_date": None},
+        ]
+        path = self._make_db(tmp_path, rows)
+
+        batches = list(iter_crashes_from_sqlite(path, 2012, 2012, batch_size=10))
+        all_rows = [r for b in batches for r in b]
+        assert [r["collision_id"] for r in all_rows] == [1]

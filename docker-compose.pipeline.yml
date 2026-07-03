@@ -16,8 +16,12 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # Override for pipeline-specific settings
-      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      # Pipeline-specific settings. ALERT_WEBHOOK_URL deliberately has no
+      # `environment:` override: it lives in backend/.env (env_file above),
+      # which deploys preserve. An override interpolated from the shell
+      # (${ALERT_WEBHOOK_URL:-}) would win over env_file and blank the value
+      # whenever CI runs `docker compose up`, since the deploy shell never
+      # sets it.
       BACKUP_DIR: /backups
     volumes:
       # Backup volume — persists pg_dump files outside the container

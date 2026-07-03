@@ -14,11 +14,22 @@ const HIGHWAY_METRICS: { key: HighwaySort; label: string }[] = [
 interface ToggleProps {
   enabled: boolean;
   onToggle: () => void;
+  /** Accessible name — mirrors the visible row label next to the toggle. */
+  label: string;
+  /** When locked the toggle can't be flipped; announced via aria-disabled. */
+  locked?: boolean;
+  /** Screen-reader-only explanation of why the toggle is locked. */
+  lockedHint?: string;
 }
 
-function Toggle({ enabled, onToggle }: ToggleProps) {
+function Toggle({ enabled, onToggle, label, locked = false, lockedHint }: ToggleProps) {
   return (
     <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
+      aria-disabled={locked || undefined}
       onClick={onToggle}
       className={`w-8 h-4 rounded-full relative transition-colors ${
         enabled ? "bg-primary" : "bg-surface-container-high"
@@ -29,6 +40,7 @@ function Toggle({ enabled, onToggle }: ToggleProps) {
           enabled ? "right-0.5" : "left-0.5"
         }`}
       />
+      {locked && lockedHint && <span className="sr-only">{lockedHint}</span>}
     </button>
   );
 }
@@ -80,6 +92,9 @@ export default function LayersPanel() {
             <div className="relative">
               <Toggle
                 enabled={choroplethOn}
+                label="Shade by Measure"
+                locked={choroplethLocked}
+                lockedHint="At least one base layer must be active. Enable Statewide Heatmap first to turn this off."
                 onToggle={() => {
                   if (choroplethLocked) return;
                   const next = !choroplethOn;
@@ -89,6 +104,7 @@ export default function LayersPanel() {
               />
               {choroplethLocked && (
                 <span
+                  aria-hidden="true"
                   title="At least one base layer must be active"
                   className="absolute inset-0 cursor-not-allowed rounded-full"
                 />
@@ -121,6 +137,9 @@ export default function LayersPanel() {
             <div className="relative">
               <Toggle
                 enabled={otherLayers.heatmapStatewide}
+                label="Statewide"
+                locked={heatmapStatewideL}
+                lockedHint="At least one base layer must be active. Enable County Colors first to turn this off."
                 onToggle={() => {
                   if (heatmapStatewideL) return;
                   const next = !otherLayers.heatmapStatewide;
@@ -131,6 +150,7 @@ export default function LayersPanel() {
               />
               {heatmapStatewideL && (
                 <span
+                  aria-hidden="true"
                   title="At least one base layer must be active"
                   className="absolute inset-0 cursor-not-allowed rounded-full"
                 />
@@ -174,7 +194,7 @@ export default function LayersPanel() {
             <span className={`text-sm font-medium ${otherLayers.heatmapCounty ? "text-on-surface" : "text-on-surface-variant"}`}>
               County Detail
             </span>
-            <Toggle enabled={otherLayers.heatmapCounty} onToggle={() => toggleOtherLayer("heatmapCounty")} />
+            <Toggle enabled={otherLayers.heatmapCounty} label="County Detail" onToggle={() => toggleOtherLayer("heatmapCounty")} />
           </div>
           {otherLayers.heatmapCounty && (
             <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
@@ -185,7 +205,7 @@ export default function LayersPanel() {
             <span className={`text-sm font-medium ${otherLayers.coordMismatches ? "text-on-surface" : "text-on-surface-variant"}`}>
               Coord Mismatches
             </span>
-            <Toggle enabled={otherLayers.coordMismatches} onToggle={() => toggleOtherLayer("coordMismatches")} />
+            <Toggle enabled={otherLayers.coordMismatches} label="Coord Mismatches" onToggle={() => toggleOtherLayer("coordMismatches")} />
           </div>
           {otherLayers.coordMismatches && (
             <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
@@ -196,7 +216,7 @@ export default function LayersPanel() {
             <span className={`text-sm font-medium ${otherLayers.coordIncludeRivers ? "text-on-surface" : "text-on-surface-variant"}`}>
               Hide River Crashes
             </span>
-            <Toggle enabled={otherLayers.coordIncludeRivers} onToggle={() => toggleOtherLayer("coordIncludeRivers")} />
+            <Toggle enabled={otherLayers.coordIncludeRivers} label="Hide River Crashes" onToggle={() => toggleOtherLayer("coordIncludeRivers")} />
           </div>
           {otherLayers.coordIncludeRivers && (
             <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
@@ -218,6 +238,7 @@ export default function LayersPanel() {
             </span>
             <Toggle
               enabled={otherLayers.highwayDanger}
+              label="Highway Danger"
               onToggle={() => toggleOtherLayer("highwayDanger")}
             />
           </div>
@@ -266,6 +287,7 @@ export default function LayersPanel() {
             <Toggle
               enabled={otherLayers.topIntersections}
               onToggle={() => toggleOtherLayer("topIntersections")}
+              label="Top intersections"
             />
           </div>
           <p className="text-[10px] text-on-surface-variant leading-tight pl-1">

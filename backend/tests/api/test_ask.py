@@ -160,3 +160,31 @@ def test_quick_facts_handles_zero_match_filters(client, fake_llm):
     assert r.status_code == 200
     system_msg = fake_llm[0]["messages"][0]
     assert "no crashes match these filters" in system_msg["content"].lower()
+
+
+# ── Feedback write path ─────────────────────────────────────────────────
+
+
+def test_feedback_vote_persists(client, db_session):
+    """POST /api/feedback is the API's only write; it must actually land.
+    (In production this runs as the read-only role, which migration
+    v0w1x2y3z4a5 grants the one INSERT it needs.)"""
+    from app.models import ChatFeedback
+
+    r = client.post(
+        "/api/feedback",
+        json={"question": "how many?", "answer": "42", "vote": "up"},
+    )
+    assert r.status_code == 200
+    assert r.json() == {"ok": True}
+    row = db_session.query(ChatFeedback).order_by(ChatFeedback.id.desc()).first()
+    assert row is not None
+    assert row.vote == "up"
+
+
+def test_feedback_rejects_bad_vote(client):
+    r = client.post(
+        "/api/feedback",
+        json={"question": "q", "answer": "a", "vote": "sideways"},
+    )
+    assert r.status_code == 422
