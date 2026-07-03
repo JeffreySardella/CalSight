@@ -164,3 +164,11 @@ desktop.ini
 .playwright-mcp/
 .claude/
 lighthouse-stats*.json
+*.lnk
+
+# Playwright artifacts
+frontend/playwright-report/
+frontend/test-results/
+
+# Staged raw ETL data (downloaded at deploy/run time, not source)
+backend/data/shn_raw.geojson
