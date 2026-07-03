@@ -22,6 +22,7 @@ import CorrelationMatrix from "../components/charts/CorrelationMatrix";
 import VehicleTrends from "../components/stats/VehicleTrends";
 import HighwayRankingsTable from "../components/stats/HighwayRankingsTable";
 import IntersectionsPanel from "../components/stats/IntersectionsPanel";
+import YoyChangesPanel from "../components/stats/YoyChangesPanel";
 import { encodeDashboard } from "../lib/dashboard/urlCodec";
 import SavedDashboardsPanel from "../components/stats/SavedDashboardsPanel";
 import NlqQueryBar from "../components/stats/NlqQueryBar";
@@ -775,6 +776,11 @@ function StatsPageInner() {
       {/* Street-level crash aggregation (intersections / corridors) */}
       <section aria-label="Street-level crash aggregation" className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
         <IntersectionsPanel />
+      </section>
+
+      {/* Year-over-year change by county */}
+      <section aria-label="Year-over-year change" className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
+        <YoyChangesPanel />
       </section>
 
       {/* Vehicle Trends */}
