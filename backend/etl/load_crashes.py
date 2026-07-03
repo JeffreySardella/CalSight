@@ -183,6 +183,53 @@ def upsert_crashes(
     return len(rows)
 
 
+def select_years_to_load(
+    start_year: int,
+    end_year: int,
+    loaded: dict[int, int],
+    source_filter: str | None = None,
+    force: bool = False,
+    today_year: int | None = None,
+) -> tuple[list[int], list[int], list[int]]:
+    """Partition the requested year range into SWITRS/CCRS years to load.
+
+    Years that already have rows are skipped — except the current and
+    previous year, which keep receiving new CHP records nightly and are
+    always reloaded (the ON CONFLICT upsert makes re-loading them safe).
+    Without that exception, the daily job would no-op as soon as a year
+    had a single batch loaded.
+
+    Returns (switrs_years, ccrs_years, skipped_years).
+    """
+    if today_year is None:
+        today_year = datetime.now(timezone.utc).year
+
+    switrs_years = [
+        y for y in range(start_year, end_year + 1)
+        if determine_source(y) == "switrs"
+        and (source_filter is None or source_filter == "switrs")
+    ]
+    ccrs_years = [
+        y for y in range(start_year, end_year + 1)
+        if determine_source(y) == "ccrs"
+        and (source_filter is None or source_filter == "ccrs")
+    ]
+
+    skipped: list[int] = []
+    if not force:
+        refresh_years = {today_year, today_year - 1}
+        skipped = sorted(
+            [y for y in switrs_years if y in loaded]
+            + [y for y in ccrs_years if y in loaded and y not in refresh_years]
+        )
+        switrs_years = [y for y in switrs_years if y not in loaded]
+        ccrs_years = [
+            y for y in ccrs_years if y not in loaded or y in refresh_years
+        ]
+
+    return switrs_years, ccrs_years, skipped
+
+
 def run(
     start_year: int = DEFAULT_START_YEAR,
     end_year: int = DEFAULT_END_YEAR,
@@ -237,29 +284,16 @@ def run(
     error_message = None
 
     try:
-        # Partition years into SWITRS vs CCRS based on source routing
-        switrs_years = [
-            y for y in range(start_year, end_year + 1)
-            if determine_source(y) == "switrs"
-            and (source_filter is None or source_filter == "switrs")
-        ]
-        ccrs_years = [
-            y for y in range(start_year, end_year + 1)
-            if determine_source(y) == "ccrs"
-            and (source_filter is None or source_filter == "ccrs")
-        ]
-
-        # Skip years that already have data (unless --force)
-        if not force:
-            skipped_switrs = [y for y in switrs_years if y in loaded]
-            skipped_ccrs = [y for y in ccrs_years if y in loaded]
-            switrs_years = [y for y in switrs_years if y not in loaded]
-            ccrs_years = [y for y in ccrs_years if y not in loaded]
-            if skipped_switrs or skipped_ccrs:
-                logger.info(
-                    "Skipping already-loaded years: %s (use --force to reload)",
-                    sorted(skipped_switrs + skipped_ccrs),
-                )
+        # Partition years into SWITRS vs CCRS and drop already-loaded years
+        # (current + previous year are always reloaded; see the helper).
+        switrs_years, ccrs_years, skipped = select_years_to_load(
+            start_year, end_year, loaded, source_filter=source_filter, force=force,
+        )
+        if skipped:
+            logger.info(
+                "Skipping already-loaded years: %s (use --force to reload)",
+                skipped,
+            )
 
         logger.info(
             "Year range %d–%d: %d SWITRS years, %d CCRS years to load",
@@ -269,10 +303,12 @@ def run(
         failed_batches = 0
 
         # --- SWITRS years ---
-        # Download the archive once, then read all years from the SQLite file.
-        # This avoids re-downloading for each year (the archive is ~1 GB).
+        # Download the archive once, then STREAM batches from the SQLite
+        # file. Materializing all 15 years at once (~6-7M dicts, multiple GB
+        # of RSS) has OOM-killed this VM before — each batch is upserted
+        # before the next is read, so memory stays flat.
         if switrs_years:
-            from etl.switrs_api import download_switrs_archive, read_crashes_from_sqlite  # noqa: PLC0415
+            from etl.switrs_api import download_switrs_archive, iter_crashes_from_sqlite  # noqa: PLC0415
 
             tmp_dir = tempfile.mkdtemp(prefix="switrs_")
             logger.info("Downloading SWITRS archive to %s", tmp_dir)
@@ -280,26 +316,28 @@ def run(
 
             switrs_start = min(switrs_years)
             switrs_end = max(switrs_years)
-            all_switrs_rows = read_crashes_from_sqlite(sqlite_path, switrs_start, switrs_end)
-
             logger.info(
-                "SWITRS: %d records for years %d–%d, upserting in batches of %d",
-                len(all_switrs_rows), switrs_start, switrs_end, BATCH_SIZE,
+                "SWITRS: streaming years %d–%d in batches of %d",
+                switrs_start, switrs_end, BATCH_SIZE,
             )
 
-            for batch_start in range(0, len(all_switrs_rows), BATCH_SIZE):
-                batch = all_switrs_rows[batch_start: batch_start + BATCH_SIZE]
+            switrs_rows_seen = 0
+            for batch in iter_crashes_from_sqlite(
+                sqlite_path, switrs_start, switrs_end, batch_size=BATCH_SIZE,
+            ):
+                batch_start = switrs_rows_seen
+                switrs_rows_seen += len(batch)
                 try:
                     count = upsert_crashes(db, batch, city_lookup=city_lookup)
                     db.commit()
                     total_rows += count
                     logger.info(
                         "SWITRS batch [%d:%d]: %d rows upserted",
-                        batch_start, batch_start + len(batch), count,
+                        batch_start, switrs_rows_seen, count,
                     )
                 except Exception as exc:
                     failed_batches += 1
-                    logger.error("SWITRS batch [%d:%d] failed: %s", batch_start, batch_start + len(batch), exc)
+                    logger.error("SWITRS batch [%d:%d] failed: %s", batch_start, switrs_rows_seen, exc)
                     db.rollback()
 
         # --- CCRS years ---

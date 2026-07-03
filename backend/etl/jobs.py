@@ -16,7 +16,9 @@ def build_default_registry() -> JobRegistry:
     registry.register(Job(
         name="crashes_ccrs",
         module="etl.load_crashes",
-        args=["--start", "2016", "--end", "2026", "--source", "ccrs"],
+        # No --end: the module default (current year + 1) auto-advances,
+        # so new calendar years don't need a manual edit here.
+        args=["--start", "2016", "--source", "ccrs"],
         schedule="daily",
         table_name="crashes",
         max_drop_pct=5,

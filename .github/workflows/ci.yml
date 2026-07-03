@@ -11,6 +11,13 @@ permissions:
   pull-requests: write
   security-events: write
 
+concurrency:
+  # Superseded pushes to the same branch/PR cancel the in-flight run. Safe for
+  # CI (nothing stateful gets interrupted), unlike deploy where it isn't. A
+  # cancelled main run never deploys — the newer commit's run deploys instead.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-latest

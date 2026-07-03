@@ -32,7 +32,18 @@ const Ctx = createContext<CompanionApi | null>(null);
 export function AiCompanionProvider({ children }: { children: ReactNode }) {
   const [current, setCurrent] = useState<DataContext | null>(null);
   const [askedHere, setAskedHere] = useState(false);
-  const { sendMessage, isLoading, error, retry, messages } = useAskAi();
+  const { sendMessage, isLoading, error, retry, messages, cooldownEnd } = useAskAi();
+
+  // Mirror the Ask AI page: tick down the send cooldown so "Go deeper" is
+  // disabled while the server backoff (or the local per-question cooldown)
+  // is still active.
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  useEffect(() => {
+    const update = () => setCooldownRemaining(Math.max(0, Math.ceil(((cooldownEnd || 0) - Date.now()) / 1000)));
+    update();
+    const interval = setInterval(update, 500);
+    return () => clearInterval(interval);
+  }, [cooldownEnd]);
 
   const open = useCallback((ctx: DataContext) => setCurrent(ctx), []);
   const close = useCallback(() => setCurrent(null), []);
@@ -129,11 +140,16 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
           </div>
           <p className="mt-2 text-sm text-on-surface-variant">{explanation.body}</p>
           <button
-            onClick={() => { if (current) { setAskedHere(true); sendMessage(buildDeepDivePrompt(current)); } }}
-            disabled={isLoading}
+            onClick={() => {
+              if (current && !isLoading && cooldownRemaining === 0) {
+                setAskedHere(true);
+                sendMessage(buildDeepDivePrompt(current));
+              }
+            }}
+            disabled={isLoading || cooldownRemaining > 0}
             className="mt-3 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary disabled:opacity-50"
           >
-            {isLoading ? "Thinking…" : "Go deeper with AI"}
+            {isLoading ? "Thinking…" : cooldownRemaining > 0 ? `Wait ${cooldownRemaining}s` : "Go deeper with AI"}
           </button>
           {askedHere && (
             <div aria-live="polite" className="mt-3 max-h-[40vh] overflow-y-auto border-t border-outline-variant pt-3">

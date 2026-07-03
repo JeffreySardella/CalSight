@@ -7,6 +7,7 @@ vi.mock("../../hooks/useDistribution", () => ({
 
 import { MemoryRouter } from "react-router-dom";
 import { AiCompanionProvider } from "../ai/AiCompanion";
+import { AskAiProvider } from "../../hooks/useAskAi";
 import HighwaySidePanelContent from "./HighwaySidePanelContent";
 import type { HighwayRow } from "../../hooks/useHighwayRankings";
 import type { FilterSnapshot } from "../../lib/ai/dataContext";
@@ -30,9 +31,11 @@ const emptyFilters: FilterSnapshot = {
 function renderPanel(row: HighwayRow = baseRow) {
   return render(
     <MemoryRouter>
-      <AiCompanionProvider>
-        <HighwaySidePanelContent row={row} filters={emptyFilters} />
-      </AiCompanionProvider>
+      <AskAiProvider>
+        <AiCompanionProvider>
+          <HighwaySidePanelContent row={row} filters={emptyFilters} />
+        </AiCompanionProvider>
+      </AskAiProvider>
     </MemoryRouter>,
   );
 }

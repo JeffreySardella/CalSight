@@ -302,6 +302,15 @@ def _run_group_query(
             "those views don't carry canonical_cause.",
         )
 
+    if group_by == "rate" and causes:
+        # mv_crash_rates carries no canonical_cause; silently dropping the
+        # filter would return unfiltered rates presented as filtered.
+        raise FilterError(
+            "cause",
+            "cause filter is not supported with group_by=rate — per-capita "
+            "rates are precomputed without cause breakdowns.",
+        )
+
     view = _pick_view(group_by, has_cause_filter=bool(causes))
 
     # When involvement/condition filters or condition group_by values are

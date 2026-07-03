@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
 import { formatYearMonth, type DateRangeFilter } from "./useFilterParams";
@@ -141,52 +142,60 @@ async function safeFetchJson<T = Record<string, unknown>[]>(
   }
 }
 
-export function useCorrelationData(filters?: CorrelationFilters) {
-  // Build the batch body for crash stats — applies crash-level filters but never county
-  const batchBody: Record<string, string> = {};
-  if (filters?.dateRange?.start) batchBody.start = formatYearMonth(filters.dateRange.start);
-  if (filters?.dateRange?.end) batchBody.end = formatYearMonth(filters.dateRange.end);
-  if (filters?.severity?.length) batchBody.severity = filters.severity.map((s) => s.toLowerCase().replace(/ /g, "-")).join(",");
-  if (filters?.alcohol) batchBody.alcohol = "true";
-  if (filters?.pedestrian) batchBody.pedestrian = "true";
-  if (filters?.cyclist) batchBody.cyclist = "true";
-  if (filters?.drug) batchBody.drug = "true";
-  if (filters?.distracted) batchBody.distracted = "true";
+/**
+ * Supplemental (county-reference) datasets used by the correlation matrix.
+ * NONE of these depend on the crash-level filters (date range, severity,
+ * involvement flags) — they are static per-county reference tables. They are
+ * therefore fetched under a filter-independent query key so that changing the
+ * animated timelapse year (or any crash filter) does NOT refetch them.
+ */
+export type CorrelationSupplemental = {
+  demographics: Record<string, unknown>[];
+  calenviro: Record<string, unknown>[];
+  unemployment: Record<string, unknown>[];
+  vehicles: Record<string, unknown>[];
+  weather: Record<string, unknown>[];
+  fars: Record<string, unknown>[];
+  density: Record<string, unknown>[];
+};
 
-  // Stable cache key incorporating active filters
-  const filterKey = JSON.stringify(batchBody);
+/** Fetch all filter-independent supplemental sources in parallel. */
+async function fetchCorrelationSupplemental(): Promise<CorrelationSupplemental> {
+  const [demographics, calenviro, unemployment, vehicles, weather, fars, density] = await Promise.all([
+    safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/demographics`),
+    safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/calenviroscreen`),
+    safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/unemployment`),
+    safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/vehicles`),
+    safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/weather`),
+    safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/fars`),
+    safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/tract-density`),
+  ]);
+  return { demographics, calenviro, unemployment, vehicles, weather, fars, density };
+}
 
-  return useQuery({
-    queryKey: ["correlation-matrix", filterKey],
-    queryFn: async () => {
-      // Stats is required — it provides the base county rows
-      // Only crash-level filters applied; county is omitted so we get all 58
-      const statsRes = await fetch(`${API_BASE}/api/stats/batch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groups: ["county"], ...batchBody }),
-      });
-      if (!statsRes.ok) {
-        throw new Error("Failed to fetch crash stats for correlation matrix");
-      }
-      const stats = await statsRes.json();
+export type CorrelationResult = {
+  fields: CorrelationField[];
+  matrix: number[][];
+  countyCount: number;
+  counties: CountyRow[];
+};
 
-      // Supplemental sources — fetch in parallel, gracefully skip failures
-      const [demographics, calenviro, unemployment, vehicles, weather, fars, density] = await Promise.all([
-        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/demographics`),
-        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/calenviroscreen`),
-        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/unemployment`),
-        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/vehicles`),
-        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/weather`),
-        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/fars`),
-        safeFetchJson<Record<string, unknown>[]>(`${API_BASE}/api/tract-density`),
-      ]);
+/**
+ * Pure builder: merge the (year-dependent) county crash stats with the
+ * (filter-independent) supplemental datasets and compute the Pearson matrix.
+ * Kept as a standalone function so the expensive 29×29 recompute only runs
+ * when one of its inputs actually changes (see useMemo in useCorrelationData),
+ * not on every unrelated re-render.
+ */
+export function buildCorrelationResult(
+  countyStats: Record<string, unknown>[],
+  supplemental: CorrelationSupplemental,
+): CorrelationResult {
+  const { demographics, calenviro, unemployment, vehicles, weather, fars, density } = supplemental;
 
-      const countyStats: Record<string, unknown>[] = stats.county ?? [];
+  const byCounty: Record<string, CountyRow> = {};
 
-      const byCounty: Record<string, CountyRow> = {};
-
-      for (const r of countyStats) {
+  for (const r of countyStats) {
         const code = String((r as Record<string, unknown>).county_code ?? "");
         if (!code) continue;
         byCounty[code] = {
@@ -332,8 +341,61 @@ export function useCorrelationData(filters?: CorrelationFilters) {
         }
       }
 
-      return { fields, matrix, countyCount: counties.length, counties };
+  return { fields, matrix, countyCount: counties.length, counties };
+}
+
+export function useCorrelationData(filters?: CorrelationFilters) {
+  // Build the batch body for crash stats — applies crash-level filters but never county
+  const batchBody: Record<string, string> = {};
+  if (filters?.dateRange?.start) batchBody.start = formatYearMonth(filters.dateRange.start);
+  if (filters?.dateRange?.end) batchBody.end = formatYearMonth(filters.dateRange.end);
+  if (filters?.severity?.length) batchBody.severity = filters.severity.map((s) => s.toLowerCase().replace(/ /g, "-")).join(",");
+  if (filters?.alcohol) batchBody.alcohol = "true";
+  if (filters?.pedestrian) batchBody.pedestrian = "true";
+  if (filters?.cyclist) batchBody.cyclist = "true";
+  if (filters?.drug) batchBody.drug = "true";
+  if (filters?.distracted) batchBody.distracted = "true";
+
+  // Stable cache key incorporating active filters (crash stats only)
+  const filterKey = JSON.stringify(batchBody);
+
+  // Filter-independent supplemental sources — fetched ONCE under a stable key.
+  // The animated timelapse year changes filterKey (below) but never this key,
+  // so these ~7 endpoints are not refetched on every tick.
+  const supplemental = useQuery({
+    queryKey: ["correlation-supplemental"],
+    queryFn: fetchCorrelationSupplemental,
+    staleTime: 30 * 60 * 1000,
+  });
+
+  // Year/filter-dependent county crash stats — re-keyed per filter change.
+  const statsQuery = useQuery({
+    queryKey: ["correlation-stats", filterKey],
+    queryFn: async () => {
+      // Only crash-level filters applied; county is omitted so we get all 58
+      const statsRes = await fetch(`${API_BASE}/api/stats/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groups: ["county"], ...batchBody }),
+      });
+      if (!statsRes.ok) {
+        throw new Error("Failed to fetch crash stats for correlation matrix");
+      }
+      const stats = await statsRes.json();
+      return (stats.county ?? []) as Record<string, unknown>[];
     },
     staleTime: 5 * 60 * 1000,
   });
+
+  // Combine + compute the Pearson matrix only when an input actually changes.
+  const data = useMemo<CorrelationResult | undefined>(() => {
+    if (!statsQuery.data || !supplemental.data) return undefined;
+    return buildCorrelationResult(statsQuery.data, supplemental.data);
+  }, [statsQuery.data, supplemental.data]);
+
+  return {
+    data,
+    isLoading: statsQuery.isLoading || supplemental.isLoading,
+    error: statsQuery.error ?? supplemental.error ?? null,
+  };
 }

@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     etl_database_url: str = ""
     etl_database_url_azure: str = ""
 
+    # -- Connection pool (per gunicorn worker) --
+    # The pool is per-process: gunicorn runs 4 workers, so the server sees
+    # 4 × (pool_size + max_overflow) connections at peak. Keep the product
+    # comfortably under the Postgres max_connections (~100 on the current
+    # tier) with headroom for the ETL engine and psql sessions.
+    # 4 × (5 + 5) = 40 peak, versus 160 with the old 20/20 defaults.
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
+
     # -- CORS --
     # Comma-separated origins, e.g. "http://localhost:5173,https://calsight.example.com"
     cors_origins: str = "http://localhost:5173"

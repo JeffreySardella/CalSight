@@ -65,7 +65,10 @@ export function useDashboardConfig() {
   const setMode = useCallback((mode: "simple" | "advanced") => {
     setConfig((prev) => {
       if (prev.mode === mode) return prev;
-      if (mode === "advanced") return { ...prev, mode, charts: [] };
+      // Entering builder mode keeps any previously built charts — they are
+      // merely dormant while a preset is active. Clearing them here would make
+      // the "B" shortcut and command-palette toggle silently destructive.
+      // Users who want a blank canvas have the explicit "clear charts" action.
       return { ...prev, mode };
     });
   }, []);

@@ -1,9 +1,10 @@
 -- Create the read-only Postgres role used by the FastAPI backend.
 --
 -- WHY:
---   All 16 API endpoints are GET / SELECT-only. The API doesn't need
---   write access — and not having it means a compromised dependency
---   can't DROP, DELETE, or UPDATE anything. Defense-in-depth.
+--   The API is SELECT-only except for one narrow write (chat_feedback
+--   votes, granted below). Not having broader write access means a
+--   compromised dependency can't DROP, DELETE, or UPDATE anything.
+--   Defense-in-depth.
 --
 -- WHO RUNS THIS:
 --   The Azure Postgres admin (i.e. you). ETL + alembic stay on the
@@ -52,6 +53,12 @@ GRANT USAGE   ON SCHEMA   public   TO calsight_api_ro;
 --    nextval()-style queries even on pure-read sessions.
 GRANT SELECT                  ON ALL TABLES    IN SCHEMA public TO calsight_api_ro;
 GRANT SELECT, USAGE           ON ALL SEQUENCES IN SCHEMA public TO calsight_api_ro;
+
+-- 3b. The one narrow write the API performs: POST /api/feedback stores
+--     thumbs up/down votes in chat_feedback. Everything else stays
+--     SELECT-only. (Also applied by migration v0w1x2y3z4a5.)
+GRANT INSERT ON chat_feedback              TO calsight_api_ro;
+GRANT USAGE  ON SEQUENCE chat_feedback_id_seq TO calsight_api_ro;
 
 -- 4. Future-proof: when alembic adds a new table or the ETL creates a
 --    new materialized view tomorrow, the API role automatically gets

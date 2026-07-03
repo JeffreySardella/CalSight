@@ -27,6 +27,16 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/admin\//],
+        // NOTE on the /api/* routes below: Workbox only applies RegExp routes
+        // to cross-origin requests when the match starts at index 0 of the
+        // full href, so path-only patterns like /\/api\/stats/ silently never
+        // match the prod API origin (https://api.calsight.org). Function
+        // matchers cover both the same-origin dev/preview proxy and the
+        // cross-origin prod API. These functions are serialized into the
+        // generated service worker, so they must be self-contained (no
+        // closure variables — the prod origin is inlined in each one).
+        // Routes are evaluated in registration order, so the NetworkOnly
+        // guard must stay first to take precedence over the cacheable routes.
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*/i,
@@ -38,11 +48,15 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/api\/(etl|ask|live-)/,
+            urlPattern: ({ url, sameOrigin }) =>
+              (sameOrigin || url.origin === 'https://api.calsight.org') &&
+              /^\/api\/(etl|ask|live-)/.test(url.pathname),
             handler: 'NetworkOnly',
           },
           {
-            urlPattern: /\/api\/(insights|calenviroscreen|unemployment|data-quality|meta)/,
+            urlPattern: ({ url, sameOrigin }) =>
+              (sameOrigin || url.origin === 'https://api.calsight.org') &&
+              /^\/api\/(insights|calenviroscreen|unemployment|data-quality|meta)/.test(url.pathname),
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'api-reference',
@@ -51,7 +65,9 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/api\/(stats|crashes|demographics|context|heatmap)/,
+            urlPattern: ({ url, sameOrigin }) =>
+              (sameOrigin || url.origin === 'https://api.calsight.org') &&
+              /^\/api\/(stats|crashes|demographics|context|heatmap)/.test(url.pathname),
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'api-data',

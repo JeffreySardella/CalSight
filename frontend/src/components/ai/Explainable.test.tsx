@@ -6,6 +6,7 @@ vi.mock("../../hooks/useDistribution", () => ({
 }));
 import { MemoryRouter } from "react-router-dom";
 import { AiCompanionProvider } from "./AiCompanion";
+import { AskAiProvider } from "../../hooks/useAskAi";
 import { Explainable } from "./Explainable";
 import type { DataContext } from "../../lib/ai/dataContext";
 
@@ -19,9 +20,11 @@ const ctx: DataContext = { kind: "chart", label: "Crashes by hour", series: [{ l
 function setup() {
   render(
     <MemoryRouter>
-      <AiCompanionProvider>
-        <Explainable context={ctx}><span>9</span></Explainable>
-      </AiCompanionProvider>
+      <AskAiProvider>
+        <AiCompanionProvider>
+          <Explainable context={ctx}><span>9</span></Explainable>
+        </AiCompanionProvider>
+      </AskAiProvider>
     </MemoryRouter>,
   );
 }
