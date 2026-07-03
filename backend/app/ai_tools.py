@@ -912,6 +912,30 @@ def get_street_concentration(
     return out.model_dump()
 
 
+def get_yoy_changes(
+    db: Session,
+    metric: str = "crashes",
+    year: int | None = None,
+    limit: int = 10,
+) -> dict:
+    """Which counties changed the most year-over-year for a metric.
+
+    Compares `year` (default: latest year with data) against the prior year
+    for all counties. Rows whose baseline is below the metric's minimum are
+    flagged small_baseline and ranked after solid-baseline rows — percent
+    changes on tiny baselines are noise-prone. partial_year=True means the
+    comparison year is still accumulating data. Reports numbers only.
+    """
+    from app.routers.changes import compute_yoy_changes  # noqa: PLC0415 (avoid import cycle)
+
+    if metric not in ("crashes", "fatal_crashes", "killed", "injured"):
+        return {"error": f"Unknown metric: {metric}. Use crashes, fatal_crashes, killed, or injured."}
+
+    data = compute_yoy_changes(db, metric=metric, year=year).model_dump()
+    data["rows"] = data["rows"][: min(limit, _MAX_ROWS)]
+    return data
+
+
 # Tool registry
 # ---------------------------------------------------------------------------
 
@@ -931,4 +955,5 @@ TOOL_REGISTRY: dict[str, Any] = {
     "get_crash_rate": get_crash_rate,
     "get_top_intersections": get_top_intersections,
     "get_street_concentration": get_street_concentration,
+    "get_yoy_changes": get_yoy_changes,
 }
