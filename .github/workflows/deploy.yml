@@ -170,6 +170,12 @@ jobs:
           CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
         run: docker compose -f docker-compose.prod.yml run --rm -T backend alembic upgrade head
 
+      - name: Ensure host backup directory exists
+        # docker-compose.pipeline.yml bind-mounts /opt/calsight/backups into
+        # the pipeline container; the mount fails at container start if the
+        # host directory is missing (first deploy after the C4 backup fix).
+        run: mkdir -p /opt/calsight/backups 2>/dev/null || sudo -n mkdir -p /opt/calsight/backups
+
       - name: Start backend + tunnel + ETL pipeline
         env:
           CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
