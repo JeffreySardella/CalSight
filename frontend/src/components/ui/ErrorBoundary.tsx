@@ -10,6 +10,10 @@ interface Props {
   // falling through to the default UI. Omitting the prop entirely gives
   // you the default retry UI.
   fallback?: ReactNode;
+  // When this value changes, a latched error is cleared. Pass the route (e.g.
+  // location.pathname) so navigating away from a crashed page shows the new
+  // page instead of the stale error fallback (M-F12).
+  resetKey?: unknown;
 }
 
 interface State {
@@ -28,7 +32,13 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error("[ErrorBoundary]", error, info.componentStack);
   }
 
-  componentDidUpdate(_prevProps: Props, prevState: State) {
+  componentDidUpdate(prevProps: Props, prevState: State) {
+    // Navigation (or any resetKey change) clears a latched error so the next
+    // route isn't hidden behind a stale fallback (M-F12).
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, retryCount: 0 });
+      return;
+    }
     // Child rendered successfully after a retry — reset count for the next error episode.
     if (prevState.hasError && !this.state.hasError) {
       this.setState({ retryCount: 0 });
