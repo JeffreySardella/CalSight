@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { useStoryCanvas } from "../../hooks/useStoryCanvas";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import InlineChart from "./InlineChart";
 
 interface Props {
@@ -16,28 +17,10 @@ export default function StoryCanvasPanel({ open, onClose, onExportPng, onExportP
     title, blocks, count, setTitle, addNote, updateNote, moveBlock, removeBlock, clear,
   } = useStoryCanvas();
   const panelRef = useRef<HTMLDivElement>(null);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
 
-  // Capture the focused element before opening; restore it when closing.
-  // Combined into one [open] effect to guarantee capture happens before panel steals focus.
-  useEffect(() => {
-    if (open) {
-      returnFocusRef.current = document.activeElement as HTMLElement | null;
-      panelRef.current?.focus();
-    } else {
-      returnFocusRef.current?.focus();
-    }
-  }, [open]);
-
-  // Escape closes. On the document (not the dialog div) to avoid attaching a
-  // key handler to a non-interactive element (jsx-a11y) and to catch the key
-  // regardless of where focus sits inside the panel.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  // Make the aria-modal dialog actually modal: trap Tab focus, restore focus on
+  // close, and close on Escape (shared with AiCompanion via the hook).
+  useFocusTrap(panelRef, open, onClose);
 
   if (!open) return null;
 
