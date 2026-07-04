@@ -1,4 +1,5 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyWithRetry } from "./lib/lazyWithRetry";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -20,13 +21,13 @@ import RebuildingBanner from "./components/RebuildingBanner";
 import { AiCompanionProvider } from "./components/ai/AiCompanion";
 import { AskAiProvider } from "./hooks/useAskAi";
 
-const MapPage = lazy(() => import("./pages/MapPage"));
-const StatsPage = lazy(() => import("./pages/StatsPage"));
-const AboutPage = lazy(() => import("./pages/AboutPage"));
-const AskAiPage = lazy(() => import("./pages/AskAiPage"));
-const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
-const AdminEtlPage = lazy(() => import("./pages/AdminEtlPage"));
-const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const MapPage = lazyWithRetry(() => import("./pages/MapPage"));
+const StatsPage = lazyWithRetry(() => import("./pages/StatsPage"));
+const AboutPage = lazyWithRetry(() => import("./pages/AboutPage"));
+const AskAiPage = lazyWithRetry(() => import("./pages/AskAiPage"));
+const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
+const AdminEtlPage = lazyWithRetry(() => import("./pages/AdminEtlPage"));
+const NotFoundPage = lazyWithRetry(() => import("./pages/NotFoundPage"));
 
 export default function App() {
   return (
