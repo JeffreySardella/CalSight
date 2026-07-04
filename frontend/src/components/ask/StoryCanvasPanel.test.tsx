@@ -157,6 +157,26 @@ describe("StoryCanvasPanel", () => {
     });
   });
 
+  describe("focus trap", () => {
+    it("wraps Tab from the last focusable back to the first", () => {
+      wrap(<Harness open onClose={() => {}} />);
+      const dialog = screen.getByRole("dialog");
+      const focusables = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      expect(focusables.length).toBeGreaterThan(1);
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      act(() => { last.focus(); });
+      fireEvent.keyDown(dialog, { key: "Tab" });
+
+      expect(document.activeElement).toBe(first);
+    });
+  });
+
   describe("focus return on close", () => {
     it("returns focus to the trigger element when the panel is closed", () => {
       function FocusHarness() {

@@ -167,7 +167,7 @@ export default function LayersPanel() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                 Resolution
               </span>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5" role="group" aria-label="Heatmap resolution">
                 {([
                   { key: "low" as const, label: "Low" },
                   { key: "medium" as const, label: "Medium" },
@@ -175,6 +175,7 @@ export default function LayersPanel() {
                   <button
                     key={key}
                     onClick={() => setHeatmapResolution(key)}
+                    aria-pressed={heatmapResolution === key}
                     className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
                       heatmapResolution === key
                         ? "bg-primary text-on-primary"
@@ -247,11 +248,12 @@ export default function LayersPanel() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                 Color By
               </span>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Highway color metric">
                 {HIGHWAY_METRICS.map(({ key, label }) => (
                   <button
                     key={key}
                     onClick={() => setHighwayMetric(key)}
+                    aria-pressed={highwayMetric === key}
                     className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
                       highwayMetric === key
                         ? "bg-primary text-on-primary"
@@ -303,13 +305,14 @@ export default function LayersPanel() {
         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Measure
         </span>
-        <div className="space-y-2">
+        <div className="space-y-2" role="group" aria-label="Measure">
           {Object.values(MEASURES).map((m) => {
             const active = measure === m.key;
             return (
               <button
                 key={m.key}
                 onClick={() => setMeasure(m.key)}
+                aria-pressed={active}
                 className="flex items-center gap-3 w-full text-left cursor-pointer"
               >
                 <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
@@ -332,11 +335,12 @@ export default function LayersPanel() {
         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
           Color Palette
         </span>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3" role="group" aria-label="Color palette">
           {(Object.keys(PALETTES) as PaletteKey[]).map((key) => (
             <button
               key={key}
               onClick={() => setPalette(key)}
+              aria-pressed={activePalette === key}
               className={`p-2 rounded-xl text-left transition-all ${
                 activePalette === key ? "bg-primary-container" : "hover:bg-surface-container"
               }`}
