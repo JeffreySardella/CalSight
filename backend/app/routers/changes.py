@@ -44,6 +44,30 @@ _MIN_BASELINE: dict[str, int] = {
     "injured": 50,
 }
 
+# A trailing year holding fewer rows than this share of the prior year's is
+# treated as not-yet-loaded (upstream ingest lag), not as a real collapse in
+# crashes. Defaulting the comparison to such a year would rank every county
+# at -100% — the exact small-number noise this endpoint exists to avoid.
+_MIN_COVERAGE_RATIO = 0.2
+
+
+def _default_year(db: Session) -> int:
+    """Latest crash_year with meaningful coverage relative to the year before."""
+    counts = {
+        int(y): int(n)
+        for y, n in db.execute(
+            select(Crash.crash_year, func.count())
+            .where(Crash.crash_year.isnot(None))
+            .group_by(Crash.crash_year)
+        ).all()
+    }
+    if not counts:
+        return datetime.now(timezone.utc).year
+    year = max(counts)
+    while year - 1 in counts and counts[year] < _MIN_COVERAGE_RATIO * counts[year - 1]:
+        year -= 1
+    return year
+
 
 class CountyChange(BaseModel):
     county_code: int
@@ -92,7 +116,7 @@ def compute_yoy_changes(db: Session, metric: str = "crashes", year: int | None =
     function so the API endpoint and the Ask-AI tool share one implementation.
     """
     if year is None:
-        year = db.execute(select(func.max(Crash.crash_year))).scalar() or datetime.now(timezone.utc).year
+        year = _default_year(db)
 
     current_expr, previous_expr = _metric_exprs(metric, year)
 
@@ -147,7 +171,7 @@ def get_yoy_changes(
     request: Request,
     response: Response,
     metric: MetricKey = Query("crashes"),
-    year: int | None = Query(None, ge=2002, le=2100, description="Comparison year; defaults to the latest year with data"),
+    year: int | None = Query(None, ge=2002, le=2100, description="Comparison year; defaults to the latest year with meaningful data coverage"),
     db: Session = Depends(get_db),
 ):
     """Per-county YoY change ranking for a metric — see compute_yoy_changes."""

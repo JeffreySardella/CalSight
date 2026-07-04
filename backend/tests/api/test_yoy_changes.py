@@ -93,6 +93,27 @@ def test_yoy_solid_baseline_ranks_before_small(client, db_session):
     assert codes.index(38) < codes.index(19)
 
 
+def test_yoy_default_skips_barely_loaded_trailing_year(client, db_session):
+    """A trailing year holding only a sliver of rows (upstream ingest lag) must
+    not be the default comparison year — it would rank every county at -100%."""
+    rows = []
+    cid = 9800
+    for y, n in ((2030, 50), (2031, 2)):
+        for _ in range(n):
+            rows.append(_crash(cid, 19, y))
+            cid += 1
+    db_session.add_all(rows)
+    db_session.flush()
+
+    body = client.get("/api/stats/yoy-changes?metric=crashes").json()
+    assert body["year"] == 2030
+    assert body["partial_year"] is False
+
+    # An explicit request for the sliver year is still honored.
+    body = client.get("/api/stats/yoy-changes?metric=crashes&year=2031").json()
+    assert body["year"] == 2031
+
+
 def test_yoy_ai_tool(db_session, seed_years):
     assert "get_yoy_changes" in TOOL_REGISTRY
     out = get_yoy_changes(db_session, metric="crashes", year=2019, limit=5)

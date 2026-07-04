@@ -11,8 +11,18 @@ from datetime import datetime
 import pytest
 
 from app.models import Crash
+from app.routers.intersections import clear_concentration_cache
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _fresh_concentration_cache():
+    """Concentration results are cached in-process; tests seed different data
+    into the same app, so every test starts (and leaves) with a cold cache."""
+    clear_concentration_cache()
+    yield
+    clear_concentration_cache()
 
 
 def _crash(cid, primary, secondary, *, severity="Injury", killed=0, injured=1,
@@ -141,6 +151,25 @@ def test_street_concentration(client, db_session):
     top10 = next(b for b in body["breakpoints"] if b["top_pct"] == 10)
     assert top10["unit_count"] == 1            # ceil(10 * 0.10) = 1
     assert top10["severe_share_pct"] == 100.0  # that 1 street holds all severe
+
+
+def test_street_concentration_cached_until_cleared(client, db_session):
+    """A repeat call within the TTL returns the cached result even after new
+    rows land; clearing the cache picks the new rows up. (The heavy statewide
+    scan must run at most once per TTL window, not once per visitor.)"""
+    cid = 9500
+    db_session.add(_crash(cid, "CACHE ST", "HIT AVE", severity="Injury", injured=1))
+    db_session.flush()
+
+    url = "/api/street-concentration?county=los-angeles&scope=corridors"
+    assert client.get(url).json()["total_units"] == 1
+
+    db_session.add(_crash(cid + 1, "NEW ST", "MISS AVE", severity="Injury", injured=1))
+    db_session.flush()
+    assert client.get(url).json()["total_units"] == 1  # cached
+
+    clear_concentration_cache()
+    assert client.get(url).json()["total_units"] == 2  # recomputed
 
 
 def test_pedestrian_mode_filter(client, db_session):
