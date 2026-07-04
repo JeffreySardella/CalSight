@@ -28,6 +28,7 @@ Usage:
 import argparse
 import gc
 import logging
+import sys
 import time
 from datetime import datetime
 
@@ -36,7 +37,6 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CrashParty, CrashVictim
-from etl._utils import etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -214,11 +214,17 @@ def load_table(
     end_year: int,
     force: bool,
 ):
-    """Generic loader for parties or victims."""
+    """Generic loader for parties or victims.
+
+    Returns True if any page fetch failed (a partial load). Callers must treat
+    this as a failure — otherwise a truncated load records a silent success
+    (M-B9).
+    """
     db = SessionLocal()
 
     try:
         total_rows = 0
+        had_failure = False
 
         for year in range(start_year, end_year + 1):
             if year not in resource_ids:
@@ -235,6 +241,7 @@ def load_table(
                     result = _fetch_page(resource_id, offset)
                 except Exception as exc:
                     logger.error("%s year %d failed at offset %d: %s", table_type, year, offset, exc)
+                    had_failure = True
                     break
 
                 total = result["total"]
@@ -288,6 +295,7 @@ def load_table(
             db.expunge_all()
 
         logger.info("Done. %d total %s records upserted.", total_rows, table_type)
+        return had_failure
 
     finally:
         db.close()
@@ -299,7 +307,13 @@ def run(
     table: str | None = None,
     force: bool = False,
 ):
-    """Main entry point."""
+    """Main entry point.
+
+    No self-tracking EtlRun here: the orchestrator's run_job owns the etl_runs
+    row (source = the job name, "parties" / "victims"). Tracking it again here
+    double-counted run history (M-B8). A partial load exits non-zero so run_job
+    records an error instead of a silent success (M-B9).
+    """
     source_name = table if table in ("parties", "victims") else "parties_victims"
 
     eff_start = effective_start_year(start_year, force, datetime.now().year)
@@ -310,34 +324,38 @@ def run(
         start_year,
     )
 
-    with etl_run(source_name):
-        if table is None or table == "parties":
-            load_table(
-                table_type="parties",
-                resource_ids=PARTIES_RESOURCE_IDS,
-                model_class=CrashParty,
-                transform_fn=transform_party,
-                upsert_cols=_PARTY_UPSERT_COLS,
-                constraint_name="uq_parties_party_source",
-                id_field="party_id",
-                start_year=eff_start,
-                end_year=end_year,
-                force=force,
-            )
+    had_failure = False
+    if table is None or table == "parties":
+        had_failure |= load_table(
+            table_type="parties",
+            resource_ids=PARTIES_RESOURCE_IDS,
+            model_class=CrashParty,
+            transform_fn=transform_party,
+            upsert_cols=_PARTY_UPSERT_COLS,
+            constraint_name="uq_parties_party_source",
+            id_field="party_id",
+            start_year=eff_start,
+            end_year=end_year,
+            force=force,
+        )
 
-        if table is None or table == "victims":
-            load_table(
-                table_type="victims",
-                resource_ids=VICTIMS_RESOURCE_IDS,
-                model_class=CrashVictim,
-                transform_fn=transform_victim,
-                upsert_cols=_VICTIM_UPSERT_COLS,
-                constraint_name="uq_victims_victim_source",
-                id_field="victim_id",
-                start_year=eff_start,
-                end_year=end_year,
-                force=force,
-            )
+    if table is None or table == "victims":
+        had_failure |= load_table(
+            table_type="victims",
+            resource_ids=VICTIMS_RESOURCE_IDS,
+            model_class=CrashVictim,
+            transform_fn=transform_victim,
+            upsert_cols=_VICTIM_UPSERT_COLS,
+            constraint_name="uq_victims_victim_source",
+            id_field="victim_id",
+            start_year=eff_start,
+            end_year=end_year,
+            force=force,
+        )
+
+    if had_failure:
+        logger.error("Partial load: one or more page fetches failed")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

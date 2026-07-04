@@ -118,3 +118,28 @@ class TestSelectYearsToLoad:
         )
         assert 2026 in ccrs and 2027 in ccrs
         assert 2025 in skipped
+
+
+class TestNoSelfTracking:
+    """M-B8: load_crashes must not create its own EtlRun row. The orchestrator's
+    run_job is the single tracker; a self-created row (source='ccrs') is a phantom
+    source in /api/freshness and double-counts run history."""
+
+    def test_run_does_not_construct_an_etl_run(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import load_crashes as mod
+
+        etl_run_ctor = MagicMock()
+        # raising=False: the loader no longer imports EtlRun at all, which is
+        # exactly the fix — if it ever references mod.EtlRun again this mock
+        # would catch it.
+        monkeypatch.setattr(mod, "EtlRun", etl_run_ctor, raising=False)
+        monkeypatch.setattr(mod, "SessionLocal", lambda: MagicMock())
+        monkeypatch.setattr(mod, "build_city_lookup", lambda db: {})
+        monkeypatch.setattr(mod, "get_loaded_years", lambda db: {})
+        # No years to load → run() does only bookkeeping, no network.
+        monkeypatch.setattr(mod, "select_years_to_load", lambda *a, **k: ([], [], []))
+
+        mod.run(start_year=2016, end_year=2016, source_filter="ccrs")
+
+        etl_run_ctor.assert_not_called()
