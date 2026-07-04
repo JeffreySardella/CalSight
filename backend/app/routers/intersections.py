@@ -19,6 +19,7 @@ the counts and lets the reader draw conclusions.
 
 from __future__ import annotations
 
+import time
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -211,6 +212,20 @@ def _resolve_county(db: Session, county: str | None) -> int | None:
 # Concentration curve breakpoints: (label, top-percent-of-streets).
 _CONCENTRATION_POINTS = [("Top 1%", 1), ("Top 5%", 5), ("Top 10%", 10), ("Top 25%", 25)]
 
+# The statewide concentration aggregation walks every crash-carrying street
+# (~2.6M units over 11M crashes) and takes ~25s cold, but its result only
+# changes when ETL loads rows. Cache results in-process with a TTL so each
+# backend worker pays the scan at most once per TTL window per argument set,
+# instead of once per visitor.
+_CONCENTRATION_TTL_SECONDS = 6 * 3600
+_CONCENTRATION_CACHE_MAX = 256
+_concentration_cache: dict[tuple, tuple[float, ConcentrationOut]] = {}
+
+
+def clear_concentration_cache() -> None:
+    """Drop all cached concentration results (tests / manual invalidation)."""
+    _concentration_cache.clear()
+
 
 def _concentration(
     db: Session,
@@ -226,8 +241,13 @@ def _concentration(
     Aggregates crashes per street, ranks by severe (fatal+injury) count, and
     reports what share of severe crashes the top 1/5/10/25% of crash-carrying
     streets hold. Computed entirely in SQL (CTE + window functions) so the
-    long tail never has to leave the database.
+    long tail never has to leave the database. Results are cached in-process
+    for _CONCENTRATION_TTL_SECONDS (see note above).
     """
+    cache_key = (by_secondary, county_code, county_name, year_start, year_end)
+    hit = _concentration_cache.get(cache_key)
+    if hit is not None and hit[0] > time.monotonic():
+        return hit[1]
     preds, group_cols = _street_preds_and_groups(
         by_secondary, county_code, year_start, year_end,
     )
@@ -288,7 +308,7 @@ def _concentration(
             )
         )
 
-    return ConcentrationOut(
+    out = ConcentrationOut(
         scope="corridors" if not by_secondary else "intersections",
         county_code=county_code,
         county_name=county_name,
@@ -297,6 +317,12 @@ def _concentration(
         total_severe_crashes=total_severe,
         breakpoints=breakpoints,
     )
+    if len(_concentration_cache) >= _CONCENTRATION_CACHE_MAX:
+        _concentration_cache.clear()
+    _concentration_cache[cache_key] = (
+        time.monotonic() + _CONCENTRATION_TTL_SECONDS, out,
+    )
+    return out
 
 
 @router.get("/intersections", response_model=list[IntersectionOut])
