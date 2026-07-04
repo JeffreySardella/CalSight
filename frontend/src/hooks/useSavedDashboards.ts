@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import type { DashboardConfig } from "../lib/dashboard/types";
+import { isValidConfig } from "../lib/dashboard/validateConfig";
 
 const STORAGE_KEY = "calsight-saved-dashboards-v1";
 const MAX_SAVES = 20;
@@ -22,13 +23,25 @@ function generateId(): string {
   );
 }
 
+function isSavedShape(d: unknown): d is SavedDashboard {
+  if (!d || typeof d !== "object") return false;
+  const e = d as Record<string, unknown>;
+  return (
+    typeof e.id === "string" &&
+    typeof e.name === "string" &&
+    typeof e.savedAt === "string" &&
+    !!e.config && typeof e.config === "object"
+  );
+}
+
 function readFromStorage(): SavedDashboard[] {
   try {
     const raw = safeGetItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed;
+    // Drop garbage entries so list/rename/remove can't choke on them.
+    return parsed.filter(isSavedShape);
   } catch {
     return [];
   }
@@ -67,7 +80,10 @@ export function useSavedDashboards() {
   const load = useCallback((id: string): DashboardConfig | null => {
     const current = readFromStorage();
     const entry = current.find((d) => d.id === id);
-    return entry?.config ?? null;
+    // Validate before handing back a config from storage — a corrupt or
+    // older-schema save would otherwise crash the dashboard on apply (M-F5).
+    if (entry && isValidConfig(entry.config)) return entry.config;
+    return null;
   }, []);
 
   const remove = useCallback(
