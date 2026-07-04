@@ -194,20 +194,23 @@ function StatsPageInner() {
   const [closeConfigTrigger, setCloseConfigTrigger] = useState(0);
   const handleCloseConfig = useCallback(() => setCloseConfigTrigger((n) => n + 1), []);
 
-  // Dashboard keyboard shortcuts: 1-8 presets, B for builder, Escape to close config
-  useDashboardKeyboard({
-    onSetMode: dashboard.setMode,
-    onSetPreset: dashboard.setPreset,
-    onCloseConfig: handleCloseConfig,
-  });
-
-  // Clear drill state and cross-filter when preset changes
+  // Switching preset must clear drill + cross-filter, otherwise a single-county
+  // drill carries into the new preset and its statewide charts read as that one
+  // county (M-F4). Both the mouse (PresetPicker) and keyboard (1-8) paths go
+  // through this one handler so they can't diverge.
   const handlePresetSelect = useCallback((key: Parameters<typeof dashboard.setPreset>[0]) => {
     timelapse.pause();
     resetDrill();
     crossFilter.clearCrossFilter();
     dashboard.setPreset(key);
   }, [timelapse, resetDrill, crossFilter, dashboard]);
+
+  // Dashboard keyboard shortcuts: 1-8 presets, B for builder, Escape to close config
+  useDashboardKeyboard({
+    onSetMode: dashboard.setMode,
+    onSetPreset: handlePresetSelect,
+    onCloseConfig: handleCloseConfig,
+  });
 
   function handleClearAll() {
     timelapse.pause();
