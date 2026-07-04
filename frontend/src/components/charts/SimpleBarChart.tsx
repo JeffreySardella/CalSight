@@ -27,6 +27,8 @@ interface SimpleBarChartProps {
   title?: string;
   onBarClick?: (item: BarItem, idx: number) => void;
   getHighlight?: (item: BarItem, idx: number) => BarHighlight;
+  /** Accessible name for a clickable bar. Defaults to "label: value". */
+  barLabel?: (item: BarItem, idx: number) => string;
 }
 
 export default function SimpleBarChart({
@@ -43,6 +45,7 @@ export default function SimpleBarChart({
   title,
   onBarClick,
   getHighlight,
+  barLabel,
 }: SimpleBarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
@@ -76,6 +79,29 @@ export default function SimpleBarChart({
     const idx = Math.max(0, Math.min(n - 1, Math.floor((touchX - padL) / slotW)));
     setHover({ idx, x: e.touches[0].clientX, y: e.touches[0].clientY });
   }, [data.length]);
+
+  // Keyboard/AT affordance for clickable bars: without this the drill-down /
+  // cross-filter is mouse-only (M-F16). When there's no click handler the bars
+  // stay decorative inside the chart's role="img".
+  const barButtonProps = (d: BarItem, i: number) =>
+    onBarClick
+      ? ({
+          role: "button",
+          tabIndex: 0,
+          "aria-label": barLabel ? barLabel(d, i) : `${d.label}: ${d.value.toLocaleString()}`,
+          onKeyDown: (e: React.KeyboardEvent<SVGRectElement>) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onBarClick(d, i);
+            }
+          },
+          onFocus: (e: React.FocusEvent<SVGRectElement>) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setHover({ idx: i, x: r.left + r.width / 2, y: r.top });
+          },
+          onBlur: () => setHover(null),
+        } as const)
+      : {};
 
   if (!data.length) return null;
   const rawMax = Math.max(...data.map((d) => d.value), 1);
@@ -123,6 +149,7 @@ export default function SimpleBarChart({
                   onClick={() => onBarClick?.(d, i)}
                   className="cursor-pointer"
                   style={{ transition: "opacity 0.15s ease" }}
+                  {...barButtonProps(d, i)}
                 />
               </g>
             );
@@ -189,6 +216,7 @@ export default function SimpleBarChart({
                 onMouseLeave={() => setHover(null)}
                 onClick={() => onBarClick?.(d, i)}
                 className="cursor-pointer"
+                {...barButtonProps(d, i)}
               />
               {showXAxis && (() => {
                 const skipInterval = slotW < 28 ? Math.ceil(28 / slotW) : 1;

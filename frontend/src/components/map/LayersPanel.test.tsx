@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { LayersStateProvider, useLayersState } from "../../hooks/useLayersState";
 import { CustomThemeProvider } from "../../context/CustomThemeContext";
 import { ThemeProvider } from "../../context/ThemeContext";
@@ -82,6 +82,41 @@ describe("LayersPanel toggle accessibility", () => {
     const choropleth = screen.getByRole("switch", { name: "Shade by Measure" });
     expect(choropleth).toHaveAttribute("aria-checked", "false");
     expect(choropleth).not.toHaveAttribute("aria-disabled");
+  });
+});
+
+// ── Single-select segmented controls (M-F18) ──────────────────────────
+// These groups previously conveyed the active choice by background colour
+// only, with no group semantics or pressed state for assistive tech.
+
+describe("LayersPanel segmented-control accessibility", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("names the Measure group and marks the active option pressed", () => {
+    render(<Harness />);
+    const group = screen.getByRole("group", { name: /measure/i });
+    expect(within(group).getAllByRole("button", { pressed: true })).toHaveLength(1);
+
+    const unpressed = within(group).getAllByRole("button", { pressed: false })[0];
+    fireEvent.click(unpressed);
+    expect(unpressed).toHaveAttribute("aria-pressed", "true");
+    // Still exactly one selected.
+    expect(within(group).getAllByRole("button", { pressed: true })).toHaveLength(1);
+  });
+
+  it("names the Color palette group and marks the active swatch pressed", () => {
+    render(<Harness />);
+    const group = screen.getByRole("group", { name: /palette/i });
+    expect(within(group).getAllByRole("button", { pressed: true })).toHaveLength(1);
+  });
+
+  it("exposes the heatmap Resolution group once the statewide layer is on", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("switch", { name: "Statewide" }));
+    const group = screen.getByRole("group", { name: /resolution/i });
+    expect(within(group).getAllByRole("button", { pressed: true })).toHaveLength(1);
   });
 });
 

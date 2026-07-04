@@ -1,5 +1,7 @@
 """Tests for the parties & victims ETL transform functions."""
 
+import pytest
+
 from etl.load_parties_victims import (
     transform_party,
     transform_victim,
@@ -218,3 +220,59 @@ class TestLoadTableMemoryCleanup:
             f"gc.collect() should fire per batch (expected >=2, got {len(gc_calls)})"
         )
         fake_db.expunge_all.assert_called()
+
+
+class TestPartialFailureIsLoud:
+    """M-B9: a page-fetch failure must not be recorded as a silent success."""
+
+    def test_load_table_reports_failure_when_a_page_fetch_raises(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import load_parties_victims as mod
+
+        def boom(_rid, _off):
+            raise RuntimeError("CKAN 500")
+
+        monkeypatch.setattr(mod, "_fetch_page", boom)
+        monkeypatch.setattr(mod, "SessionLocal", lambda: MagicMock())
+
+        had_failure = mod.load_table(
+            table_type="parties",
+            resource_ids={2026: "fake-id"},
+            model_class=MagicMock(),
+            transform_fn=mod.transform_party,
+            upsert_cols=["collision_id"],
+            constraint_name="uq_parties_party_source",
+            id_field="party_id",
+            start_year=2026,
+            end_year=2026,
+            force=False,
+        )
+
+        assert had_failure is True
+
+    def test_run_exits_nonzero_when_a_table_had_a_fetch_failure(self, monkeypatch):
+        from etl import load_parties_victims as mod
+
+        monkeypatch.setattr(mod, "load_table", lambda **kw: True)
+
+        with pytest.raises(SystemExit) as exc:
+            mod.run(table="parties")
+
+        assert exc.value.code != 0
+
+
+class TestNoSelfTracking:
+    """M-B8: the orchestrator owns EtlRun; the loader must not create its own
+    (double-tracking that inflates run history + phantom /api/freshness sources)."""
+
+    def test_run_does_not_open_its_own_etl_run(self, monkeypatch):
+        from etl import load_parties_victims as mod
+
+        calls = []
+        monkeypatch.setattr(mod, "load_table", lambda **kw: calls.append(kw["table_type"]) or False)
+
+        assert not hasattr(mod, "etl_run"), (
+            "loader should not self-track EtlRun; run_job is the single source of truth"
+        )
+        mod.run(table="victims")
+        assert calls == ["victims"]
