@@ -4,17 +4,23 @@ import { queryClient } from "../../lib/queryClient";
 
 interface Props {
   children: ReactNode;
+  // When provided, rendered instead of the default retry UI on error.
+  // Presence is checked with `'fallback' in props` (not ??), so passing
+  // fallback={null} explicitly opts into "render nothing" rather than
+  // falling through to the default UI. Omitting the prop entirely gives
+  // you the default retry UI.
   fallback?: ReactNode;
 }
 
 interface State {
   hasError: boolean;
+  retryCount: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  state: State = { hasError: false, retryCount: 0 };
 
-  static getDerivedStateFromError(): State {
+  static getDerivedStateFromError(): Partial<State> {
     return { hasError: true };
   }
 
@@ -22,18 +28,34 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error("[ErrorBoundary]", error, info.componentStack);
   }
 
+  componentDidUpdate(_prevProps: Props, prevState: State) {
+    // Child rendered successfully after a retry — reset count for the next error episode.
+    if (prevState.hasError && !this.state.hasError) {
+      this.setState({ retryCount: 0 });
+    }
+  }
+
   render() {
     if (this.state.hasError) {
-      return this.props.fallback ?? (
+      if ('fallback' in this.props) return <>{this.props.fallback}</>;
+      const exhausted = this.state.retryCount >= 3;
+      return (
         <div role="alert" className="flex flex-col items-center justify-center p-8 text-center min-h-[200px]">
           <span className="material-symbols-outlined text-[32px] text-error mb-2" aria-hidden="true">error</span>
           <p className="text-on-surface font-semibold">Something went wrong</p>
           <button
             type="button"
-            onClick={() => { queryClient.clear(); this.setState({ hasError: false }); }}
+            onClick={() => {
+              if (exhausted) {
+                window.location.reload();
+              } else {
+                queryClient.clear();
+                this.setState(s => ({ hasError: false, retryCount: s.retryCount + 1 }));
+              }
+            }}
             className="mt-3 px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
           >
-            Try again
+            {exhausted ? "Reload page" : "Try again"}
           </button>
         </div>
       );

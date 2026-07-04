@@ -44,7 +44,9 @@ export default function Layout() {
       >
         Skip to main content
       </a>
-      <NavBar />
+      <ErrorBoundary fallback={<header className="bg-surface fixed top-0 z-50 h-12 md:h-16 w-full" aria-hidden="true" />}>
+        <NavBar />
+      </ErrorBoundary>
       <OfflineIndicator />
       <ErrorBoundary>
       {isMapPage ? (
@@ -66,7 +68,9 @@ export default function Layout() {
         </div>
       )}
       </ErrorBoundary>
-      <BottomTabBar />
+      <ErrorBoundary fallback={null}>
+        <BottomTabBar />
+      </ErrorBoundary>
     </>
   );
 }
