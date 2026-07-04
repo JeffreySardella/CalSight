@@ -32,7 +32,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.cities_match import normalize_name
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
-from app.models import City, Crash, EtlRun
+from app.models import City, Crash
 
 logging.basicConfig(
     level=logging.INFO,
@@ -270,18 +270,12 @@ def run(
     if loaded:
         logger.info("Years already loaded: %s", {y: f"{c:,}" for y, c in sorted(loaded.items())})
 
-    # Create an EtlRun record to track this run
-    etl_run = EtlRun(
-        source="ccrs",
-        status="running",
-        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
-    )
-    db.add(etl_run)
-    db.commit()
-    logger.info("Created EtlRun id=%d", etl_run.id)
-
+    # No self-tracking EtlRun here: the orchestrator's run_job is the single
+    # source of truth for etl_runs (source = the job name, e.g. crashes_ccrs).
+    # A row created here (source="ccrs") was a phantom /api/freshness source and
+    # double-counted run history (M-B8). Batch failures are surfaced by exiting
+    # non-zero, which run_job records as an error.
     total_rows = 0
-    error_message = None
 
     try:
         # Partition years into SWITRS vs CCRS and drop already-loaded years
@@ -380,23 +374,14 @@ def run(
         # Summary
         logger.info("Done. %d total rows upserted, %d batches failed.", total_rows, failed_batches)
 
-        etl_run.status = "partial_success" if failed_batches > 0 else "success"
-        etl_run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
-        etl_run.rows_loaded = total_rows
+        # Surface partial failures loudly: exit non-zero so the orchestrator
+        # records the job as errored instead of a silent green run.
         if failed_batches > 0:
-            etl_run.error_message = f"{failed_batches} batch(es) failed during load"
-        db.commit()
+            logger.error("%d batch(es) failed during load", failed_batches)
+            sys.exit(1)
 
     except Exception as exc:
-        error_message = str(exc)
         logger.error("ETL run failed: %s", exc)
-        try:
-            etl_run.status = "error"
-            etl_run.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
-            etl_run.error_message = error_message
-            db.commit()
-        except Exception:
-            db.rollback()
         sys.exit(1)
 
     finally:

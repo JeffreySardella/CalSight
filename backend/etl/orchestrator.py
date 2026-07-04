@@ -20,6 +20,13 @@ logger = logging.getLogger(__name__)
 SourceType = Literal["ckan", "arcgis", "federal", "none"]
 
 
+def _utc_now() -> datetime:
+    """Naive UTC 'now'. EtlRun.started_at/finished_at are naive DateTime columns,
+    so writing tz-aware values makes staleness math offset-dependent on non-UTC
+    servers. Match the rest of the ETL code, which stores naive UTC (M-B12)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 @dataclass
 class Job:
     name: str
@@ -165,8 +172,8 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             record = EtlRun(
                 source=job.name,
                 status="skipped_unchanged",
-                started_at=datetime.now(timezone.utc),
-                finished_at=datetime.now(timezone.utc),
+                started_at=_utc_now(),
+                finished_at=_utc_now(),
                 triggered_by=triggered_by,
                 error_message=freshness.reason,
                 validation_status="skipped",
@@ -185,7 +192,7 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
     record = EtlRun(
         source=job.name,
         status="running",
-        started_at=datetime.now(timezone.utc),
+        started_at=_utc_now(),
         triggered_by=triggered_by,
         rows_before=rows_before,
     )
@@ -227,14 +234,14 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             record.validation_status = val_status
             record.diff_summary = diff_summary
 
-        record.finished_at = datetime.now(timezone.utc)
+        record.finished_at = _utc_now()
         db.commit()
         logger.info("Job %s finished in %.1fs (status=%s)", job.name, elapsed, record.status)
 
     except subprocess.TimeoutExpired:
         record.status = "error"
         record.error_message = f"Job timed out after {job.timeout}s"
-        record.finished_at = datetime.now(timezone.utc)
+        record.finished_at = _utc_now()
         record.validation_status = "skipped"
         db.commit()
         logger.error("Job %s timed out", job.name)
@@ -242,7 +249,7 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
     except Exception as exc:
         record.status = "error"
         record.error_message = str(exc)[:2000]
-        record.finished_at = datetime.now(timezone.utc)
+        record.finished_at = _utc_now()
         record.validation_status = "skipped"
         db.commit()
         logger.exception("Job %s failed unexpectedly", job.name)
@@ -263,14 +270,14 @@ def _cleanup_zombie_runs() -> int:
             db.query(EtlRun)
             .filter(
                 EtlRun.status == "running",
-                EtlRun.started_at < datetime.now(timezone.utc) - timedelta(hours=1),
+                EtlRun.started_at < _utc_now() - timedelta(hours=1),
             )
             .all()
         )
         for z in zombies:
             z.status = "error"
             z.error_message = "Zombie cleanup: process was killed or never finished"
-            z.finished_at = datetime.now(timezone.utc)
+            z.finished_at = _utc_now()
         db.commit()
         if zombies:
             logger.info("Cleaned up %d zombie etl_runs", len(zombies))
@@ -360,8 +367,8 @@ def _run_pipeline_locked(
             record = EtlRun(
                 source=job.name,
                 status="skipped",
-                started_at=datetime.now(timezone.utc),
-                finished_at=datetime.now(timezone.utc),
+                started_at=_utc_now(),
+                finished_at=_utc_now(),
                 triggered_by=triggered_by,
                 error_message=f"Blocked by failed deps: {', '.join(blocked_by)}",
                 validation_status="skipped",
@@ -386,8 +393,8 @@ def _run_pipeline_locked(
             record = EtlRun(
                 source=job.name,
                 status="skipped_unchanged",
-                started_at=datetime.now(timezone.utc),
-                finished_at=datetime.now(timezone.utc),
+                started_at=_utc_now(),
+                finished_at=_utc_now(),
                 triggered_by=triggered_by,
                 error_message=f"All dependencies unchanged: {', '.join(job.depends_on)}",
                 validation_status="skipped",

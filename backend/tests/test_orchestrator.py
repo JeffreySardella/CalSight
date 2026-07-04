@@ -166,6 +166,55 @@ def test_table_row_count_rejects_bad_identifier():
     assert _table_row_count(_FakeDB([]), None) is None
 
 
+class _FakeSession:
+    """Minimal Session stand-in for run_job: collects added rows, serves COUNTs."""
+
+    def __init__(self, counts=None):
+        self.added = []
+        self._counts = list(counts or [])
+
+    def add(self, obj):
+        self.added.append(obj)
+
+    def commit(self):
+        pass
+
+    def refresh(self, obj):
+        pass
+
+    def expunge(self, obj):
+        pass
+
+    def close(self):
+        pass
+
+    def execute(self, *_args, **_kwargs):
+        return _FakeResult(self._counts.pop(0) if self._counts else 0)
+
+
+def test_run_job_writes_naive_utc_timestamps(monkeypatch):
+    """EtlRun.started_at/finished_at are naive DateTime columns; the orchestrator
+    must write naive UTC (not tz-aware) or staleness math goes offset-dependent
+    on non-UTC servers (M-B12)."""
+    import types
+
+    from etl import orchestrator
+
+    job = Job(name="x", module="etl.x", table_name=None, source_type="none")
+    fake = _FakeSession()
+    monkeypatch.setattr(orchestrator, "SessionLocal", lambda: fake)
+    monkeypatch.setattr(
+        orchestrator.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+
+    record = orchestrator.run_job(job, force_refresh=True)
+
+    assert record.started_at.tzinfo is None
+    assert record.finished_at.tzinfo is None
+
+
 def test_cli_dry_run():
     result = subprocess.run(
         [sys.executable, "-m", "etl.run_all", "--dry-run"],
