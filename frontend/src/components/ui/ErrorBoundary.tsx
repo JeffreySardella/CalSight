@@ -4,6 +4,11 @@ import { queryClient } from "../../lib/queryClient";
 
 interface Props {
   children: ReactNode;
+  // When provided, rendered instead of the default retry UI on error.
+  // Presence is checked with `'fallback' in props` (not ??), so passing
+  // fallback={null} explicitly opts into "render nothing" rather than
+  // falling through to the default UI. Omitting the prop entirely gives
+  // you the default retry UI.
   fallback?: ReactNode;
 }
 
@@ -21,6 +26,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+  }
+
+  componentDidUpdate(_prevProps: Props, prevState: State) {
+    // Child rendered successfully after a retry — reset count for the next error episode.
+    if (prevState.hasError && !this.state.hasError) {
+      this.setState({ retryCount: 0 });
+    }
   }
 
   render() {
