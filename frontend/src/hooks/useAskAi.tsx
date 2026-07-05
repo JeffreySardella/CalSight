@@ -261,6 +261,11 @@ function useAskAiState(): AskAiApi {
     const lastUserMsg = [...messagesRef.current].reverse().find((m) => m.role === "user");
     if (lastUserMsg) {
       setError(null);
+      // Drop the failed question from the ref synchronously, not just via the
+      // async setMessages: sendMessage builds the LLM history from
+      // messagesRef.current on this same tick, so without this the question
+      // gets sent twice (M-F6).
+      messagesRef.current = messagesRef.current.filter((m) => m !== lastUserMsg);
       setMessages((prev) => prev.filter((m) => m !== lastUserMsg));
       sendMessage(lastUserMsg.content);
     }

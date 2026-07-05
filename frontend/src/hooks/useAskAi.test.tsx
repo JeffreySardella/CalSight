@@ -77,6 +77,30 @@ describe("useAskAi", () => {
     expect(result.current.error).toMatch(/wait/i);
   });
 
+  it("retry does not put the resent question in the LLM history twice (M-F6)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse("answer"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useAskAi(), { wrapper });
+
+    await act(async () => { await result.current.sendMessage("repeat me"); });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Jump past the per-question cooldown so retry actually re-fires.
+    const realNow = Date.now.bind(Date);
+    vi.spyOn(Date, "now").mockImplementation(() => realNow() + 20_000);
+
+    await act(async () => { result.current.retry(); });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const retryBody = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string);
+    const occurrences = retryBody.history.filter(
+      (m: { content: string }) => m.content === "repeat me",
+    ).length;
+    expect(occurrences).toBe(1);
+  });
+
   it("shares one conversation across two consumers of the provider", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse("shared answer"));
     vi.stubGlobal("fetch", fetchMock);
