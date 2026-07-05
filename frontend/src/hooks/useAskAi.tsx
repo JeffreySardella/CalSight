@@ -103,6 +103,9 @@ function useAskAiState(): AskAiApi {
   messagesRef.current = messages;
   const cooldownEndRef = useRef(cooldownEnd);
   cooldownEndRef.current = cooldownEnd;
+  // Only set by a server 429/503 backoff (not the local per-question cooldown),
+  // so retry() can bypass the local cooldown while still honoring server backoff.
+  const serverBackoffUntilRef = useRef(0);
   const inFlightRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -122,13 +125,17 @@ function useAskAiState(): AskAiApi {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  const sendMessage = useCallback(async (question: string) => {
+  const sendMessage = useCallback(async (question: string, opts?: { bypassLocalCooldown?: boolean }) => {
     if (!question.trim() || isLoading || inFlightRef.current) return;
-    // Respect the cooldown (including server 429/503 backoff) for every
-    // caller, not just the Ask AI page's send button — e.g. the AI
-    // companion's "Go deeper" and retry() must not bypass it.
-    if (Date.now() < cooldownEndRef.current) {
-      const remaining = Math.ceil((cooldownEndRef.current - Date.now()) / 1000);
+    // Respect the cooldown for every caller (the AI companion's "Go deeper"
+    // etc.). retry() passes bypassLocalCooldown so a fast failure's own local
+    // cooldown doesn't block the retry — but a server 429/503 backoff is still
+    // honored via serverBackoffUntilRef.
+    const guardUntil = opts?.bypassLocalCooldown
+      ? serverBackoffUntilRef.current
+      : cooldownEndRef.current;
+    if (Date.now() < guardUntil) {
+      const remaining = Math.ceil((guardUntil - Date.now()) / 1000);
       setError(`Please wait ${remaining}s before asking again.`);
       return;
     }
@@ -187,6 +194,7 @@ function useAskAiState(): AskAiApi {
           if (attempt < MAX_RETRIES - 1) continue;
           const data = await resp.json().catch(() => ({}));
           const retryAfter = data.retry_after || 60;
+          serverBackoffUntilRef.current = Date.now() + retryAfter * 1000;
           setCooldownEnd(Date.now() + retryAfter * 1000);
           setError(data.message || "All AI providers are busy. Try again shortly.");
           setIsLoading(false);
@@ -202,6 +210,7 @@ function useAskAiState(): AskAiApi {
             await new Promise((r) => setTimeout(r, retryAfter * 1000));
             continue;
           }
+          serverBackoffUntilRef.current = Date.now() + retryAfter * 1000;
           setCooldownEnd(Date.now() + retryAfter * 1000);
           setError(`Rate limit reached. Try again in ${retryAfter} seconds.`);
           setIsLoading(false);
@@ -267,7 +276,9 @@ function useAskAiState(): AskAiApi {
       // gets sent twice (M-F6).
       messagesRef.current = messagesRef.current.filter((m) => m !== lastUserMsg);
       setMessages((prev) => prev.filter((m) => m !== lastUserMsg));
-      sendMessage(lastUserMsg.content);
+      // Bypass the local per-question cooldown the failed send set; server
+      // 429/503 backoff is still honored.
+      sendMessage(lastUserMsg.content, { bypassLocalCooldown: true });
     }
   }, [sendMessage]);
 

@@ -52,6 +52,21 @@ const data = [
 beforeEach(() => cleanup());
 
 describe("SimpleBarChart keyboard accessibility", () => {
+  // role="img" makes an SVG's whole subtree presentational, so the role="button"
+  // bars would be hidden from screen readers. When interactive the chart must be
+  // a group (name preserved) so the buttons are actually exposed.
+  it("uses role=group (not img) when bars are interactive", () => {
+    render(<SimpleBarChart data={data} onBarClick={() => {}} />);
+    expect(screen.getByRole("group")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("uses role=img for a non-interactive (decorative) chart", () => {
+    render(<SimpleBarChart data={data} />);
+    expect(screen.getByRole("img")).toBeInTheDocument();
+    expect(screen.queryByRole("group")).toBeNull();
+  });
+
   it("exposes clickable bars as focusable buttons with a data label", () => {
     render(<SimpleBarChart data={data} onBarClick={() => {}} />);
     const bars = screen.getAllByRole("button");

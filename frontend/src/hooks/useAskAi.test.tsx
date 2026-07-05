@@ -101,6 +101,22 @@ describe("useAskAi", () => {
     expect(occurrences).toBe(1);
   });
 
+  it("retry fires during the local per-question cooldown (bypasses it)", async () => {
+    // The first send arms the local 15s cooldown at send-start. A naive retry
+    // would be blocked by that cooldown; retry() must bypass it.
+    const fetchMock = vi.fn().mockResolvedValue(okResponse("answer"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useAskAi(), { wrapper });
+    await act(async () => { await result.current.sendMessage("q"); });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Retry immediately — do NOT advance the clock past the 15s cooldown.
+    await act(async () => { result.current.retry(); });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
   it("shares one conversation across two consumers of the provider", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse("shared answer"));
     vi.stubGlobal("fetch", fetchMock);
