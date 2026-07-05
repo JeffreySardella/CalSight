@@ -226,11 +226,15 @@ export const onRequest: PagesFunction = async (context) => {
   const html = await response.text();
   const rewritten = rewriteHtml(html, ctx);
 
+  // response.text() decoded any gzip/br, so the rewritten body is plain text.
+  // Drop the upstream content-encoding (and recompute content-length) or
+  // crawlers try to decompress plain text and OG previews break.
+  const headers = new Headers(response.headers);
+  headers.delete("content-encoding");
+  headers.set("content-length", new TextEncoder().encode(rewritten).length.toString());
+
   return new Response(rewritten, {
     status: response.status,
-    headers: {
-      ...Object.fromEntries(response.headers.entries()),
-      "content-length": new TextEncoder().encode(rewritten).length.toString(),
-    },
+    headers,
   });
 };
