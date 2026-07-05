@@ -143,3 +143,26 @@ class TestNoSelfTracking:
         mod.run(start_year=2016, end_year=2016, source_filter="ccrs")
 
         etl_run_ctor.assert_not_called()
+
+
+class TestCcrsYearsWithResources:
+    """Regression for the 2026-07-05 prod incident: crashes_ccrs errored on
+    year 2027 (end_year = current+1) because RESOURCE_IDS has no 2027 yet →
+    KeyError → failed batch → whole job errored (cascaded to dependents)."""
+
+    def test_drops_years_with_no_published_resource(self):
+        from etl.load_crashes import ccrs_years_with_resources
+        available = {2016, 2024, 2025, 2026}
+        assert ccrs_years_with_resources([2025, 2026, 2027], available) == [2025, 2026]
+
+    def test_keeps_order_of_present_years(self):
+        from etl.load_crashes import ccrs_years_with_resources
+        assert ccrs_years_with_resources([2016, 2026], {2016, 2026}) == [2016, 2026]
+
+    def test_real_resource_ids_skip_the_next_calendar_year(self):
+        from etl.load_crashes import ccrs_years_with_resources
+        from etl.ckan_api import RESOURCE_IDS
+        latest = max(RESOURCE_IDS)
+        # the auto-advanced next year is not loadable; the latest published one is
+        assert ccrs_years_with_resources([latest + 1], RESOURCE_IDS) == []
+        assert ccrs_years_with_resources([latest], RESOURCE_IDS) == [latest]
