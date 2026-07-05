@@ -109,4 +109,28 @@ describe("ErrorBoundary", () => {
     rerender(<ErrorBoundary><Bomb /></ErrorBoundary>);
     expect(btn()).toHaveTextContent("Try again");
   });
+
+  it("clears its error when resetKey changes (e.g. route navigation) — M-F12", () => {
+    throwOnRender = true;
+    const { rerender } = render(<ErrorBoundary resetKey="/a"><Bomb /></ErrorBoundary>);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    // Navigate to a different route: child is healthy and resetKey changes.
+    throwOnRender = false;
+    rerender(<ErrorBoundary resetKey="/b"><Bomb /></ErrorBoundary>);
+
+    expect(screen.getByText("OK")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("stays latched when resetKey is unchanged", () => {
+    throwOnRender = true;
+    const { rerender } = render(<ErrorBoundary resetKey="/a"><Bomb /></ErrorBoundary>);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    // Same route, child now healthy — boundary must NOT auto-clear on its own.
+    throwOnRender = false;
+    rerender(<ErrorBoundary resetKey="/a"><Bomb /></ErrorBoundary>);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
 });

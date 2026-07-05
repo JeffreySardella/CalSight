@@ -1,31 +1,13 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import type { DashboardConfig, ChartSlot, Dimension, Measure, ChartType, ChartOptions, PresetKey } from "../lib/dashboard/types";
-import { DIMENSIONS, MEASURES } from "../lib/dashboard/types";
 import { generateId } from "../lib/dashboard/types";
-import { buildPresetCharts, PRESET_KEYS, PRESETS } from "../lib/dashboard/presets";
+import { buildPresetCharts, PRESETS } from "../lib/dashboard/presets";
 import { decodeDashboard } from "../lib/dashboard/urlCodec";
+import { isValidConfig } from "../lib/dashboard/validateConfig";
 
 const STORAGE_KEY = "calsight-dashboard-v1";
 const URL_PARAM = "dashboard";
-
-const VALID_MODES = new Set(["simple", "advanced"]);
-
-function isValidConfig(p: unknown): p is DashboardConfig {
-  if (!p || typeof p !== "object") return false;
-  const c = p as Record<string, unknown>;
-  if (!VALID_MODES.has(c.mode as string)) return false;
-  if (!PRESET_KEYS.includes(c.preset as PresetKey)) return false;
-  if (!Array.isArray(c.charts)) return false;
-  return c.charts.every(
-    (s: Record<string, unknown>) =>
-      typeof s.id === "string" &&
-      typeof s.order === "number" &&
-      (DIMENSIONS as readonly string[]).includes(s.dimension as string) &&
-      (MEASURES as readonly string[]).includes(s.measure as string) &&
-      ["bar", "hbar", "line", "area", "donut", "treemap", "gauge", "stat", "polar", "lollipop", "radar", "scatter"].includes(s.chartType as string),
-  );
-}
 
 function loadInitialConfig(): DashboardConfig {
   if (typeof window === "undefined") return { mode: "simple", preset: "overview", charts: [] };

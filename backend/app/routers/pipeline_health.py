@@ -14,6 +14,7 @@ returns a simple status that monitoring tools can poll.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -27,6 +28,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import EtlRun
 from app.routers.etl import _verify_etl_key
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -58,6 +61,21 @@ class DbMetrics(BaseModel):
     dead_tuples_top5: list[dict]
     connection_count: int
     max_connections: int
+
+
+def _age_hours(now_naive: datetime, ts: datetime | None) -> float | None:
+    """Hours between ``ts`` and ``now_naive``, or None.
+
+    Normalizes an aware ``ts`` to naive UTC first. Postgres ``timestamptz``
+    columns (e.g. ``pg_stat_user_tables.last_analyze``) come back tz-aware, and
+    subtracting an aware value from the naive ``now`` raises — which used to be
+    swallowed by a bare except, leaving matview age permanently null (M-B4).
+    """
+    if ts is None:
+        return None
+    if ts.tzinfo is not None:
+        ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
+    return round((now_naive - ts).total_seconds() / 3600, 1)
 
 
 @router.get("/health")
@@ -140,15 +158,12 @@ def pipeline_health(
             SELECT last_analyze FROM pg_stat_user_tables
             WHERE relname = 'mv_crashes_by_year'
         """)).scalar()
-        if last_analyze:
-            matview_age = round((now - last_analyze).total_seconds() / 3600, 1)
+        matview_age = _age_hours(now, last_analyze)
     except Exception:
-        pass
+        logger.warning("matview age query failed", exc_info=True)
 
     # Determine status
-    hours_since = None
-    if last_success:
-        hours_since = round((now - last_success).total_seconds() / 3600, 1)
+    hours_since = _age_hours(now, last_success)
 
     if hours_since is None or hours_since > 96:
         status = "unhealthy"
