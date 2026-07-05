@@ -48,7 +48,7 @@ export default function Layout() {
         <NavBar />
       </ErrorBoundary>
       <OfflineIndicator />
-      <ErrorBoundary>
+      <ErrorBoundary resetKey={location.pathname}>
       {isMapPage ? (
         <main id="main-content" className="pt-12 pb-14 md:pt-16 md:pb-0 flex h-dvh overflow-hidden">
           <Outlet />

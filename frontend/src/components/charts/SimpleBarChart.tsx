@@ -114,7 +114,7 @@ export default function SimpleBarChart({
     const svgH = Math.max(height, data.length * rowH);
     return (
       <div className="w-full overflow-visible relative" style={{ height: svgH }}>
-        <svg ref={svgRef} width="100%" height={svgH} className="block" role="img" aria-labelledby={title ? `${titleId}-h` : undefined}
+        <svg ref={svgRef} width="100%" height={svgH} className="block" role={onBarClick ? "group" : "img"} aria-labelledby={title ? `${titleId}-h` : undefined}
           onTouchStart={(e) => {
             const svg = svgRef.current;
             if (!svg || !data.length) return;
@@ -167,7 +167,7 @@ export default function SimpleBarChart({
 
   return (
     <div className="w-full overflow-visible relative" style={{ height }}>
-      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible" role="img" aria-labelledby={title ? `${titleId}-v` : undefined}
+      <svg ref={svgRef} width="100%" height={height} className="block overflow-visible" role={onBarClick ? "group" : "img"} aria-labelledby={title ? `${titleId}-v` : undefined}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={`${titleId}-v`}>{title}</title>}
         {data.map((d, i) => {

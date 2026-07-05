@@ -343,3 +343,35 @@ class TestTrackEtlRunDecorator:
         record = fake_db.added[0]
         assert record.status == "error"
         assert record.error_message == "nope"
+
+
+# ---------------------------------------------------------------------------
+# Federal freshness allowlist (M-B6): fars + tract_density must be skippable
+# ---------------------------------------------------------------------------
+
+class TestFederalFreshnessAllowlist:
+    def _fars_job(self):
+        from etl.orchestrator import Job
+        return Job(
+            name="fars", module="etl.nhtsa_fars", source_type="federal",
+            freshness_table="fars_county_year",
+        )
+
+    def test_fars_and_tract_density_are_allowlisted(self):
+        assert "fars_county_year" in _utils._ALLOWED_FRESHNESS_TABLES
+        assert "tract_density_county_year" in _utils._ALLOWED_FRESHNESS_TABLES
+
+    def test_fars_skips_when_row_count_unchanged(self):
+        # Unchanged count must yield is_fresh=False (skip). Before the allowlist
+        # fix this returned is_fresh=True ("unknown freshness_table") so the job
+        # fully reloaded every pipeline run.
+        db = SimpleNamespace(execute=lambda *a, **k: SimpleNamespace(scalar=lambda: 1383))
+        last_run = SimpleNamespace(source_row_count=1383)
+        res = _utils._check_federal_freshness(self._fars_job(), last_run, db)
+        assert res.is_fresh is False
+
+    def test_fars_fresh_when_row_count_grew(self):
+        db = SimpleNamespace(execute=lambda *a, **k: SimpleNamespace(scalar=lambda: 1400))
+        last_run = SimpleNamespace(source_row_count=1383)
+        res = _utils._check_federal_freshness(self._fars_job(), last_run, db)
+        assert res.is_fresh is True
