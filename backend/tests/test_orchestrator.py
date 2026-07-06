@@ -227,3 +227,16 @@ def test_cli_dry_run():
     assert "crashes_ccrs" in result.stdout
     assert "vacuum" in result.stdout
     assert "crashes_switrs" not in result.stdout
+
+
+def test_matviews_runs_after_victims():
+    """M-B audit medium: mv_crash_victims_by_demographics is refreshed by the
+    matviews job, but matviews didn't depend on victims — the alphabetical
+    Kahn order ran ...vehicles -> matviews -> ... -> victims, so the victims
+    matview was always built from YESTERDAY's victim data (and the day's
+    victim load was never vacuumed)."""
+    registry = build_default_registry()
+    assert "victims" in registry.get("matviews").depends_on
+
+    order = [j.name for j in resolve_execution_order(registry)]
+    assert order.index("victims") < order.index("matviews")

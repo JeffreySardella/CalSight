@@ -76,3 +76,53 @@ def test_fars_job_registered():
     assert job is not None
     assert job.module == "etl.nhtsa_fars"
     assert job.table_name == "fars_county_year"
+
+
+class TestLoudFailure:
+    """Audit M8: per-year exceptions were swallowed at WARNING — an NHTSA
+    outage or schema change failing EVERY year still recorded success."""
+
+    def test_failing_years_raise(self, monkeypatch):
+        import pytest
+        from unittest.mock import MagicMock
+        from etl import _utils
+        from etl import nhtsa_fars as mod
+
+        db = MagicMock()
+        db.query.return_value.all.return_value = []
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+        from types import SimpleNamespace as _NS
+        monkeypatch.setattr(_utils, "EtlRun", lambda **kw: _NS(**{"id": 1, "rows_loaded": None, **kw}))
+
+        def boom(year):
+            raise RuntimeError("NHTSA down")
+
+        monkeypatch.setattr(mod, "fetch_year", boom)
+
+        with pytest.raises(RuntimeError, match="failed"):
+            mod.run(start_year=2020, end_year=2021)
+
+    def test_unpublished_year_404_skips_quietly(self, monkeypatch):
+        import httpx
+        from unittest.mock import MagicMock
+        from etl import _utils
+        from etl import nhtsa_fars as mod
+
+        db = MagicMock()
+        db.query.return_value.all.return_value = []
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+        from types import SimpleNamespace as _NS
+        monkeypatch.setattr(_utils, "EtlRun", lambda **kw: _NS(**{"id": 1, "rows_loaded": None, **kw}))
+
+        def not_published(year):
+            raise httpx.HTTPStatusError(
+                "404", request=MagicMock(), response=MagicMock(status_code=404)
+            )
+
+        monkeypatch.setattr(mod, "fetch_year", not_published)
+
+        # FARS publishes 1-2 years behind; a trailing-year 404 must not fail
+        # the run every month until NHTSA releases the file.
+        mod.run(start_year=2024, end_year=2025)

@@ -144,6 +144,7 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
         logger.info("Loaded %d counties", len(lookup))
 
         total = 0
+        failed_years: list[int] = []
         for year in range(start_year, end_year + 1):
             try:
                 person_rows = fetch_year(year)
@@ -165,8 +166,25 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                 total += len(rows)
                 logger.info("Year %d: %d county rows upserted", year, len(rows))
             except Exception as exc:
-                logger.warning("FARS year %d failed: %s", year, exc)
                 db.rollback()
+                # FARS publishes 1-2 years behind: a 404 on a trailing year
+                # means "not released yet", not an outage — skip quietly so
+                # the loud-failure path below doesn't cry wolf every month.
+                if (
+                    isinstance(exc, httpx.HTTPStatusError)
+                    and exc.response.status_code == 404
+                ):
+                    logger.info("FARS %d not published yet (404), skipping", year)
+                    continue
+                logger.warning("FARS year %d failed: %s", year, exc)
+                failed_years.append(year)
+
+        if failed_years:
+            # Loud partial failure (M-B9 discipline): a swallowed NHTSA outage
+            # or schema change must not record success.
+            raise RuntimeError(
+                f"FARS: {len(failed_years)} year(s) failed: {failed_years}"
+            )
 
         logger.info("Done. %d total FARS county/year rows upserted.", total)
     finally:

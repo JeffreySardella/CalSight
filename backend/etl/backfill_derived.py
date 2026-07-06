@@ -341,6 +341,15 @@ def backfill_pedestrian_flags(db):
 
     SWITRS (pre-2016) gets set to NULL since we have no party data
     to verify against.
+
+    Every step only touches rows whose value actually changes — the old
+    unconditional "reset all CCRS to FALSE" produced ~9M new tuple versions
+    per nightly run (WAL churn, table/index bloat) and, because each year
+    commits separately, API readers saw committed intermediate state where
+    pedestrian counts were wrong until the TRUE pass caught up.
+
+    Returns (rows_set_false, rows_set_true) so callers/tests can verify the
+    second run of an unchanged dataset writes nothing.
     """
     logger.info("Fixing pedestrian_involved flags...")
 
@@ -363,20 +372,27 @@ def backfill_pedestrian_flags(db):
     ped_ids = [row[0] for row in result]
     logger.info("Found %d pedestrian-involved collision IDs", len(ped_ids))
 
-    # Step 3: reset all CCRS to FALSE first
+    # Step 3: FALSE for CCRS rows that aren't backed by a pedestrian party
+    # and don't already say FALSE.
     total_reset = 0
     for year in _ccrs_year_range(db):
         r = db.execute(text("""
-            UPDATE crashes
+            UPDATE crashes c
             SET pedestrian_involved = FALSE
-            WHERE data_source = 'ccrs'
-              AND crash_datetime >= :start AND crash_datetime < :end
+            WHERE c.data_source = 'ccrs'
+              AND c.crash_datetime >= :start AND c.crash_datetime < :end
+              AND c.pedestrian_involved IS DISTINCT FROM FALSE
+              AND NOT EXISTS (
+                  SELECT 1 FROM crash_parties p
+                  WHERE p.collision_id = c.collision_id
+                    AND p.party_type = 'Pedestrian'
+              )
         """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
         db.commit()
         total_reset += r.rowcount
     logger.info("Reset %d CCRS crashes to FALSE", total_reset)
 
-    # Step 4: set TRUE for crashes with pedestrian parties
+    # Step 4: TRUE for crashes with pedestrian parties that don't already say so
     total_positive = 0
     for i in range(0, len(ped_ids), 1000):
         batch = ped_ids[i:i + 1000]
@@ -385,10 +401,13 @@ def backfill_pedestrian_flags(db):
             SET pedestrian_involved = TRUE
             WHERE collision_id = ANY(:ids)
               AND data_source = 'ccrs'
+              AND pedestrian_involved IS DISTINCT FROM TRUE
         """), {"ids": batch})
         db.commit()
         total_positive += r.rowcount
     logger.info("Marked %d crashes as pedestrian-involved", total_positive)
+
+    return total_reset, total_positive
 
 
 def backfill_cyclist_flags(db):

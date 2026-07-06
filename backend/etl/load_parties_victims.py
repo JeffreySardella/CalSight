@@ -37,6 +37,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CrashParty, CrashVictim
+from etl._utils import dedupe_rows
 from etl.ckan_api import merged_resource_ids
 
 logging.basicConfig(
@@ -217,9 +218,9 @@ def load_table(
 ):
     """Generic loader for parties or victims.
 
-    Returns True if any page fetch failed (a partial load). Callers must treat
-    this as a failure — otherwise a truncated load records a silent success
-    (M-B9).
+    Returns True if any page fetch OR page upsert failed (a partial load).
+    Callers must treat this as a failure — otherwise a truncated load records
+    a silent success (M-B9).
     """
     db = SessionLocal()
 
@@ -259,7 +260,9 @@ def load_table(
                         continue
                     batch.append(row)
 
-                # Bulk upsert
+                # Bulk upsert. A repeated id within one page would fail the
+                # whole statement ("cannot affect row a second time").
+                batch = dedupe_rows(batch, (id_field, "data_source"))
                 if batch:
                     try:
                         stmt = pg_insert(model_class).values(batch)
@@ -277,6 +280,9 @@ def load_table(
                             table_type, year, offset, exc,
                         )
                         db.rollback()
+                        # A dropped page is a partial load — the run must
+                        # exit non-zero, not record success (M-B9).
+                        had_failure = True
 
                 fetched_count = len(records)
                 del batch, records, result

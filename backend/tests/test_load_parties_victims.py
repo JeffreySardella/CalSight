@@ -276,3 +276,42 @@ class TestNoSelfTracking:
         )
         mod.run(table="victims")
         assert calls == ["victims"]
+
+
+class TestDbFailureIsLoud:
+    """M-B9 gap: had_failure was set only on FETCH failures. A DB-side upsert
+    failure (constraint error, statement OOM) rolled back the whole 2000-row
+    page, logged, and the run still exited 0 -> orchestrator recorded success
+    while rows were silently dropped every night."""
+
+    def test_upsert_failure_marks_had_failure(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import load_parties_victims as mod
+
+        raw = {
+            "PartyId": "1", "CollisionId": "10", "PartyNumber": "1",
+            "PartyType": "Driver", "IsAtFault": "Y", "GenderCode": "M",
+            "StatedAge": "30",
+        }
+        monkeypatch.setattr(
+            mod, "_fetch_page", lambda rid, off: {"total": 1, "records": [raw]}
+        )
+        db = MagicMock()
+        db.execute.side_effect = RuntimeError("duplicate key value")
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+
+        had_failure = mod.load_table(
+            table_type="parties",
+            resource_ids={2026: "rid"},
+            model_class=mod.CrashParty,
+            transform_fn=mod.transform_party,
+            upsert_cols=mod._PARTY_UPSERT_COLS,
+            constraint_name="uq_parties_party_source",
+            id_field="party_id",
+            start_year=2026,
+            end_year=2026,
+            force=False,
+        )
+
+        assert had_failure is True
+        db.rollback.assert_called()

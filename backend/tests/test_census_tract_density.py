@@ -85,3 +85,70 @@ def test_tract_density_job_registered():
     job = registry.get("tract_density")
     assert job.module == "etl.census_tract_density"
     assert job.table_name == "tract_density_county_year"
+
+
+class TestLoudFailure:
+    """Audit M8: same silent-green class as FARS, plus the unset-API-key case
+    which returned success without loading anything."""
+
+    def test_failing_years_raise(self, monkeypatch):
+        import pytest
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+        from etl import _utils
+        from etl import census_tract_density as mod
+
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key="key"))
+        db = MagicMock()
+        db.query.return_value.all.return_value = []
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+        from types import SimpleNamespace as _NS
+        monkeypatch.setattr(_utils, "EtlRun", lambda **kw: _NS(**{"id": 1, "rows_loaded": None, **kw}))
+
+        def boom(year):
+            raise RuntimeError("census down")
+
+        monkeypatch.setattr(mod, "gazetteer_year_for", boom)
+
+        with pytest.raises(RuntimeError, match="failed"):
+            mod.run(start_year=2020, end_year=2021)
+
+    def test_missing_api_key_raises(self, monkeypatch):
+        import pytest
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+        from etl import _utils
+        from etl import census_tract_density as mod
+
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key=""))
+        monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+        from types import SimpleNamespace as _NS
+        monkeypatch.setattr(_utils, "EtlRun", lambda **kw: _NS(**{"id": 1, "rows_loaded": None, **kw}))
+
+        with pytest.raises(RuntimeError, match="CENSUS_API_KEY"):
+            mod.run()
+
+    def test_unpublished_vintage_404_skips_quietly(self, monkeypatch):
+        import httpx
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+        from etl import _utils
+        from etl import census_tract_density as mod
+
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key="key"))
+        db = MagicMock()
+        db.query.return_value.all.return_value = []
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+        from types import SimpleNamespace as _NS
+        monkeypatch.setattr(_utils, "EtlRun", lambda **kw: _NS(**{"id": 1, "rows_loaded": None, **kw}))
+
+        def not_published(year):
+            raise httpx.HTTPStatusError(
+                "404", request=MagicMock(), response=MagicMock(status_code=404)
+            )
+
+        monkeypatch.setattr(mod, "gazetteer_year_for", not_published)
+
+        mod.run(start_year=2024, end_year=2024)

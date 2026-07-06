@@ -194,3 +194,42 @@ class TestRepairDriftedDerived:
         assert repaired == 0
         crash = _fetch(db_session, 999_000_111)
         assert crash.severity == "Property Damage Only"
+
+
+class TestBatchDedupe:
+    """CKAN pages occasionally contain the same Collision Id twice; without a
+    pre-dedupe, Postgres raises 'ON CONFLICT DO UPDATE cannot affect row a
+    second time' and the whole 5000-row batch fails (the same cascade class
+    as the 2026-07-05 incident)."""
+
+    def test_duplicate_collision_ids_in_one_batch_last_wins(self, db_session):
+        rows = [
+            _loader_row(number_killed=0),
+            _loader_row(number_killed=2),
+        ]
+
+        upsert_crashes(db_session, rows)
+
+        crash = _fetch(db_session, 999_000_111)
+        assert crash.number_killed == 2
+
+
+class TestPedestrianFlagBackfillIdempotent:
+    """Audit M7: step 3 reset pedestrian_involved = FALSE on every CCRS row
+    every night (~9M new tuple versions daily: WAL churn, bloat, and readers
+    seeing committed intermediate FALSE state). The rewrite must touch only
+    rows whose value actually changes."""
+
+    def test_drifted_flag_repaired_and_second_run_writes_nothing(self, db_session):
+        from etl.backfill_derived import backfill_pedestrian_flags
+
+        # Drifted: flagged TRUE but no pedestrian party exists for this crash.
+        _seed_backfilled_crash(db_session, pedestrian_involved=True)
+
+        backfill_pedestrian_flags(db_session)
+        crash = _fetch(db_session, 999_000_111)
+        assert crash.pedestrian_involved is False
+
+        # Fixed point reached: a second run must not rewrite anything.
+        reset, positive = backfill_pedestrian_flags(db_session)
+        assert (reset, positive) == (0, 0)

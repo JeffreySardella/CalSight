@@ -33,6 +33,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.cities_match import normalize_name
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import City, Crash
+from etl._utils import dedupe_rows
 from etl.alerts import AlertLevel, send_alert
 
 logging.basicConfig(
@@ -171,6 +172,16 @@ def upsert_crashes(
         logger.warning("Filtered %d rows with null required fields", skipped)
     if not valid_rows:
         return 0
+
+    # A repeated collision id within one statement would fail the whole
+    # batch ("ON CONFLICT DO UPDATE cannot affect row a second time").
+    deduped = dedupe_rows(valid_rows, ("collision_id", "data_source"))
+    if len(deduped) < len(valid_rows):
+        logger.warning(
+            "Deduped %d repeated collision ids within batch",
+            len(valid_rows) - len(deduped),
+        )
+        valid_rows = deduped
 
     stmt = pg_insert(Crash).values(valid_rows)
     update_set = {col: stmt.excluded[col] for col in _UPSERT_COLUMNS}
