@@ -230,6 +230,20 @@ def select_years_to_load(
     return switrs_years, ccrs_years, skipped
 
 
+def ccrs_years_with_resources(years, available) -> list[int]:
+    """Keep only CCRS years that have a published CKAN resource.
+
+    end_year auto-advances to the current year + 1 so new calendar years don't
+    need a manual edit — but the next year's CKAN resource doesn't exist until
+    its data is published. Attempting it raised KeyError (RESOURCE_IDS[year]) →
+    a failed batch → the whole nightly crashes_ccrs job errored and, with
+    loud-failure, cascaded to every dependent (stale freshness). Skip unpublished
+    years so the load stays green until the resource lands.
+    """
+    available = set(available)
+    return [y for y in years if y in available]
+
+
 def run(
     start_year: int = DEFAULT_START_YEAR,
     end_year: int = DEFAULT_END_YEAR,
@@ -339,7 +353,16 @@ def run(
         # Each page (~32K records) is fetched, transformed, and upserted
         # before fetching the next — no full-year memory buffer needed.
         if ccrs_years:
-            from etl.ckan_api import fetch_crashes_for_year  # noqa: PLC0415
+            from etl.ckan_api import fetch_crashes_for_year, RESOURCE_IDS  # noqa: PLC0415
+
+            no_resource = [y for y in ccrs_years if y not in RESOURCE_IDS]
+            if no_resource:
+                logger.info(
+                    "Skipping CCRS years with no published resource yet: %s "
+                    "(end_year auto-advances past available data)",
+                    no_resource,
+                )
+            ccrs_years = ccrs_years_with_resources(ccrs_years, RESOURCE_IDS)
 
             for year in ccrs_years:
                 year_rows = 0
