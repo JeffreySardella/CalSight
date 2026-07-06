@@ -283,3 +283,105 @@ class TestFetchCrashesForYear:
         assert len(results) == 2
         collision_ids = {r["collision_id"] for r in results}
         assert collision_ids == {111, 222}
+
+
+# ---------------------------------------------------------------------------
+# Resource discovery (Jan-2027 regression: hardcoded RESOURCE_IDS meant a new
+# calendar year's resource was never picked up until a manual code change,
+# while freshness kept reporting green against the pinned prior-year resource)
+# ---------------------------------------------------------------------------
+
+def _mock_package_show(resources: list[dict]) -> MagicMock:
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = {"result": {"resources": resources}}
+    return mock_resp
+
+
+_PACKAGE_RESOURCES = [
+    {"name": "Raw Data Template", "id": "template-id", "datastore_active": False},
+    {"name": "Crashes_2026", "id": "crashes-2026-id", "datastore_active": True},
+    {"name": "Crashes_2027", "id": "crashes-2027-id", "datastore_active": True},
+    {"name": "Parties_2026", "id": "parties-2026-id", "datastore_active": True},
+    {"name": "InjuredWitnessPassengers_2026", "id": "victims-2026-id", "datastore_active": True},
+    # A resource CKAN knows about but whose datastore isn't loaded yet must
+    # not be offered for loading — datastore_search would 404 on it.
+    {"name": "Crashes_2028", "id": "crashes-2028-id", "datastore_active": False},
+]
+
+
+@pytest.fixture(autouse=True)
+def _clear_discovery_cache():
+    from etl import ckan_api
+    getattr(ckan_api, "_DISCOVERY_CACHE", {}).clear()
+    yield
+    getattr(ckan_api, "_DISCOVERY_CACHE", {}).clear()
+
+
+class TestDiscoverResourceIds:
+    @patch("etl.ckan_api.httpx.get")
+    def test_finds_years_matching_prefix(self, mock_get):
+        from etl.ckan_api import discover_resource_ids
+        mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
+
+        found = discover_resource_ids("Crashes")
+
+        assert found == {2026: "crashes-2026-id", 2027: "crashes-2027-id"}
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_parties_prefix_does_not_match_crashes(self, mock_get):
+        from etl.ckan_api import discover_resource_ids
+        mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
+
+        assert discover_resource_ids("Parties") == {2026: "parties-2026-id"}
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_network_failure_returns_empty(self, mock_get):
+        from etl.ckan_api import discover_resource_ids
+        mock_get.side_effect = httpx.ConnectError("boom")
+
+        assert discover_resource_ids("Crashes") == {}
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_result_is_cached_per_process(self, mock_get):
+        from etl.ckan_api import discover_resource_ids
+        mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
+
+        discover_resource_ids("Crashes")
+        discover_resource_ids("Crashes")
+
+        assert mock_get.call_count == 1
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_failure_is_not_cached(self, mock_get):
+        from etl.ckan_api import discover_resource_ids
+        mock_get.side_effect = [
+            httpx.ConnectError("boom"),
+            _mock_package_show(_PACKAGE_RESOURCES),
+        ]
+
+        assert discover_resource_ids("Crashes") == {}
+        assert discover_resource_ids("Crashes") == {2026: "crashes-2026-id", 2027: "crashes-2027-id"}
+
+
+class TestMergedResourceIds:
+    @patch("etl.ckan_api.httpx.get")
+    def test_discovered_year_extends_static_map(self, mock_get):
+        from etl.ckan_api import merged_resource_ids
+        mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
+        static = {2025: "static-2025", 2026: "static-2026"}
+
+        merged = merged_resource_ids("Crashes", static)
+
+        assert merged[2027] == "crashes-2027-id"  # new year discovered
+        assert merged[2025] == "static-2025"      # static entries preserved
+        assert merged[2026] == "crashes-2026-id"  # discovery is fresher, wins
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_discovery_failure_degrades_to_static(self, mock_get):
+        from etl.ckan_api import merged_resource_ids
+        mock_get.side_effect = httpx.ConnectError("boom")
+        static = {2025: "static-2025", 2026: "static-2026"}
+
+        assert merged_resource_ids("Crashes", static) == static

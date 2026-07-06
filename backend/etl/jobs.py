@@ -24,6 +24,7 @@ def build_default_registry() -> JobRegistry:
         max_drop_pct=5,
         source_type="ckan",
         freshness_resource_id="b8ce0ca4-b4e9-490d-b4d1-1f4ec48cbefb",
+        freshness_ckan_prefix="Crashes",
     ))
     registry.register(Job(
         name="parties",
@@ -36,6 +37,7 @@ def build_default_registry() -> JobRegistry:
         timeout=21600,
         source_type="ckan",
         freshness_resource_id="348a4266-bbb6-439f-b6c7-0018cc79f0fe",
+        freshness_ckan_prefix="Parties",
     ))
     registry.register(Job(
         name="victims",
@@ -48,6 +50,7 @@ def build_default_registry() -> JobRegistry:
         timeout=14400,
         source_type="ckan",
         freshness_resource_id="bbe0c38e-d0eb-4152-86e2-0b0895e66ba9",
+        freshness_ckan_prefix="InjuredWitnessPassengers",
     ))
     registry.register(Job(
         name="demographics",

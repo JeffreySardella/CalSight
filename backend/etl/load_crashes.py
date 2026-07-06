@@ -33,6 +33,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.cities_match import normalize_name
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import City, Crash
+from etl.alerts import AlertLevel, send_alert
 
 logging.basicConfig(
     level=logging.INFO,
@@ -261,6 +262,34 @@ def ccrs_years_with_resources(years, available) -> list[int]:
     return [y for y in years if y in available]
 
 
+def alert_if_current_year_unpublished(
+    available, today_year: int | None = None
+) -> bool:
+    """WARN loudly when the current calendar year has no CCRS resource.
+
+    Silently skipping an unpublished year is right for the auto-advanced NEXT
+    year, but if the CURRENT year is missing, an entire year of crashes never
+    loads — and freshness masks it: the pinned prior-year resource stops
+    changing, the job records skipped_unchanged daily, and /api/freshness
+    reports "confirmed sync". That state must page a human. Self-quiets once
+    CHP publishes the resource (discovery picks it up on the next run).
+
+    Returns True if the alert fired.
+    """
+    if today_year is None:
+        today_year = datetime.now(timezone.utc).year
+    if today_year in set(available):
+        return False
+    send_alert(
+        AlertLevel.WARNING,
+        f"CCRS has no published crashes resource for {today_year}",
+        f"The {today_year} crash load is being skipped every run. If CHP has "
+        f"published the resource under a new name, resource discovery missed "
+        f"it — check the data.ca.gov CCRS dataset and etl/ckan_api.py.",
+    )
+    return True
+
+
 def run(
     start_year: int = DEFAULT_START_YEAR,
     end_year: int = DEFAULT_END_YEAR,
@@ -370,23 +399,32 @@ def run(
         # Each page (~32K records) is fetched, transformed, and upserted
         # before fetching the next — no full-year memory buffer needed.
         if ccrs_years:
-            from etl.ckan_api import fetch_crashes_for_year, RESOURCE_IDS  # noqa: PLC0415
+            from etl.ckan_api import (  # noqa: PLC0415
+                RESOURCE_IDS,
+                fetch_crashes_for_year,
+                merged_resource_ids,
+            )
 
-            no_resource = [y for y in ccrs_years if y not in RESOURCE_IDS]
+            # Static ids + anything newly published on data.ca.gov, so a new
+            # calendar year starts loading without a code change.
+            available = merged_resource_ids("Crashes", RESOURCE_IDS)
+
+            no_resource = [y for y in ccrs_years if y not in available]
             if no_resource:
                 logger.info(
                     "Skipping CCRS years with no published resource yet: %s "
                     "(end_year auto-advances past available data)",
                     no_resource,
                 )
-            ccrs_years = ccrs_years_with_resources(ccrs_years, RESOURCE_IDS)
+            ccrs_years = ccrs_years_with_resources(ccrs_years, available)
+            alert_if_current_year_unpublished(available)
 
             for year in ccrs_years:
                 year_rows = 0
                 try:
                     logger.info("Starting CCRS year %d...", year)
 
-                    for batch, offset, total in fetch_crashes_for_year(year):
+                    for batch, offset, total in fetch_crashes_for_year(year, available):
                         try:
                             count = upsert_crashes(db, batch, city_lookup=city_lookup)
                             db.commit()

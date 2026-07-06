@@ -37,6 +37,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CrashParty, CrashVictim
+from etl.ckan_api import merged_resource_ids
 
 logging.basicConfig(
     level=logging.INFO,
@@ -328,7 +329,7 @@ def run(
     if table is None or table == "parties":
         had_failure |= load_table(
             table_type="parties",
-            resource_ids=PARTIES_RESOURCE_IDS,
+            resource_ids=merged_resource_ids("Parties", PARTIES_RESOURCE_IDS),
             model_class=CrashParty,
             transform_fn=transform_party,
             upsert_cols=_PARTY_UPSERT_COLS,
@@ -342,7 +343,9 @@ def run(
     if table is None or table == "victims":
         had_failure |= load_table(
             table_type="victims",
-            resource_ids=VICTIMS_RESOURCE_IDS,
+            resource_ids=merged_resource_ids(
+                "InjuredWitnessPassengers", VICTIMS_RESOURCE_IDS
+            ),
             model_class=CrashVictim,
             transform_fn=transform_victim,
             upsert_cols=_VICTIM_UPSERT_COLS,

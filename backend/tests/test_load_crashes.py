@@ -166,3 +166,43 @@ class TestCcrsYearsWithResources:
         # the auto-advanced next year is not loadable; the latest published one is
         assert ccrs_years_with_resources([latest + 1], RESOURCE_IDS) == []
         assert ccrs_years_with_resources([latest], RESOURCE_IDS) == [latest]
+
+
+class TestAlertCurrentYearUnpublished:
+    """H2 follow-through to the 2026-07-05 incident fix: silently skipping an
+    unpublished year is correct for the auto-advanced NEXT year, but if the
+    CURRENT calendar year has no resource, an entire year of crashes is
+    missing while /api/freshness reports green (the pinned prior-year resource
+    stops changing -> daily skipped_unchanged -> 'confirmed sync'). That state
+    must page a human."""
+
+    def test_missing_current_year_sends_warning(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import load_crashes as mod
+
+        alert = MagicMock()
+        monkeypatch.setattr(mod, "send_alert", alert)
+
+        fired = mod.alert_if_current_year_unpublished(
+            {2025: "a", 2026: "b"}, today_year=2027,
+        )
+
+        assert fired is True
+        alert.assert_called_once()
+        level, title = alert.call_args[0][0], alert.call_args[0][1]
+        assert level.value == "warning"
+        assert "2027" in title
+
+    def test_present_current_year_is_quiet(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import load_crashes as mod
+
+        alert = MagicMock()
+        monkeypatch.setattr(mod, "send_alert", alert)
+
+        fired = mod.alert_if_current_year_unpublished(
+            {2026: "b", 2027: "c"}, today_year=2027,
+        )
+
+        assert fired is False
+        alert.assert_not_called()
