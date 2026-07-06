@@ -208,7 +208,10 @@ def build_default_registry() -> JobRegistry:
     registry.register(Job(
         name="matviews",
         module="etl.refresh_materialized_views",
-        depends_on=["backfill", "data_quality", "demographics", "licensed_drivers", "vehicles", "road_miles", "aadt"],
+        # "victims" matters: mv_crash_victims_by_demographics is refreshed
+        # here, and without the dep the alphabetical topo order ran matviews
+        # BEFORE victims — the victims matview was always a day stale.
+        depends_on=["backfill", "data_quality", "demographics", "licensed_drivers", "vehicles", "road_miles", "aadt", "victims"],
         schedule="daily",
     ))
     registry.register(Job(

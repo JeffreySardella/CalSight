@@ -189,8 +189,9 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
     """Fetch + join + upsert lived-density rows for CA counties."""
     api_key = settings.census_api_key
     if not api_key:
-        logger.error("CENSUS_API_KEY is not set. Add it to backend/.env")
-        return
+        # Raise instead of returning: a missing key would otherwise record a
+        # green run that loaded nothing (the silent-success class of M-B9).
+        raise RuntimeError("CENSUS_API_KEY is not set. Add it to backend/.env")
 
     db = SessionLocal()
     gaz_cache: dict[int, dict[str, float]] = {}
@@ -200,6 +201,7 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
         logger.info("Loaded %d counties", len(lookup))
 
         total = 0
+        failed_years: list[int] = []
         for year in range(start_year, end_year + 1):
             try:
                 gaz_year = gazetteer_year_for(year)
@@ -225,8 +227,23 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                 total += len(rows)
                 logger.info("Year %d: %d county rows upserted", year, len(rows))
             except Exception as exc:
-                logger.warning("Tract-density year %d failed: %s", year, exc)
                 db.rollback()
+                # An ACS vintage that isn't released yet 404s — that's "not
+                # published", not an outage; don't fail the run for it.
+                if (
+                    isinstance(exc, httpx.HTTPStatusError)
+                    and exc.response.status_code == 404
+                ):
+                    logger.info("ACS %d not published yet (404), skipping", year)
+                    continue
+                logger.warning("Tract-density year %d failed: %s", year, exc)
+                failed_years.append(year)
+
+        if failed_years:
+            # Loud partial failure (M-B9 discipline) — same as FARS.
+            raise RuntimeError(
+                f"Tract density: {len(failed_years)} year(s) failed: {failed_years}"
+            )
 
         logger.info("Done. %d total lived-density rows upserted.", total)
     finally:

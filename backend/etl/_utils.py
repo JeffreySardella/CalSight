@@ -58,6 +58,22 @@ F = TypeVar("F", bound=Callable[..., Any])
 # Type coercion
 # ---------------------------------------------------------------------------
 
+def dedupe_rows(rows: list[dict], key: tuple[str, ...]) -> list[dict]:
+    """Drop earlier duplicates of *key* from a batch, keeping the last.
+
+    CKAN pages occasionally repeat a source row. Two rows with the same
+    conflict key inside one INSERT ... ON CONFLICT statement make Postgres
+    raise "cannot affect row a second time", failing the entire batch — so
+    every bulk upsert dedupes on its conflict key first. Last occurrence
+    wins (matches what sequential upserts would have produced); relative
+    order is otherwise preserved.
+    """
+    by_key: dict[tuple, dict] = {}
+    for row in rows:
+        by_key[tuple(row.get(k) for k in key)] = row
+    return list(by_key.values())
+
+
 def safe_int(value: Any) -> int | None:
     """Coerce *value* to int; return None for None / empty / bad input.
 

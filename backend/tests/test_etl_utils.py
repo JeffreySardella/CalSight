@@ -451,3 +451,33 @@ class TestCkanFreshnessDynamicResource:
         _utils._check_ckan_freshness(_ckan_job(prefix=None), _finished_run())
 
         assert probed["id"] == "pinned-resource-id"
+
+
+# ---------------------------------------------------------------------------
+# dedupe_rows — CKAN pages occasionally repeat a source row; two rows with the
+# same conflict key in one INSERT ... ON CONFLICT batch make Postgres raise
+# "cannot affect row a second time", failing the whole batch.
+# ---------------------------------------------------------------------------
+
+class TestDedupeRows:
+    def test_last_occurrence_wins(self):
+        rows = [
+            {"id": 1, "v": "old"},
+            {"id": 2, "v": "b"},
+            {"id": 1, "v": "new"},
+        ]
+        out = _utils.dedupe_rows(rows, ("id",))
+        assert out == [{"id": 1, "v": "new"}, {"id": 2, "v": "b"}]
+
+    def test_composite_key(self):
+        rows = [
+            {"id": 1, "src": "a", "v": 1},
+            {"id": 1, "src": "b", "v": 2},
+            {"id": 1, "src": "a", "v": 3},
+        ]
+        out = _utils.dedupe_rows(rows, ("id", "src"))
+        assert out == [{"id": 1, "src": "a", "v": 3}, {"id": 1, "src": "b", "v": 2}]
+
+    def test_no_duplicates_is_identity(self):
+        rows = [{"id": 1}, {"id": 2}]
+        assert _utils.dedupe_rows(rows, ("id",)) == rows
