@@ -44,6 +44,7 @@ from sqlalchemy import desc, text
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import EtlRun
+from etl.ckan_api import discover_resource_ids
 
 if TYPE_CHECKING:
     from etl.orchestrator import Job
@@ -331,14 +332,30 @@ def check_source_freshness(job: Job, db_session) -> FreshnessResult:
     return FreshnessResult(True, None, None, f"unknown source_type {job.source_type!r}")
 
 
+def _resolve_ckan_freshness_resource(job: Job) -> str | None:
+    """The resource id whose last_modified decides whether this job runs.
+
+    Jobs with a freshness_ckan_prefix probe the newest discovered year's
+    resource (see Job.freshness_ckan_prefix); everything else — and any
+    discovery failure — uses the pinned freshness_resource_id.
+    """
+    prefix = getattr(job, "freshness_ckan_prefix", None)
+    if prefix:
+        discovered = discover_resource_ids(prefix)
+        if discovered:
+            return discovered[max(discovered)]
+    return job.freshness_resource_id
+
+
 def _check_ckan_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
-    if not job.freshness_resource_id:
+    resource_id = _resolve_ckan_freshness_resource(job)
+    if not resource_id:
         return FreshnessResult(True, None, None, "ckan type but no resource_id")
 
     try:
         resp = get_with_retry(
             CKAN_RESOURCE_SHOW_URL,
-            params={"id": job.freshness_resource_id},
+            params={"id": resource_id},
             timeout=15.0,
         )
         resource = resp.json().get("result", {})

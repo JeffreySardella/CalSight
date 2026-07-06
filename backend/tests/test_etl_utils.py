@@ -375,3 +375,79 @@ class TestFederalFreshnessAllowlist:
         last_run = SimpleNamespace(source_row_count=1383)
         res = _utils._check_federal_freshness(self._fars_job(), last_run, db)
         assert res.is_fresh is True
+
+
+# ---------------------------------------------------------------------------
+# _check_ckan_freshness — dynamic resource resolution (Jan-2027 regression)
+# ---------------------------------------------------------------------------
+
+def _ckan_job(prefix=None, pinned="pinned-resource-id", name="crashes_ccrs"):
+    return SimpleNamespace(
+        name=name,
+        source_type="ckan",
+        freshness_resource_id=pinned,
+        freshness_ckan_prefix=prefix,
+    )
+
+
+def _finished_run():
+    from datetime import datetime
+    return SimpleNamespace(source_row_count=100, finished_at=datetime(2027, 1, 10))
+
+
+class TestCkanFreshnessDynamicResource:
+    """When CHP publishes a new calendar year, the pinned prior-year resource
+    stops changing and freshness would skip the job forever, masking a whole
+    missing year as 'confirmed sync'. Jobs with a freshness_ckan_prefix must
+    probe the NEWEST discovered year's resource instead of the pinned one."""
+
+    def test_probes_newest_discovered_resource(self, monkeypatch):
+        probed = {}
+
+        def fake_get(url, params=None, **kw):
+            probed["id"] = params["id"]
+            return _make_response(
+                200, b'{"result": {"last_modified": "2027-06-01T00:00:00"}}'
+            )
+
+        monkeypatch.setattr(httpx, "get", fake_get)
+        monkeypatch.setattr(
+            _utils, "discover_resource_ids",
+            lambda prefix: {2026: "crashes-2026-id", 2027: "crashes-2027-id"},
+        )
+
+        result = _utils._check_ckan_freshness(_ckan_job(prefix="Crashes"), _finished_run())
+
+        assert probed["id"] == "crashes-2027-id"
+        assert result.is_fresh is True
+
+    def test_discovery_failure_falls_back_to_pinned(self, monkeypatch):
+        probed = {}
+
+        def fake_get(url, params=None, **kw):
+            probed["id"] = params["id"]
+            return _make_response(
+                200, b'{"result": {"last_modified": "2027-06-01T00:00:00"}}'
+            )
+
+        monkeypatch.setattr(httpx, "get", fake_get)
+        monkeypatch.setattr(_utils, "discover_resource_ids", lambda prefix: {})
+
+        _utils._check_ckan_freshness(_ckan_job(prefix="Crashes"), _finished_run())
+
+        assert probed["id"] == "pinned-resource-id"
+
+    def test_no_prefix_uses_pinned(self, monkeypatch):
+        probed = {}
+
+        def fake_get(url, params=None, **kw):
+            probed["id"] = params["id"]
+            return _make_response(
+                200, b'{"result": {"last_modified": "2027-06-01T00:00:00"}}'
+            )
+
+        monkeypatch.setattr(httpx, "get", fake_get)
+
+        _utils._check_ckan_freshness(_ckan_job(prefix=None), _finished_run())
+
+        assert probed["id"] == "pinned-resource-id"

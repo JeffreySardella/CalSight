@@ -27,12 +27,13 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 
-from sqlalchemy import extract, func
+from sqlalchemy import SmallInteger, case, cast, extract, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.cities_match import normalize_name
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import City, Crash
+from etl.alerts import AlertLevel, send_alert
 
 logging.basicConfig(
     level=logging.INFO,
@@ -175,6 +176,23 @@ def upsert_crashes(
     update_set = {col: stmt.excluded[col] for col in _UPSERT_COLUMNS}
     update_set["coord_county_mismatch"] = None
     update_set["coord_validated_at"] = None
+    # CHP amends records after first publication — most importantly when a
+    # victim dies within 30 days and number_killed goes 0 -> 1. The backfills
+    # that populate these derived columns are NULL-guarded (they never touch a
+    # populated row), so recompute them here from the amended values. Computing
+    # inline (rather than resetting to NULL for the backfill, like the coord
+    # columns above) avoids a window where severity filters miss the row.
+    excluded = stmt.excluded
+    update_set["severity"] = case(
+        (excluded["number_killed"] > 0, "Fatal"),
+        (excluded["number_injured"] > 0, "Injury"),
+        else_="Property Damage Only",
+    )
+    dt = excluded["crash_datetime"]
+    update_set["crash_year"] = cast(extract("year", dt), SmallInteger)
+    update_set["crash_month"] = cast(extract("month", dt), SmallInteger)
+    update_set["crash_hour"] = cast(extract("hour", dt), SmallInteger)
+    update_set["day_of_week_num"] = cast(extract("isodow", dt) - 1, SmallInteger)
     stmt = stmt.on_conflict_do_update(
         constraint="uq_crashes_collision_source",
         set_=update_set,
@@ -242,6 +260,34 @@ def ccrs_years_with_resources(years, available) -> list[int]:
     """
     available = set(available)
     return [y for y in years if y in available]
+
+
+def alert_if_current_year_unpublished(
+    available, today_year: int | None = None
+) -> bool:
+    """WARN loudly when the current calendar year has no CCRS resource.
+
+    Silently skipping an unpublished year is right for the auto-advanced NEXT
+    year, but if the CURRENT year is missing, an entire year of crashes never
+    loads — and freshness masks it: the pinned prior-year resource stops
+    changing, the job records skipped_unchanged daily, and /api/freshness
+    reports "confirmed sync". That state must page a human. Self-quiets once
+    CHP publishes the resource (discovery picks it up on the next run).
+
+    Returns True if the alert fired.
+    """
+    if today_year is None:
+        today_year = datetime.now(timezone.utc).year
+    if today_year in set(available):
+        return False
+    send_alert(
+        AlertLevel.WARNING,
+        f"CCRS has no published crashes resource for {today_year}",
+        f"The {today_year} crash load is being skipped every run. If CHP has "
+        f"published the resource under a new name, resource discovery missed "
+        f"it — check the data.ca.gov CCRS dataset and etl/ckan_api.py.",
+    )
+    return True
 
 
 def run(
@@ -353,23 +399,32 @@ def run(
         # Each page (~32K records) is fetched, transformed, and upserted
         # before fetching the next — no full-year memory buffer needed.
         if ccrs_years:
-            from etl.ckan_api import fetch_crashes_for_year, RESOURCE_IDS  # noqa: PLC0415
+            from etl.ckan_api import (  # noqa: PLC0415
+                RESOURCE_IDS,
+                fetch_crashes_for_year,
+                merged_resource_ids,
+            )
 
-            no_resource = [y for y in ccrs_years if y not in RESOURCE_IDS]
+            # Static ids + anything newly published on data.ca.gov, so a new
+            # calendar year starts loading without a code change.
+            available = merged_resource_ids("Crashes", RESOURCE_IDS)
+
+            no_resource = [y for y in ccrs_years if y not in available]
             if no_resource:
                 logger.info(
                     "Skipping CCRS years with no published resource yet: %s "
                     "(end_year auto-advances past available data)",
                     no_resource,
                 )
-            ccrs_years = ccrs_years_with_resources(ccrs_years, RESOURCE_IDS)
+            ccrs_years = ccrs_years_with_resources(ccrs_years, available)
+            alert_if_current_year_unpublished(available)
 
             for year in ccrs_years:
                 year_rows = 0
                 try:
                     logger.info("Starting CCRS year %d...", year)
 
-                    for batch, offset, total in fetch_crashes_for_year(year):
+                    for batch, offset, total in fetch_crashes_for_year(year, available):
                         try:
                             count = upsert_crashes(db, batch, city_lookup=city_lookup)
                             db.commit()

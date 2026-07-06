@@ -41,6 +41,13 @@ class Job:
     freshness_resource_id: str | None = None
     freshness_url: str | None = None
     freshness_table: str | None = None
+    # CCRS resource-name prefix ("Crashes", "Parties", ...). When set, the
+    # freshness probe resolves the NEWEST discovered year's resource instead
+    # of the pinned freshness_resource_id — otherwise, the January a new year
+    # is published, the pinned prior-year resource stops changing and the job
+    # would skip as "unchanged" forever while a whole year goes missing.
+    # freshness_resource_id remains the fallback when discovery fails.
+    freshness_ckan_prefix: str | None = None
 
 
 class JobRegistry:

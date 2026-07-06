@@ -806,6 +806,57 @@ def backfill_severity(db):
     logger.info("Severity: %d property damage only", r.rowcount)
 
 
+def repair_drifted_derived(db) -> int:
+    """Fix derived columns that disagree with the raw values they derive from.
+
+    Before 2026-07 the upsert didn't recompute derived columns, so a CHP
+    amendment (a victim dying within 30 days, a corrected crash_datetime)
+    left severity and the datetime extract columns stale — and the
+    NULL-guarded backfills above never touch a populated row. This repairs
+    the drift already sitting in prod and keeps acting as a nightly
+    invariant check.
+
+    The IS DISTINCT FROM guard means only genuinely inconsistent rows get
+    new tuple versions: after the first pass this is a read-mostly scan per
+    year with ~zero writes (no daily WAL churn — the M7 lesson). Rows whose
+    severity is still NULL are left for backfill_severity to fill first.
+    """
+    total = 0
+    for year in _all_crash_year_range(db):
+        r = db.execute(text("""
+            UPDATE crashes SET
+                severity = CASE
+                    WHEN number_killed > 0 THEN 'Fatal'
+                    WHEN number_injured > 0 THEN 'Injury'
+                    ELSE 'Property Damage Only'
+                END,
+                crash_year = EXTRACT(YEAR FROM crash_datetime)::smallint,
+                crash_month = EXTRACT(MONTH FROM crash_datetime)::smallint,
+                crash_hour = EXTRACT(HOUR FROM crash_datetime)::smallint,
+                day_of_week_num = (EXTRACT(ISODOW FROM crash_datetime)::smallint - 1)
+            WHERE crash_datetime >= :start AND crash_datetime < :end
+              AND severity IS NOT NULL
+              AND (
+                severity IS DISTINCT FROM CASE
+                    WHEN number_killed > 0 THEN 'Fatal'
+                    WHEN number_injured > 0 THEN 'Injury'
+                    ELSE 'Property Damage Only'
+                END
+                OR crash_year IS DISTINCT FROM EXTRACT(YEAR FROM crash_datetime)::smallint
+                OR crash_month IS DISTINCT FROM EXTRACT(MONTH FROM crash_datetime)::smallint
+                OR crash_hour IS DISTINCT FROM EXTRACT(HOUR FROM crash_datetime)::smallint
+                OR day_of_week_num IS DISTINCT FROM (EXTRACT(ISODOW FROM crash_datetime)::smallint - 1)
+              )
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        if r.rowcount > 0:
+            logger.info("Derived-drift repair %d: %d rows", year, r.rowcount)
+            total += r.rowcount
+
+    logger.info("Derived-drift repair done: %d rows", total)
+    return total
+
+
 @track_etl_run("backfill")
 def run():
     """Run all the backfills in order. Land area first since density needs it."""
@@ -820,6 +871,7 @@ def run():
         backfill_day_of_week(db)
         backfill_county_name(db)
         backfill_severity(db)
+        repair_drifted_derived(db)
         backfill_pedestrian_flags(db)
         backfill_alcohol_flags(db)
         backfill_distraction_flags(db)

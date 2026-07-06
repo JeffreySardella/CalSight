@@ -124,8 +124,17 @@ def upload_to_r2(filepath: Path) -> bool:
         return False
 
 
-def rotate_r2_backups(retention_days: int = RETENTION_DAYS) -> int:
-    """Delete backups older than retention_days from R2. Returns count removed."""
+def rotate_r2_backups(
+    retention_days: int = RETENTION_DAYS,
+    min_keep: int = MIN_KEEP_BACKUPS,
+) -> int:
+    """Delete backups older than retention_days from R2. Returns count removed.
+
+    Like the local rotation, the newest min_keep dumps are protected
+    regardless of age: if pg_dump silently fails for longer than the
+    retention window, the offsite copies — the ones that survive the box
+    dying — must not rotate to zero.
+    """
     access_key = os.environ.get("R2_ACCESS_KEY_ID")
     secret_key = os.environ.get("R2_SECRET_ACCESS_KEY")
     endpoint_url = os.environ.get("R2_ENDPOINT_URL")
@@ -149,18 +158,25 @@ def rotate_r2_backups(retention_days: int = RETENTION_DAYS) -> int:
             return 0
 
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
-        removed = 0
+
+        # Parse every dump's date first so the newest min_keep can be
+        # protected; unparseable names are left alone entirely.
+        dated: list[tuple[datetime, str]] = []
         for obj in resp["Contents"]:
             fname = obj["Key"].split("/")[-1]
             try:
                 date_str = fname.replace("calsight_", "").replace(".dump", "")
-                file_date = datetime.strptime(date_str, "%Y-%m-%d")
-                if file_date < cutoff:
-                    s3.delete_object(Bucket=bucket_name, Key=obj["Key"])
-                    removed += 1
-                    logger.info("Rotated from R2: %s", fname)
+                dated.append((datetime.strptime(date_str, "%Y-%m-%d"), obj["Key"]))
             except (ValueError, KeyError):
                 continue
+        dated.sort(reverse=True)  # newest first
+
+        removed = 0
+        for file_date, key in dated[min_keep:]:
+            if file_date < cutoff:
+                s3.delete_object(Bucket=bucket_name, Key=key)
+                removed += 1
+                logger.info("Rotated from R2: %s", key.split("/")[-1])
 
         if removed:
             logger.info("Rotated %d R2 backup(s) older than %d days", removed, retention_days)

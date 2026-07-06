@@ -17,6 +17,7 @@ The CKAN DataStore Search API returns JSON like:
 We paginate using limit/offset until all records are fetched.
 """
 
+import re
 import time
 import logging
 from datetime import datetime
@@ -26,12 +27,20 @@ import httpx
 logger = logging.getLogger(__name__)
 
 CKAN_BASE_URL = "https://data.ca.gov/api/3/action/datastore_search"
+CKAN_PACKAGE_SHOW_URL = "https://data.ca.gov/api/3/action/package_show"
+# The CCRS dataset ("package") on data.ca.gov that contains every yearly
+# Crashes_/Parties_/InjuredWitnessPassengers_ resource.
+CCRS_PACKAGE_ID = "80c6a49d-c6b3-40ba-86d8-379c9741b4be"
 PAGE_SIZE = 32000
 MAX_RETRIES = 3
 BACKOFF_BASE = 2  # seconds
 
 # Each year of CCRS data has a separate CKAN resource ID.
 # These IDs were sourced from data.ca.gov's CCRS dataset listing.
+# They are the offline fallback — discover_resource_ids() below finds new
+# calendar years automatically, so this map no longer needs a manual edit
+# every January (the cause of the 2026-07-05 staleness incident's sequel:
+# a 2027 that would never load while freshness reported green).
 RESOURCE_IDS = {
     2016: "3d5f2586-cf68-4213-aa1c-60df37399d10",
     2017: "4784664d-b7cf-4427-af25-7c7307bad56c",
@@ -45,6 +54,61 @@ RESOURCE_IDS = {
     2025: "9f4fc839-122d-4595-a146-43bc4ed16f46",
     2026: "b8ce0ca4-b4e9-490d-b4d1-1f4ec48cbefb",
 }
+
+# Successful discoveries, keyed by resource-name prefix. One package_show per
+# prefix per process is plenty — the orchestrator and each loader run in their
+# own process, and resources don't appear mid-run. Failures are NOT cached so
+# a transient outage doesn't pin an empty result for the whole process.
+_DISCOVERY_CACHE: dict[str, dict[int, str]] = {}
+
+
+def discover_resource_ids(prefix: str) -> dict[int, str]:
+    """Discover per-year CKAN resource ids by listing the CCRS package.
+
+    CHP publishes one resource per calendar year named ``<prefix>_<year>``
+    (e.g. ``Crashes_2026``, ``Parties_2026``). Listing the package finds new
+    years the moment they're published, instead of waiting for someone to
+    hand-edit RESOURCE_IDS each January.
+
+    Returns {} on any failure — callers merge over the static maps, so a
+    discovery outage degrades to exactly the old hardcoded behavior.
+    """
+    if prefix in _DISCOVERY_CACHE:
+        return _DISCOVERY_CACHE[prefix]
+
+    try:
+        resp = httpx.get(
+            CKAN_PACKAGE_SHOW_URL, params={"id": CCRS_PACKAGE_ID}, timeout=30.0
+        )
+        resp.raise_for_status()
+        resources = resp.json()["result"]["resources"]
+    except Exception as exc:
+        logger.warning(
+            "CCRS resource discovery failed (%s); falling back to static ids", exc
+        )
+        return {}
+
+    pattern = re.compile(rf"{re.escape(prefix)}_(20\d\d)")
+    found: dict[int, str] = {}
+    for res in resources:
+        match = pattern.fullmatch(str(res.get("name", "")).strip())
+        # datastore_active=False means the resource exists but its DataStore
+        # isn't loaded — datastore_search would 404, so don't offer it.
+        if match and res.get("datastore_active") and res.get("id"):
+            found[int(match.group(1))] = res["id"]
+
+    logger.info("Discovered %d %s_* resources: %s", len(found), prefix, sorted(found))
+    _DISCOVERY_CACHE[prefix] = found
+    return found
+
+
+def merged_resource_ids(prefix: str, static_ids: dict[int, str]) -> dict[int, str]:
+    """The static year->resource map with freshly discovered years merged over it.
+
+    Discovery wins on conflict (CHP occasionally re-creates a resource under a
+    new id); the static map covers discovery outages and is never mutated.
+    """
+    return {**static_ids, **discover_resource_ids(prefix)}
 
 
 def _safe_int(value):
@@ -175,7 +239,7 @@ def transform_ccrs(record: dict) -> dict:
     }
 
 
-def fetch_crashes_for_year(year: int):
+def fetch_crashes_for_year(year: int, resource_ids: dict[int, str] | None = None):
     """Yield batches of crash records for a given year from the CKAN DataStore API.
 
     Instead of loading an entire year into memory, this generator yields one
@@ -190,7 +254,10 @@ def fetch_crashes_for_year(year: int):
     represent malformed source rows that can't be uniquely identified.
 
     Args:
-        year: The crash year to fetch (must be in RESOURCE_IDS).
+        year: The crash year to fetch (must be in the resource map).
+        resource_ids: year -> CKAN resource id map. Defaults to the static
+            RESOURCE_IDS; the loader passes the discovery-merged map so newly
+            published years work without a code change.
 
     Yields:
         tuple of (batch: list[dict], offset: int, total: int)
@@ -202,7 +269,9 @@ def fetch_crashes_for_year(year: int):
         KeyError: If year is not in RESOURCE_IDS.
         httpx.HTTPStatusError / httpx.RequestError: If all retries fail.
     """
-    resource_id = RESOURCE_IDS[year]  # KeyError if year not found — intentional
+    if resource_ids is None:
+        resource_ids = RESOURCE_IDS
+    resource_id = resource_ids[year]  # KeyError if year not found — intentional
 
     logger.info("Fetching CCRS data for %d (resource_id=%s)", year, resource_id)
 
