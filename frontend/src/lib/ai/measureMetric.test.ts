@@ -50,10 +50,22 @@ describe("filtersToDistributionParams", () => {
     expect(out.county).toBeUndefined();
     expect(out.year).toBeUndefined();
   });
-  it("serializes severities and causes as CSV", () => {
+  it("serializes severities as backend slugs, causes as CSV", () => {
+    // The snapshot carries display names ("Fatal"), but the backend's
+    // severity parser only accepts slugs — sending display names 4xxes the
+    // distribution call and silently kills the percentile tier whenever a
+    // severity filter is active.
     const out = filtersToDistributionParams({ ...allEmpty, severities: ["Fatal", "Injury"], causes: ["dui"] });
-    expect(out.severity).toBe("Fatal,Injury");
+    expect(out.severity).toBe("fatal,injury");
     expect(out.cause).toBe("dui");
+  });
+  it("slugifies Property Damage Only", () => {
+    const out = filtersToDistributionParams({ ...allEmpty, severities: ["Property Damage Only"] });
+    expect(out.severity).toBe("property-damage-only");
+  });
+  it("passes already-slugged severities through unchanged", () => {
+    const out = filtersToDistributionParams({ ...allEmpty, severities: ["fatal"] });
+    expect(out.severity).toBe("fatal");
   });
   it("serializes boolean involvement flags as 'true'/'false'", () => {
     expect(filtersToDistributionParams({ ...allEmpty, alcohol: true }).alcohol).toBe("true");
