@@ -220,8 +220,12 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
       </div>
 
       <p className="text-[9px] text-on-surface-variant/50 sm:hidden mb-1">Swipe to scroll</p>
-      <div style={{ overflowX: "auto", overflowY: "visible", WebkitOverflowScrolling: "touch" }}>
-        <svg width={svgW} height={svgH} className="block" style={{ overflow: "visible" }} role="img" aria-labelledby={titleId}>
+      {/* Visual grid is mouse-interactive but decorative to assistive tech —
+          role="img" flattened its cells out of the a11y tree, so a screen
+          reader got one opaque image. The real accessible representation is the
+          <table> below (arrow-key navigable, every r-value exposed). */}
+      <div style={{ overflowX: "auto", overflowY: "visible", WebkitOverflowScrolling: "touch" }} aria-hidden="true">
+        <svg width={svgW} height={svgH} className="block" style={{ overflow: "visible" }}>
           <title id={titleId}>Correlation matrix: Pearson r values across {countyCount} California counties for {n} metrics</title>
           <desc>A {n} by {n} grid showing pairwise Pearson correlation coefficients between crash, demographic, and environmental metrics. Blue cells indicate positive correlations, red cells indicate negative correlations. Click any cell to view a scatter plot.</desc>
           {/* cells first so labels paint on top */}
@@ -263,6 +267,31 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
           })}
         </svg>
       </div>
+
+      {/* Screen-reader-accessible representation of the matrix above. */}
+      <table className="sr-only">
+        <caption>
+          Correlation matrix: Pearson r values across {countyCount} California counties for {n} metrics.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Metric</th>
+            {fields.map((f) => (
+              <th key={f.label} scope="col">{f.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.map((row, i) => (
+            <tr key={fields[i].label}>
+              <th scope="row">{fields[i].label}</th>
+              {row.map((r, j) => (
+                <td key={j}>{isNaN(r) ? "N/A" : r.toFixed(2)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       {hoverCell && !selected && (
         <p className="text-xs text-on-surface-variant text-center">

@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.ai_prompt import (
@@ -42,6 +43,17 @@ _MAX_TOOL_ROUNDS = 3
 _MAX_TOOL_CALLS_PER_ROUND = 3
 _MAX_HISTORY = 10
 _ASK_TIMEOUT_SECONDS = 60.0
+# Per-query backstop for the AI-tool path. Below the 60s request deadline so a
+# runaway 11M-row aggregation is killed by Postgres and releases its pool
+# connection instead of outliving the (already-504'd) request.
+_STATEMENT_TIMEOUT_MS = 50_000
+
+
+def _apply_statement_timeout(db: Session, ms: int = _STATEMENT_TIMEOUT_MS) -> None:
+    """Bound every query on this dedicated, short-lived ask session. SET LOCAL
+    resets when the session's transaction ends (on close), so it can't leak the
+    timeout onto the next user of a pooled connection."""
+    db.execute(text(f"SET LOCAL statement_timeout = {int(ms)}"))
 
 
 class _AskAbandoned(Exception):
@@ -170,6 +182,7 @@ def _handle_ask(body: AskRequest) -> AskResponse | None:
     deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
     db = SessionLocal()
     try:
+        _apply_statement_timeout(db)
         return _handle_ask_inner(body, db, deadline)
     except _AskAbandoned:
         logger.warning("Ask request abandoned after timeout; stopped tool loop early")
