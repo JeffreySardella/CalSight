@@ -27,7 +27,7 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 
-from sqlalchemy import extract, func
+from sqlalchemy import SmallInteger, case, cast, extract, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.cities_match import normalize_name
@@ -175,6 +175,23 @@ def upsert_crashes(
     update_set = {col: stmt.excluded[col] for col in _UPSERT_COLUMNS}
     update_set["coord_county_mismatch"] = None
     update_set["coord_validated_at"] = None
+    # CHP amends records after first publication — most importantly when a
+    # victim dies within 30 days and number_killed goes 0 -> 1. The backfills
+    # that populate these derived columns are NULL-guarded (they never touch a
+    # populated row), so recompute them here from the amended values. Computing
+    # inline (rather than resetting to NULL for the backfill, like the coord
+    # columns above) avoids a window where severity filters miss the row.
+    excluded = stmt.excluded
+    update_set["severity"] = case(
+        (excluded["number_killed"] > 0, "Fatal"),
+        (excluded["number_injured"] > 0, "Injury"),
+        else_="Property Damage Only",
+    )
+    dt = excluded["crash_datetime"]
+    update_set["crash_year"] = cast(extract("year", dt), SmallInteger)
+    update_set["crash_month"] = cast(extract("month", dt), SmallInteger)
+    update_set["crash_hour"] = cast(extract("hour", dt), SmallInteger)
+    update_set["day_of_week_num"] = cast(extract("isodow", dt) - 1, SmallInteger)
     stmt = stmt.on_conflict_do_update(
         constraint="uq_crashes_collision_source",
         set_=update_set,
