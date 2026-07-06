@@ -10,6 +10,7 @@ Usage:
 """
 
 import json
+import os
 import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -98,7 +99,12 @@ TEST_CASES = [
 
 
 def run():
-    engine = create_engine("postgresql://calsight:calsight_dev@100.121.46.16:5433/calsight")
+    # No hardcoded fallback: this file is public, and a committed connection
+    # string is a leaked credential even when it only resolves on the tailnet.
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        sys.exit("Set DATABASE_URL (see module docstring for usage).")
+    engine = create_engine(db_url)
     Session = sessionmaker(bind=engine)
     db = Session()
 

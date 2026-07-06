@@ -21,6 +21,18 @@ from etl.load_crashes import upsert_crashes
 pytestmark = pytest.mark.integration
 
 
+@pytest.fixture(autouse=True)
+def _cleanup_test_crash(db_session):
+    """repair_drifted_derived commits per year (module style), which ends the
+    conftest's rollback-isolation transaction — so remove the test crash
+    explicitly and commit, restoring the shared test DB either way."""
+    yield
+    db_session.execute(text(
+        "DELETE FROM crashes WHERE collision_id = 999000111"
+    ))
+    db_session.commit()
+
+
 def _loader_row(**overrides) -> dict:
     """A row shaped like the CCRS loader produces (keys = _UPSERT_COLUMNS + key)."""
     row = {
@@ -132,3 +144,53 @@ class TestAmendedCrashDatetimeExtracts:
         assert crash.crash_month == 12
         assert crash.crash_hour == 23
         assert crash.day_of_week_num == 2  # 0=Mon .. 2=Wed
+
+
+class TestRepairDriftedDerived:
+    """One-shot + nightly self-heal for rows amended BEFORE the upsert learned
+    to recompute derived columns: severity and the crash_datetime extracts can
+    disagree with the raw values they derive from. The repair must fix exactly
+    the drifted rows and leave consistent rows untouched."""
+
+    def test_repairs_severity_that_disagrees_with_counts(self, db_session):
+        from etl.backfill_derived import repair_drifted_derived
+
+        # Prod state left by the old upsert: killed=1 but severity still PDO.
+        _seed_backfilled_crash(db_session, number_killed=1)
+
+        repaired = repair_drifted_derived(db_session)
+
+        crash = _fetch(db_session, 999_000_111)
+        assert crash.severity == "Fatal"
+        assert repaired >= 1
+
+    def test_repairs_stale_datetime_extracts(self, db_session):
+        from etl.backfill_derived import repair_drifted_derived
+
+        # crash_datetime was corrected but the extract columns kept old values.
+        _seed_backfilled_crash(db_session)
+        db_session.execute(text(
+            "UPDATE crashes SET crash_year = 2020, crash_month = 1, "
+            "crash_hour = 4, day_of_week_num = 0 "
+            "WHERE collision_id = 999000111 AND data_source = 'ccrs'"
+        ))
+        db_session.flush()
+
+        repair_drifted_derived(db_session)
+
+        crash = _fetch(db_session, 999_000_111)
+        assert crash.crash_year == 2026
+        assert crash.crash_month == 3
+        assert crash.crash_hour == 21
+        assert crash.day_of_week_num == 5  # 2026-03-14 is a Saturday
+
+    def test_consistent_rows_are_not_rewritten(self, db_session):
+        from etl.backfill_derived import repair_drifted_derived
+
+        _seed_backfilled_crash(db_session)  # PDO with 0/0 counts — consistent
+
+        repaired = repair_drifted_derived(db_session)
+
+        assert repaired == 0
+        crash = _fetch(db_session, 999_000_111)
+        assert crash.severity == "Property Damage Only"
