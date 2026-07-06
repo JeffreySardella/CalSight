@@ -18,6 +18,16 @@ export function normalizeCounty(name: string): string {
   return name.trim().toLowerCase();
 }
 
+/** The snapshot carries severity display names; the backend's severity parser
+ *  accepts only these slugs and 422s on anything else. Same mapping as
+ *  useHighwayRankings — unknown values pass through so already-slugged input
+ *  keeps working. */
+const SEVERITY_SLUG: Record<string, string> = {
+  Fatal: "fatal",
+  Injury: "injury",
+  "Property Damage Only": "property-damage-only",
+};
+
 /** Serialize the population-narrowing filters into /api/stats/distribution
  *  query params so the per-county distribution reflects the SAME population as
  *  the subject. `counties` and `years` are deliberately excluded: the
@@ -25,7 +35,9 @@ export function normalizeCounty(name: string): string {
  *  and the year is passed separately via the `year` param. */
 export function filtersToDistributionParams(f: FilterSnapshot): Record<string, string> {
   const out: Record<string, string> = {};
-  if (f.severities.length) out.severity = f.severities.join(",");
+  if (f.severities.length) {
+    out.severity = f.severities.map((s) => SEVERITY_SLUG[s] ?? s).join(",");
+  }
   if (f.causes.length) out.cause = f.causes.join(",");
   if (f.weather.length) out.weather = f.weather.join(",");
   if (f.lighting.length) out.lighting = f.lighting.join(",");
