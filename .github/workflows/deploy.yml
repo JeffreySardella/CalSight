@@ -29,8 +29,16 @@ env:
 
 jobs:
   check-backfill:
-    # Only deploy commits whose CI run succeeded on main.
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    # Only deploy commits whose CI run succeeded on a push to main in THIS
+    # repo. The event/head_repository checks matter: CI also runs on
+    # pull_request, and a fork PR from a branch literally named "main" would
+    # otherwise satisfy the head_branch check and deploy attacker code to the
+    # self-hosted runner (GitHub Security Lab's workflow_run spoof pattern).
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: self-hosted
     outputs:
       needed: ${{ steps.check.outputs.needed }}
@@ -62,7 +70,11 @@ jobs:
   deploy:
     # Redundant with the check-backfill guard (a skipped `needs` job skips this
     # one too), but explicit so the gate survives future refactors.
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     needs: check-backfill
     runs-on: self-hosted
     steps:
