@@ -5,9 +5,11 @@ local recovery point: at least `min_keep` of the most-recent dumps survive
 regardless of age.
 """
 
+import sys
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
-from etl.backup import rotate_backups
+from etl.backup import rotate_backups, rotate_r2_backups
 
 
 def _make_dump(directory, date_str: str):
@@ -62,12 +64,6 @@ def test_keeps_everything_within_retention(tmp_path):
 # Without it, 8+ days of silently failing pg_dumps rotates R2 to zero — the
 # exact scenario offsite backups exist for (local box dies with stale dumps).
 # ---------------------------------------------------------------------------
-
-import sys
-from types import SimpleNamespace
-
-from etl.backup import rotate_r2_backups
-
 
 class _FakeS3:
     def __init__(self, keys):
