@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.settings import settings
 
@@ -42,3 +42,14 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def apply_statement_timeout(db: Session, ms: int) -> None:
+    """Bound every query in this session's current transaction.
+
+    SET LOCAL resets when the transaction ends (commit/rollback/close), so
+    it can't leak the timeout onto the next user of a pooled connection.
+    Heavy endpoints call this so a pathological filter combination times out
+    instead of holding a pool connection indefinitely.
+    """
+    db.execute(text(f"SET LOCAL statement_timeout = {int(ms)}"))
