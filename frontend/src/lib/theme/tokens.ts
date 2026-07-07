@@ -212,6 +212,9 @@ export function hexToRgba(hex: string, alpha: number): string {
  * This replaces the hardcoded colorForR function in CorrelationMatrix.
  */
 export function correlationColor(r: number, tokens: CorrelationTokens): string {
+  // Not-computable cells (NaN) are neutral — every comparison below is false
+  // for NaN, which would otherwise fall through to strong-negative red.
+  if (Number.isNaN(r)) return tokens.neutral;
   if (r >= 0.7) return tokens.positiveStrong;
   if (r >= 0.4) return tokens.positive;
   if (r >= 0.2) return tokens.positiveWeak;

@@ -28,6 +28,13 @@ const HIGHWAY_PANE = "highwayDangerPane";
 
 interface HighwayDangerLayerProps {
   onSelectHighway: (row: HighwayRow) => void;
+  /** Route whose side panel is currently open. When the rankings refetch
+   * (filter change), the layer pushes that route's fresh row back through
+   * onSelectHighway so the panel never shows numbers from stale filters. */
+  selectedRoute?: string | null;
+  /** Called when the selected route has no row under the new filters
+   * (fell out of the ranking) — the panel should close rather than lie. */
+  onSelectedRouteGone?: () => void;
 }
 
 /**
@@ -40,7 +47,7 @@ interface HighwayDangerLayerProps {
  *
  * Imperative Leaflet layer management mirrors CountyBoundaries.
  */
-export default memo(function HighwayDangerLayer({ onSelectHighway }: HighwayDangerLayerProps) {
+export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute, onSelectedRouteGone }: HighwayDangerLayerProps) {
   const map = useMap();
   const fp = useFilterParams();
   const { otherLayers, highwayMetric } = useLayersState();
@@ -79,6 +86,18 @@ export default memo(function HighwayDangerLayer({ onSelectHighway }: HighwayDang
 
   const onSelectRef = useRef(onSelectHighway);
   onSelectRef.current = onSelectHighway;
+  const onGoneRef = useRef(onSelectedRouteGone);
+  onGoneRef.current = onSelectedRouteGone;
+
+  // M-F5: keep the open side panel in sync with the active filters. rows is
+  // react-query data (stable identity), so this only fires on a real refetch;
+  // re-selecting the same row object is a no-op setState upstream.
+  useEffect(() => {
+    if (!selectedRoute || !rows) return;
+    const fresh = rows.find((r) => r.route_number === selectedRoute);
+    if (fresh) onSelectRef.current(fresh);
+    else onGoneRef.current?.();
+  }, [rows, selectedRoute]);
 
   const layerRef = useRef<L.Layer | null>(null);
 

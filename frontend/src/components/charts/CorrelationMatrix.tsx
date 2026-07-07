@@ -299,9 +299,15 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
           {" × "}
           <span className="font-bold text-on-surface">{fields[hoverCell.j].label}</span>
           {" = "}
-          <span className="font-bold" style={{ color: Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.2 ? colorForR(matrix[hoverCell.i][hoverCell.j], isDark, tokens.correlation) : undefined }}>r = {matrix[hoverCell.i][hoverCell.j].toFixed(2)}</span>
-          {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.7 && " (strong)"}
-          {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.4 && Math.abs(matrix[hoverCell.i][hoverCell.j]) < 0.7 && " (moderate)"}
+          {Number.isNaN(matrix[hoverCell.i][hoverCell.j]) ? (
+            <span className="font-bold">no data</span>
+          ) : (
+            <>
+              <span className="font-bold" style={{ color: Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.2 ? colorForR(matrix[hoverCell.i][hoverCell.j], isDark, tokens.correlation) : undefined }}>r = {matrix[hoverCell.i][hoverCell.j].toFixed(2)}</span>
+              {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.7 && " (strong)"}
+              {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.4 && Math.abs(matrix[hoverCell.i][hoverCell.j]) < 0.7 && " (moderate)"}
+            </>
+          )}
         </p>
       )}
 
@@ -313,11 +319,17 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
                 {fields[selected.i].label} × {fields[selected.j].label}
               </p>
               <p className="text-[10px] text-on-surface-variant">
-                r = {matrix[selected.i][selected.j].toFixed(2)} — {
-                  Math.abs(matrix[selected.i][selected.j]) >= 0.7 ? "strong" :
-                  Math.abs(matrix[selected.i][selected.j]) >= 0.4 ? "moderate" :
-                  Math.abs(matrix[selected.i][selected.j]) >= 0.2 ? "weak" : "negligible"
-                } {matrix[selected.i][selected.j] >= 0 ? "positive" : "negative"} correlation
+                {Number.isNaN(matrix[selected.i][selected.j]) ? (
+                  "no data — this source didn't load or too few counties report both metrics"
+                ) : (
+                  <>
+                    r = {matrix[selected.i][selected.j].toFixed(2)} — {
+                      Math.abs(matrix[selected.i][selected.j]) >= 0.7 ? "strong" :
+                      Math.abs(matrix[selected.i][selected.j]) >= 0.4 ? "moderate" :
+                      Math.abs(matrix[selected.i][selected.j]) >= 0.2 ? "weak" : "negligible"
+                    } {matrix[selected.i][selected.j] >= 0 ? "positive" : "negative"} correlation
+                  </>
+                )}
               </p>
             </div>
             <button onClick={() => setSelected(null)} className="p-1 rounded-full hover:bg-surface-container-high text-on-surface-variant" aria-label="Close scatter plot detail">

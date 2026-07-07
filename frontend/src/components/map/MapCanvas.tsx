@@ -105,6 +105,10 @@ interface MapCanvasProps {
   onFocusCounty: (name: string | null) => void;
   onSelectCounty: (name: string) => void;
   onSelectHighway: (row: HighwayRow) => void;
+  /** Route whose side panel is open — threaded to HighwayDangerLayer so the
+   * panel re-syncs when the rankings refetch on a filter change (M-F5). */
+  selectedHighwayRoute?: string | null;
+  onSelectedHighwayGone?: () => void;
   onMapReady: (map: LeafletMap) => void;
   heatmapPoints: HeatmapPoint[];
   heatmapActive: boolean;
@@ -132,6 +136,8 @@ function MapInternals({
   onFocusCounty,
   onSelectCounty,
   onSelectHighway,
+  selectedHighwayRoute,
+  onSelectedHighwayGone,
   onMapReady,
   heatmapPoints,
   heatmapActive,
@@ -182,7 +188,11 @@ function MapInternals({
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
       />
-      <HighwayDangerLayer onSelectHighway={onSelectHighway} />
+      <HighwayDangerLayer
+        onSelectHighway={onSelectHighway}
+        selectedRoute={selectedHighwayRoute}
+        onSelectedRouteGone={onSelectedHighwayGone}
+      />
       <TopIntersectionsLayer county={focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null} />
       {heatmapActive && (
         <CrashHeatmap
@@ -216,6 +226,8 @@ export default function MapCanvas({
   onFocusCounty,
   onSelectCounty,
   onSelectHighway,
+  selectedHighwayRoute,
+  onSelectedHighwayGone,
   onMapReady,
   heatmapPoints,
   heatmapActive,
@@ -295,6 +307,8 @@ export default function MapCanvas({
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
         onSelectHighway={onSelectHighway}
+        selectedHighwayRoute={selectedHighwayRoute}
+        onSelectedHighwayGone={onSelectedHighwayGone}
         onMapReady={onMapReady}
         heatmapPoints={heatmapPoints}
         heatmapActive={heatmapActive}

@@ -86,10 +86,15 @@ function AskAiPageInner() {
       setInputValue(q);
       // Remove q from URL without adding a history entry
       window.history.replaceState({}, "", window.location.pathname);
-      // Auto-send after a brief tick so the UI renders the question first
-      setTimeout(() => {
-        sendMessage(q);
+      // Auto-send after a brief tick so the UI renders the question first.
+      // A refused send (active cooldown carried over in sessionStorage)
+      // resolves false on the next microtask — put the question back in the
+      // box instead of silently swallowing it; the user can send it when
+      // the countdown ends.
+      setTimeout(async () => {
         setInputValue("");
+        const sent = await sendMessage(q);
+        if (!sent) setInputValue(q);
       }, 0);
     }
   }, [searchParams, hasMessages, sendMessage]);
@@ -123,10 +128,14 @@ function AskAiPageInner() {
     el.style.height = el.scrollHeight + "px";
   }, [inputValue]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputValue.trim() || isLoading || cooldownRemaining > 0) return;
-    sendMessage(inputValue);
+    const q = inputValue;
     setInputValue("");
+    // A guard refusal resolves false immediately (before the user can type);
+    // restore the question rather than losing it.
+    const sent = await sendMessage(q);
+    if (!sent) setInputValue(q);
   };
 
   const handleSuggestionClick = (question: string) => {

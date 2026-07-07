@@ -323,6 +323,13 @@ function MapPageInner() {
     setActivePanel("highway");
   }, []);
 
+  // M-F5: the selected route fell out of the rankings under the new filters —
+  // close the panel rather than keep showing numbers from the old filters.
+  const handleSelectedHighwayGone = useCallback(() => {
+    setSelectedHighway(null);
+    setActivePanel((p) => (p === "highway" ? null : p));
+  }, []);
+
   const handleSelectPlace = useCallback((lat: number, lng: number) => {
     setTempMarker([lat, lng]);
     mapRef.current?.setView([lat, lng], 14, { animate: true, duration: 0.5 });
@@ -620,6 +627,8 @@ function MapPageInner() {
           onFocusCounty={handleFocusCounty}
           onSelectCounty={handleSelectCounty}
           onSelectHighway={handleSelectHighway}
+          selectedHighwayRoute={activePanel === "highway" ? selectedHighway?.route_number ?? null : null}
+          onSelectedHighwayGone={handleSelectedHighwayGone}
           onMapReady={handleMapReady}
           heatmapPoints={heatmap.points}
           heatmapActive={heatmapEnabled}
