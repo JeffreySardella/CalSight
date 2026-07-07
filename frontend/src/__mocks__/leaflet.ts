@@ -95,6 +95,7 @@ export interface CircleMarkerInstance {
   opts: Record<string, unknown>;
   bindPopup: ReturnType<typeof vi.fn>;
   addTo: ReturnType<typeof vi.fn>;
+  on: ReturnType<typeof vi.fn>;
 }
 export const circleMarkerInstances: CircleMarkerInstance[] = [];
 
@@ -108,6 +109,7 @@ const L = {
       opts,
       bindPopup: vi.fn().mockReturnThis(),
       addTo: vi.fn().mockReturnThis(),
+      on: vi.fn().mockReturnThis(),
     };
     circleMarkerInstances.push(inst);
     return inst;

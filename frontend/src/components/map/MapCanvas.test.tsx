@@ -11,6 +11,9 @@ vi.mock("./CountyBoundaries", () => ({
 vi.mock("./HighwayDangerLayer", () => ({
   default: () => null,
 }));
+vi.mock("./ClusterLayer", () => ({
+  default: () => null,
+}));
 vi.mock("./CrashHeatmap", () => ({
   default: () => null,
 }));
@@ -39,6 +42,7 @@ const defaultHeatmapProps = {
   heatmapResolution: "low" as const,
   heatmapPalette: "default" as const,
   onSelectHighway: vi.fn(),
+  onSelectCluster: vi.fn(),
 };
 
 function renderWithTheme(ui: React.ReactElement) {

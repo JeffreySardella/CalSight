@@ -180,6 +180,7 @@ from app.routers.crashes import router as crashes_router  # noqa: E402
 from app.routers.demographics import router as demographics_router  # noqa: E402
 from app.routers.freshness import router as freshness_router  # noqa: E402
 from app.routers.heatmap import router as heatmap_router  # noqa: E402
+from app.routers.clusters import router as clusters_router  # noqa: E402
 from app.routers.pipeline_health import router as pipeline_health_router  # noqa: E402
 from app.routers.ask import router as ask_router  # noqa: E402
 from app.routers.changes import router as changes_router  # noqa: E402
@@ -201,6 +202,7 @@ app.include_router(crashes_router, prefix="/api")
 app.include_router(crash_people_router, prefix="/api")
 app.include_router(freshness_router, prefix="/api")
 app.include_router(heatmap_router, prefix="/api")
+app.include_router(clusters_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
 app.include_router(meta_router, prefix="/api")
 app.include_router(changes_router, prefix="/api")

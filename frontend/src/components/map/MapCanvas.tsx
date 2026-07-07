@@ -20,7 +20,9 @@ import CoordMismatchLayer from "./CoordMismatchLayer";
 import CaliforniaMask from "./CaliforniaMask";
 import OverlayMarkers from "./OverlayMarkers";
 import CrashDotLayer from "./CrashDotLayer";
+import ClusterLayer from "./ClusterLayer";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
+import type { ClusterPoint } from "../../hooks/useClusterHotspots";
 import type { HighwayRow } from "../../hooks/useHighwayRankings";
 import type { ViewportSeed } from "../../hooks/useViewportParams";
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
@@ -105,6 +107,7 @@ interface MapCanvasProps {
   onFocusCounty: (name: string | null) => void;
   onSelectCounty: (name: string) => void;
   onSelectHighway: (row: HighwayRow) => void;
+  onSelectCluster: (cluster: ClusterPoint) => void;
   onMapReady: (map: LeafletMap) => void;
   heatmapPoints: HeatmapPoint[];
   heatmapActive: boolean;
@@ -132,6 +135,7 @@ function MapInternals({
   onFocusCounty,
   onSelectCounty,
   onSelectHighway,
+  onSelectCluster,
   onMapReady,
   heatmapPoints,
   heatmapActive,
@@ -183,6 +187,7 @@ function MapInternals({
         onSelectCounty={onSelectCounty}
       />
       <HighwayDangerLayer onSelectHighway={onSelectHighway} />
+      <ClusterLayer onSelectCluster={onSelectCluster} />
       <TopIntersectionsLayer county={focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null} />
       {heatmapActive && (
         <CrashHeatmap
@@ -216,6 +221,7 @@ export default function MapCanvas({
   onFocusCounty,
   onSelectCounty,
   onSelectHighway,
+  onSelectCluster,
   onMapReady,
   heatmapPoints,
   heatmapActive,
@@ -295,6 +301,7 @@ export default function MapCanvas({
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
         onSelectHighway={onSelectHighway}
+        onSelectCluster={onSelectCluster}
         onMapReady={onMapReady}
         heatmapPoints={heatmapPoints}
         heatmapActive={heatmapActive}
