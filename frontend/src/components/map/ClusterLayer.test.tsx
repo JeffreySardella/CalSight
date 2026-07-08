@@ -85,6 +85,23 @@ describe("ClusterLayer", () => {
     expect(circleMarkerInstances[0].opts.className).toBe("cluster-pulse-marker");
   });
 
+  it("omits involvement flags from the request when their toggles are off (default)", async () => {
+    render(
+      <Providers>
+        <EnableClusterLayer />
+        <ClusterLayer onSelectCluster={() => {}} />
+      </Providers>,
+    );
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    const url = String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+    // A default (off) toggle must NOT serialize `flag=false` — that would make
+    // the backend apply IS FALSE and drop pre-2016 SWITRS + flag-positive rows.
+    for (const flag of ["alcohol", "distracted", "pedestrian", "cyclist", "drug"]) {
+      expect(url).not.toContain(`${flag}=false`);
+      expect(url).not.toContain(`${flag}=`);
+    }
+  });
+
   it("invokes onSelectCluster with the cluster's stats when its marker is clicked", async () => {
     const onSelectCluster = vi.fn();
     render(

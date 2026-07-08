@@ -128,6 +128,14 @@ def crash_clusters(
         .all()
     )
 
+    # The baseline (mean/stddev) is computed over OCCUPIED grid cells only, not
+    # every cell in the CA bounding box. Including the ~1M mostly-empty cells
+    # would collapse the mean toward zero and flag almost every occupied cell as
+    # a "hotspot", so occupied-only is deliberate. Consequence: the z-score of
+    # any single cell is bounded by sqrt(n-1), so with <= 5 occupied cells no
+    # cell can exceed z > 2 and we correctly return no hotspots — heavy filters
+    # that leave very little data yield "not enough to call a hotspot" rather
+    # than a fabricated one.
     n = len(rows)
     counts = [r.count for r in rows]
     mean = sum(counts) / n if n else 0.0

@@ -45,11 +45,16 @@ export default memo(function ClusterLayer({ onSelectCluster }: ClusterLayerProps
     dateRange: fp.selectedDateRange,
     severities: [...fp.selectedSeverities],
     causes: [...fp.selectedCauses],
-    alcohol: fp.selectedAlcohol,
-    distracted: fp.selectedDistracted,
-    pedestrian: fp.selectedPedestrian,
-    cyclist: fp.selectedCyclist,
-    drug: fp.selectedDrug,
+    // Coerce the default `false` (toggle off) to undefined so buildUrl omits
+    // the param entirely. Sending `alcohol=false` makes the backend apply an
+    // `IS FALSE` predicate, which silently drops pre-2016 SWITRS rows (flag is
+    // NULL) and every flag-positive crash — corrupting the default hotspot set.
+    // Mirrors MapPage's involvementFilters.
+    alcohol: fp.selectedAlcohol || undefined,
+    distracted: fp.selectedDistracted || undefined,
+    pedestrian: fp.selectedPedestrian || undefined,
+    cyclist: fp.selectedCyclist || undefined,
+    drug: fp.selectedDrug || undefined,
     driverAge: fp.selectedDriverAge,
     weather: [...fp.selectedWeather],
     lighting: [...fp.selectedLighting],
