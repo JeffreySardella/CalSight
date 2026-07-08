@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.ca_highways import miles_for
 from app.county_slug_map import get_slug_map
-from app.database import get_db
+from app.database import apply_statement_timeout, get_db
 from app.filters import (
     FilterError,
     build_crash_predicates,
@@ -222,8 +222,16 @@ def _apply_wide_filters(stmt, years, county_codes, severities, causes,
         stmt = stmt.where(w.c.f_hit_run == (1 if hit_run_v else 0))
     if driver_age_v is not None:
         bracket = _AGE_BRACKET_MAP.get(driver_age_v)
-        if bracket is not None:
-            stmt = stmt.where(w.c.age_bracket == bracket)
+        if bracket is None:
+            # mv_crashes_wide only stores the five canonical brackets;
+            # silently dropping the filter would return unfiltered data
+            # presented as filtered.
+            raise FilterError(
+                "driver_age",
+                "Stats support only the canonical age brackets: "
+                "16-21, 22-34, 35-49, 50-64, 65+.",
+            )
+        stmt = stmt.where(w.c.age_bracket == bracket)
     return stmt
 
 
@@ -1137,6 +1145,9 @@ def stats_distribution(
         raise HTTPException(status_code=422, detail=f"invalid metric: {metric}")
 
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    # Statewide raw-table aggregation with the full filter set — bound it so a
+    # pathological combination can't hold a pool connection indefinitely.
+    apply_statement_timeout(db, 30_000)
 
     date_range = parse_date_range(start, end)
     years = years_from_date_range(date_range) if date_range is not None else parse_year(year)

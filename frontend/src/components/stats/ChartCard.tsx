@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
 import SimpleLineChart from "../charts/SimpleLineChart";
@@ -19,7 +19,7 @@ import type { ChartNarrativeResult } from "../../hooks/useNarrativeInsights";
 import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
-import { useFilterParams } from "../../hooks/useFilterParams";
+import { useFilterParams, buildFilterQS } from "../../hooks/useFilterParams";
 import { useCustomTheme } from "../../context/CustomThemeContext";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
@@ -254,6 +254,7 @@ function ChartCard({
   const [showTable, setShowTable] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { selectedCounties } = useFilterParams();
   const { chartColors } = useCustomTheme();
   const title = buildTitle(slot);
@@ -323,7 +324,11 @@ function ChartCard({
       ? ` in ${[...selectedCounties].join(", ")}`
       : "";
     const question = `Explain the "${title}" chart${countyPart}. What are the key takeaways?`;
-    navigate(`/ask?q=${encodeURIComponent(question)}`);
+    // Carry the active filters so useAskAi sends them with the question —
+    // otherwise the AI explains the unfiltered chart.
+    const params = new URLSearchParams(buildFilterQS(searchParams));
+    params.set("q", question);
+    navigate(`/ask?${params.toString()}`);
   };
 
   const handleExportPng = () => {

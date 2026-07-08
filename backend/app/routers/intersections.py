@@ -30,7 +30,7 @@ from sqlalchemy import Float, and_, case, cast, func, null, select
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_code, get_slug_map
-from app.database import get_db
+from app.database import apply_statement_timeout, get_db
 from app.models import County, Crash
 
 router = APIRouter(tags=["intersections"])
@@ -38,6 +38,12 @@ router = APIRouter(tags=["intersections"])
 _limiter = Limiter(key_func=get_remote_address)
 
 _MAX_LIMIT = 200
+
+# Per-query backstop: these endpoints aggregate the full crashes table when no
+# county filter is given (the TTL cache only helps after a first successful
+# scan). Kill runaway queries so they release their pool connection instead of
+# piling up under load. Comfortably above the observed statewide scan time.
+_STATEMENT_TIMEOUT_MS = 30_000
 
 # Relative severity weights for the optional severity-weighted score
 # (EPDO-style — "equivalent property-damage-only"). These are a presentation
@@ -342,6 +348,7 @@ def get_intersections(
 ):
     """Crashes aggregated by (primary_road x secondary_road), ranked by count or severity-weighted score."""
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    apply_statement_timeout(db, _STATEMENT_TIMEOUT_MS)
     code = _resolve_county(db, county)
     return _aggregate(
         db, by_secondary=True, county_code=code, year_start=year_start,
@@ -367,6 +374,7 @@ def get_corridors(
 ):
     """Crashes aggregated by primary_road (corridor), ranked by count or severity-weighted score."""
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    apply_statement_timeout(db, _STATEMENT_TIMEOUT_MS)
     code = _resolve_county(db, county)
     return _aggregate(
         db, by_secondary=False, county_code=code, year_start=year_start,
@@ -394,6 +402,7 @@ def get_street_concentration(
     (see ConcentrationOut). Neutral: the numbers are reported without framing.
     """
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    apply_statement_timeout(db, _STATEMENT_TIMEOUT_MS)
     code = _resolve_county(db, county)
     name = None
     if code is not None:
