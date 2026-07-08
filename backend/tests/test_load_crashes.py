@@ -110,6 +110,26 @@ class TestSelectYearsToLoad:
         assert switrs == []
         assert skipped == list(range(2001, 2016))
 
+    def test_partially_loaded_ccrs_year_resumes(self):
+        # A historical year that died mid-load (e.g. OOM after 12k of ~450k
+        # rows) must not count as loaded — otherwise it is skipped forever
+        # and the gap never heals. Reloading is safe (idempotent upsert).
+        loaded = {2018: 12_000, 2019: 480_000}
+        _, ccrs, skipped = select_years_to_load(
+            2016, 2026, loaded, source_filter="ccrs", today_year=2026,
+        )
+        assert 2018 in ccrs
+        assert 2018 not in skipped
+        assert 2019 in skipped
+
+    def test_partially_loaded_switrs_year_resumes(self):
+        loaded = {2010: 5_000}
+        switrs, _, skipped = select_years_to_load(
+            2001, 2015, loaded, source_filter="switrs", today_year=2026,
+        )
+        assert 2010 in switrs
+        assert 2010 not in skipped
+
     def test_year_rollover_shifts_refresh_window(self):
         # On Jan 1 2027 the refresh window becomes {2026, 2027}; 2025 retires.
         loaded = {2025: 400_000, 2026: 500_000}

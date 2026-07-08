@@ -14,7 +14,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.ai_prompt import (
@@ -25,7 +24,7 @@ from app.ai_prompt import (
     build_quick_facts,
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
-from app.database import SessionLocal, get_db
+from app.database import SessionLocal, apply_statement_timeout, get_db
 from app.llm_cache import get_ask_cache, make_cache_key
 from app.models import ChatFeedback
 from app.llm import (
@@ -50,10 +49,7 @@ _STATEMENT_TIMEOUT_MS = 50_000
 
 
 def _apply_statement_timeout(db: Session, ms: int = _STATEMENT_TIMEOUT_MS) -> None:
-    """Bound every query on this dedicated, short-lived ask session. SET LOCAL
-    resets when the session's transaction ends (on close), so it can't leak the
-    timeout onto the next user of a pooled connection."""
-    db.execute(text(f"SET LOCAL statement_timeout = {int(ms)}"))
+    apply_statement_timeout(db, ms)
 
 
 class _AskAbandoned(Exception):

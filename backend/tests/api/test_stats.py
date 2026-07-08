@@ -300,6 +300,39 @@ def test_stats_group_by_rate_rejects_cause_filter(client):
     assert response.json()["filter"] == "cause"
 
 
+# --- driver_age bracket handling (mv_crashes_wide) ---
+
+
+def test_stats_driver_age_canonical_bracket_ok(client):
+    """The five canonical brackets map onto mv_crashes_wide.age_bracket."""
+    # 65+ is sent URL-encoded (%2B) — a raw + decodes to a space.
+    for bracket in ["16-21", "22-34", "35-49", "50-64", "65%2B"]:
+        response = client.get(f"/api/stats?driver_age={bracket}")
+        assert response.status_code == 200, f"Bracket '{bracket}' rejected"
+
+
+def test_stats_driver_age_non_canonical_bracket_422(client):
+    """mv_crashes_wide only stores the five canonical age brackets — an
+    arbitrary range like 18-25 can't be honored there, so it must 422
+    rather than silently return unfiltered data presented as filtered."""
+    response = client.get("/api/stats?driver_age=18-25")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "driver_age"
+
+
+def test_stats_driver_age_non_canonical_422_with_group_by(client):
+    response = client.get("/api/stats?group_by=year&driver_age=30-40")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "driver_age"
+
+
+def test_stats_highways_driver_age_arbitrary_range_ok(client):
+    """/stats/highways filters the raw crashes table with a real BETWEEN
+    predicate, so arbitrary ranges remain valid there."""
+    response = client.get("/api/stats/highways?driver_age=18-25")
+    assert response.status_code == 200
+
+
 # --- cause filter accepts new categories ---
 
 

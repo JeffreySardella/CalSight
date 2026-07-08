@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { ChatMessage as ChatMessageType } from "../../hooks/useAskAi";
 import { API_BASE } from "../../config";
@@ -41,7 +41,11 @@ function getSavedFeedback(timestamp: number): "up" | "down" | null {
   } catch { return null; }
 }
 
-export default function ChatMessage({ message }: Props) {
+// memo: the Ask AI page re-renders on every keystroke; without this every
+// message in the transcript re-renders its markdown (and chart) each tick.
+// Message objects are stable references in the messages array, so a shallow
+// prop compare bails out for all but genuinely new/changed messages (M-F6).
+export default memo(function ChatMessage({ message }: Props) {
   const isUser = message.role === "user";
   const [feedback, setFeedback] = useState<"up" | "down" | null>(
     !isUser ? getSavedFeedback(message.timestamp) : null
@@ -130,4 +134,4 @@ export default function ChatMessage({ message }: Props) {
       </div>
     </div>
   );
-}
+});
