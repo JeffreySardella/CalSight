@@ -300,6 +300,28 @@ export default function LayersPanel() {
         </div>
       </div>
 
+      {/* Crash Clusters */}
+      <div className="space-y-4">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          Crash Clusters
+        </span>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.crashClusters ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Hotspot detection
+            </span>
+            <Toggle
+              enabled={otherLayers.crashClusters}
+              onToggle={() => toggleOtherLayer("crashClusters")}
+              label="Hotspot detection"
+            />
+          </div>
+          <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+            Highlights statistically significant crash hotspots (z-score &gt; 2σ). Click a cluster for details.
+          </p>
+        </div>
+      </div>
+
       {/* Measure */}
       <div className="space-y-4">
         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">

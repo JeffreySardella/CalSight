@@ -20,7 +20,9 @@ import CoordMismatchLayer from "./CoordMismatchLayer";
 import CaliforniaMask from "./CaliforniaMask";
 import OverlayMarkers from "./OverlayMarkers";
 import CrashDotLayer from "./CrashDotLayer";
+import ClusterLayer from "./ClusterLayer";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
+import type { ClusterPoint } from "../../hooks/useClusterHotspots";
 import type { HighwayRow } from "../../hooks/useHighwayRankings";
 import type { ViewportSeed } from "../../hooks/useViewportParams";
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
@@ -105,6 +107,7 @@ interface MapCanvasProps {
   onFocusCounty: (name: string | null) => void;
   onSelectCounty: (name: string) => void;
   onSelectHighway: (row: HighwayRow) => void;
+  onSelectCluster: (cluster: ClusterPoint) => void;
   /** Route whose side panel is open — threaded to HighwayDangerLayer so the
    * panel re-syncs when the rankings refetch on a filter change (M-F5). */
   selectedHighwayRoute?: string | null;
@@ -136,6 +139,7 @@ function MapInternals({
   onFocusCounty,
   onSelectCounty,
   onSelectHighway,
+  onSelectCluster,
   selectedHighwayRoute,
   onSelectedHighwayGone,
   onMapReady,
@@ -193,6 +197,7 @@ function MapInternals({
         selectedRoute={selectedHighwayRoute}
         onSelectedRouteGone={onSelectedHighwayGone}
       />
+      <ClusterLayer onSelectCluster={onSelectCluster} />
       <TopIntersectionsLayer county={focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null} />
       {heatmapActive && (
         <CrashHeatmap
@@ -226,6 +231,7 @@ export default function MapCanvas({
   onFocusCounty,
   onSelectCounty,
   onSelectHighway,
+  onSelectCluster,
   selectedHighwayRoute,
   onSelectedHighwayGone,
   onMapReady,
@@ -307,6 +313,7 @@ export default function MapCanvas({
         onFocusCounty={onFocusCounty}
         onSelectCounty={onSelectCounty}
         onSelectHighway={onSelectHighway}
+        onSelectCluster={onSelectCluster}
         selectedHighwayRoute={selectedHighwayRoute}
         onSelectedHighwayGone={onSelectedHighwayGone}
         onMapReady={onMapReady}

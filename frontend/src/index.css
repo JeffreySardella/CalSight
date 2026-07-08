@@ -471,6 +471,15 @@
   50% { opacity: 0.6; }
 }
 
+.cluster-pulse-marker {
+  animation: clusterPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes clusterPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.45; }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════
  * PRINT-PERFECT LAYOUT SYSTEM
  * ══════════════════════════════════════════════════════════════════════════════

@@ -27,6 +27,8 @@ import DataExportPanel, {
 } from "../components/map/DataExportPanel";
 import MapCanvas from "../components/map/MapCanvas";
 import HighwaySidePanelContent from "../components/map/HighwaySidePanelContent";
+import ClusterSidePanelContent from "../components/map/ClusterSidePanelContent";
+import type { ClusterPoint } from "../hooks/useClusterHotspots";
 import type { HighwayRow } from "../hooks/useHighwayRankings";
 import { snapshotFilters } from "../lib/ai/contextBuilders";
 import AiInsightCard from "../components/map/AiInsightCard";
@@ -95,6 +97,7 @@ function MapPageInner() {
 
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [selectedHighway, setSelectedHighway] = useState<HighwayRow | null>(null);
+  const [selectedCluster, setSelectedCluster] = useState<ClusterPoint | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleIntroStart = useCallback((_mode: "simple" | "advanced") => {
     const isMobile = window.innerWidth < 768;
@@ -323,6 +326,11 @@ function MapPageInner() {
     setActivePanel("highway");
   }, []);
 
+  const handleSelectCluster = useCallback((cluster: ClusterPoint) => {
+    setSelectedCluster(cluster);
+    setActivePanel("cluster");
+  }, []);
+
   // M-F5: the selected route fell out of the rankings under the new filters —
   // close the panel rather than keep showing numbers from the old filters.
   const handleSelectedHighwayGone = useCallback(() => {
@@ -471,6 +479,8 @@ function MapPageInner() {
 
   const meta = activePanel === "highway"
     ? { title: selectedHighway?.route_number ?? "Highway", subtitle: "Highway Danger" }
+    : activePanel === "cluster"
+    ? { title: "Crash Hotspot", subtitle: "Cluster Detection" }
     : activePanel ? PANEL_META[activePanel] : null;
 
   // Filter snapshot threaded into the highway side-panel AI deep-dive contexts.
@@ -564,6 +574,8 @@ function MapPageInner() {
         return <DataExportPanel />;
       case "highway":
         return selectedHighway ? <HighwaySidePanelContent row={selectedHighway} filters={highwayFilterSnapshot} /> : null;
+      case "cluster":
+        return selectedCluster ? <ClusterSidePanelContent cluster={selectedCluster} /> : null;
       default:
         return null;
     }
@@ -627,6 +639,7 @@ function MapPageInner() {
           onFocusCounty={handleFocusCounty}
           onSelectCounty={handleSelectCounty}
           onSelectHighway={handleSelectHighway}
+          onSelectCluster={handleSelectCluster}
           selectedHighwayRoute={activePanel === "highway" ? selectedHighway?.route_number ?? null : null}
           onSelectedHighwayGone={handleSelectedHighwayGone}
           onMapReady={handleMapReady}
