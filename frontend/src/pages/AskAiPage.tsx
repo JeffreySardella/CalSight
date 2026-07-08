@@ -84,8 +84,11 @@ function AskAiPageInner() {
     if (q && !hasMessages) {
       prefillHandled.current = true;
       setInputValue(q);
-      // Remove q from URL without adding a history entry
-      window.history.replaceState({}, "", window.location.pathname);
+      // Remove q from URL without adding a history entry, keeping the
+      // filter params (severity, county, ...) that useAskAi reads per send.
+      const url = new URL(window.location.href);
+      url.searchParams.delete("q");
+      window.history.replaceState({}, "", url);
       // Auto-send after a brief tick so the UI renders the question first
       setTimeout(() => {
         sendMessage(q);

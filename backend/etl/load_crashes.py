@@ -70,6 +70,11 @@ def determine_source(year: int) -> str:
     return "ccrs"
 
 
+# The smallest complete year in either source carries a few hundred thousand
+# crashes, so a year sitting far below this is a partial load, not a real one.
+_MIN_COMPLETE_YEAR_ROWS = 100_000
+
+
 def get_loaded_years(session) -> dict[int, int]:
     """Check which years already have crash data in the database.
 
@@ -228,10 +233,21 @@ def select_years_to_load(
     Without that exception, the daily job would no-op as soon as a year
     had a single batch loaded.
 
+    A year only counts as loaded above _MIN_COMPLETE_YEAR_ROWS: every
+    complete California year has hundreds of thousands of crashes, so a
+    count far below that means the load died partway (e.g. OOM) and the
+    year must be resumed, not skipped forever. The threshold is deliberately
+    conservative — a load that failed late can still be misclassified as
+    complete, but the common failure mode (dying in the first batches)
+    self-heals on the next run.
+
     Returns (switrs_years, ccrs_years, skipped_years).
     """
     if today_year is None:
         today_year = datetime.now(timezone.utc).year
+
+    def _is_loaded(year: int) -> bool:
+        return loaded.get(year, 0) >= _MIN_COMPLETE_YEAR_ROWS
 
     switrs_years = [
         y for y in range(start_year, end_year + 1)
@@ -248,12 +264,12 @@ def select_years_to_load(
     if not force:
         refresh_years = {today_year, today_year - 1}
         skipped = sorted(
-            [y for y in switrs_years if y in loaded]
-            + [y for y in ccrs_years if y in loaded and y not in refresh_years]
+            [y for y in switrs_years if _is_loaded(y)]
+            + [y for y in ccrs_years if _is_loaded(y) and y not in refresh_years]
         )
-        switrs_years = [y for y in switrs_years if y not in loaded]
+        switrs_years = [y for y in switrs_years if not _is_loaded(y)]
         ccrs_years = [
-            y for y in ccrs_years if y not in loaded or y in refresh_years
+            y for y in ccrs_years if not _is_loaded(y) or y in refresh_years
         ]
 
     return switrs_years, ccrs_years, skipped
