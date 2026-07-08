@@ -48,7 +48,10 @@ export interface AskAiApi {
   isLoading: boolean;
   error: string | null;
   cooldownEnd: number;
-  sendMessage: (question: string) => Promise<void>;
+  /** Resolves true when the question was accepted (appears in the
+   * conversation), false when a guard refused it (cooldown, in-flight,
+   * blank) — callers that clear an input must check this. */
+  sendMessage: (question: string) => Promise<boolean>;
   retry: () => void;
   clearConversation: () => void;
 }
@@ -125,8 +128,8 @@ function useAskAiState(): AskAiApi {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  const sendMessage = useCallback(async (question: string, opts?: { bypassLocalCooldown?: boolean }) => {
-    if (!question.trim() || isLoading || inFlightRef.current) return;
+  const sendMessage = useCallback(async (question: string, opts?: { bypassLocalCooldown?: boolean }): Promise<boolean> => {
+    if (!question.trim() || isLoading || inFlightRef.current) return false;
     // Respect the cooldown for every caller (the AI companion's "Go deeper"
     // etc.). retry() passes bypassLocalCooldown so a fast failure's own local
     // cooldown doesn't block the retry — but a server 429/503 backoff is still
@@ -137,7 +140,7 @@ function useAskAiState(): AskAiApi {
     if (Date.now() < guardUntil) {
       const remaining = Math.ceil((guardUntil - Date.now()) / 1000);
       setError(`Please wait ${remaining}s before asking again.`);
-      return;
+      return false;
     }
     inFlightRef.current = true;
     abortRef.current?.abort();
@@ -198,7 +201,7 @@ function useAskAiState(): AskAiApi {
           setCooldownEnd(Date.now() + retryAfter * 1000);
           setError(data.message || "All AI providers are busy. Try again shortly.");
           setIsLoading(false);
-          return;
+          return true;
         }
 
         if (resp.status === 429) {
@@ -214,14 +217,14 @@ function useAskAiState(): AskAiApi {
           setCooldownEnd(Date.now() + retryAfter * 1000);
           setError(`Rate limit reached. Try again in ${retryAfter} seconds.`);
           setIsLoading(false);
-          return;
+          return true;
         }
 
         if (!resp.ok) {
           if (attempt < MAX_RETRIES - 1) continue;
           setError("Something went wrong. Please try again.");
           setIsLoading(false);
-          return;
+          return true;
         }
 
         const data: AskResponse = await resp.json();
@@ -229,7 +232,7 @@ function useAskAiState(): AskAiApi {
           if (attempt < MAX_RETRIES - 1) continue;
           setError("AI couldn't generate a response. Try rephrasing your question.");
           setIsLoading(false);
-          return;
+          return true;
         }
 
         setError(null);
@@ -249,13 +252,16 @@ function useAskAiState(): AskAiApi {
 
         setMessages((prev) => [...prev, aiMsg]);
         setIsLoading(false);
-        return;
+        return true;
       } catch (e: unknown) {
         if (attempt < MAX_RETRIES - 1) continue;
         const isTimeout = e instanceof DOMException && e.name === "AbortError";
         setError(isTimeout ? "Request timed out. Try a simpler question." : "Couldn't reach the server. Check your connection.");
       }
     }
+    // Retries exhausted: the question was still accepted (it's in the
+    // conversation with an error + retry affordance), so report sent.
+    return true;
     } finally {
       // Always release the in-flight latch (and loading state) on every exit
       // path — including the early returns and the success return inside the

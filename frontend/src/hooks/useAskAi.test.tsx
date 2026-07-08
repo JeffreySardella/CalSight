@@ -77,6 +77,30 @@ describe("useAskAi", () => {
     expect(result.current.error).toMatch(/wait/i);
   });
 
+  it("sendMessage reports whether the question was actually sent (M-F4)", async () => {
+    // The prefill flow ("Explain this chart" → /ask?q=...) clears the input
+    // after calling sendMessage. If the cooldown swallows the question the
+    // caller must know, or the user's question silently disappears.
+    const fetchMock = vi.fn().mockResolvedValue(okResponse("hello"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useAskAi(), { wrapper });
+
+    let sent: boolean | undefined;
+    await act(async () => {
+      sent = await result.current.sendMessage("first question");
+    });
+    expect(sent).toBe(true);
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // Inside the 15s cooldown the send is refused — and reported.
+    await act(async () => {
+      sent = await result.current.sendMessage("second question");
+    });
+    expect(sent).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("retry does not put the resent question in the LLM history twice (M-F6)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse("answer"));
     vi.stubGlobal("fetch", fetchMock);

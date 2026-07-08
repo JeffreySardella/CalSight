@@ -337,7 +337,10 @@ export function buildCorrelationResult(
               ys.push(y);
             }
           }
-          matrix[i][j] = xs.length >= 5 ? Math.round(pearsonR(xs, ys) * 100) / 100 : 0;
+          // NaN = not computable (source failed to load or too few counties
+          // share both fields). Rendered as "—"; a fabricated 0 would read
+          // as a real "no correlation" finding (M-F7).
+          matrix[i][j] = xs.length >= 5 ? Math.round(pearsonR(xs, ys) * 100) / 100 : NaN;
         }
       }
 

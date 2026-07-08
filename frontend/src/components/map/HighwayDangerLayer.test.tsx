@@ -81,4 +81,37 @@ describe("HighwayDangerLayer", () => {
     );
     await waitFor(() => expect(L.geoJSON).toHaveBeenCalled());
   });
+
+  it("re-syncs the selected route's row when rankings load (M-F5: stale side panel)", async () => {
+    // The side panel is open on I-5; the rankings (re)fetch — the panel must
+    // receive the fresh row so its numbers match the active filters.
+    const onSelectHighway = vi.fn();
+    render(
+      <Providers>
+        <EnableHighwayLayer />
+        <HighwayDangerLayer onSelectHighway={onSelectHighway} selectedRoute="I-5" />
+      </Providers>,
+    );
+    await waitFor(() => expect(onSelectHighway).toHaveBeenCalled());
+    expect(onSelectHighway).toHaveBeenCalledWith(
+      expect.objectContaining({ route_number: "I-5", crash_count: 100 }),
+    );
+  });
+
+  it("signals when the selected route has no row under the new filters", async () => {
+    const onSelectHighway = vi.fn();
+    const onSelectedRouteGone = vi.fn();
+    render(
+      <Providers>
+        <EnableHighwayLayer />
+        <HighwayDangerLayer
+          onSelectHighway={onSelectHighway}
+          selectedRoute="SR-99"
+          onSelectedRouteGone={onSelectedRouteGone}
+        />
+      </Providers>,
+    );
+    await waitFor(() => expect(onSelectedRouteGone).toHaveBeenCalled());
+    expect(onSelectHighway).not.toHaveBeenCalled();
+  });
 });
