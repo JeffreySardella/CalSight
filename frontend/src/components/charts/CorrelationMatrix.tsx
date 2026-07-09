@@ -268,30 +268,37 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
         </svg>
       </div>
 
-      {/* Screen-reader-accessible representation of the matrix above. */}
-      <table className="sr-only">
-        <caption>
-          Correlation matrix: Pearson r values across {countyCount} California counties for {n} metrics.
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Metric</th>
-            {fields.map((f) => (
-              <th key={f.label} scope="col">{f.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {matrix.map((row, i) => (
-            <tr key={fields[i].label}>
-              <th scope="row">{fields[i].label}</th>
-              {row.map((r, j) => (
-                <td key={j}>{isNaN(r) ? "N/A" : r.toFixed(2)}</td>
+      {/* Screen-reader-accessible representation of the matrix above.
+       * Wrapped in a block-level sr-only div: a bare <table> is display:table,
+       * which treats width:1px as a minimum and grows to its content width. As
+       * an absolutely-positioned box that escapes the section's overflow clip,
+       * it would widen the document and shift the fixed mobile nav. The div
+       * (display:block) honors width:1px + overflow:hidden and clips the table. */}
+      <div className="sr-only">
+        <table>
+          <caption>
+            Correlation matrix: Pearson r values across {countyCount} California counties for {n} metrics.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Metric</th>
+              {fields.map((f) => (
+                <th key={f.label} scope="col">{f.label}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {matrix.map((row, i) => (
+              <tr key={fields[i].label}>
+                <th scope="row">{fields[i].label}</th>
+                {row.map((r, j) => (
+                  <td key={j}>{isNaN(r) ? "N/A" : r.toFixed(2)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {hoverCell && !selected && (
         <p className="text-xs text-on-surface-variant text-center">
