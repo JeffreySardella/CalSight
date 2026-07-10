@@ -101,7 +101,20 @@ GET /api/water/summary                         # statewide: total storage vs cap
 - `GET /api/water/reservoirs/{station_id}/series` — windowed daily time series.
 - Tests: loader unit tests (including a guard that every county name in `MAJOR_RESERVOIRS` is a real CA county) + 9 API integration tests. Full backend suite green (830 passed) against a scratch Postgres, which also exercised the migration via `alembic upgrade head`.
 
-Still to come: live CDEC smoke test (`python -m etl.cdec_api --smoke`, blocked in this sandbox), capacity verification, then the frontend Water page.
+**Phase 1 frontend (third commit):**
+
+- `/water` route with nav + bottom-tab entries: statewide summary strip
+  (total storage, % of combined capacity, storage-weighted % of historical
+  average) over a reservoir card grid. Each card shows % of capacity, % of
+  the same-day-of-year average, a storage bar with an average tick, and
+  lazy-loads a one-year sparkline on demand.
+- `useWaterData.ts` hooks + the shared `summarize`/`formatAcreFeet` helpers.
+- SEO touchpoints updated: crawler middleware, sitemap, prefetch
+  speculation rules (with the matching CSP hash bump in `_headers`).
+- 17 new tests; full frontend suite green (708) plus lint and production
+  build.
+
+Still to come: live CDEC smoke test (`python -m etl.cdec_api --smoke`, blocked in this sandbox), capacity verification, drought/snowpack phases, county-detail integration.
 
 ## Open questions
 

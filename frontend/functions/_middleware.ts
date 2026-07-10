@@ -114,6 +114,10 @@ export function buildContext(url: URL): CrawlerContext {
     base.title = "Ask AI — CalSight";
     base.description = "Ask questions about California traffic crash data using AI. Get instant insights about trends, causes, and safety statistics.";
     base.ogImage = `${OG_WORKER_URL}/og?title=Ask+AI+About+Crash+Data&subtitle=Natural+language+queries+for+11M%2B+records`;
+  } else if (pathname === "/water") {
+    base.title = "Water — California Reservoir Conditions — CalSight";
+    base.description = "Current storage at California's major reservoirs — percent of capacity and of historical average, from DWR's California Data Exchange Center.";
+    base.ogImage = `${OG_WORKER_URL}/og?title=California+Reservoir+Conditions&subtitle=Daily+storage+vs+capacity+and+historical+average`;
   } else if (pathname === "/about") {
     base.title = "About CalSight — Data Sources & Methodology";
     base.description = "Learn about CalSight's data sources (SWITRS, CCRS, Census ACS, CalEnviroScreen), methodology, and the team behind the platform.";
