@@ -89,6 +89,36 @@ SCHEDULES = {
 # Pipeline execution functions
 # ---------------------------------------------------------------------------
 
+def _alert_validation_failures(results, pipeline_name: str) -> None:
+    """Alert when any job's post-load validation failed (M6).
+
+    The orchestrator records validation outcomes in etl_runs.validation_status
+    but keeps the job status "success" (validation is non-blocking). Without
+    this consumer, a >max_drop_pct row drop produced the "All jobs completed
+    successfully" INFO alert. WARNING (not ERROR): the loads themselves
+    finished — this is a data-quality signal, distinct from the ERROR alert
+    for jobs that actually failed to run.
+    """
+    failed_validation = [
+        r for r in results if getattr(r, "validation_status", None) == "failed"
+    ]
+    if not failed_validation:
+        return
+
+    names = [r.source for r in failed_validation]
+    details = "\n".join(
+        f"  - {r.source}: {(r.diff_summary or 'no details recorded')[:300]}"
+        for r in failed_validation
+    )
+    send_alert(
+        AlertLevel.WARNING,
+        f"{pipeline_name}: validation FAILED for {len(failed_validation)} job(s)",
+        f"Loads completed but post-load validation found critical problems "
+        f"(e.g. a row-count drop beyond the allowed threshold).\n"
+        f"Jobs: {', '.join(names)}\n\n{details}",
+    )
+
+
 def run_daily_pipeline():
     """Execute the standard daily ETL pipeline."""
     logger.info("=" * 60)
@@ -129,6 +159,11 @@ def run_daily_pipeline():
             f"All jobs completed successfully.{disk_line}",
         )
 
+    # A "successful" run can still carry failed validations (non-blocking by
+    # design) — surface those separately so they never hide behind the INFO
+    # alert above.
+    _alert_validation_failures(results, "Daily ETL")
+
     return results
 
 
@@ -159,6 +194,8 @@ def run_weekly_pipeline():
             "Weekly refresh complete",
             f"All jobs succeeded.{disk_line}",
         )
+
+    _alert_validation_failures(results, "Weekly refresh")
 
     return results
 

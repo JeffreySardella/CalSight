@@ -197,25 +197,107 @@ def backfill_population_density(db):
     logger.info("Computed population density for %d demographic rows", result.rowcount)
 
 
+# Columns _resync_party_flag is allowed to write. The column name is
+# interpolated into SQL (it can't be a bind parameter), so keep it locked
+# to this in-module allowlist.
+_PARTY_FLAG_COLUMNS = frozenset({
+    "is_alcohol_involved",
+    "is_distraction_involved",
+    "cyclist_involved",
+    "is_drug_involved",
+})
+
+
+def _resync_party_flag(db, *, column: str, party_where: str, label: str):
+    """Ground-truth re-sync of one party-derived boolean flag on crashes.
+
+    This is the backfill_pedestrian_flags pattern (M10) applied generically:
+    every pass compares against what crash_parties says RIGHT NOW and only
+    touches rows whose stored value actually differs (IS DISTINCT FROM).
+    The old implementations set positives with an ``AND <col> IS NULL``
+    guard and then locked every remaining row to FALSE forever — so a later
+    party amendment (parties reload current+prev year daily; e.g. toxicology
+    flipping sobriety to 'HBD-UNDER INFLUENCE') was never reflected on the
+    crash row: systematic stale-FALSE drift concentrated in recent years.
+
+    NULL semantics (deliberately identical to backfill_pedestrian_flags):
+      - Only CCRS rows are ever written. SWITRS has no party data, so those
+        rows stay NULL (= unknown), exactly as before.
+      - A CCRS crash with NO party rows at all gets FALSE, not NULL — the
+        NOT EXISTS in the FALSE pass treats "no qualifying party" and "no
+        parties loaded yet" the same, matching both the pedestrian
+        implementation and the old FALSE pass. Unlike the old set-once
+        code this is self-correcting: if that crash's parties arrive on a
+        later run, the TRUE pass flips the flag on the next nightly resync.
+
+    ``column`` and ``party_where`` are trusted in-module literals (see
+    _PARTY_FLAG_COLUMNS); ``party_where`` must reference crash_parties via
+    the alias ``p``.
+
+    Returns (rows_set_false, rows_set_true) so callers/tests can verify the
+    second run over an unchanged dataset writes nothing.
+    """
+    if column not in _PARTY_FLAG_COLUMNS:
+        raise ValueError(f"Refusing to resync unknown flag column: {column!r}")
+
+    # Step 1: the current ground truth — collision ids with a qualifying party
+    logger.info("Finding %s collision IDs...", label)
+    result = db.execute(text(f"""
+        SELECT DISTINCT p.collision_id
+        FROM crash_parties p
+        WHERE {party_where}
+    """))
+    positive_ids = [row[0] for row in result]
+    logger.info("Found %d %s collision IDs", len(positive_ids), label)
+
+    # Step 2: FALSE for CCRS rows not backed by a qualifying party and not
+    # already FALSE. Year-by-year so each UPDATE stays manageable (same
+    # batching as before; _ccrs_year_range reads the bounds from the data).
+    total_negative = 0
+    for year in _ccrs_year_range(db):
+        r = db.execute(text(f"""
+            UPDATE crashes c
+            SET {column} = FALSE
+            WHERE c.data_source = 'ccrs'
+              AND c.crash_datetime >= :start AND c.crash_datetime < :end
+              AND c.{column} IS DISTINCT FROM FALSE
+              AND NOT EXISTS (
+                  SELECT 1 FROM crash_parties p
+                  WHERE p.collision_id = c.collision_id
+                    AND ({party_where})
+              )
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        total_negative += r.rowcount
+    logger.info("Marked %d crashes as NOT %s", total_negative, label)
+
+    # Step 3: TRUE for backed crashes that don't already say so, 1000 at a
+    # time. ANY(:ids) is Postgres's parameterized "WHERE x IN (list)" — one
+    # big UPDATE with a JOIN took 2+ hours and timed out; batching is fast.
+    total_positive = 0
+    for i in range(0, len(positive_ids), 1000):
+        batch = positive_ids[i:i + 1000]
+        r = db.execute(text(f"""
+            UPDATE crashes
+            SET {column} = TRUE
+            WHERE collision_id = ANY(:ids)
+              AND data_source = 'ccrs'
+              AND {column} IS DISTINCT FROM TRUE
+        """), {"ids": batch})
+        db.commit()
+        total_positive += r.rowcount
+    logger.info("Marked %d crashes as %s", total_positive, label)
+
+    return total_negative, total_positive
+
+
 def backfill_alcohol_flags(db):
-    """Tag each CCRS crash with whether alcohol or drugs were involved.
+    """Sync each CCRS crash's alcohol/drug-impairment flag from crash_parties.
 
     The crash_parties table has a sobriety field for each driver/pedestrian.
     We want a simple boolean on the crash itself so the frontend doesn't
-    have to join to parties every time.
-
-    How it works:
-    1. First we grab all the collision_ids where ANY party had sobriety
-       of 'HBD-UNDER INFLUENCE' or 'UNDER_DRUG_INFLUENCE'. That's a
-       single scan of crash_parties using the collision_id index.
-
-    2. Then we batch-update crashes 1,000 at a time using ANY(:ids).
-       We tried doing this as one big UPDATE with a JOIN but it took
-       over 2 hours and timed out. Batching is way faster.
-
-    3. Finally we set everything else to FALSE — but only for CCRS
-       crashes (2016+) since SWITRS doesn't have party data at all.
-       We do this year by year so each UPDATE is manageable.
+    have to join to parties every time. Ground-truth resync semantics —
+    see _resync_party_flag.
 
     Why we only count those two sobriety values:
     The sobriety field has a bunch of values like 'IMPAIRMENT_NOT_KNOWN',
@@ -224,61 +306,20 @@ def backfill_alcohol_flags(db):
     flagged which is basically all of them — obviously wrong. The two
     values we use give us 8.9% which matches NHTSA national averages.
     """
-    # Step 1: find which crashes had an impaired party
-    logger.info("Finding alcohol/drug-involved collision IDs...")
-    result = db.execute(text("""
-        SELECT DISTINCT collision_id
-        FROM crash_parties
-        WHERE sobriety IN ('HBD-UNDER INFLUENCE', 'UNDER_DRUG_INFLUENCE')
-    """))
-    alcohol_ids = [row[0] for row in result]
-    logger.info("Found %d alcohol-involved collision IDs", len(alcohol_ids))
-
-    # Step 2: mark those crashes as TRUE, 1000 at a time
-    # We use ANY(:ids) which is Postgres's way of doing "WHERE x IN (list)"
-    # but it works with parameterized arrays instead of string interpolation
-    total_positive = 0
-    for i in range(0, len(alcohol_ids), 1000):
-        batch = alcohol_ids[i:i + 1000]
-        r = db.execute(text("""
-            UPDATE crashes
-            SET is_alcohol_involved = TRUE
-            WHERE collision_id = ANY(:ids)
-              AND data_source = 'ccrs'
-              AND is_alcohol_involved IS NULL
-        """), {"ids": batch})
-        db.commit()
-        total_positive += r.rowcount
-
-    logger.info("Marked %d crashes as alcohol-involved", total_positive)
-
-    # Step 3: everything else in CCRS gets FALSE
-    # We do this by year so each UPDATE only touches ~400K rows
-    # instead of 4M at once (which would be super slow).
-    # Year range is pulled from the data itself so we don't have to
-    # remember to bump a hardcoded number each January.
-    total_negative = 0
-    for year in _ccrs_year_range(db):
-        r = db.execute(text("""
-            UPDATE crashes
-            SET is_alcohol_involved = FALSE
-            WHERE is_alcohol_involved IS NULL
-              AND data_source = 'ccrs'
-              AND crash_datetime >= :start AND crash_datetime < :end
-        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
-        db.commit()
-        total_negative += r.rowcount
-
-    logger.info("Marked %d crashes as NOT alcohol-involved", total_negative)
+    return _resync_party_flag(
+        db,
+        column="is_alcohol_involved",
+        party_where="p.sobriety IN ('HBD-UNDER INFLUENCE', 'UNDER_DRUG_INFLUENCE')",
+        label="alcohol-involved",
+    )
 
 
 def backfill_distraction_flags(db):
-    """Tag each CCRS crash with whether a driver was using their phone.
+    """Sync each CCRS crash's phone-distraction flag from crash_parties.
 
-    Same approach as the alcohol flags. The cell_phone_use field in
-    crash_parties has values like 'CELL PHONE HANDHELD IN USE',
-    'CELL PHONE HANDSFREE IN USE', 'CELL PHONE NOT IN USE',
-    'CELL PHONE USE UNKNOWN', etc.
+    The cell_phone_use field in crash_parties has values like
+    'CELL PHONE HANDHELD IN USE', 'CELL PHONE HANDSFREE IN USE',
+    'CELL PHONE NOT IN USE', 'CELL PHONE USE UNKNOWN', etc.
 
     We only count HANDHELD and HANDSFREE as actual distraction.
     'UNKNOWN' doesn't count — we're being conservative. This gives
@@ -287,48 +328,18 @@ def backfill_distraction_flags(db):
 
     We use LIKE '%HANDHELD IN USE%' because some records have combo
     values like 'CELL PHONE HANDHELD IN USE / SCHOOL BUS RELATED'.
+
+    Ground-truth resync semantics — see _resync_party_flag.
     """
-    logger.info("Finding distraction-involved collision IDs...")
-    result = db.execute(text("""
-        SELECT DISTINCT collision_id
-        FROM crash_parties
-        WHERE cell_phone_use LIKE '%HANDHELD IN USE%'
-           OR cell_phone_use LIKE '%HANDSFREE IN USE%'
-    """))
-    distraction_ids = [row[0] for row in result]
-    logger.info("Found %d distraction-involved collision IDs", len(distraction_ids))
-
-    # Batch update — same pattern as alcohol flags
-    total_positive = 0
-    for i in range(0, len(distraction_ids), 1000):
-        batch = distraction_ids[i:i + 1000]
-        r = db.execute(text("""
-            UPDATE crashes
-            SET is_distraction_involved = TRUE
-            WHERE collision_id = ANY(:ids)
-              AND data_source = 'ccrs'
-              AND is_distraction_involved IS NULL
-        """), {"ids": batch})
-        db.commit()
-        total_positive += r.rowcount
-
-    logger.info("Marked %d crashes as distraction-involved", total_positive)
-
-    # Set the rest to FALSE, year by year.
-    # Dynamic range — see _ccrs_year_range for why.
-    total_negative = 0
-    for year in _ccrs_year_range(db):
-        r = db.execute(text("""
-            UPDATE crashes
-            SET is_distraction_involved = FALSE
-            WHERE is_distraction_involved IS NULL
-              AND data_source = 'ccrs'
-              AND crash_datetime >= :start AND crash_datetime < :end
-        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
-        db.commit()
-        total_negative += r.rowcount
-
-    logger.info("Marked %d crashes as NOT distraction-involved", total_negative)
+    return _resync_party_flag(
+        db,
+        column="is_distraction_involved",
+        party_where=(
+            "p.cell_phone_use LIKE '%HANDHELD IN USE%' "
+            "OR p.cell_phone_use LIKE '%HANDSFREE IN USE%'"
+        ),
+        label="distraction-involved",
+    )
 
 
 def backfill_pedestrian_flags(db):
@@ -411,95 +422,46 @@ def backfill_pedestrian_flags(db):
 
 
 def backfill_cyclist_flags(db):
-    """Tag each CCRS crash with whether a bicyclist was involved.
+    """Sync each CCRS crash's cyclist flag from crash_parties.
 
-    Same batch pattern as alcohol flags. Checks crash_parties.party_type
-    for 'Bicyclist'. pedestrian_involved already exists on the crashes
-    table from the original ETL, so we only need cyclist here.
+    Checks crash_parties.party_type for 'Bicyclist'. pedestrian_involved
+    already exists on the crashes table from the original ETL, so we only
+    need cyclist here. Ground-truth resync semantics — see _resync_party_flag.
     """
-    logger.info("Finding cyclist-involved collision IDs...")
-    result = db.execute(text("""
-        SELECT DISTINCT collision_id
-        FROM crash_parties
-        WHERE party_type = 'Bicyclist'
-    """))
-    cyclist_ids = [row[0] for row in result]
-    logger.info("Found %d cyclist-involved collision IDs", len(cyclist_ids))
-
-    total_positive = 0
-    for i in range(0, len(cyclist_ids), 1000):
-        batch = cyclist_ids[i:i + 1000]
-        r = db.execute(text("""
-            UPDATE crashes
-            SET cyclist_involved = TRUE
-            WHERE collision_id = ANY(:ids)
-              AND data_source = 'ccrs'
-              AND cyclist_involved IS NULL
-        """), {"ids": batch})
-        db.commit()
-        total_positive += r.rowcount
-
-    logger.info("Marked %d crashes as cyclist-involved", total_positive)
-
-    total_negative = 0
-    for year in _ccrs_year_range(db):
-        r = db.execute(text("""
-            UPDATE crashes
-            SET cyclist_involved = FALSE
-            WHERE cyclist_involved IS NULL
-              AND data_source = 'ccrs'
-              AND crash_datetime >= :start AND crash_datetime < :end
-        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
-        db.commit()
-        total_negative += r.rowcount
-
-    logger.info("Marked %d crashes as NOT cyclist-involved", total_negative)
+    return _resync_party_flag(
+        db,
+        column="cyclist_involved",
+        party_where="p.party_type = 'Bicyclist'",
+        label="cyclist-involved",
+    )
 
 
 def backfill_drug_flags(db):
-    """Tag each CCRS crash with whether drugs (not alcohol) were involved.
+    """Sync each CCRS crash's drug flag from crash_parties.
 
     Distinct from is_alcohol_involved -- this only matches
     'UNDER_DRUG_INFLUENCE' in the sobriety field. A crash can be both
     alcohol-involved AND drug-involved if different parties had each.
+
+    Ground-truth resync semantics — see _resync_party_flag.
     """
-    logger.info("Finding drug-involved collision IDs...")
-    result = db.execute(text("""
-        SELECT DISTINCT collision_id
-        FROM crash_parties
-        WHERE sobriety = 'UNDER_DRUG_INFLUENCE'
-    """))
-    drug_ids = [row[0] for row in result]
-    logger.info("Found %d drug-involved collision IDs", len(drug_ids))
+    return _resync_party_flag(
+        db,
+        column="is_drug_involved",
+        party_where="p.sobriety = 'UNDER_DRUG_INFLUENCE'",
+        label="drug-involved",
+    )
 
-    total_positive = 0
-    for i in range(0, len(drug_ids), 1000):
-        batch = drug_ids[i:i + 1000]
-        r = db.execute(text("""
-            UPDATE crashes
-            SET is_drug_involved = TRUE
-            WHERE collision_id = ANY(:ids)
-              AND data_source = 'ccrs'
-              AND is_drug_involved IS NULL
-        """), {"ids": batch})
-        db.commit()
-        total_positive += r.rowcount
 
-    logger.info("Marked %d crashes as drug-involved", total_positive)
-
-    total_negative = 0
-    for year in _ccrs_year_range(db):
-        r = db.execute(text("""
-            UPDATE crashes
-            SET is_drug_involved = FALSE
-            WHERE is_drug_involved IS NULL
-              AND data_source = 'ccrs'
-              AND crash_datetime >= :start AND crash_datetime < :end
-        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
-        db.commit()
-        total_negative += r.rowcount
-
-    logger.info("Marked %d crashes as NOT drug-involved", total_negative)
+# The party predicate that defines "the at-fault driver's age is known".
+# Shared verbatim by both passes of backfill_at_fault_driver_age so the
+# set-pass and the clear-pass can never disagree about qualification.
+_AT_FAULT_AGE_PARTY_WHERE = """
+    p.at_fault = TRUE
+    AND p.party_type = 'Driver'
+    AND p.age IS NOT NULL
+    AND p.age BETWEEN 1 AND 120
+"""
 
 
 def backfill_at_fault_driver_age(db):
@@ -511,11 +473,27 @@ def backfill_at_fault_driver_age(db):
     analysis is the primary use case.
 
     Only CCRS (2016+) has party data.
+
+    Ground-truth resync semantics (M10, same class as _resync_party_flag):
+    the old version only filled NULLs, so a party amendment (fault
+    reassigned, age corrected) never updated the crash row. Now:
+      - set pass writes wherever the stored age differs from the current
+        ground truth (IS DISTINCT FROM — covers NULL -> value and
+        value -> corrected value);
+      - clear pass NULLs rows whose crash no longer has any qualifying
+        at-fault-driver party. NULL (= unknown), NOT a sentinel: unlike the
+        boolean flags, "no qualifying party" carries no negative claim
+        about an age, so absence of party data must read as unknown.
+    Both passes only touch rows that actually change — no daily WAL churn.
+
+    Returns (rows_cleared, rows_set) so tests can verify a second run over
+    an unchanged dataset writes nothing.
     """
     logger.info("Backfilling at-fault driver age...")
-    total = 0
+    total_set = 0
+    total_cleared = 0
     for year in _ccrs_year_range(db):
-        r = db.execute(text("""
+        r = db.execute(text(f"""
             UPDATE crashes c
             SET at_fault_driver_age = sub.age
             FROM (
@@ -524,24 +502,43 @@ def backfill_at_fault_driver_age(db):
                 FROM crash_parties p
                 JOIN crashes cr ON cr.collision_id = p.collision_id
                     AND cr.data_source = p.data_source
-                WHERE p.at_fault = TRUE
-                  AND p.party_type = 'Driver'
-                  AND p.age IS NOT NULL
-                  AND p.age BETWEEN 1 AND 120
+                WHERE {_AT_FAULT_AGE_PARTY_WHERE}
                   AND cr.data_source = 'ccrs'
                   AND cr.crash_datetime >= :start AND cr.crash_datetime < :end
                 ORDER BY p.collision_id, p.age
             ) sub
             WHERE c.collision_id = sub.collision_id
               AND c.data_source = 'ccrs'
-              AND c.at_fault_driver_age IS NULL
+              AND c.at_fault_driver_age IS DISTINCT FROM sub.age
         """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
         db.commit()
         if r.rowcount > 0:
-            logger.info("At-fault driver age %d: %d rows", year, r.rowcount)
-            total += r.rowcount
+            logger.info("At-fault driver age %d: %d rows set", year, r.rowcount)
+            total_set += r.rowcount
 
-    logger.info("At-fault driver age backfill done: %d rows", total)
+        # Clear ages no longer backed by any qualifying party (see docstring).
+        r = db.execute(text(f"""
+            UPDATE crashes c
+            SET at_fault_driver_age = NULL
+            WHERE c.data_source = 'ccrs'
+              AND c.crash_datetime >= :start AND c.crash_datetime < :end
+              AND c.at_fault_driver_age IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM crash_parties p
+                  WHERE p.collision_id = c.collision_id
+                    AND ({_AT_FAULT_AGE_PARTY_WHERE})
+              )
+        """), {"start": f"{year}-01-01", "end": f"{year + 1}-01-01"})
+        db.commit()
+        if r.rowcount > 0:
+            logger.info("At-fault driver age %d: %d rows cleared", year, r.rowcount)
+            total_cleared += r.rowcount
+
+    logger.info(
+        "At-fault driver age backfill done: %d rows set, %d cleared",
+        total_set, total_cleared,
+    )
+    return total_cleared, total_set
 
 
 def backfill_crash_hour(db):

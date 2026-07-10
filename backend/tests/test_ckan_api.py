@@ -365,6 +365,65 @@ class TestDiscoverResourceIds:
         assert discover_resource_ids("Crashes") == {2026: "crashes-2026-id", 2027: "crashes-2027-id"}
 
 
+class TestDiscoveryCacheTtl:
+    """M7: the discovery cache lives inside the weeks-old scheduler process.
+
+    Without a TTL, the freshness probe kept seeing January's package listing
+    until a container restart, so a newly published Crashes_<year> resource
+    was invisible to the daily pipeline (data arrived at weekly-force-run
+    cadence at best). Entries must expire, but slowly enough that a single
+    pipeline run still sees a stable view of the package.
+    """
+
+    def _freeze_clock(self, monkeypatch, start=1_000_000.0):
+        from etl import ckan_api
+        clock = {"now": start}
+        monkeypatch.setattr(ckan_api.time, "monotonic", lambda: clock["now"])
+        return clock
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_within_ttl_serves_cached_result(self, mock_get, monkeypatch):
+        from etl import ckan_api
+        clock = self._freeze_clock(monkeypatch)
+        mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
+
+        first = ckan_api.discover_resource_ids("Crashes")
+        clock["now"] += ckan_api._DISCOVERY_TTL_SECONDS - 1
+        second = ckan_api.discover_resource_ids("Crashes")
+
+        assert mock_get.call_count == 1
+        assert second == first
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_expired_entry_refetches_and_sees_new_year(self, mock_get, monkeypatch):
+        from etl import ckan_api
+        clock = self._freeze_clock(monkeypatch)
+        newly_published = _PACKAGE_RESOURCES + [
+            {"name": "Crashes_2029", "id": "crashes-2029-id", "datastore_active": True},
+        ]
+        mock_get.side_effect = [
+            _mock_package_show(_PACKAGE_RESOURCES),
+            _mock_package_show(newly_published),
+        ]
+
+        first = ckan_api.discover_resource_ids("Crashes")
+        assert 2029 not in first
+
+        clock["now"] += ckan_api._DISCOVERY_TTL_SECONDS + 1
+        second = ckan_api.discover_resource_ids("Crashes")
+
+        assert mock_get.call_count == 2
+        assert second[2029] == "crashes-2029-id"
+
+    def test_ttl_sits_between_run_duration_and_daily_cadence(self):
+        """The TTL must exceed the longest single pipeline run (parties has a
+        6h job timeout) so resources never appear mid-run, and stay under the
+        24h daily cadence so the next daily run always re-lists the package."""
+        from etl import ckan_api
+        assert ckan_api._DISCOVERY_TTL_SECONDS >= 6 * 60 * 60
+        assert ckan_api._DISCOVERY_TTL_SECONDS < 24 * 60 * 60
+
+
 class TestMergedResourceIds:
     @patch("etl.ckan_api.httpx.get")
     def test_discovered_year_extends_static_map(self, mock_get):
