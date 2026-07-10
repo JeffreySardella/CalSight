@@ -110,6 +110,10 @@ export function useClusterHotspots(params: ClusterHotspotsParams) {
 
   return {
     clusters: data?.clusters ?? [],
+    // Distinguishes "loaded, zero clusters" from "no response yet" (new query
+    // key loading, or errored) — consumers re-syncing a selection against the
+    // refetched list must not treat a still-loading [] as "cluster gone".
+    hasData: data !== undefined,
     totalGridCells: data?.total_grid_cells ?? 0,
     meanCount: data?.mean_count ?? 0,
     stddevCount: data?.stddev_count ?? 0,

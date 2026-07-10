@@ -338,6 +338,13 @@ function MapPageInner() {
     setActivePanel((p) => (p === "highway" ? null : p));
   }, []);
 
+  // M18: same for clusters — the selected hotspot cell is no longer
+  // significant under the new filters (or the layer was toggled off).
+  const handleSelectedClusterGone = useCallback(() => {
+    setSelectedCluster(null);
+    setActivePanel((p) => (p === "cluster" ? null : p));
+  }, []);
+
   const handleSelectPlace = useCallback((lat: number, lng: number) => {
     setTempMarker([lat, lng]);
     mapRef.current?.setView([lat, lng], 14, { animate: true, duration: 0.5 });
@@ -642,6 +649,8 @@ function MapPageInner() {
           onSelectCluster={handleSelectCluster}
           selectedHighwayRoute={activePanel === "highway" ? selectedHighway?.route_number ?? null : null}
           onSelectedHighwayGone={handleSelectedHighwayGone}
+          selectedCluster={activePanel === "cluster" ? selectedCluster : null}
+          onSelectedClusterGone={handleSelectedClusterGone}
           onMapReady={handleMapReady}
           heatmapPoints={heatmap.points}
           heatmapActive={heatmapEnabled}

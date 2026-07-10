@@ -43,6 +43,10 @@ const CLUSTERS: ClusterPoint[] = [
 beforeEach(() => {
   vi.clearAllMocks();
   circleMarkerInstances.length = 0;
+  // Layer toggles persist to localStorage ("calsight-layers") — clear so a
+  // prior test's EnableClusterLayer doesn't leak into tests expecting the
+  // default-off state.
+  localStorage.clear();
   globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("/api/crashes/clusters")) {
@@ -114,5 +118,65 @@ describe("ClusterLayer", () => {
     const clickHandler = circleMarkerInstances[0].on.mock.calls.find(([event]) => event === "click")?.[1] as () => void;
     clickHandler();
     expect(onSelectCluster).toHaveBeenCalledWith(CLUSTERS[0]);
+  });
+
+  it("re-syncs the selected cluster's stats when the hotspots (re)load (M18: stale side panel)", async () => {
+    // The side panel is open on the cell at (34.2, -118.2) with stats from the
+    // old filters; the hotspot list (re)fetches — the panel must receive the
+    // cell's fresh stats so its counts/z-score match the active filters.
+    const staleSelection: ClusterPoint = {
+      lat: 34.2, lng: -118.2, crash_count: 42, z_score: 5.5,
+      severity: { fatal: 9, injury: 30, pdo: 3 },
+    };
+    const onSelectCluster = vi.fn();
+    render(
+      <Providers>
+        <EnableClusterLayer />
+        <ClusterLayer onSelectCluster={onSelectCluster} selectedCluster={staleSelection} />
+      </Providers>,
+    );
+    await waitFor(() => expect(onSelectCluster).toHaveBeenCalled());
+    expect(onSelectCluster).toHaveBeenCalledWith(
+      expect.objectContaining({ lat: 34.2, lng: -118.2, crash_count: 8, z_score: 3.1 }),
+    );
+  });
+
+  it("signals when the selected cell is no longer a hotspot under the new filters (M18)", async () => {
+    const elsewhere: ClusterPoint = {
+      lat: 37.7, lng: -122.4, crash_count: 12, z_score: 2.4,
+      severity: { fatal: 1, injury: 8, pdo: 3 },
+    };
+    const onSelectCluster = vi.fn();
+    const onSelectedClusterGone = vi.fn();
+    render(
+      <Providers>
+        <EnableClusterLayer />
+        <ClusterLayer
+          onSelectCluster={onSelectCluster}
+          selectedCluster={elsewhere}
+          onSelectedClusterGone={onSelectedClusterGone}
+        />
+      </Providers>,
+    );
+    await waitFor(() => expect(onSelectedClusterGone).toHaveBeenCalled());
+    expect(onSelectCluster).not.toHaveBeenCalled();
+  });
+
+  it("signals gone when the layer is toggled off while a cluster panel is open (M18)", async () => {
+    // Layer left at its default (off): an open panel must close, not survive
+    // with stats for markers that are no longer on the map.
+    const onSelectedClusterGone = vi.fn();
+    render(
+      <Providers>
+        <ClusterLayer
+          onSelectCluster={() => {}}
+          selectedCluster={CLUSTERS[0]}
+          onSelectedClusterGone={onSelectedClusterGone}
+        />
+      </Providers>,
+    );
+    await waitFor(() => expect(onSelectedClusterGone).toHaveBeenCalled());
+    // No fetch happens while the layer is off — closing must not depend on one.
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

@@ -15,15 +15,29 @@
  *   - Mini chart sparkline (if metric data available)
  *   - Filter context (counties, date range)
  *
- * Caching: responses are cached at the Cloudflare edge for 1 hour,
- * and the Cache-Control header allows browser caching for 5 minutes.
+ * Caching: Worker-generated responses are NOT cached by `s-maxage` alone, so
+ * we read/write the edge Cache API explicitly, keyed on a normalized URL that
+ * contains only the (clamped, sorted) params the renderer actually uses.
+ * Browsers may cache for 1 hour via Cache-Control.
  */
 
 import { Resvg, initWasm } from "@resvg/resvg-wasm";
 // @ts-expect-error — Cloudflare Workers import WASM as a module
 import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 
-let wasmReady = false;
+// Shared init promise so two concurrent cold-start requests don't both call
+// initWasm — the second call throws "already initialized" (audit M14). Reset
+// to null on failure so a transient init error can be retried by a later
+// request instead of poisoning the isolate forever.
+let initPromise: Promise<void> | null = null;
+
+function ensureWasm(): Promise<void> {
+  initPromise ??= Promise.resolve(initWasm(resvgWasm)).catch((err) => {
+    initPromise = null;
+    throw err;
+  });
+  return initPromise;
+}
 
 export interface Env {
   SITE_URL: string;
@@ -57,14 +71,44 @@ interface OgParams {
   preset?: string;
 }
 
+// Upper bounds on query-param lengths, applied at parse time. The SVG layout
+// truncates for display anyway (title at 30 chars etc.), but unbounded input
+// would still flow into escapeXml/render work — clamp before anything uses it.
+const MAX_TITLE_LEN = 80;
+const MAX_SUBTITLE_LEN = 120;
+const MAX_METRIC_LEN = 24;
+const MAX_METRIC_LABEL_LEN = 40;
+const MAX_COUNTY_LEN = 30;
+const MAX_COUNTIES = 58; // California has 58 counties; anything beyond is junk
+
+function clamp(value: string, max: number): string {
+  return value.length > max ? value.slice(0, max) : value;
+}
+
+function clampedParam(params: URLSearchParams, name: string, max: number): string | undefined {
+  const raw = params.get(name);
+  return raw ? clamp(raw, max) : undefined;
+}
+
+/** Whitelist trend to the three values the renderer understands. */
+function parseTrend(params: URLSearchParams): "up" | "down" | "neutral" | undefined {
+  const raw = params.get("trend");
+  return raw === "up" || raw === "down" || raw === "neutral" ? raw : undefined;
+}
+
 function parseRequest(url: URL): OgParams {
   const params = url.searchParams;
   const pathname = url.pathname;
 
   if (pathname === "/og/stats" || pathname === "/og/dashboard") {
-    const preset = params.get("preset") || "overview";
+    const preset = clamp(params.get("preset") || "overview", 32);
     const countiesRaw = params.get("counties") || "";
-    const counties = countiesRaw ? countiesRaw.split(",").map(c => c.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase())) : [];
+    const counties = countiesRaw
+      ? countiesRaw
+          .split(",")
+          .slice(0, MAX_COUNTIES)
+          .map(c => clamp(c, MAX_COUNTY_LEN).replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()))
+      : [];
 
     const presetLabels: Record<string, string> = {
       overview: "Safety Overview",
@@ -82,20 +126,20 @@ function parseRequest(url: URL): OgParams {
       subtitle: counties.length > 0
         ? counties.slice(0, 3).join(", ") + (counties.length > 3 ? ` +${counties.length - 3} more` : "")
         : "All California Counties",
-      metric: params.get("metric") || undefined,
-      metricLabel: params.get("metricLabel") || undefined,
-      trend: (params.get("trend") as "up" | "down" | "neutral") || undefined,
+      metric: clampedParam(params, "metric", MAX_METRIC_LEN),
+      metricLabel: clampedParam(params, "metricLabel", MAX_METRIC_LABEL_LEN),
+      trend: parseTrend(params),
       counties,
       preset,
     };
   }
 
   return {
-    title: params.get("title") || "California Crash Data Explorer",
-    subtitle: params.get("subtitle") || "Interactive maps, AI insights, and demographic analysis",
-    metric: params.get("metric") || undefined,
-    metricLabel: params.get("metricLabel") || undefined,
-    trend: (params.get("trend") as "up" | "down" | "neutral") || undefined,
+    title: clampedParam(params, "title", MAX_TITLE_LEN) || "California Crash Data Explorer",
+    subtitle: clampedParam(params, "subtitle", MAX_SUBTITLE_LEN) || "Interactive maps, AI insights, and demographic analysis",
+    metric: clampedParam(params, "metric", MAX_METRIC_LEN),
+    metricLabel: clampedParam(params, "metricLabel", MAX_METRIC_LABEL_LEN),
+    trend: parseTrend(params),
   };
 }
 
@@ -244,8 +288,29 @@ function generateSvg(params: OgParams): string {
 </svg>`;
 }
 
+/**
+ * Normalized cache key: origin + pathname + only the (already clamped) params
+ * the renderer actually uses, sorted, so param order / junk params / oversized
+ * values don't fragment the edge cache or bypass it.
+ */
+function buildCacheKey(url: URL, params: OgParams): Request {
+  const key = new URL(url.origin + url.pathname);
+  const entries: Array<[string, string]> = [
+    ["title", params.title],
+    ["subtitle", params.subtitle],
+  ];
+  if (params.metric) entries.push(["metric", params.metric]);
+  if (params.metricLabel) entries.push(["metricLabel", params.metricLabel]);
+  if (params.trend) entries.push(["trend", params.trend]);
+  if (params.counties?.length) entries.push(["counties", params.counties.join(",")]);
+  if (params.preset) entries.push(["preset", params.preset]);
+  entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  for (const [name, value] of entries) key.searchParams.set(name, value);
+  return new Request(key.toString(), { method: "GET" });
+}
+
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     // Only handle /og routes
@@ -263,12 +328,21 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    if (!wasmReady) {
-      await initWasm(resvgWasm);
-      wasmReady = true;
+    if (request.method !== "GET") {
+      return new Response("Method not allowed", { status: 405, headers: corsHeaders });
     }
 
     const params = parseRequest(url);
+
+    // Edge cache: `s-maxage` alone does not cache Worker-generated responses,
+    // so consult/populate the Cache API explicitly (audit M14). A link fanning
+    // out to N crawlers renders once instead of N times.
+    const cacheKey = buildCacheKey(url, params);
+    const cached = await caches.default.match(cacheKey);
+    if (cached) return cached;
+
+    await ensureWasm();
+
     const svg = generateSvg(params);
 
     const resvg = new Resvg(svg, {
@@ -282,6 +356,8 @@ export default {
       ...corsHeaders,
     });
 
-    return new Response(png, { status: 200, headers });
+    const response = new Response(png, { status: 200, headers });
+    ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+    return response;
   },
 };

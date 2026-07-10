@@ -65,6 +65,10 @@ describe("isRetryableError", () => {
     expect(isRetryableError(new Error("clusters 404"))).toBe(false);
     expect(isRetryableError(new Error("stats 422"))).toBe(false);
   });
+
+  it("retries 429 rate limits — transient, the bucket refills (L13)", () => {
+    expect(isRetryableError(new Error("ask 429"))).toBe(true);
+  });
 });
 
 describe("shouldRetry", () => {
@@ -76,6 +80,12 @@ describe("shouldRetry", () => {
 
   it("never retries a 4xx, even on the first failure", () => {
     expect(shouldRetry(0, new Error("stats 422"))).toBe(false);
+  });
+
+  it("retries a 429 within the existing budget, then stops at the cap (L13)", () => {
+    expect(shouldRetry(0, new Error("ask 429"))).toBe(true);
+    expect(shouldRetry(MAX_QUERY_RETRIES - 1, new Error("ask 429"))).toBe(true);
+    expect(shouldRetry(MAX_QUERY_RETRIES, new Error("ask 429"))).toBe(false);
   });
 });
 

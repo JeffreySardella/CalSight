@@ -24,14 +24,16 @@ export function statusFromError(error: unknown): number | null {
 /**
  * A 4xx won't succeed by trying again (bad filter, not found, unauthorized) —
  * retrying just delays the error state the user needs to see. Only retry the
- * things that plausibly recover on their own: network errors, timeouts, and
- * 5xx server hiccups (and anything without a status, which is usually a dropped
- * connection).
+ * things that plausibly recover on their own: network errors, timeouts, 5xx
+ * server hiccups, and 429 rate limits (transient by definition — the bucket
+ * refills; the existing exponential backoff spaces the attempts out, since
+ * Retry-After isn't recoverable from our string-message errors). Anything
+ * without a status is usually a dropped connection, also retryable.
  */
 export function isRetryableError(error: unknown): boolean {
   const status = statusFromError(error);
   if (status == null) return true;
-  return status >= 500;
+  return status === 429 || status >= 500;
 }
 
 export function shouldRetry(failureCount: number, error: unknown): boolean {
