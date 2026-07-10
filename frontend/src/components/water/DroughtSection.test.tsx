@@ -34,6 +34,18 @@ const COUNTIES = [
 function mockApi(snapshot: DroughtSnapshot | null) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
+    if (url.includes("/api/water/drought/series")) {
+      const series =
+        snapshot === null
+          ? []
+          : [
+              { ...SNAPSHOT.statewide, week_start: "2026-06-23", d1_pct: 10 },
+              { ...SNAPSHOT.statewide, week_start: "2026-06-30" },
+            ];
+      return new Response(JSON.stringify(series), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     if (url.includes("/api/water/drought")) {
       if (snapshot === null) return new Response("not found", { status: 404 });
       return new Response(JSON.stringify(snapshot), {
@@ -99,6 +111,14 @@ describe("DroughtSection", () => {
       (el) => el.textContent,
     );
     expect(names).toEqual(["Kern", "Sacramento"]); // Alameda (clear) excluded
+  });
+
+  it("plots the statewide trend sparkline from the series", async () => {
+    mockApi(SNAPSHOT);
+    renderSection();
+    expect(
+      await screen.findByLabelText(/in drought over the past 2 weeks/),
+    ).toBeInTheDocument();
   });
 
   it("renders nothing when no drought data is loaded", async () => {

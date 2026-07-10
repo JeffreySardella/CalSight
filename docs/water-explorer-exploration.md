@@ -131,9 +131,29 @@ GET /api/water/summary                         # statewide: total storage vs cap
   is loaded. Verified visually in light and dark against seeded demo data.
 - Suite totals: 856 backend + 716 frontend, green.
 
+**Polish (fifth commit):** statewide drought trend sparkline (two-year
+D1+ share from `/api/water/drought/series`), README features/data-source
+updates.
+
+## Snowpack (P3) — deliberately deferred, and why
+
+Unlike the major reservoirs (whose CDEC codes are household names —
+SHA, ORO, FOL), snow-station codes and metadata can't be written down
+confidently without querying CDEC, and this sandbox can't reach it.
+Rather than ship a fabricated station list, P3 is specced for a session
+with live network:
+
+1. Discover stations: CDEC's station search (or the `getStationInfo`
+   endpoints) filtered to sensor 3 (snow water content) — pick ~4 per
+   Sierra region (North/Central/South), verified active.
+2. Reuse `fetch_sensor_data(stations, SENSOR_SNOW_WATER_CONTENT, ...)`
+   — the CDEC client is already sensor-generic.
+3. Same "% of same-day-of-year average" derivation as reservoirs — no
+   external April-1 constants needed to start.
+
 Still to come: live smoke tests (`python -m etl.cdec_api --smoke`,
 `python -m etl.usdm_api --smoke` — both hosts blocked in this sandbox),
-capacity verification, snowpack phase, county-detail integration.
+capacity verification, snowpack per above, county-detail integration.
 
 ## Open questions
 

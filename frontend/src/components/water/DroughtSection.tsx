@@ -1,7 +1,9 @@
+import Sparkline from "../charts/Sparkline";
 import {
   inDroughtPct,
   severePct,
   useCountyNames,
+  useDroughtSeries,
   useDroughtSnapshot,
   type DroughtPcts,
 } from "../../hooks/useDroughtData";
@@ -55,6 +57,8 @@ export function SeverityBar({ pcts, label, height = "h-2" }: SeverityBarProps) {
 export default function DroughtSection() {
   const { data: snapshot, isLoading } = useDroughtSnapshot();
   const { data: countyNames } = useCountyNames();
+  const { data: series } = useDroughtSeries();
+  const trend = (series ?? []).map(inDroughtPct);
 
   // No data yet (or still loading) — the page reads fine without this
   // section, so it simply doesn't render.
@@ -107,6 +111,21 @@ export default function DroughtSection() {
           ))}
         </ul>
       </div>
+
+      {trend.length > 1 && (
+        <div className="max-w-2xl mx-auto mt-10 text-center">
+          <Sparkline
+            data={trend}
+            width={320}
+            height={48}
+            showEndDot
+            label={`Share of California in drought over the past ${trend.length} weeks`}
+          />
+          <p className="text-[10px] text-on-surface-variant uppercase tracking-widest mt-2">
+            % in drought · past {trend.length} weeks
+          </p>
+        </div>
+      )}
 
       {hardestHit.length > 0 && (
         <div className="max-w-2xl mx-auto mt-12">

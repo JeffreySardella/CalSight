@@ -34,6 +34,24 @@ export function useDroughtSnapshot() {
   });
 }
 
+export interface DroughtWeekPoint extends DroughtPcts {
+  week_start: string;
+}
+
+export function useDroughtSeries(weeks = 104) {
+  return useQuery<DroughtWeekPoint[]>({
+    queryKey: ["water", "drought-series", weeks],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE}/api/water/drought/series?weeks=${weeks}`,
+      );
+      if (!res.ok) throw new Error(`water/drought/series ${res.status}`);
+      return res.json();
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
 interface CountyRef {
   code: number;
   name: string;
