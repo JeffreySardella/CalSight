@@ -78,6 +78,15 @@ class Settings(BaseSettings):
     # -- App --
     debug: bool = False
     etl_api_key: str = ""
+    # Separate admin credential (issue #300): one secret should not gate both
+    # ETL triggers and the admin UI, so rotating one never locks out the
+    # other. Empty means "fall back to etl_api_key" for backward
+    # compatibility with deployments that predate the split.
+    admin_api_key: str = ""
+
+    @property
+    def effective_admin_key(self) -> str:
+        return self.admin_api_key or self.etl_api_key
 
     # Maintenance mode: when true, the API returns 503 + Retry-After for all
     # /api/* requests (except /api/health) so the app can be taken offline

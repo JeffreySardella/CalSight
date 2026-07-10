@@ -24,8 +24,9 @@ class VerifyRequest(BaseModel):
 @router.post("/verify")
 @_limiter.limit("5/minute")
 def verify_admin_key(body: VerifyRequest, request: Request):
-    if not settings.etl_api_key:
+    admin_key = settings.effective_admin_key
+    if not admin_key:
         raise HTTPException(status_code=503, detail="Admin key not configured on server")
-    if not hmac.compare_digest(body.key, settings.etl_api_key):
+    if not hmac.compare_digest(body.key, admin_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     return {"status": "ok"}

@@ -115,6 +115,15 @@ jobs:
         working-directory: frontend
         run: npm audit --audit-level=high
 
+      # pip-audit — backend dependency CVE check (issue #300). Non-blocking:
+      # a new upstream advisory must not gate deploys (see audit M-I5 for why
+      # the npm gate above is debatable); this surfaces CVEs without blocking.
+      - name: pip-audit (backend, non-blocking)
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt
+
   docker-build:
     runs-on: ubuntu-latest
     needs: [backend, frontend]
