@@ -73,6 +73,11 @@ jobs:
       - run: npx eslint .
       - run: npx tsc --noEmit
       - run: npm test
+      # Gate the production vite build: Cloudflare Pages publishes on push to
+      # main independently of CI, so a build-breaking change (PWA plugin, CSP
+      # hashes, rollup config) must fail CI here — tsc/vitest alone don't
+      # exercise the build.
+      - run: npm run build
 
   security:
     runs-on: ubuntu-latest
