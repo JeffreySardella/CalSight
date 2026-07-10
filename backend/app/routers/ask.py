@@ -25,6 +25,7 @@ from app.ai_prompt import (
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
 from app.database import SessionLocal, apply_statement_timeout, get_db
+from app.grounding import answer_cites_tool_numbers
 from app.llm_cache import get_ask_cache, make_cache_key
 from app.models import ChatFeedback
 from app.llm import (
@@ -56,6 +57,16 @@ class _AskAbandoned(Exception):
     """The HTTP request already timed out; stop burning LLM quota."""
 
 
+# Control characters have no legitimate use in chat text but do show up in
+# terminal-escape / token-smuggling injection tricks. Strip everything in C0
+# except newline (\x0a) and tab (\x09), plus DEL and the C1 range (#293).
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def _strip_control_chars(v: str) -> str:
+    return _CONTROL_CHARS_RE.sub("", v)
+
+
 class HistoryMessage(BaseModel):
     role: str
     content: str
@@ -70,6 +81,9 @@ class HistoryMessage(BaseModel):
     @field_validator("content")
     @classmethod
     def cap_content_length(cls, v: str) -> str:
+        # History content goes verbatim into the LLM message list — sanitize
+        # it, not just the role field (#293).
+        v = _strip_control_chars(v)
         if len(v) > 2000:
             return v[:2000]
         return v
@@ -83,7 +97,7 @@ class AskRequest(BaseModel):
     @field_validator("question")
     @classmethod
     def question_not_empty(cls, v: str) -> str:
-        v = v.strip()
+        v = _strip_control_chars(v).strip()
         if not v:
             raise ValueError("Question cannot be empty")
         if len(v) > 500:
@@ -268,12 +282,31 @@ def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> tuple[A
 
     tools_called: list[str] = []
     tools_succeeded: list[str] = []
+    tool_results: list[str] = []
     degraded = False
 
     try:
-        answer, provider = _run_with_tools(db, messages, tools_called, tools_succeeded, deadline)
+        answer, provider = _run_with_tools(
+            db, messages, tools_called, tools_succeeded, deadline, tool_results
+        )
     except AllProvidersExhausted:
-        answer, provider = _run_simple_mode(db, body.filters, messages)
+        try:
+            answer, provider = _run_simple_mode(db, body.filters, messages)
+        except Exception:
+            # Simple mode makes its own LLM call (and a DB query) — if that
+            # fails too, return a graceful degraded answer instead of a 500,
+            # and never cache it: the very next attempt may succeed (#293).
+            logger.exception("Simple-mode fallback failed after provider exhaustion")
+            return AskResponse(
+                answer=(
+                    "AI is temporarily unavailable — all providers are busy or "
+                    "rate limited right now. Please try again in a few minutes."
+                ),
+                provider="none",
+                grounded=False,
+                filters_used=body.filters,
+                tools_called=tools_called,
+            ), False
         degraded = True
 
     suggestions = _parse_suggestions(answer)
@@ -283,8 +316,24 @@ def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> tuple[A
     # grounded means "this answer is backed by at least one tool query that
     # actually executed" — attempted-but-failed calls don't count, or a run
     # where every tool errored would still present as data-backed.
-    grounded = len(tools_succeeded) > 0
-    cacheable = not degraded and grounded
+    tool_grounded = len(tools_succeeded) > 0
+    # Cacheability keys off tool success only: the numeric heuristic below is
+    # deliberately conservative and can false-negative on heavily rounded
+    # answers, so it downgrades the reported flag without evicting the answer.
+    cacheable = not degraded and tool_grounded
+
+    grounded = tool_grounded
+    # Calling a tool is not the same as citing it: cross-check that the raw
+    # answer (chart included) shares at least one distinctive number with the
+    # successful tool results. Only downgrade on zero overlap when the tool
+    # results actually contained distinctive numbers (#293).
+    if grounded and not answer_cites_tool_numbers(answer, tool_results):
+        logger.warning(
+            "Answer shares no distinctive numbers with tool results; "
+            "downgrading grounded=false (tools_called=%s)",
+            tools_called,
+        )
+        grounded = False
 
     return AskResponse(
         answer=clean_answer,
@@ -303,6 +352,7 @@ def _run_with_tools(
     tools_called: list[str],
     tools_succeeded: list[str],
     deadline: float,
+    tool_results: list[str] | None = None,
 ) -> tuple[str, str]:
     """Run the tool-calling loop (max 3 rounds).
 
@@ -350,12 +400,14 @@ def _run_with_tools(
             for tool_call in capped_calls:
                 fn_name = tool_call.function.name
                 tools_called.append(fn_name)
+                succeeded = False
                 try:
                     args = json.loads(tool_call.function.arguments)
                     fn = TOOL_REGISTRY.get(fn_name)
                     if fn:
                         result = fn(db, **args)
                         tools_succeeded.append(fn_name)
+                        succeeded = True
                     else:
                         result = {"error": f"Unknown tool: {fn_name}"}
                 except Exception as e:
@@ -372,10 +424,15 @@ def _run_with_tools(
                         logger.exception("Failed to reset ask DB session after tool error")
                     result = {"error": "Tool execution failed. Please try again or rephrase your question."}
 
+                serialized = json.dumps(result, default=str)
+                # Collect successful results for the numeric-grounding check —
+                # error payloads carry no data the answer could cite.
+                if succeeded and tool_results is not None:
+                    tool_results.append(serialized)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
-                    "content": json.dumps(result, default=str),
+                    "content": serialized,
                 })
         else:
             return choice.message.content or "", provider

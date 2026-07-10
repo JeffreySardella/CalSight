@@ -126,6 +126,13 @@ class Settings(BaseSettings):
     # the model more likely to phrase numbers loosely or drift. Tune via
     # LLM_TEMPERATURE without a code change.
     llm_temperature: float = 0.4
+    # Spending backstop: max provider calls per day across paid LLM providers
+    # (0 = unlimited). Counted per worker process, like the rate limits — with
+    # 4 gunicorn workers the effective cap is 4x this value. Local ollama is
+    # free and never counted. When the budget is spent, /api/ask degrades
+    # through simple mode to a graceful "temporarily unavailable" answer.
+    # See app/llm_budget.py.
+    llm_daily_request_budget: int = 0
     llm_api_key: str = ""
     llm_api_key_2: str = ""
     llm_model: str = ""

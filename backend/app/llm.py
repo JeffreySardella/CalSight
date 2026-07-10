@@ -14,6 +14,7 @@ from typing import Any
 
 from openai import APIConnectionError, APITimeoutError, BadRequestError, OpenAI, RateLimitError
 
+from app import llm_budget
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,10 @@ OPENROUTER_FREE_MODELS: list[tuple[str, str]] = [
 ]
 
 SUPPORTS_TOOL_USE = {"groq", "gemini", "openrouter", "ollama"}
+
+# Providers that cost nothing to call (self-hosted) and are therefore exempt
+# from the LLM_DAILY_REQUEST_BUDGET spending backstop (see app.llm_budget).
+_FREE_PROVIDER_TYPES = {"ollama"}
 
 # In-memory cooldown tracker: provider_name -> timestamp when cooldown expires
 _cooldown_lock = threading.Lock()
@@ -246,6 +251,21 @@ def generate_with_fallback(
 
         if tools and tool_choice == "required" and ptype not in SUPPORTS_TOOL_USE:
             logger.info("Skipping %s (no tool support)", name)
+            continue
+
+        # Spending backstop: consume from the daily budget only for paid
+        # providers, and only once we know the call will actually be made
+        # (cooldown/tool-support skips above never touch the counter).
+        if ptype not in _FREE_PROVIDER_TYPES and not llm_budget.try_consume(
+            settings.llm_daily_request_budget
+        ):
+            logger.warning(
+                "Skipping %s (daily LLM request budget of %d spent for this worker)",
+                name,
+                settings.llm_daily_request_budget,
+            )
+            if last_error is None:
+                last_error = RuntimeError("daily LLM request budget exhausted")
             continue
 
         tried += 1

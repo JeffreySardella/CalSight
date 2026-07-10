@@ -48,6 +48,46 @@ def test_injection_in_lighting_and_collision_dropped():
     assert "system" not in summary.lower()
 
 
+# --- Control-character hygiene (#293) -------------------------------------------
+# History content and the question reach the LLM verbatim; control characters
+# (terminal escapes, NULs, C1 range) are stripped — newline and tab survive.
+
+def test_question_control_chars_stripped():
+    req = AskRequest(question="how\x00 many\x1b[31m crashes\x07?")
+    assert req.question == "how many[31m crashes?"
+
+
+def test_question_keeps_newline_and_tab():
+    req = AskRequest(question="line one\nline two\tend")
+    assert req.question == "line one\nline two\tend"
+
+
+def test_question_strips_carriage_return_and_c1_range():
+    req = AskRequest(question="a\rb\x85c\x9bd")
+    assert req.question == "abcd"
+
+
+def test_question_only_control_chars_rejected_as_empty():
+    with pytest.raises(ValidationError):
+        AskRequest(question="\x00\x1b\x07\x08")
+
+
+def test_history_content_control_chars_stripped():
+    req = AskRequest(
+        question="q?",
+        history=[{"role": "user", "content": "hi\x00 there\x1b[0m\x7f"}],
+    )
+    assert req.history[0].content == "hi there[0m"
+
+
+def test_history_content_keeps_newline_and_tab():
+    req = AskRequest(
+        question="q?",
+        history=[{"role": "assistant", "content": "row1\nrow2\tcol"}],
+    )
+    assert req.history[0].content == "row1\nrow2\tcol"
+
+
 # --- L2: unbounded request fields ----------------------------------------------
 
 def test_ask_history_truncated_to_last_20():

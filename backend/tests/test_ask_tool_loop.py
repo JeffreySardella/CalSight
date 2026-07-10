@@ -207,6 +207,146 @@ def test_simple_mode_fallback_is_degraded_and_not_cacheable(monkeypatch):
     assert cacheable is False
 
 
+def test_grounded_downgraded_when_answer_ignores_tool_numbers(monkeypatch, caplog):
+    """Calling a tool is not citing it: an answer that shares no distinctive
+    number with the tool results is downgraded to grounded=false with a
+    warning (#293). Cacheability stays keyed off tool success — the heuristic
+    is conservative and must not evict rounded-but-valid answers."""
+    db = FakeDB()
+    monkeypatch.setitem(
+        ask_module.TOOL_REGISTRY, "ok_tool", lambda session, **kw: {"crash_count": 8234}
+    )
+    _scripted_llm(monkeypatch, [
+        _llm_response(tool_calls=[_tool_call("ok_tool")]),
+        _llm_response(content="Rain is associated with roughly 99,999 crashes."),
+    ])
+
+    with caplog.at_level("WARNING"):
+        result, cacheable = _handle_ask_inner(_body(), db, _deadline())
+
+    assert result.grounded is False, "answer cites none of the tool's distinctive numbers"
+    assert cacheable is True
+    assert any("no distinctive numbers" in r.message for r in caplog.records)
+
+
+def test_grounded_kept_when_answer_cites_tool_numbers(monkeypatch):
+    db = FakeDB()
+    monkeypatch.setitem(
+        ask_module.TOOL_REGISTRY, "ok_tool", lambda session, **kw: {"crash_count": 8234}
+    )
+    _scripted_llm(monkeypatch, [
+        _llm_response(tool_calls=[_tool_call("ok_tool")]),
+        _llm_response(content="There were 8,234 crashes in the rain."),
+    ])
+
+    result, cacheable = _handle_ask_inner(_body(), db, _deadline())
+
+    assert result.grounded is True
+    assert cacheable is True
+
+
+def test_grounded_kept_when_tool_results_have_no_distinctive_numbers(monkeypatch):
+    """Small ints and years never trigger a downgrade — nothing distinctive
+    to cross-check, so the conservative default is to trust tool success."""
+    db = FakeDB()
+    monkeypatch.setitem(
+        ask_module.TOOL_REGISTRY, "ok_tool", lambda session, **kw: {"n": 3, "year": 2023}
+    )
+    _scripted_llm(monkeypatch, [
+        _llm_response(tool_calls=[_tool_call("ok_tool")]),
+        _llm_response(content="Very few crashes matched."),
+    ])
+
+    result, cacheable = _handle_ask_inner(_body(), db, _deadline())
+
+    assert result.grounded is True
+    assert cacheable is True
+
+
+def test_failed_tool_results_do_not_feed_grounding_check(monkeypatch):
+    """Error payloads from failed tools carry no citable data; only the
+    successful tool's numbers participate in the cross-check."""
+    db = FakeDB()
+
+    def boom(session, **kwargs):
+        raise RuntimeError("query exploded")
+
+    monkeypatch.setitem(ask_module.TOOL_REGISTRY, "boom_tool", boom)
+    monkeypatch.setitem(
+        ask_module.TOOL_REGISTRY, "ok_tool", lambda session, **kw: {"crash_count": 8234}
+    )
+    _scripted_llm(monkeypatch, [
+        _llm_response(tool_calls=[_tool_call("boom_tool", "c1"), _tool_call("ok_tool", "c2")]),
+        _llm_response(content="The database recorded 8,234 crashes."),
+    ])
+
+    result, _ = _handle_ask_inner(_body(), db, _deadline())
+
+    assert result.grounded is True
+
+
+def test_chart_numbers_keep_answer_grounded(monkeypatch):
+    """The raw answer (chart block included) is what gets cross-checked."""
+    db = FakeDB()
+    monkeypatch.setitem(
+        ask_module.TOOL_REGISTRY, "ok_tool", lambda session, **kw: {"rain": 8234}
+    )
+    answer = (
+        "Rain sees far more crashes.\n---\n"
+        'Chart: {"type": "bar", "title": "t", "xKey": "label", "yKey": "value", '
+        '"data": [{"label": "Rain", "value": 8234}]}'
+    )
+    _scripted_llm(monkeypatch, [
+        _llm_response(tool_calls=[_tool_call("ok_tool")]),
+        _llm_response(content=answer),
+    ])
+
+    result, _ = _handle_ask_inner(_body(), db, _deadline())
+
+    assert result.grounded is True
+    assert result.chart is not None
+
+
+# ── simple-mode fallback must itself fail gracefully (#293) ──────────────
+
+
+def test_simple_mode_provider_exhaustion_returns_degraded_answer(monkeypatch):
+    """When simple mode's own LLM call also exhausts every provider, the
+    handler returns a graceful degraded response — not a 500 — and it is
+    never cached."""
+    db = FakeDB()
+    _scripted_llm(monkeypatch, [
+        AllProvidersExhausted("all providers busy"),  # tool loop
+        AllProvidersExhausted("still busy"),  # simple mode
+    ])
+
+    result, cacheable = _handle_ask_inner(_body(), db, _deadline())
+
+    assert "temporarily unavailable" in result.answer.lower()
+    assert result.provider == "none"
+    assert result.grounded is False
+    assert cacheable is False, "the very next attempt may succeed — never cache this"
+
+
+def test_simple_mode_db_error_returns_degraded_answer(monkeypatch):
+    """A DB failure inside simple mode (query_crashes) must degrade the same
+    way instead of escaping as a 500."""
+    db = FakeDB()
+
+    def db_boom(session, **kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(ask_module, "query_crashes", db_boom)
+    _scripted_llm(monkeypatch, [AllProvidersExhausted("all providers busy")])
+
+    result, cacheable = _handle_ask_inner(_body(), db, _deadline())
+
+    assert "temporarily unavailable" in result.answer.lower()
+    assert result.provider == "none"
+    assert result.grounded is False
+    assert cacheable is False
+
+
 # ── Quick Facts must not poison the session either ──────────────────────
 
 
