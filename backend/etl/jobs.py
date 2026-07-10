@@ -215,6 +215,17 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
     ))
     registry.register(Job(
+        name="reservoirs",
+        module="etl.load_reservoirs",
+        schedule="daily",
+        table_name="reservoir_daily",
+        # Upserts never delete; a shrink means CDEC data vanished — fail loudly.
+        max_drop_pct=1,
+        # CDEC has no freshness probe endpoint; the trailing-window fetch is
+        # cheap enough to just run daily.
+        source_type="none",
+    ))
+    registry.register(Job(
         name="insights",
         module="etl.generate_insights",
         depends_on=["matviews"],

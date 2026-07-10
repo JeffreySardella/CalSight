@@ -194,6 +194,7 @@ from app.routers.stats import router as stats_router  # noqa: E402
 from app.routers.weather import router as weather_router  # noqa: E402
 from app.routers.fars import router as fars_router  # noqa: E402
 from app.routers.tract_density import router as tract_density_router  # noqa: E402
+from app.routers.water import router as water_router  # noqa: E402
 
 app.include_router(reference_router, prefix="/api")
 app.include_router(demographics_router, prefix="/api")
@@ -215,6 +216,7 @@ app.include_router(pipeline_health_router, prefix="/api")
 app.include_router(weather_router, prefix="/api")
 app.include_router(fars_router, prefix="/api")
 app.include_router(tract_density_router, prefix="/api")
+app.include_router(water_router, prefix="/api")
 
 
 @app.get("/api/health")

@@ -86,12 +86,22 @@ GET /api/water/summary                         # statewide: total storage vs cap
 3. **P3 — Snowpack:** CDEC snow sensors + statewide % of April 1 average.
 4. **P4 — Groundwater:** CNRA CKAN wells, county-level trends. Largest data volume, do last.
 
-## What's in this spike
+## What's on this branch
+
+**Spike (first commit):**
 
 - `backend/etl/cdec_api.py` — CDEC JSON servlet client: fetch + retry + parse + `-9999` handling, static major-reservoir metadata, `--smoke` CLI for the first live-network test.
 - `backend/tests/test_cdec_api.py` — unit tests with mocked HTTP, matching `test_ckan_api.py` conventions.
 
-Deliberately *not* included yet: DB models/migrations, loaders, routers, frontend. Those follow once the live smoke test confirms the response shapes.
+**Phase 1 backend (second commit):**
+
+- `Reservoir` + `ReservoirDaily` models and Alembic migration `w1x2y3z4a5b6` (includes the conditional `calsight_api_ro` SELECT grant).
+- `etl/load_reservoirs.py` — metadata + daily-storage upserts; trailing-45-day default run, `--backfill` walks year-sized windows from 2000. Registered as the `reservoirs` daily job.
+- `GET /api/water/reservoirs` — latest reading per reservoir with % of capacity and % of the same-day-of-year historical average.
+- `GET /api/water/reservoirs/{station_id}/series` — windowed daily time series.
+- Tests: loader unit tests (including a guard that every county name in `MAJOR_RESERVOIRS` is a real CA county) + 9 API integration tests. Full backend suite green (830 passed) against a scratch Postgres, which also exercised the migration via `alembic upgrade head`.
+
+Still to come: live CDEC smoke test (`python -m etl.cdec_api --smoke`, blocked in this sandbox), capacity verification, then the frontend Water page.
 
 ## Open questions
 

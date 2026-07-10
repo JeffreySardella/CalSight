@@ -2,6 +2,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -972,6 +973,53 @@ class StatewideInsight(Base):
     __table_args__ = (
         UniqueConstraint("year", "angle"),
         Index("ix_statewide_insights_year", "year"),
+    )
+
+
+class Reservoir(Base):
+    """Major California reservoir metadata — water module (v1: ~15 majors).
+
+    Metadata (name, capacity, county) comes from the static
+    MAJOR_RESERVOIRS map in etl/cdec_api.py — CDEC has no clean metadata
+    API. county_code is nullable because a reservoir's county name may
+    not resolve against the counties table; the loader logs a warning
+    rather than dropping the reservoir.
+
+    Source: DWR California Data Exchange Center (cdec.water.ca.gov).
+    """
+
+    __tablename__ = "reservoirs"
+
+    station_id = Column(String(10), primary_key=True)  # CDEC station id, e.g. "SHA"
+    name = Column(String(100), nullable=False)
+    capacity_af = Column(Integer, nullable=False)      # gross pool capacity, acre-feet
+    county_code = Column(SmallInteger, ForeignKey("counties.code"))
+    latitude = Column(Float)
+    longitude = Column(Float)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class ReservoirDaily(Base):
+    """Daily reservoir storage observations (CDEC sensor 15, acre-feet).
+
+    One row per reservoir per day. Historical averages per day-of-year
+    are derived at query time; -9999/missing sentinels are dropped by
+    the ETL parser and never stored.
+    """
+
+    __tablename__ = "reservoir_daily"
+
+    id = Column(Integer, primary_key=True)
+    station_id = Column(
+        String(10), ForeignKey("reservoirs.station_id"), nullable=False
+    )
+    date = Column(Date, nullable=False)
+    storage_af = Column(Float, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("station_id", "date", name="uq_reservoir_daily_station_date"),
+        Index("ix_reservoir_daily_station_date", "station_id", "date"),
     )
 
 

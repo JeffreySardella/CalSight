@@ -74,7 +74,7 @@ def test_resolve_detects_missing_dependency():
 
 def test_default_registry_has_all_jobs():
     registry = build_default_registry()
-    assert len(registry.jobs) == 25  # +1: tract_density (Census lived-density source)
+    assert len(registry.jobs) == 26  # +1: reservoirs (CDEC water module)
 
 
 def test_default_registry_resolves_without_error():
