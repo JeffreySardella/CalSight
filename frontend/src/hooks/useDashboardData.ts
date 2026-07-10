@@ -209,29 +209,39 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, cro
   const dataBySlot = useMemo(() => {
     const raw = query.data ?? {};
     const result: Record<string, ChartDataItem[]> = {};
+
+    // Shared by the primary and secondary series: raw rows → chart items with
+    // the derived-measure math (percentage / fatality_rate / yoy_change)
+    // applied. Chart-specific display options (cumulative, moving average,
+    // log scale) are applied to the primary series only, below.
+    const computeItems = (dimension: Dimension, measure: Measure): ChartDataItem[] => {
+      let items = transformRows(dimension, measure, raw[dimension] ?? []);
+      if (measure === "percentage") {
+        const total = items.reduce((s, d) => s + d.value, 0);
+        items = total > 0
+          ? items.map((d) => ({ ...d, value: Math.round((d.value / total) * 1000) / 10 }))
+          : items;
+      } else if (measure === "fatality_rate") {
+        items = items.map((d) => {
+          const crashes = d.x ?? 1;
+          const killed = d.y ?? 0;
+          return { ...d, value: crashes > 0 ? Math.round((killed / crashes) * 10000) / 100 : 0 };
+        });
+      } else if (measure === "yoy_change") {
+        const base = items.map(d => d.value);
+        items = items.map((d, i) => {
+          if (i === 0) return { ...d, value: 0 };
+          const prev = base[i - 1];
+          return { ...d, value: prev > 0 ? Math.round(((base[i] - prev) / prev) * 1000) / 10 : 0 };
+        });
+      }
+      return items;
+    };
+
     for (const chart of charts) {
       const key = slotKey(chart);
       if (!result[key]) {
-        let items = transformRows(chart.dimension, chart.measure, raw[chart.dimension] ?? []);
-        if (chart.measure === "percentage") {
-          const total = items.reduce((s, d) => s + d.value, 0);
-          items = total > 0
-            ? items.map((d) => ({ ...d, value: Math.round((d.value / total) * 1000) / 10 }))
-            : items;
-        } else if (chart.measure === "fatality_rate") {
-          items = items.map((d) => {
-            const crashes = d.x ?? 1;
-            const killed = d.y ?? 0;
-            return { ...d, value: crashes > 0 ? Math.round((killed / crashes) * 10000) / 100 : 0 };
-          });
-        } else if (chart.measure === "yoy_change") {
-          const base = items.map(d => d.value);
-          items = items.map((d, i) => {
-            if (i === 0) return { ...d, value: 0 };
-            const prev = base[i - 1];
-            return { ...d, value: prev > 0 ? Math.round(((base[i] - prev) / prev) * 1000) / 10 : 0 };
-          });
-        }
+        let items = computeItems(chart.dimension, chart.measure);
 
         const opts = chart.options ?? {};
         if (opts.cumulative) {
@@ -246,6 +256,16 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, cro
           items = items.map((d) => ({ ...d, value: d.value > 0 ? Math.round(Math.log10(d.value) * 100) / 100 : 0 }));
         }
         result[key] = items;
+      }
+
+      // Dual-axis charts read a plain `${dimension}:${secondaryMeasure}` key
+      // (DashboardGrid's secondarySlotKey) that previously was never written,
+      // so the secondary axis silently rendered empty (audit M15).
+      if (chart.secondaryMeasure) {
+        const secondaryKey = `${chart.dimension}:${chart.secondaryMeasure}`;
+        if (!result[secondaryKey]) {
+          result[secondaryKey] = computeItems(chart.dimension, chart.secondaryMeasure);
+        }
       }
     }
     return result;

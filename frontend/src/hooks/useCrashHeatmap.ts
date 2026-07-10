@@ -123,6 +123,10 @@ export function useCrashHeatmap(params: HeatmapParams) {
     queryFn: () => fetchHeatmap(params),
     enabled: params.enabled,
     staleTime: 5 * 60 * 1000,
+    // Explicitly short: each batch is up to 150k points × 15 fields, keyed per
+    // filter permutation. These must be collected promptly after unmount (H7)
+    // regardless of what the global default is set to.
+    gcTime: 5 * 60 * 1000,
   });
 
   return {

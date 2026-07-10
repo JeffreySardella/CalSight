@@ -53,9 +53,12 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,
-      // 24h, matched to the offline-persistence maxAge in queryPersistence.ts —
-      // a query must stay in-cache to keep being written to the persisted snapshot.
-      gcTime: 24 * 60 * 60 * 1000,
+      // Modest default (the TanStack default): heavy map payloads (crashHeatmap
+      // batches, crashClusters) must not linger for hours after unmount. The
+      // small persisted county-aggregate queries opt into a 24h gcTime
+      // individually via PERSISTED_QUERY_GC_TIME (queryPersistence.ts) so they
+      // stay in-cache long enough to keep feeding the offline snapshot.
+      gcTime: 5 * 60 * 1000,
       // Ride out transient network blips (flaky cellular) instead of failing to
       // a blank panel after a single dropped request. Bails immediately on 4xx,
       // which won't recover on retry. Panels still show their own "Couldn't

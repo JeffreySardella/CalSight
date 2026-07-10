@@ -1,6 +1,5 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
-import { queryClient } from "../../lib/queryClient";
 
 interface Props {
   children: ReactNode;
@@ -59,7 +58,11 @@ export class ErrorBoundary extends Component<Props, State> {
               if (exhausted) {
                 window.location.reload();
               } else {
-                queryClient.clear();
+                // Retry is a subtree re-render only. Deliberately does NOT
+                // touch the query cache: boundaries wrap individual chart
+                // cards, and clearing the client here caused an app-wide
+                // refetch storm and overwrote the persisted offline snapshot
+                // with an emptied cache (audit M17).
                 this.setState(s => ({ hasError: false, retryCount: s.retryCount + 1 }));
               }
             }}

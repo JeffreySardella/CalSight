@@ -15,6 +15,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import { PERSISTED_QUERY_GC_TIME } from "../lib/queryPersistence";
 import { slugify } from "./useFilterParams";
 
 export interface CountyInsightData {
@@ -58,6 +59,9 @@ export function useCountyInsight(
     enabled: !!slug,
     // 5 min — aligns with Cache-Control: public, max-age=300 on the API
     staleTime: 5 * 60 * 1000,
+    // Persisted offline (queryPersistence.ts whitelist) — must outlive the
+    // short global gcTime to keep feeding the snapshot.
+    gcTime: PERSISTED_QUERY_GC_TIME,
   });
 
   return {

@@ -102,6 +102,10 @@ export function useClusterHotspots(params: ClusterHotspotsParams) {
     queryFn: () => fetchClusterHotspots(params),
     enabled: params.enabled,
     staleTime: 5 * 60 * 1000,
+    // Explicitly short: statewide cluster responses are large and keyed per
+    // filter permutation — collect promptly after unmount (H7) regardless of
+    // what the global default is set to.
+    gcTime: 5 * 60 * 1000,
   });
 
   return {

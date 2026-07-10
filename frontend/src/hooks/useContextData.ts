@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import { PERSISTED_QUERY_GC_TIME } from "../lib/queryPersistence";
 
 export interface CalEnviroScreenData {
   county_code: number;
@@ -36,6 +37,8 @@ export function useCalEnviroScreen() {
       return res.json();
     },
     staleTime: Infinity,
+    // Persisted offline (queryPersistence.ts whitelist).
+    gcTime: PERSISTED_QUERY_GC_TIME,
   });
 }
 
@@ -49,5 +52,7 @@ export function useUnemployment(year?: number) {
       return res.json();
     },
     staleTime: 5 * 60 * 1000,
+    // Persisted offline (queryPersistence.ts whitelist).
+    gcTime: PERSISTED_QUERY_GC_TIME,
   });
 }

@@ -1,11 +1,28 @@
 import { describe, it, expect } from "vitest";
 import {
+  queryClient,
   statusFromError,
   isRetryableError,
   shouldRetry,
   retryBackoff,
   MAX_QUERY_RETRIES,
 } from "./queryClient";
+import { PERSISTED_QUERY_GC_TIME, PERSIST_MAX_AGE } from "./queryPersistence";
+
+describe("queryClient defaults", () => {
+  it("keeps a modest default gcTime so heavy map payloads don't linger for hours (H7)", () => {
+    // The 24h lifetime is opted into per-query (PERSISTED_QUERY_GC_TIME) by
+    // the small persisted county-aggregate queries only; the global default
+    // must stay short so crashHeatmap/crashClusters batches are collected
+    // promptly after unmount.
+    expect(queryClient.getDefaultOptions().queries?.gcTime).toBe(5 * 60 * 1000);
+  });
+
+  it("persisted queries opt into a gcTime matching the snapshot maxAge", () => {
+    expect(PERSISTED_QUERY_GC_TIME).toBe(PERSIST_MAX_AGE);
+    expect(PERSISTED_QUERY_GC_TIME).toBe(24 * 60 * 60 * 1000);
+  });
+});
 
 describe("statusFromError", () => {
   it("extracts the trailing HTTP status from our fetch errors", () => {
