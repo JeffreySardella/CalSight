@@ -1,5 +1,9 @@
 """System prompt template and tool definitions for Ask AI."""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 SYSTEM_PROMPT_TEMPLATE = """You are a California traffic safety data analyst for CalSight. You help users understand crash patterns, trends, and risk factors using real data from the CalSight database (11M+ crashes, 2001-2024, all 58 California counties).
 
 You have tools to query the database. Use them to get real data before answering. Do not guess or invent statistics — if you need a number, call a tool.
@@ -218,7 +222,7 @@ def _filters_to_query_args(filters: dict) -> dict:
     return out
 
 
-def build_quick_facts(db, filters: dict) -> str:
+def build_quick_facts(db, filters: dict, statement_timeout_ms: int | None = None) -> str:
     """Pre-query aggregate stats for the active filters and format as a
     markdown block to prepend to the system prompt.
 
@@ -240,7 +244,19 @@ def build_quick_facts(db, filters: dict) -> str:
         severity_rows = query_crashes(db, group_by="severity", **args)
     except Exception:
         # If the DB hiccups we'd rather return an empty Quick Facts than
-        # 500 the whole ask request. The LLM still has its tool set.
+        # 500 the whole ask request. The LLM still has its tool set — but a
+        # failed query leaves the session's transaction aborted, and every
+        # subsequent tool call would die with PendingRollbackError. Roll it
+        # back, and re-apply the caller's SET LOCAL statement_timeout (it
+        # died with the transaction) so tool queries stay bounded.
+        try:
+            db.rollback()
+            if statement_timeout_ms is not None:
+                from app.database import apply_statement_timeout  # noqa: PLC0415 (avoid import cycle)
+
+                apply_statement_timeout(db, statement_timeout_ms)
+        except Exception:
+            logger.exception("Failed to reset ask DB session after Quick Facts error")
         return ""
 
     total_count = int(totals.get("crash_count") or 0)

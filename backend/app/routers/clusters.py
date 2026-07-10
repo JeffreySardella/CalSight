@@ -4,12 +4,12 @@ import logging
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import case, func, literal_column, or_
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
-from app.database import get_db
+from app.database import apply_statement_timeout, get_db
 from app.filters import (
     build_crash_predicates,
     parse_bool_flag,
@@ -35,7 +35,7 @@ _STEP = 0.01  # ~0.7 mi grid cell; hotspot detection is inherently a zoomed-out 
 _DECIMALS = 2
 _Z_SCORE_THRESHOLD = 2.0
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 @router.get("/crashes/clusters", response_model=ClusterResponse)
@@ -71,6 +71,10 @@ def crash_clusters(
     (typically hundreds to low-thousands of rows), never over raw crash rows.
     """
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    # Unfiltered requests aggregate the full 11M-row crashes table; bound the
+    # query so a pathological filter permutation can't hold a pool connection
+    # indefinitely (same backstop as /api/intersections and /api/stats).
+    apply_statement_timeout(db, 30_000)
 
     date_range = parse_date_range(start, end)
     years = parse_year(year) if date_range is None else None

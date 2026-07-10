@@ -34,17 +34,19 @@ def test_apply_statement_timeout_coerces_ms_to_int():
 
 
 def test_heavy_endpoints_call_the_timeout(monkeypatch):
-    """Source-level guard: the three intersections endpoints and
-    stats_distribution each apply the timeout before querying."""
+    """Source-level guard: every endpoint that aggregates the raw crashes
+    table statewide applies the timeout before querying."""
     import inspect
 
-    from app.routers import intersections, stats
+    from app.routers import clusters, intersections, stats
 
     for fn in (
         intersections.get_intersections,
         intersections.get_corridors,
         intersections.get_street_concentration,
         stats.stats_distribution,
+        stats.stats_highways,
+        clusters.crash_clusters,
     ):
         src = inspect.getsource(fn)
         assert "apply_statement_timeout(" in src, fn.__name__

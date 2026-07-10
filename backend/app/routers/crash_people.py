@@ -13,7 +13,7 @@ collision_ids, so any join to `crashes` MUST use both columns. See
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
@@ -32,7 +32,7 @@ from app.schemas.crash_people import CrashPartyOut, CrashVictimOut
 
 router = APIRouter(tags=["crash-people"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 # ── Drill-down endpoints (B1) ──────────────────────────────────────────

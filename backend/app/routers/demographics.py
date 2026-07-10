@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
@@ -13,7 +13,7 @@ from app.schemas.demographics import DemographicOut
 
 router = APIRouter(tags=["demographics"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 @router.get("/demographics", response_model=list[DemographicOut])

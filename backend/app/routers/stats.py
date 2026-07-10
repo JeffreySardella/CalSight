@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import Column, Float, Integer, MetaData, SmallInteger, String, Table, func, select
 from sqlalchemy.orm import Session
 
@@ -171,7 +171,7 @@ _AGE_BRACKET_MAP = {
     (16, 21): 1, (22, 34): 2, (35, 49): 3, (50, 64): 4, (65, 200): 5,
 }
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 def _pick_view(group_by: str | None, has_cause_filter: bool):
@@ -1017,6 +1017,9 @@ def stats_highways(
     and answers "where on the network are crashes concentrated."
     """
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    # Statewide raw-table aggregation with the full filter set — bound it so a
+    # pathological combination can't hold a pool connection indefinitely.
+    apply_statement_timeout(db, 30_000)
 
     alcohol_v = parse_bool_flag(alcohol, "alcohol")
     distracted_v = parse_bool_flag(distracted, "distracted")

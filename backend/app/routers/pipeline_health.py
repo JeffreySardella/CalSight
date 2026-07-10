@@ -21,7 +21,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 class PipelineHealth(BaseModel):

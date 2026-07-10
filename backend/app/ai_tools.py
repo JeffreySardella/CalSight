@@ -41,6 +41,22 @@ logger = logging.getLogger(__name__)
 
 _MAX_ROWS = 20
 
+# Metrics accepted by rank_counties and get_trend. An off-enum metric must
+# error instead of silently falling back to crash_count — the model would
+# label plain crash totals with the requested metric's name and answer
+# confidently wrong (audit M13). "total_crashes" is the name the
+# TOOL_DEFINITIONS enum advertises; "crash_count" is the historical name —
+# both mean a plain count.
+_CRASH_METRICS = (
+    "crash_count",
+    "total_crashes",
+    "total_killed",
+    "total_injured",
+    "fatal_crashes",
+    "alcohol_crashes",
+    "pedestrian_crashes",
+)
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -179,12 +195,18 @@ def query_crashes(
 
     if group_by and group_by in _GROUP_BY_MAP:
         col = _GROUP_BY_MAP[group_by]
+        # grand_total is a window SUM over ALL groups matching the filters,
+        # evaluated before the LIMIT — pct_of_total must be the share of the
+        # filtered total, not of the top-N rows we happen to return ("LA is
+        # X% of CA crashes" would otherwise read ~2x the true share).
+        grand_total = func.sum(func.count(Crash.id)).over().label("grand_total")
         stmt = (
             select(
                 col.label(group_by),
                 func.count(Crash.id).label("crash_count"),
                 func.sum(Crash.number_killed).label("total_killed"),
                 func.sum(Crash.number_injured).label("total_injured"),
+                grand_total,
             )
             .where(*preds)
             .group_by(col)
@@ -193,9 +215,10 @@ def query_crashes(
         )
         rows = db.execute(stmt).fetchall()
         results = [_row_to_dict(r) for r in rows]
-        total = sum(r["crash_count"] for r in results)
-        if total > 0:
-            for r in results:
+        total = int(results[0].get("grand_total") or 0) if results else 0
+        for r in results:
+            r.pop("grand_total", None)
+            if total > 0:
                 r["pct_of_total"] = round(r["crash_count"] / total * 100, 1)
                 r["fatality_rate_pct"] = round(r["total_killed"] / r["crash_count"] * 100, 2) if r["crash_count"] > 0 else 0
         return results
@@ -230,12 +253,15 @@ def rank_counties(
 ) -> list[dict]:
     """Rank all 58 counties by a crash metric.
 
-    metric: crash_count | total_killed | total_injured |
+    metric: crash_count | total_crashes | total_killed | total_injured |
             fatal_crashes | alcohol_crashes | pedestrian_crashes
     order: desc (highest first) | asc (lowest first)
     Returns up to min(limit, 20) rows with county_name and the metric value.
     """
     limit = min(limit, _MAX_ROWS)
+
+    if metric not in _CRASH_METRICS:
+        return [{"error": f"Unknown metric: {metric}. Valid: {', '.join(_CRASH_METRICS)}."}]
 
     preds = []
     if years:
@@ -256,7 +282,7 @@ def rank_counties(
     elif metric == "total_injured":
         agg = func.sum(Crash.number_injured)
     else:
-        # default: crash_count
+        # crash_count / total_crashes (validated above)
         agg = func.count(Crash.id)
 
     agg_col = agg.label("value")
@@ -353,10 +379,13 @@ def get_trend(
 ) -> list[dict]:
     """Year-over-year time series for a metric.
 
-    metric: crash_count | total_killed | total_injured |
+    metric: crash_count | total_crashes | total_killed | total_injured |
             fatal_crashes | alcohol_crashes | pedestrian_crashes
     Returns one row per year, sorted ascending.
     """
+    if metric not in _CRASH_METRICS:
+        return [{"error": f"Unknown metric: {metric}. Valid: {', '.join(_CRASH_METRICS)}."}]
+
     preds = []
     if county:
         code = _county_code(db, county)
@@ -384,6 +413,7 @@ def get_trend(
     elif metric == "total_injured":
         agg = func.sum(Crash.number_injured)
     else:
+        # crash_count / total_crashes (validated above)
         agg = func.count(Crash.id)
 
     stmt = (

@@ -20,7 +20,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
@@ -34,7 +34,7 @@ router = APIRouter(tags=["freshness"])
 # new rows (success) or we verified upstream is unchanged (skipped_unchanged).
 _SYNC_STATUSES = ("success", "skipped_unchanged")
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 class SourceFreshness(BaseModel):

@@ -3,7 +3,7 @@ calenviroscreen, traffic-volumes, speed-limits."""
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy.orm import Session
 
 from app.cities_match import normalize_name
@@ -34,7 +34,7 @@ from app.schemas.reference import (
 
 router = APIRouter(tags=["reference"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 _ONE_HOUR = "public, max-age=3600"
 

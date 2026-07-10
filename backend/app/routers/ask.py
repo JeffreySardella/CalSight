@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy.orm import Session
 
 from app.ai_prompt import (
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["ask"])
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=rate_limit_key)
 
 _MAX_TOOL_ROUNDS = 3
 _MAX_TOOL_CALLS_PER_ROUND = 3
@@ -157,24 +157,30 @@ async def ask(
     # teardown close it mid-query on timeout and hand the underlying
     # connection back to the pool while the thread is still using it.
     try:
-        result = await asyncio.wait_for(
+        handled = await asyncio.wait_for(
             asyncio.to_thread(_handle_ask, body),
             timeout=_ASK_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
-        result = None
-    if result is None:
+        handled = None
+    if handled is None:
         return JSONResponse(
             status_code=504,
             content={"message": "Request timed out. Please try again.", "retry_after": 5},
         )
 
-    cache.set(cache_key, result)
+    result, cacheable = handled
+    # Degraded answers (simple-mode fallback after provider exhaustion, or a
+    # run where no tool executed successfully) must not be served from cache
+    # for the next hour — the very next attempt would likely succeed (L6).
+    if cacheable:
+        cache.set(cache_key, result)
     response.headers["X-Cache"] = "MISS"
     return result
 
 
-def _handle_ask(body: AskRequest) -> AskResponse | None:
+def _handle_ask(body: AskRequest) -> tuple[AskResponse, bool] | None:
+    """Returns (response, cacheable) or None if the request was abandoned."""
     deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
     db = SessionLocal()
     try:
@@ -187,13 +193,13 @@ def _handle_ask(body: AskRequest) -> AskResponse | None:
         db.close()
 
 
-def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> AskResponse:
+def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> tuple[AskResponse, bool]:
     filters_summary = build_filters_summary(body.filters)
     # Quick Facts pre-queries the totals/severity-split for the active filters
     # and injects them into the system prompt. Saves a tool call for basic
     # count questions ("crashes in LA in 2023?") and gives the model a
     # grounded baseline before it decides whether to call tools.
-    quick_facts = build_quick_facts(db, body.filters)
+    quick_facts = build_quick_facts(db, body.filters, statement_timeout_ms=_STATEMENT_TIMEOUT_MS)
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
         active_filters=filters_summary,
         quick_facts=quick_facts,
@@ -207,31 +213,41 @@ def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> AskResp
     messages.append({"role": "user", "content": body.question})
 
     tools_called: list[str] = []
+    tools_succeeded: list[str] = []
+    degraded = False
 
     try:
-        answer, provider = _run_with_tools(db, messages, tools_called, deadline)
+        answer, provider = _run_with_tools(db, messages, tools_called, tools_succeeded, deadline)
     except AllProvidersExhausted:
         answer, provider = _run_simple_mode(db, body.filters, messages)
+        degraded = True
 
     suggestions = _parse_suggestions(answer)
     chart = _parse_chart(answer)
     clean_answer = _strip_suggestions(_strip_chart(answer))
+
+    # grounded means "this answer is backed by at least one tool query that
+    # actually executed" — attempted-but-failed calls don't count, or a run
+    # where every tool errored would still present as data-backed.
+    grounded = len(tools_succeeded) > 0
+    cacheable = not degraded and grounded
 
     return AskResponse(
         answer=clean_answer,
         provider=provider,
         suggestions=suggestions,
         chart=chart,
-        grounded=len(tools_called) > 0,
+        grounded=grounded,
         filters_used=body.filters,
         tools_called=tools_called,
-    )
+    ), cacheable
 
 
 def _run_with_tools(
     db: Session,
     messages: list[dict],
     tools_called: list[str],
+    tools_succeeded: list[str],
     deadline: float,
 ) -> tuple[str, str]:
     """Run the tool-calling loop (max 3 rounds).
@@ -285,10 +301,21 @@ def _run_with_tools(
                     fn = TOOL_REGISTRY.get(fn_name)
                     if fn:
                         result = fn(db, **args)
+                        tools_succeeded.append(fn_name)
                     else:
                         result = {"error": f"Unknown tool: {fn_name}"}
                 except Exception as e:
                     logger.warning("Tool %s failed: %s", fn_name, e)
+                    # A failed query aborts the session's transaction; without
+                    # a rollback every subsequent tool call in this loop dies
+                    # with PendingRollbackError. SET LOCAL statement_timeout
+                    # dies with the transaction too, so re-apply it — later
+                    # tools must stay bounded.
+                    try:
+                        db.rollback()
+                        _apply_statement_timeout(db)
+                    except Exception:
+                        logger.exception("Failed to reset ask DB session after tool error")
                     result = {"error": "Tool execution failed. Please try again or rephrase your question."}
 
                 messages.append({

@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -19,7 +19,7 @@ from etl.orchestrator import resolve_execution_order
 
 router = APIRouter(tags=["etl"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 _registry = build_default_registry()
 
@@ -128,15 +128,29 @@ def etl_runs(
     }
 
 
+def _parse_only(only: Optional[str]) -> Optional[list[str]]:
+    """Split the comma-separated job list, tolerating whitespace.
+
+    `?only=parties, victims` must run both jobs — a bare split(",") would
+    hand the orchestrator " victims", which matches nothing and silently
+    runs zero jobs.
+    """
+    if not only:
+        return None
+    return [name.strip() for name in only.split(",") if name.strip()] or None
+
+
 @router.post("/etl/run", dependencies=[Depends(_verify_etl_key)])
+@_limiter.limit("5/minute")
 def trigger_etl_run(
+    request: Request,
     background_tasks: BackgroundTasks,
     only: Optional[str] = Query(None, description="Comma-separated job names"),
     force_refresh: bool = Query(False, description="Bypass freshness checks"),
 ):
     from etl.orchestrator import run_pipeline
 
-    job_names = only.split(",") if only else None
+    job_names = _parse_only(only)
 
     def _run():
         run_pipeline(

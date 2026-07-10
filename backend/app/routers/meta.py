@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,7 @@ from app.schemas.meta import SourceFreshness
 
 router = APIRouter(tags=["meta"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 @router.get("/meta/data-freshness", response_model=dict[str, SourceFreshness])
