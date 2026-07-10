@@ -311,6 +311,35 @@ class TestEtlRunContextManager:
         assert record.finished_at is not None
         assert fake_db.closed is True
 
+    def test_nonzero_sys_exit_marks_error_and_reraises(self, fake_db):
+        """H1: sys.exit(1) (e.g. missing credentials) is a SystemExit,
+        which the plain Exception handler never sees — it must still
+        record an error, not strand the row in status='running'."""
+        import sys
+
+        with pytest.raises(SystemExit) as exc_info:
+            with _utils.etl_run("no_creds_source"):
+                sys.exit(1)
+
+        assert exc_info.value.code == 1
+        record = fake_db.added[0]
+        assert record.status == "error"
+        assert "exited with code 1" in record.error_message
+        assert record.finished_at is not None
+        assert fake_db.closed is True
+
+    def test_zero_sys_exit_marks_success(self, fake_db):
+        """sys.exit(0) is a clean exit and should record success."""
+        import sys
+
+        with pytest.raises(SystemExit):
+            with _utils.etl_run("clean_exit_source"):
+                sys.exit(0)
+
+        record = fake_db.added[0]
+        assert record.status == "success"
+        assert record.finished_at is not None
+
 
 class TestTrackEtlRunDecorator:
     def test_captures_int_return_as_rows_loaded(self, fake_db):

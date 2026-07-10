@@ -246,6 +246,26 @@ def etl_run(source: str) -> Iterator[EtlRun]:
 
     try:
         yield record
+    except SystemExit as exc:
+        # sys.exit() inside a tracked run (e.g. missing credentials).
+        # SystemExit derives from BaseException, so the Exception handler
+        # below never sees it — without this branch the EtlRun row would
+        # be stranded in status='running'. A non-zero code records an
+        # error; sys.exit(0) / sys.exit() is a clean exit.
+        if exc.code in (None, 0):
+            record.status = "success"
+            record.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            db.commit()
+        else:
+            try:
+                record.status = "error"
+                record.error_message = f"exited with code {exc.code}"
+                record.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                db.commit()
+            except Exception:
+                db.rollback()
+            logger.error("EtlRun id=%d failed: exit code %s", record.id, exc.code)
+        raise
     except Exception as exc:
         try:
             record.status = "error"

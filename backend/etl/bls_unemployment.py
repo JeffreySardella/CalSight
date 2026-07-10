@@ -18,6 +18,7 @@ import argparse
 import logging
 import sys
 import time
+from datetime import datetime
 
 from sqlalchemy import select
 
@@ -37,7 +38,7 @@ BLS_API_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
 BATCH_SIZE = 50  # BLS allows up to 50 series per request
 MAX_YEARS_PER_REQUEST = 20  # with API key
 DEFAULT_START_YEAR = 2005
-DEFAULT_END_YEAR = 2025
+DEFAULT_END_YEAR = datetime.now().year  # auto-advance each year (LAUS publishes monthly)
 
 
 def build_series_id(fips: str) -> str:
@@ -79,9 +80,11 @@ def fetch_batch(series_ids: list[str], start_year: int, end_year: int, api_key: 
     data = resp.json()
 
     if data.get("status") != "REQUEST_SUCCEEDED":
+        # Application-level failure (bad key, daily quota exhausted, ...).
+        # Raise instead of returning {} so the run can't record success
+        # while loading nothing (M-B9 discipline).
         messages = data.get("message", [])
-        logger.error("BLS API error: %s", messages)
-        return {}
+        raise RuntimeError(f"BLS API error: {messages}")
 
     results = {}
     for series in data.get("Results", {}).get("series", []):
@@ -146,6 +149,7 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
         # Split into batches of 50 (BLS limit)
         total_inserted = 0
         total_updated = 0
+        failed_batches = 0
 
         # Also split by year ranges if needed (max 20 years per request)
         for yr_start in range(start_year, end_year + 1, MAX_YEARS_PER_REQUEST):
@@ -164,6 +168,7 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                     results = fetch_batch(batch, yr_start, yr_end, api_key)
                 except Exception as exc:
                     logger.error("Batch failed: %s", exc)
+                    failed_batches += 1
                     continue
 
                 for sid, rows in results.items():
@@ -194,6 +199,15 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
 
                 # Be nice to BLS API
                 time.sleep(0.5)
+
+        if failed_batches:
+            # Loud partial failure (M-B9 discipline): the batches that did
+            # succeed are already committed above, but the run itself must
+            # exit non-zero so run_job / EtlRun record an error.
+            raise RuntimeError(
+                f"BLS unemployment: {failed_batches} batch(es) failed; "
+                f"{total_inserted} inserted, {total_updated} updated before failing"
+            )
 
         logger.info(
             "Done. %d inserted, %d updated",

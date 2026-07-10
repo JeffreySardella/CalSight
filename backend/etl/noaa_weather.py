@@ -18,8 +18,10 @@ Usage:
 
 import argparse
 import logging
+import sys
 import time
 from collections import defaultdict
+from datetime import datetime
 
 import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -42,7 +44,7 @@ BACKOFF_BASE = 2
 REQUEST_DELAY = 0.3  # seconds between requests (stay under 5/sec)
 
 DEFAULT_START_YEAR = 2001
-DEFAULT_END_YEAR = 2025
+DEFAULT_END_YEAR = datetime.now().year  # auto-advance each year (GSOM has partial years)
 
 
 def fetch_county_weather(
@@ -159,7 +161,7 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
     token = settings.noaa_api_token
     if not token:
         logger.error("NOAA_API_TOKEN is not set. Add it to backend/.env")
-        return
+        sys.exit(1)
 
     db = SessionLocal()
 
@@ -169,6 +171,7 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
         logger.info("Loaded %d counties", len(counties))
 
         total_rows = 0
+        failed: list[tuple[str, int]] = []
 
         for year in range(start_year, end_year + 1):
             year_rows = 0
@@ -216,9 +219,19 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                         county_name, fips, year, exc,
                     )
                     db.rollback()
+                    failed.append((fips, year))
 
             total_rows += year_rows
             logger.info("Year %d: %d monthly records upserted", year, year_rows)
+
+        if failed:
+            # Loud partial failure (M-B9 discipline): a swallowed NOAA outage
+            # or token problem must not record success. The remaining
+            # counties/years above were still loaded before we bail.
+            raise RuntimeError(
+                f"NOAA weather: {len(failed)} county-year fetch(es) failed "
+                f"(first few: {failed[:5]})"
+            )
 
         logger.info("Done. %d total weather records upserted.", total_rows)
 

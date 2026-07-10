@@ -1,9 +1,15 @@
 """Tests for the ETL orchestrator.
 
 These test the pure logic (FIPS mapping, data transformation) without
-needing a database connection. The actual DB upsert is tested in Task 4
-when we run the real pipeline.
+needing a database connection, plus the run()-level failure handling
+(H1). The actual DB upsert is tested in Task 4 when we run the real
+pipeline.
 """
+
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
 
 from etl.load_demographics import build_fips_lookup, transform_to_demographic_kwargs
 
@@ -117,3 +123,55 @@ class TestTransformToDemographicKwargs:
         assert result["pct_white"] is None
         assert result["pct_under_18"] is None
         assert result["poverty_rate"] is None
+
+
+def _patch_etl_run_tracking(monkeypatch):
+    """Stub out the EtlRun bookkeeping so run() needs no database."""
+    from etl import _utils
+
+    monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+    monkeypatch.setattr(
+        _utils, "EtlRun",
+        lambda **kw: SimpleNamespace(**{"id": 1, "rows_loaded": None, **kw}),
+    )
+
+
+class TestRunFailureHandling:
+    def test_missing_api_key_exits_nonzero(self, monkeypatch):
+        """H1 baseline: a missing CENSUS_API_KEY exits 1 (and now records
+        an error EtlRun instead of stranding it in 'running')."""
+        from etl import load_demographics as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key=""))
+
+        with pytest.raises(SystemExit) as exc_info:
+            mod.run(start_year=2021, end_year=2021)
+        assert exc_info.value.code == 1
+
+    def test_failed_year_raises_but_other_years_still_load(self, monkeypatch):
+        """H1: failed years must not be logged-then-swallowed — the run
+        raises at the end, but the years that succeeded are committed."""
+        from etl import load_demographics as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key="fake-key"))
+
+        db = MagicMock()
+        db.execute.return_value.all.return_value = [(1, "06001")]
+        db.query.return_value.filter_by.return_value.first.return_value = None
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+
+        def fake_fetch(year, api_key):
+            if year == 2020:
+                raise RuntimeError("Census API down")
+            return [{"county_fips": "001", "population": 1000}]
+
+        monkeypatch.setattr(mod, "fetch_county_demographics", fake_fetch)
+
+        with pytest.raises(RuntimeError, match=r"1 year\(s\) failed: \[2020\]"):
+            mod.run(start_year=2020, end_year=2021)
+
+        # 2021 was still inserted and committed despite 2020 failing.
+        db.add.assert_called_once()
+        assert db.commit.called

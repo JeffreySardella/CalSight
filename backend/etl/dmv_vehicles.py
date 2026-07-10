@@ -222,13 +222,18 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
     """Main entry point."""
     zip_to_county = build_zip_to_county_mapping()
     if not zip_to_county:
-        logger.error("No zip-to-county mapping available. Aborting.")
-        return
+        # Without the crosswalk nothing can be attributed to a county —
+        # abort loudly so the run records an error instead of a silent
+        # success that loaded zero rows (M-B9 discipline).
+        raise RuntimeError(
+            "DMV vehicles: zip-to-county crosswalk unavailable — aborting"
+        )
 
     db = SessionLocal()
 
     try:
         total_rows = 0
+        failed_years: list[int] = []
 
         for year in range(start_year, end_year + 1):
             if year not in RESOURCE_IDS:
@@ -265,6 +270,14 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
             except Exception as exc:
                 logger.error("Year %d failed: %s", year, exc)
                 db.rollback()
+                failed_years.append(year)
+
+        if failed_years:
+            # Loud partial failure (M-B9 discipline): remaining years were
+            # still loaded above, but the run must not record success.
+            raise RuntimeError(
+                f"DMV vehicles: {len(failed_years)} year(s) failed: {failed_years}"
+            )
 
         logger.info("Done. %d total vehicle registration records upserted.", total_rows)
 
