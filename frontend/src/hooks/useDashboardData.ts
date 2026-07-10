@@ -5,6 +5,7 @@ import { slotKey, type ChartSlot, type Dimension, type Measure } from "../lib/da
 import type { StatsFilters } from "./useStats";
 import { formatYearMonth } from "./useFilterParams";
 import { movingAverage } from "../lib/dashboard/stats";
+import type { DimensionRow, StatsBatchResponse } from "../types/api";
 
 export type ChartDataItem = { label: string; value: number; color?: string; x?: number; y?: number };
 
@@ -35,110 +36,91 @@ function severityToSlug(s: string): string {
   return s.toLowerCase().replace(/ /g, "-");
 }
 
-function pickValue(r: Record<string, unknown>, measure: Measure, dim: Dimension): number {
+function pickValue(r: DimensionRow, measure: Measure, dim: Dimension): number {
   const isDemographic = dim === "gender" || dim === "age_bracket";
   const isAtFault = dim === "at_fault_gender" || dim === "at_fault_age_bracket";
 
   if (measure === "killed") {
-    if (isDemographic) return (r.fatal_victim_count as number) ?? 0;
-    if (isAtFault) return (r.fatal_party_count as number) ?? 0;
-    if (r.total_killed != null) return r.total_killed as number;
+    if (isDemographic) return r.fatal_victim_count ?? 0;
+    if (isAtFault) return r.fatal_party_count ?? 0;
+    if (r.total_killed != null) return r.total_killed;
   }
   if (measure === "injured") {
-    if (r.total_injured != null) return r.total_injured as number;
+    if (r.total_injured != null) return r.total_injured;
   }
 
-  if (isDemographic) return (r.victim_count as number) ?? 0;
-  if (isAtFault) return (r.party_count as number) ?? 0;
-  return (r.crash_count as number) ?? 0;
+  if (isDemographic) return r.victim_count ?? 0;
+  if (isAtFault) return r.party_count ?? 0;
+  return r.crash_count ?? 0;
 }
 
-function transformRows(dimension: Dimension, measure: Measure, rows: Record<string, unknown>[]): ChartDataItem[] {
-  const val = (r: Record<string, unknown>) => pickValue(r, measure, dimension);
+/** Capitalize an API gender slug ("male" → "Male"). */
+function genderLabel(r: DimensionRow): string {
+  const g = r.gender ?? "";
+  return g.charAt(0).toUpperCase() + g.slice(1);
+}
+
+function transformRows(dimension: Dimension, measure: Measure, rows: DimensionRow[]): ChartDataItem[] {
+  const val = (r: DimensionRow) => pickValue(r, measure, dimension);
+  // Scatter/rate inputs shared by every dimension: crash count on x, deaths on y.
+  const xy = (r: DimensionRow) => ({ x: r.crash_count ?? 0, y: r.total_killed ?? 0 });
 
   switch (dimension) {
     case "hour":
-      return rows.map((r) => ({ label: `${r.hour as number}:00`, value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0 }));
+      return rows.map((r) => ({ label: `${r.hour ?? 0}:00`, value: val(r), ...xy(r) }));
     case "day_of_week":
       return rows.map((r) => ({
-        label: DOW_LABEL[(r.day_of_week as number)] ?? String(r.day_of_week),
-        value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
+        label: DOW_LABEL[r.day_of_week ?? -1] ?? String(r.day_of_week),
+        value: val(r), ...xy(r),
       }));
     case "month":
       return rows.map((r) => ({
-        label: MONTH_LABEL[(r.month as number) - 1] ?? String(r.month),
-        value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
+        label: MONTH_LABEL[(r.month ?? 0) - 1] ?? String(r.month),
+        value: val(r), ...xy(r),
       }));
     case "year": {
       const currentYear = new Date().getFullYear();
       return rows
-        .filter((r) => (r.year as number) < currentYear)
-        .map((r) => ({
-          label: String(r.year), value: val(r),
-          x: (r.crash_count as number) ?? 0,
-          y: (r.total_killed as number) ?? 0,
-        }));
+        .filter((r) => r.year != null && r.year < currentYear)
+        .map((r) => ({ label: String(r.year), value: val(r), ...xy(r) }));
     }
     case "cause":
       return rows.map((r) => ({
-        label: CAUSE_LABEL[r.canonical_cause as string] ?? String(r.canonical_cause),
-        value: val(r),
-        x: (r.crash_count as number) ?? 0,
-        y: (r.total_killed as number) ?? 0,
+        label: CAUSE_LABEL[r.canonical_cause ?? ""] ?? String(r.canonical_cause),
+        value: val(r), ...xy(r),
       }));
     case "severity":
       return rows.map((r) => ({
-        label: r.severity as string,
+        label: r.severity ?? "Unknown",
         value: val(r),
-        color: SEVERITY_COLORS[r.severity as string],
-        x: (r.crash_count as number) ?? 0,
-        y: (r.total_killed as number) ?? 0,
+        color: SEVERITY_COLORS[r.severity ?? ""],
+        ...xy(r),
       }));
     case "county":
       return [...rows]
         .sort((a, b) => val(b) - val(a))
         .slice(0, 30)
-        .map((r) => ({
-          label: String(r.county_name), value: val(r),
-          x: (r.crash_count as number) ?? 0,
-          y: (r.total_killed as number) ?? 0,
-        }));
+        .map((r) => ({ label: String(r.county_name), value: val(r), ...xy(r) }));
     case "gender":
-      return rows
-        .filter((r) => r.gender && r.gender !== "unknown")
-        .map((r) => ({
-          label: (r.gender as string).charAt(0).toUpperCase() + (r.gender as string).slice(1),
-          value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
-        }));
-    case "age_bracket":
-      return [...rows]
-        .filter((r) => r.age_bracket !== "unknown")
-        .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket as string) - AGE_ORDER.indexOf(b.age_bracket as string))
-        .map((r) => ({
-          label: AGE_LABEL[r.age_bracket as string] ?? String(r.age_bracket),
-          value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
-        }));
     case "at_fault_gender":
       return rows
         .filter((r) => r.gender && r.gender !== "unknown")
-        .map((r) => ({
-          label: (r.gender as string).charAt(0).toUpperCase() + (r.gender as string).slice(1),
-          value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
-        }));
+        .map((r) => ({ label: genderLabel(r), value: val(r), ...xy(r) }));
+    case "age_bracket":
     case "at_fault_age_bracket":
-      return rows
+      return [...rows]
         .filter((r) => r.age_bracket !== "unknown")
-        .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket as string) - AGE_ORDER.indexOf(b.age_bracket as string))
+        .sort((a, b) => AGE_ORDER.indexOf(a.age_bracket ?? "") - AGE_ORDER.indexOf(b.age_bracket ?? ""))
         .map((r) => ({
-          label: AGE_LABEL[r.age_bracket as string] ?? String(r.age_bracket),
-          value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
+          label: AGE_LABEL[r.age_bracket ?? ""] ?? String(r.age_bracket),
+          value: val(r), ...xy(r),
         }));
     case "weather":
     case "lighting":
     case "collision_type":
       return rows.map((r) => ({
         label: String(r.value ?? r[dimension] ?? "Unknown"),
-        value: val(r), x: (r.crash_count as number) ?? 0, y: (r.total_killed as number) ?? 0,
+        value: val(r), ...xy(r),
       }));
     default:
       return [];
@@ -192,22 +174,22 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, cro
 
   const query = useQuery({
     queryKey: ["dashboard", groups, filterBody],
-    queryFn: async () => {
-      if (groups.length === 0) return {} as Record<string, Record<string, unknown>[]>;
+    queryFn: async (): Promise<StatsBatchResponse> => {
+      if (groups.length === 0) return {};
       const res = await fetch(`${API_BASE}/api/stats/batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ groups, ...filterBody }),
       });
       if (!res.ok) throw new Error(`dashboard batch ${res.status}`);
-      return await res.json() as Record<string, Record<string, unknown>[]>;
+      return (await res.json()) as StatsBatchResponse;
     },
     enabled: groups.length > 0,
     staleTime: 60_000,
   });
 
   const dataBySlot = useMemo(() => {
-    const raw = query.data ?? {};
+    const raw: StatsBatchResponse = query.data ?? {};
     const result: Record<string, ChartDataItem[]> = {};
 
     // Shared by the primary and secondary series: raw rows → chart items with

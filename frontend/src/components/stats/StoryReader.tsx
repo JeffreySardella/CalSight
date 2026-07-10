@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { DataStory, StoryBlock, ChartBlock, StoryContext } from "../../lib/dashboard/stories";
-import type { ChartSlot } from "../../lib/dashboard/types";
+import { slotKey, type ChartSlot } from "../../lib/dashboard/types";
 import type { StatsFilters } from "../../hooks/useStats";
 import { useDashboardData } from "../../hooks/useDashboardData";
 import { useFilterParams } from "../../hooks/useFilterParams";
@@ -195,14 +195,7 @@ function StoryBlockRenderer({
         order: 0,
         options: block.options,
       };
-      const opts = block.options ?? {};
-      const optStr = [
-        (opts as Record<string, unknown>).cumulative && "cum",
-        (opts as Record<string, unknown>).movingAvg && `ma${(opts as Record<string, unknown>).movingAvg}`,
-        (opts as Record<string, unknown>).logScale && "log",
-      ].filter(Boolean).join(",");
-      const key = `${block.dimension}:${block.measure}${optStr ? `:${optStr}` : ""}`;
-      const data = dataBySlot[key] ?? [];
+      const data = dataBySlot[slotKey(slot)] ?? [];
 
       return (
         <div className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 ambient-shadow overflow-hidden">
@@ -259,14 +252,7 @@ function OverriddenChartBlock({
   const { dataBySlot, loading } = useDashboardData(chartSlots, mergedFilters);
 
   const slot: ChartSlot = chartSlots[0];
-  const opts = block.options ?? {};
-  const optStr = [
-    (opts as Record<string, unknown>).cumulative && "cum",
-    (opts as Record<string, unknown>).movingAvg && `ma${(opts as Record<string, unknown>).movingAvg}`,
-    (opts as Record<string, unknown>).logScale && "log",
-  ].filter(Boolean).join(",");
-  const key = `${block.dimension}:${block.measure}${optStr ? `:${optStr}` : ""}`;
-  const data = dataBySlot[key] ?? [];
+  const data = dataBySlot[slotKey(slot)] ?? [];
 
   return (
     <div className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 ambient-shadow overflow-hidden">

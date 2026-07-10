@@ -95,7 +95,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-leaflet': ['leaflet', 'react-leaflet', 'react-leaflet-cluster'],
+          'vendor-leaflet': ['leaflet', 'leaflet.heat', 'react-leaflet', 'react-leaflet-cluster'],
           'vendor-query': ['@tanstack/react-query'],
         },
       },
