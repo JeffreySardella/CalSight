@@ -106,6 +106,15 @@ _ALLOWED_CAUSES = {
     "following_too_close", "signal_violation", "pedestrian_violation",
     "unsafe_backing", "other",
 }
+# Every free-text filter interpolated into the system prompt must be
+# allowlisted — an unvalidated value is a prompt-injection channel that
+# bypasses the 500-char question cap (audit 2026-07-09 L1). Keep these in
+# sync with the canonical sets in app/filters.py.
+_ALLOWED_WEATHER = {"clear", "cloudy", "rain", "fog", "snow", "wind", "other"}
+_ALLOWED_LIGHTING = {"daylight", "dark_lit", "dark_unlit", "dusk_dawn", "other"}
+_ALLOWED_COLLISION_TYPES = {
+    "rear_end", "broadside", "sideswipe", "hit_object", "head_on", "other",
+}
 
 
 def _sanitize_filter(value: str | None, allowed: set[str] | None = None) -> str:
@@ -123,9 +132,13 @@ def build_filters_summary(filters: dict) -> str:
     county = _sanitize_filter(filters.get("county"), _ALLOWED_COUNTIES)
     if county:
         parts.append(f"County: {county}")
-    year = _sanitize_filter(filters.get("year"))
-    if year:
-        parts.append(f"Years: {year}")
+    # Years: digits only — a 4-digit-token allowlist rather than a value set.
+    year_parts = [
+        p.strip() for p in (filters.get("year") or "").split(",")
+        if p.strip().isdigit() and len(p.strip()) == 4
+    ]
+    if year_parts:
+        parts.append(f"Years: {', '.join(year_parts[:20])}")
     severity = _sanitize_filter(filters.get("severity"), _ALLOWED_SEVERITIES)
     if severity:
         parts.append(f"Severity: {severity}")
@@ -154,13 +167,15 @@ def build_filters_summary(filters: dict) -> str:
     driver_age = filters.get("driver_age") or ""
     if driver_age in _DRIVER_AGE_BRACKETS:
         parts.append(f"At-fault driver age: {driver_age}")
-    weather = _sanitize_filter(filters.get("weather"))
+    weather = _sanitize_filter(filters.get("weather"), _ALLOWED_WEATHER)
     if weather:
         parts.append(f"Weather: {weather}")
-    lighting = _sanitize_filter(filters.get("lighting"))
+    lighting = _sanitize_filter(filters.get("lighting"), _ALLOWED_LIGHTING)
     if lighting:
         parts.append(f"Lighting: {lighting}")
-    collision_type = _sanitize_filter(filters.get("collision_type"))
+    collision_type = _sanitize_filter(
+        filters.get("collision_type"), _ALLOWED_COLLISION_TYPES
+    )
     if collision_type:
         parts.append(f"Collision type: {collision_type}")
     _ROAD_TYPES = {"highway", "local"}

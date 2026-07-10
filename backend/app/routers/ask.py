@@ -90,6 +90,21 @@ class AskRequest(BaseModel):
             raise ValueError("Question must be 500 characters or less")
         return v
 
+    @field_validator("history")
+    @classmethod
+    def cap_history_length(cls, v: list) -> list:
+        # Only the last 10 messages reach the LLM, but the full list is
+        # parsed and hashed into the cache key — an unbounded history is a
+        # request-amplification vector (audit 2026-07-09 L2).
+        return v[-20:]
+
+    @field_validator("filters")
+    @classmethod
+    def cap_filters(cls, v: dict) -> dict:
+        if len(v) > 30:
+            raise ValueError("Too many filters")
+        return {k[:50]: (val[:200] if val else val) for k, val in v.items()}
+
 
 class AskResponse(BaseModel):
     answer: str
@@ -108,6 +123,30 @@ class FeedbackRequest(BaseModel):
     tools_called: list[str] = []
     vote: str
     filters_used: dict[str, Any] = {}
+
+    @field_validator("question")
+    @classmethod
+    def cap_question(cls, v: str) -> str:
+        # Written verbatim to chat_feedback via the API role's INSERT grant;
+        # uncapped fields allow arbitrary-size rows (audit 2026-07-09 L2).
+        return v[:1000]
+
+    @field_validator("provider")
+    @classmethod
+    def cap_provider(cls, v: str) -> str:
+        return v[:100]
+
+    @field_validator("tools_called")
+    @classmethod
+    def cap_tools_called(cls, v: list[str]) -> list[str]:
+        return [t[:100] for t in v[:20]]
+
+    @field_validator("filters_used")
+    @classmethod
+    def cap_filters_used(cls, v: dict) -> dict:
+        if len(v) > 30:
+            raise ValueError("Too many filters")
+        return v
 
     @field_validator("vote")
     @classmethod
