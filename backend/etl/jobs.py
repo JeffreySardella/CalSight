@@ -228,9 +228,11 @@ def build_default_registry() -> JobRegistry:
     registry.register(Job(
         name="drought",
         module="etl.load_drought",
-        # USDM publishes one map per week (Thursdays); a weekly pull with
-        # an 8-week trailing window absorbs their occasional revisions.
-        schedule="weekly",
+        # The pipeline runs every non-static job on its daily cadence
+        # (schedule strings other than "static" are informational). USDM
+        # only publishes weekly, but the trailing 8-week pull is one tiny
+        # request, so a daily re-pull is cheap and absorbs their revisions.
+        schedule="daily",
         table_name="drought_county_weekly",
         # Upserts never delete; a shrink means USDM data vanished — fail loudly.
         max_drop_pct=1,

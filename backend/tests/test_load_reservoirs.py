@@ -8,10 +8,10 @@ behavior is covered by the API integration tests once data is loaded.
 from datetime import date, timedelta
 from unittest.mock import MagicMock
 
+from etl._utils import date_windows
 from etl.cdec_api import MAJOR_RESERVOIRS, SENSOR_STORAGE, Observation
 from etl.load_reservoirs import (
     BATCH_SIZE,
-    date_windows,
     upsert_observations,
     upsert_reservoirs,
 )
@@ -70,10 +70,29 @@ class TestUpsertObservations:
     def test_batches_large_inputs(self):
         db = MagicMock()
         observations = [
-            _obs(day=(i % 28) + 1, value=float(i)) for i in range(BATCH_SIZE + 1)
+            Observation(
+                station_id="SHA",
+                sensor=SENSOR_STORAGE,
+                date=date(2020, 1, 1) + timedelta(days=i),  # all keys distinct
+                value=float(i),
+                units="AF",
+            )
+            for i in range(BATCH_SIZE + 1)
         ]
         upsert_observations(db, observations)
         assert db.execute.call_count == 2
+
+    def test_dedupes_same_station_day_keeping_last(self):
+        # CDEC can return an original + revised reading for one station-day;
+        # both in one INSERT..ON CONFLICT statement is a Postgres error.
+        db = MagicMock()
+        count = upsert_observations(
+            db, [_obs(day=1, value=100.0), _obs(day=1, value=200.0)]
+        )
+        assert count == 1
+        values = db.execute.call_args.args[0].compile().params
+        assert 200.0 in values.values()  # last occurrence wins
+        assert 100.0 not in values.values()
 
 
 class TestUpsertReservoirs:

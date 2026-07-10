@@ -34,17 +34,14 @@ a loader on top of this:
 
 import argparse
 import logging
-import time
 from dataclasses import dataclass
 from datetime import date, datetime
 
-import httpx
+from etl._utils import get_with_retry, safe_int
 
 logger = logging.getLogger(__name__)
 
 CDEC_BASE_URL = "https://cdec.water.ca.gov/dynamicapp/req/JSONDataServlet"
-MAX_RETRIES = 3
-BACKOFF_BASE = 2  # seconds
 REQUEST_DELAY = 0.5  # courtesy delay between batched requests
 
 # CDEC sensor numbers (https://cdec.water.ca.gov/misc/senslist.html)
@@ -104,8 +101,8 @@ def fetch_sensor_data(
         start / end: inclusive date range.
         duration: "D" daily, "M" monthly, "H" hourly.
 
-    Returns the raw list of record dicts. Retries transient failures with
-    exponential backoff, matching the other ETL clients.
+    Returns the raw list of record dicts. Transient failures retry via
+    etl._utils.get_with_retry (5xx/network only, like the other clients).
     """
     params = {
         "Stations": ",".join(stations),
@@ -115,32 +112,13 @@ def fetch_sensor_data(
         "End": end.isoformat(),
     }
 
-    last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            resp = httpx.get(CDEC_BASE_URL, params=params, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
-            if not isinstance(data, list):
-                raise ValueError(
-                    f"CDEC returned {type(data).__name__}, expected a JSON array"
-                )
-            return data
-        except (httpx.HTTPError, ValueError) as exc:
-            last_error = exc
-            wait = BACKOFF_BASE**attempt
-            logger.warning(
-                "CDEC fetch failed (attempt %d/%d): %s — retrying in %ds",
-                attempt + 1,
-                MAX_RETRIES,
-                exc,
-                wait,
-            )
-            time.sleep(wait)
-
-    raise RuntimeError(
-        f"CDEC fetch failed after {MAX_RETRIES} attempts: {last_error}"
-    ) from last_error
+    resp = get_with_retry(CDEC_BASE_URL, params=params, timeout=60)
+    data = resp.json()
+    if not isinstance(data, list):
+        raise ValueError(
+            f"CDEC returned {type(data).__name__}, expected a JSON array"
+        )
+    return data
 
 
 def parse_observations(raw: list[dict]) -> list[Observation]:
@@ -182,7 +160,9 @@ def parse_observations(raw: list[dict]) -> list[Observation]:
         observations.append(
             Observation(
                 station_id=station,
-                sensor=int(row.get("sensorNumber", row.get("SENSOR_NUM", 0))),
+                # Informational only (the loader keys on station+date), so a
+                # null/garbled sensor number must not abort the run.
+                sensor=safe_int(row.get("sensorNumber", row.get("SENSOR_NUM"))) or 0,
                 date=parsed_date,
                 value=value,
                 units=str(row.get("units", "")).strip(),

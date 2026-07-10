@@ -94,13 +94,23 @@ class TestParseObservations:
         obs = parse_observations([_row(station="sha ")])
         assert obs[0].station_id == "SHA"
 
+    def test_null_sensor_number_does_not_abort_the_row(self):
+        # sensorNumber is informational; a null must not crash the parse.
+        obs = parse_observations([_row(sensorNumber=None)])
+        assert len(obs) == 1
+        assert obs[0].sensor == 0
+
 
 # ---------------------------------------------------------------------------
 # fetch_sensor_data
 # ---------------------------------------------------------------------------
 
 class TestFetchSensorData:
-    @patch("etl.cdec_api.httpx.get")
+    """Retry/backoff behavior itself belongs to etl._utils.get_with_retry
+    (tested in test_etl_utils.py); here we cover the CDEC-specific
+    request shape, delegation, and response validation."""
+
+    @patch("etl.cdec_api.get_with_retry")
     def test_builds_expected_params(self, mock_get):
         mock_get.return_value = _mock_response([_row()])
 
@@ -113,9 +123,9 @@ class TestFetchSensorData:
         assert params["Start"] == "2026-06-01"
         assert params["End"] == "2026-07-01"
 
-    @patch("etl.cdec_api.time.sleep")
-    @patch("etl.cdec_api.httpx.get")
-    def test_retries_then_succeeds(self, mock_get, mock_sleep):
+    @patch("etl._utils.time.sleep")
+    @patch("etl._utils.httpx.get")
+    def test_retries_transient_failures_via_shared_helper(self, mock_get, mock_sleep):
         mock_get.side_effect = [
             httpx.ConnectError("boom"),
             _mock_response([_row()]),
@@ -126,21 +136,20 @@ class TestFetchSensorData:
         assert len(raw) == 1
         assert mock_get.call_count == 2
 
-    @patch("etl.cdec_api.time.sleep")
-    @patch("etl.cdec_api.httpx.get")
+    @patch("etl._utils.time.sleep")
+    @patch("etl._utils.httpx.get")
     def test_raises_after_max_retries(self, mock_get, mock_sleep):
         mock_get.side_effect = httpx.ConnectError("down")
 
-        with pytest.raises(RuntimeError, match="failed after"):
+        with pytest.raises(httpx.ConnectError):
             fetch_sensor_data(["SHA"], SENSOR_STORAGE, date(2026, 6, 1), date(2026, 7, 1))
 
-    @patch("etl.cdec_api.time.sleep")
-    @patch("etl.cdec_api.httpx.get")
-    def test_rejects_non_array_response(self, mock_get, mock_sleep):
+    @patch("etl.cdec_api.get_with_retry")
+    def test_rejects_non_array_response(self, mock_get):
         # CDEC serves an HTML error page as a JSON string on bad params.
         mock_get.return_value = _mock_response({"error": "bad request"})
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError, match="expected a JSON array"):
             fetch_sensor_data(["SHA"], SENSOR_STORAGE, date(2026, 6, 1), date(2026, 7, 1))
 
 
@@ -149,7 +158,7 @@ class TestFetchSensorData:
 # ---------------------------------------------------------------------------
 
 class TestReservoirStorage:
-    @patch("etl.cdec_api.httpx.get")
+    @patch("etl.cdec_api.get_with_retry")
     def test_requests_all_major_reservoirs(self, mock_get):
         mock_get.return_value = _mock_response([_row()])
 

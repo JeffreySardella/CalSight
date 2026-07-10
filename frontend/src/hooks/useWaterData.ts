@@ -74,12 +74,12 @@ export function useReservoirSeries(stationId: string | null, days = 365) {
     queryKey: ["water", "series", stationId, days],
     enabled: stationId !== null,
     queryFn: async () => {
-      const end = new Date();
-      const start = new Date(end);
+      const start = new Date();
       start.setDate(start.getDate() - days);
+      // Only a lower bound — an explicit `end` computed client-side (UTC vs
+      // local "today") can lag a day and clip the newest reading.
       const params = new URLSearchParams({
         start: start.toISOString().slice(0, 10),
-        end: end.toISOString().slice(0, 10),
       });
       const res = await fetch(
         `${API_BASE}/api/water/reservoirs/${stationId}/series?${params}`,

@@ -135,6 +135,23 @@ GET /api/water/summary                         # statewide: total storage vs cap
 D1+ share from `/api/water/drought/series`), README features/data-source
 updates.
 
+**County integration (sixth commit):** drought status row inside the
+map's county insight card (single-county mode), fed the county code the
+map already resolves — links to `/water`.
+
+**Review pass (seventh commit):** an 8-angle adversarial review of the
+whole branch surfaced 10 findings, all fixed: batch upserts now dedupe
+on their conflict key (Postgres "cannot affect row a second time");
+CDEC/USDM clients delegate to `etl._utils.get_with_retry` instead of
+hand-rolled loops that retried 4xx; a null CDEC `sensorNumber` no longer
+aborts a run; the drought job schedule is honestly `daily`; the
+"has history" check counts contributing years instead of comparing
+values; the reservoir series window no longer sends a UTC-lagged end
+date; drought weighting is one SQL definition shared by both endpoints;
+redundant composite indexes were replaced by an expression index
+(station, month, day) INCLUDE (storage_af) that serves the day-of-year
+average query.
+
 ## Snowpack (P3) — deliberately deferred, and why
 
 Unlike the major reservoirs (whose CDEC codes are household names —

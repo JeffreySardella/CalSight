@@ -70,12 +70,14 @@ def list_reservoir_conditions(
     for _, obs in rows:
         stations_by_md[(obs.date.month, obs.date.day)].append(obs.station_id)
 
-    averages: dict[str, float] = {}
+    # (average, number of years contributing) per station.
+    averages: dict[str, tuple[float, int]] = {}
     for (month, day), station_ids in stations_by_md.items():
         avg_rows = (
             db.query(
                 ReservoirDaily.station_id,
                 func.avg(ReservoirDaily.storage_af).label("avg_af"),
+                func.count().label("years"),
             )
             .filter(
                 ReservoirDaily.station_id.in_(station_ids),
@@ -85,15 +87,15 @@ def list_reservoir_conditions(
             .group_by(ReservoirDaily.station_id)
             .all()
         )
-        averages.update({sid: float(avg) for sid, avg in avg_rows})
+        averages.update({sid: (float(avg), years) for sid, avg, years in avg_rows})
 
     out = []
     for reservoir, obs in rows:
-        avg = averages.get(reservoir.station_id)
-        # A station with a single loaded year averages to exactly its
-        # latest value — pct_of_average of 100 is meaningless noise, so
-        # surface the average only once it differs from the observation.
-        has_history = avg is not None and abs(avg - obs.storage_af) > 1e-9
+        avg, years = averages.get(reservoir.station_id, (None, 0))
+        # With a single loaded year the average IS the latest value —
+        # pct_of_average of 100 would be meaningless noise, so surface
+        # the average only once more than one year contributes.
+        has_history = avg is not None and years > 1
         out.append(
             ReservoirConditionOut(
                 station_id=reservoir.station_id,
@@ -133,7 +135,7 @@ def reservoir_series(
     if reservoir is None:
         raise HTTPException(status_code=404, detail="Unknown reservoir")
 
-    q = db.query(ReservoirDaily).filter(
+    q = db.query(ReservoirDaily.date, ReservoirDaily.storage_af).filter(
         ReservoirDaily.station_id == reservoir.station_id
     )
     if start:
@@ -147,8 +149,7 @@ def reservoir_series(
         name=reservoir.name,
         capacity_af=reservoir.capacity_af,
         points=[
-            ReservoirSeriesPoint(date=p.date, storage_af=p.storage_af)
-            for p in points
+            ReservoirSeriesPoint(date=d, storage_af=s) for d, s in points
         ],
     )
 
@@ -156,22 +157,20 @@ def reservoir_series(
 _PCT_COLS = ("none_pct", "d0_pct", "d1_pct", "d2_pct", "d3_pct", "d4_pct")
 
 
-def _weighted_pcts(rows) -> DroughtPcts:
-    """Land-area-weighted average of county percents.
+def _weighted_pct_columns():
+    """SQL columns for the land-area-weighted statewide percents.
 
-    Counties missing a land area fall back to weight 1 so they still
-    count; in practice all 58 have areas seeded.
+    The single definition both drought endpoints aggregate with, so the
+    snapshot headline and the series' latest point can never disagree.
+    Counties missing a land area fall back to weight 1 so they still count.
     """
-    totals = dict.fromkeys(_PCT_COLS, 0.0)
-    weight_sum = 0.0
-    for row in rows:
-        weight = row.land_area_sq_miles or 1.0
-        weight_sum += weight
-        for col in _PCT_COLS:
-            totals[col] += getattr(row, col) * weight
-    if weight_sum == 0:
-        return DroughtPcts(**dict.fromkeys(_PCT_COLS, 0.0))
-    return DroughtPcts(**{c: round(totals[c] / weight_sum, 1) for c in _PCT_COLS})
+    weight = func.coalesce(County.land_area_sq_miles, 1.0)
+    return [
+        (
+            func.sum(getattr(DroughtCountyWeekly, c) * weight) / func.sum(weight)
+        ).label(c)
+        for c in _PCT_COLS
+    ]
 
 
 @router.get("/water/drought", response_model=DroughtSnapshotOut)
@@ -189,13 +188,19 @@ def drought_snapshot(
     if latest is None:
         raise HTTPException(status_code=404, detail="No drought data loaded")
 
+    statewide = (
+        db.query(*_weighted_pct_columns())
+        .select_from(DroughtCountyWeekly)
+        .join(County, County.code == DroughtCountyWeekly.county_code)
+        .filter(DroughtCountyWeekly.week_start == latest)
+        .one()
+    )
+
     rows = (
         db.query(
             DroughtCountyWeekly.county_code,
             *[getattr(DroughtCountyWeekly, c) for c in _PCT_COLS],
-            County.land_area_sq_miles,
         )
-        .join(County, County.code == DroughtCountyWeekly.county_code)
         .filter(DroughtCountyWeekly.week_start == latest)
         .order_by(DroughtCountyWeekly.county_code)
         .all()
@@ -203,7 +208,9 @@ def drought_snapshot(
 
     return DroughtSnapshotOut(
         week_start=latest,
-        statewide=_weighted_pcts(rows),
+        statewide=DroughtPcts(
+            **{c: round(getattr(statewide, c), 1) for c in _PCT_COLS}
+        ),
         counties=[
             DroughtCountyOut(
                 county_code=r.county_code,
@@ -226,14 +233,6 @@ def drought_series(
     first — the trend behind the snapshot."""
     response.headers["Cache-Control"] = _ONE_HOUR
 
-    weight = func.coalesce(County.land_area_sq_miles, 1.0)
-    weighted = [
-        (
-            func.sum(getattr(DroughtCountyWeekly, c) * weight)
-            / func.sum(weight)
-        ).label(c)
-        for c in _PCT_COLS
-    ]
     recent_weeks = (
         db.query(DroughtCountyWeekly.week_start)
         .distinct()
@@ -242,7 +241,7 @@ def drought_series(
         .subquery()
     )
     rows = (
-        db.query(DroughtCountyWeekly.week_start, *weighted)
+        db.query(DroughtCountyWeekly.week_start, *_weighted_pct_columns())
         .join(County, County.code == DroughtCountyWeekly.county_code)
         .filter(DroughtCountyWeekly.week_start.in_(recent_weeks.select()))
         .group_by(DroughtCountyWeekly.week_start)

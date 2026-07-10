@@ -46,10 +46,16 @@ def upgrade() -> None:
             "station_id", "date", name="uq_reservoir_daily_station_date"
         ),
     )
-    op.create_index(
-        "ix_reservoir_daily_station_date",
-        "reservoir_daily",
-        ["station_id", "date"],
+    # (station_id, date) lookups are served by the unique constraint's
+    # backing index. This expression index serves the day-of-year
+    # historical-average query (filter on extract(month)/extract(day)),
+    # with storage_af included for index-only scans.
+    op.execute(
+        """
+        CREATE INDEX ix_reservoir_daily_station_doy ON reservoir_daily
+            (station_id, EXTRACT(month FROM date), EXTRACT(day FROM date))
+            INCLUDE (storage_af)
+        """
     )
     op.execute(
         """
@@ -65,6 +71,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_reservoir_daily_station_date", table_name="reservoir_daily")
+    op.drop_index("ix_reservoir_daily_station_doy", table_name="reservoir_daily")
     op.drop_table("reservoir_daily")
     op.drop_table("reservoirs")

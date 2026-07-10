@@ -57,7 +57,8 @@ export function SeverityBar({ pcts, label, height = "h-2" }: SeverityBarProps) {
 export default function DroughtSection() {
   const { data: snapshot, isLoading } = useDroughtSnapshot();
   const { data: countyNames } = useCountyNames();
-  const { data: series } = useDroughtSeries();
+  // Fetch the trend only once we know the section will render.
+  const { data: series } = useDroughtSeries(104, !!snapshot);
   const trend = (series ?? []).map(inDroughtPct);
 
   // No data yet (or still loading) — the page reads fine without this

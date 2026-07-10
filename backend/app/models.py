@@ -1017,9 +1017,12 @@ class ReservoirDaily(Base):
     storage_af = Column(Float, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
+    # The unique constraint's backing index serves (station_id, date)
+    # lookups; the migration adds an expression index on
+    # (station_id, extract(month), extract(day)) for the day-of-year
+    # historical-average query in the water router.
     __table_args__ = (
         UniqueConstraint("station_id", "date", name="uq_reservoir_daily_station_date"),
-        Index("ix_reservoir_daily_station_date", "station_id", "date"),
     )
 
 
@@ -1049,11 +1052,12 @@ class DroughtCountyWeekly(Base):
     d4_pct = Column(Float, nullable=False)  # exceptional drought
     created_at = Column(DateTime, server_default=func.now())
 
+    # The unique constraint's backing index serves (county_code, week_start);
+    # ix_drought_week_start serves the latest-week and recent-weeks queries.
     __table_args__ = (
         UniqueConstraint(
             "county_code", "week_start", name="uq_drought_county_week"
         ),
-        Index("ix_drought_county_week", "county_code", "week_start"),
         Index("ix_drought_week_start", "week_start"),
     )
 

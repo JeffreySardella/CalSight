@@ -74,6 +74,27 @@ def dedupe_rows(rows: list[dict], key: tuple[str, ...]) -> list[dict]:
     return list(by_key.values())
 
 
+def date_windows(start, end, days: int = 365) -> list[tuple]:
+    """Split inclusive [start, end] into windows of at most *days* days.
+
+    Keeps each external-API request bounded — a multi-decade backfill asks
+    for one window at a time instead of the whole range in one response.
+    Returns [] when start > end. Windows tile the range exactly:
+    contiguous, no overlap, inclusive ends.
+    """
+    from datetime import timedelta
+
+    if start > end:
+        return []
+    windows = []
+    cursor = start
+    while cursor <= end:
+        window_end = min(cursor + timedelta(days=days - 1), end)
+        windows.append((cursor, window_end))
+        cursor = window_end + timedelta(days=1)
+    return windows
+
+
 def safe_int(value: Any) -> int | None:
     """Coerce *value* to int; return None for None / empty / bad input.
 

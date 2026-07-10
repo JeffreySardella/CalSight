@@ -37,9 +37,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("county_code", "week_start", name="uq_drought_county_week"),
     )
-    op.create_index(
-        "ix_drought_county_week", "drought_county_weekly", ["county_code", "week_start"]
-    )
+    # (county_code, week_start) is served by the unique constraint's index.
     op.create_index("ix_drought_week_start", "drought_county_weekly", ["week_start"])
     op.execute(
         """
@@ -56,5 +54,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("ix_drought_week_start", table_name="drought_county_weekly")
-    op.drop_index("ix_drought_county_week", table_name="drought_county_weekly")
     op.drop_table("drought_county_weekly")

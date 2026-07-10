@@ -50,6 +50,22 @@ def test_reservoirs_historical_average_same_day_of_year(client, water_data):
     assert fol["pct_of_average"] == pytest.approx(114.3, abs=0.1)
 
 
+def test_reservoirs_average_shown_for_constant_pool(client, water_data, db_session):
+    # A regulated reservoir holding the exact same storage across years must
+    # still report its average — "one year only" is detected by row count,
+    # not value equality.
+    db_session.add_all([
+        ReservoirDaily(station_id="CAS", date=date(2025, 7, 1), storage_af=260_000),
+    ])
+    db_session.commit()
+    cas = next(
+        r for r in client.get("/api/water/reservoirs").json()
+        if r["station_id"] == "CAS"
+    )
+    assert cas["avg_storage_af"] == pytest.approx(260_000)
+    assert cas["pct_of_average"] == pytest.approx(100.0)
+
+
 def test_reservoirs_no_average_without_history(client, water_data):
     cas = next(
         r for r in client.get("/api/water/reservoirs").json()

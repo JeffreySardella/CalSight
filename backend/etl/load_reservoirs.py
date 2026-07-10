@@ -28,7 +28,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, Reservoir, ReservoirDaily
-from etl._utils import track_etl_run
+from etl._utils import date_windows, dedupe_rows, track_etl_run
 from etl.cdec_api import (
     MAJOR_RESERVOIRS,
     REQUEST_DELAY,
@@ -48,25 +48,13 @@ BACKFILL_START = date(2000, 1, 1)
 BATCH_SIZE = 1000
 
 
-def date_windows(start: date, end: date, days: int = 365) -> list[tuple[date, date]]:
-    """Split [start, end] into inclusive windows of at most `days` days.
-
-    Keeps each CDEC request bounded — a full backfill asks for one year
-    at a time instead of 25 years of 15 stations in one response.
-    """
-    if start > end:
-        return []
-    windows = []
-    cursor = start
-    while cursor <= end:
-        window_end = min(cursor + timedelta(days=days - 1), end)
-        windows.append((cursor, window_end))
-        cursor = window_end + timedelta(days=1)
-    return windows
-
-
 def upsert_reservoirs(db) -> int:
-    """Sync the reservoirs table from the static MAJOR_RESERVOIRS map."""
+    """Sync the reservoirs table from the static MAJOR_RESERVOIRS map.
+
+    The static map is authoritative: every run overwrites name, capacity,
+    and county. Correct bad metadata in etl/cdec_api.py, not in the
+    database — a direct DB edit is silently clobbered on the next run.
+    """
     name_to_code = {
         name.upper(): code for name, code in db.query(County.name, County.code)
     }
@@ -130,6 +118,10 @@ def upsert_observations(db, observations: list[Observation]) -> int:
         logger.warning(
             "Dropped %d observations for stations not in MAJOR_RESERVOIRS", skipped
         )
+
+    # CDEC can return an original plus a revised reading for one station-day;
+    # duplicate conflict keys in a single statement are a Postgres error.
+    rows = dedupe_rows(rows, key=("station_id", "date"))
 
     for i in range(0, len(rows), BATCH_SIZE):
         batch = rows[i : i + BATCH_SIZE]

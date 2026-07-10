@@ -41,10 +41,29 @@ class TestUpsertDroughtWeeks:
         assert upsert_drought_weeks(db, [_week("06067")]) == 1
 
     def test_batches_large_inputs(self):
+        from datetime import timedelta
+
         db = _db()
         weeks = [
-            _week("06067", date(2005 + i // 52, 1, 1 + (i % 28)))
+            _week("06067", date(2005, 1, 4) + timedelta(weeks=i))  # distinct keys
             for i in range(BATCH_SIZE + 1)
         ]
         upsert_drought_weeks(db, weeks)
         assert db.execute.call_count == 2
+
+    def test_dedupes_same_county_week_keeping_last(self):
+        # USDM occasionally revises a week; duplicate conflict keys in one
+        # INSERT..ON CONFLICT statement are a Postgres error.
+        db = _db()
+        first = DroughtWeek("06067", date(2026, 6, 30), 10.0, 40.0, 30.0, 20.0, 0.0, 0.0)
+        revised = DroughtWeek("06067", date(2026, 6, 30), 0.0, 30.0, 40.0, 30.0, 0.0, 0.0)
+        count = upsert_drought_weeks(db, [first, revised])
+        assert count == 1
+        values = db.execute.call_args.args[0].compile().params
+        assert 40.0 in values.values()  # revised row (last occurrence) wins
+
+    def test_accepts_prebuilt_fips_lookup(self):
+        db = MagicMock()
+        count = upsert_drought_weeks(db, [_week("06067")], {"06067": 34})
+        assert count == 1
+        db.query.assert_not_called()  # lookup not rebuilt when provided

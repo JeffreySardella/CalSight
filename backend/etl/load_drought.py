@@ -28,7 +28,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, DroughtCountyWeekly
-from etl._utils import track_etl_run
+from etl._utils import date_windows, dedupe_rows, track_etl_run
 from etl.usdm_api import DroughtWeek, fetch_county_drought, parse_drought_weeks
 
 logging.basicConfig(
@@ -45,18 +45,26 @@ REQUEST_DELAY = 1.0  # courtesy delay between backfill windows
 BATCH_SIZE = 1000
 
 
-def upsert_drought_weeks(db, weeks: list[DroughtWeek]) -> int:
+def build_fips_lookup(db) -> dict[str, int]:
+    """FIPS → county_code from the counties table (one query per run)."""
+    return {
+        fips: code
+        for fips, code in db.query(County.fips, County.code)
+        if fips is not None
+    }
+
+
+def upsert_drought_weeks(
+    db, weeks: list[DroughtWeek], fips_to_code: dict[str, int] | None = None
+) -> int:
     """Bulk-upsert county-weeks keyed on (county_code, week_start).
 
     Rows whose FIPS doesn't match a California county are dropped and
     counted (USDM's CA query should only return the 58, so drops are
     logged loudly).
     """
-    fips_to_code = {
-        fips: code
-        for fips, code in db.query(County.fips, County.code)
-        if fips is not None
-    }
+    if fips_to_code is None:
+        fips_to_code = build_fips_lookup(db)
 
     rows = []
     skipped = 0
@@ -79,6 +87,10 @@ def upsert_drought_weeks(db, weeks: list[DroughtWeek]) -> int:
         )
     if skipped:
         logger.warning("Dropped %d rows with FIPS not in counties table", skipped)
+
+    # USDM occasionally revises a week; duplicate conflict keys in a single
+    # statement are a Postgres error.
+    rows = dedupe_rows(rows, key=("county_code", "week_start"))
 
     for i in range(0, len(rows), BATCH_SIZE):
         batch = rows[i : i + BATCH_SIZE]
@@ -105,18 +117,17 @@ def run(start: date, end: date) -> int:
     """Fetch and upsert drought weeks for [start, end]. Returns rows loaded."""
     db = SessionLocal()
     try:
+        fips_to_code = build_fips_lookup(db)
         total = 0
-        cursor = start
-        first = True
-        while cursor <= end:
-            window_end = min(cursor + timedelta(days=WINDOW_DAYS - 1), end)
-            if not first:
+        windows = date_windows(start, end, days=WINDOW_DAYS)
+        for i, (win_start, win_end) in enumerate(windows):
+            if i:
                 time.sleep(REQUEST_DELAY)
-            first = False
-            logger.info("Window %s → %s", cursor, window_end)
-            raw = fetch_county_drought(cursor, window_end)
-            total += upsert_drought_weeks(db, parse_drought_weeks(raw))
-            cursor = window_end + timedelta(days=1)
+            logger.info(
+                "Window %d/%d: %s → %s", i + 1, len(windows), win_start, win_end
+            )
+            raw = fetch_county_drought(win_start, win_end)
+            total += upsert_drought_weeks(db, parse_drought_weeks(raw), fips_to_code)
 
         logger.info("Done. %d county-week rows upserted.", total)
         return total

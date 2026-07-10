@@ -38,9 +38,10 @@ export interface DroughtWeekPoint extends DroughtPcts {
   week_start: string;
 }
 
-export function useDroughtSeries(weeks = 104) {
+export function useDroughtSeries(weeks = 104, enabled = true) {
   return useQuery<DroughtWeekPoint[]>({
     queryKey: ["water", "drought-series", weeks],
+    enabled,
     queryFn: async () => {
       const res = await fetch(
         `${API_BASE}/api/water/drought/series?weeks=${weeks}`,

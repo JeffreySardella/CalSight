@@ -50,11 +50,10 @@ shapes are from the published API docs. Run the smoke test first:
 
 import argparse
 import logging
-import time
 from dataclasses import dataclass
 from datetime import date, datetime
 
-import httpx
+from etl._utils import get_with_retry, safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +61,6 @@ USDM_BASE_URL = (
     "https://usdmdataservices.unl.edu/api/CountyStatistics/"
     "GetDroughtSeverityStatisticsByAreaPercent"
 )
-MAX_RETRIES = 3
-BACKOFF_BASE = 2  # seconds
 
 # statisticsType=1 is "traditional": each class percent EXCLUDES the more
 # severe classes, so none + d0 + ... + d4 sums to ~100.
@@ -87,8 +84,8 @@ class DroughtWeek:
 def fetch_county_drought(start: date, end: date, aoi: str = "CA") -> list[dict]:
     """Fetch raw county drought rows for [start, end].
 
-    USDM expects M/D/YYYY dates. Retries transient failures with
-    exponential backoff, matching the other ETL clients.
+    USDM expects M/D/YYYY dates. Transient failures retry via
+    etl._utils.get_with_retry (5xx/network only, like the other clients).
     """
     params = {
         "aoi": aoi,
@@ -98,32 +95,13 @@ def fetch_county_drought(start: date, end: date, aoi: str = "CA") -> list[dict]:
     }
     headers = {"Accept": "application/json"}
 
-    last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            resp = httpx.get(USDM_BASE_URL, params=params, headers=headers, timeout=120)
-            resp.raise_for_status()
-            data = resp.json()
-            if not isinstance(data, list):
-                raise ValueError(
-                    f"USDM returned {type(data).__name__}, expected a JSON array"
-                )
-            return data
-        except (httpx.HTTPError, ValueError) as exc:
-            last_error = exc
-            wait = BACKOFF_BASE**attempt
-            logger.warning(
-                "USDM fetch failed (attempt %d/%d): %s — retrying in %ds",
-                attempt + 1,
-                MAX_RETRIES,
-                exc,
-                wait,
-            )
-            time.sleep(wait)
-
-    raise RuntimeError(
-        f"USDM fetch failed after {MAX_RETRIES} attempts: {last_error}"
-    ) from last_error
+    resp = get_with_retry(USDM_BASE_URL, params=params, headers=headers, timeout=120)
+    data = resp.json()
+    if not isinstance(data, list):
+        raise ValueError(
+            f"USDM returned {type(data).__name__}, expected a JSON array"
+        )
+    return data
 
 
 def _get_ci(row: dict, key: str):
@@ -147,12 +125,9 @@ def _parse_usdm_date(raw) -> date | None:
 def _parse_pct(raw) -> float | None:
     if raw is None:
         return None
-    try:
-        # Percents arrive as strings, sometimes with thousands separators.
-        value = float(str(raw).replace(",", ""))
-    except (TypeError, ValueError):
-        return None
-    if value < 0:
+    # Percents arrive as strings, sometimes with thousands separators.
+    value = safe_float(str(raw).replace(",", ""))
+    if value is None or value < 0:
         return None
     return value
 
