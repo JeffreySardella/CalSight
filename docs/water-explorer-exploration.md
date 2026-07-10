@@ -114,7 +114,26 @@ GET /api/water/summary                         # statewide: total storage vs cap
 - 17 new tests; full frontend suite green (708) plus lint and production
   build.
 
-Still to come: live CDEC smoke test (`python -m etl.cdec_api --smoke`, blocked in this sandbox), capacity verification, drought/snowpack phases, county-detail integration.
+**Phase 2 — drought (fourth commit):**
+
+- `etl/usdm_api.py` — US Drought Monitor county-statistics client
+  (case-insensitive keys, M/D/YYYY params, `--smoke` CLI) +
+  `etl/load_drought.py` (FIPS→county mapping, trailing-8-week default,
+  `--backfill` from 2000), registered as the weekly `drought` job.
+- `drought_county_weekly` table + migration (with the read-role grant).
+- `GET /api/water/drought` — latest week: land-area-weighted statewide
+  percents + per-county breakdown. `GET /api/water/drought/series` —
+  weighted weekly trend.
+- Frontend: drought section on `/water` — statewide 100%-stacked severity
+  bar, legend with values, hardest-hit county rows. Severity uses a
+  sequential warm ramp with separate dark-mode steps (CSS vars
+  `--drought-d0..d4`), CVD-checked; the section hides itself until data
+  is loaded. Verified visually in light and dark against seeded demo data.
+- Suite totals: 856 backend + 716 frontend, green.
+
+Still to come: live smoke tests (`python -m etl.cdec_api --smoke`,
+`python -m etl.usdm_api --smoke` — both hosts blocked in this sandbox),
+capacity verification, snowpack phase, county-detail integration.
 
 ## Open questions
 

@@ -1,4 +1,4 @@
-"""Water module — reservoir conditions from CDEC daily storage data."""
+"""Water module — reservoir conditions (CDEC) and drought status (USDM)."""
 
 from collections import defaultdict
 from datetime import date
@@ -10,7 +10,13 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Reservoir, ReservoirDaily
+from app.models import County, DroughtCountyWeekly, Reservoir, ReservoirDaily
+from app.schemas.drought import (
+    DroughtCountyOut,
+    DroughtPcts,
+    DroughtSnapshotOut,
+    DroughtWeekPoint,
+)
 from app.schemas.water import (
     ReservoirConditionOut,
     ReservoirSeriesOut,
@@ -145,3 +151,109 @@ def reservoir_series(
             for p in points
         ],
     )
+
+
+_PCT_COLS = ("none_pct", "d0_pct", "d1_pct", "d2_pct", "d3_pct", "d4_pct")
+
+
+def _weighted_pcts(rows) -> DroughtPcts:
+    """Land-area-weighted average of county percents.
+
+    Counties missing a land area fall back to weight 1 so they still
+    count; in practice all 58 have areas seeded.
+    """
+    totals = dict.fromkeys(_PCT_COLS, 0.0)
+    weight_sum = 0.0
+    for row in rows:
+        weight = row.land_area_sq_miles or 1.0
+        weight_sum += weight
+        for col in _PCT_COLS:
+            totals[col] += getattr(row, col) * weight
+    if weight_sum == 0:
+        return DroughtPcts(**dict.fromkeys(_PCT_COLS, 0.0))
+    return DroughtPcts(**{c: round(totals[c] / weight_sum, 1) for c in _PCT_COLS})
+
+
+@router.get("/water/drought", response_model=DroughtSnapshotOut)
+@_limiter.limit("1000/minute;20000/hour")
+def drought_snapshot(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Latest US Drought Monitor week: statewide land-area-weighted
+    severity percents plus every county's breakdown."""
+    response.headers["Cache-Control"] = _ONE_HOUR
+
+    latest = db.query(func.max(DroughtCountyWeekly.week_start)).scalar()
+    if latest is None:
+        raise HTTPException(status_code=404, detail="No drought data loaded")
+
+    rows = (
+        db.query(
+            DroughtCountyWeekly.county_code,
+            *[getattr(DroughtCountyWeekly, c) for c in _PCT_COLS],
+            County.land_area_sq_miles,
+        )
+        .join(County, County.code == DroughtCountyWeekly.county_code)
+        .filter(DroughtCountyWeekly.week_start == latest)
+        .order_by(DroughtCountyWeekly.county_code)
+        .all()
+    )
+
+    return DroughtSnapshotOut(
+        week_start=latest,
+        statewide=_weighted_pcts(rows),
+        counties=[
+            DroughtCountyOut(
+                county_code=r.county_code,
+                **{c: getattr(r, c) for c in _PCT_COLS},
+            )
+            for r in rows
+        ],
+    )
+
+
+@router.get("/water/drought/series", response_model=list[DroughtWeekPoint])
+@_limiter.limit("1000/minute;20000/hour")
+def drought_series(
+    request: Request,
+    response: Response,
+    weeks: int = Query(104, ge=1, le=1400),
+    db: Session = Depends(get_db),
+):
+    """Statewide land-area-weighted drought percents per week, oldest
+    first — the trend behind the snapshot."""
+    response.headers["Cache-Control"] = _ONE_HOUR
+
+    weight = func.coalesce(County.land_area_sq_miles, 1.0)
+    weighted = [
+        (
+            func.sum(getattr(DroughtCountyWeekly, c) * weight)
+            / func.sum(weight)
+        ).label(c)
+        for c in _PCT_COLS
+    ]
+    recent_weeks = (
+        db.query(DroughtCountyWeekly.week_start)
+        .distinct()
+        .order_by(DroughtCountyWeekly.week_start.desc())
+        .limit(weeks)
+        .subquery()
+    )
+    rows = (
+        db.query(DroughtCountyWeekly.week_start, *weighted)
+        .join(County, County.code == DroughtCountyWeekly.county_code)
+        .filter(DroughtCountyWeekly.week_start.in_(recent_weeks.select()))
+        .group_by(DroughtCountyWeekly.week_start)
+        .order_by(DroughtCountyWeekly.week_start)
+        .all()
+    )
+
+    return [
+        DroughtWeekPoint(
+            week_start=r.week_start,
+            **{c: round(getattr(r, c), 1) for c in _PCT_COLS},
+        )
+        for r in rows
+    ]

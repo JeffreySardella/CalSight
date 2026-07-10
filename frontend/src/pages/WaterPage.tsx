@@ -1,4 +1,5 @@
 import MetaTags from "../components/seo/MetaTags";
+import DroughtSection from "../components/water/DroughtSection";
 import ReservoirCard from "../components/water/ReservoirCard";
 import {
   formatAcreFeet,
@@ -97,6 +98,8 @@ export default function WaterPage() {
         Exchange Center (CDEC). Storage in acre-feet; historical average is the
         mean for this calendar day across all loaded years.
       </p>
+
+      <DroughtSection />
     </main>
   );
 }

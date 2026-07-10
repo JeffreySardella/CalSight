@@ -74,7 +74,7 @@ def test_resolve_detects_missing_dependency():
 
 def test_default_registry_has_all_jobs():
     registry = build_default_registry()
-    assert len(registry.jobs) == 26  # +1: reservoirs (CDEC water module)
+    assert len(registry.jobs) == 27  # +2: reservoirs + drought (water module)
 
 
 def test_default_registry_resolves_without_error():

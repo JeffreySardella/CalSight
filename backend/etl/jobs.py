@@ -226,6 +226,17 @@ def build_default_registry() -> JobRegistry:
         source_type="none",
     ))
     registry.register(Job(
+        name="drought",
+        module="etl.load_drought",
+        # USDM publishes one map per week (Thursdays); a weekly pull with
+        # an 8-week trailing window absorbs their occasional revisions.
+        schedule="weekly",
+        table_name="drought_county_weekly",
+        # Upserts never delete; a shrink means USDM data vanished — fail loudly.
+        max_drop_pct=1,
+        source_type="none",
+    ))
+    registry.register(Job(
         name="insights",
         module="etl.generate_insights",
         depends_on=["matviews"],

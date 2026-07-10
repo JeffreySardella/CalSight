@@ -56,6 +56,13 @@
   --secondary-fixed-dim: 211 212 218;
   --surface-container-lowest: 255 255 255;
   --surface: 252 248 249;
+  /* Drought severity ramp (sequential, light->dark; validated for CVD
+     adjacent-step separation against the light surface) */
+  --drought-d0: 227 185 92;
+  --drought-d1: 206 143 51;
+  --drought-d2: 176 101 28;
+  --drought-d3: 138 68 21;
+  --drought-d4: 95 43 16;
   --on-secondary-fixed: 61 63 68;
   --tertiary-fixed: 220 221 254;
   --primary-fixed: 220 227 242;
@@ -134,6 +141,12 @@
   --secondary-fixed-dim: 74 76 81;
   --surface-container-lowest: 14 14 15;
   --surface: 19 19 20;
+  /* Drought ramp, dark-mode steps (validated against the dark surface) */
+  --drought-d0: 240 206 126;
+  --drought-d1: 224 165 80;
+  --drought-d2: 201 123 49;
+  --drought-d3: 168 86 35;
+  --drought-d4: 131 64 30;
   --on-secondary-fixed: 213 214 220;
   --tertiary-fixed: 62 63 90;
   --primary-fixed: 58 65 80;

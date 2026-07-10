@@ -1023,6 +1023,41 @@ class ReservoirDaily(Base):
     )
 
 
+class DroughtCountyWeekly(Base):
+    """Weekly drought severity per county — US Drought Monitor.
+
+    One row per county per weekly USDM map. Percents are "traditional"
+    statistics: each class excludes the more severe ones, so
+    none + d0 + ... + d4 ≈ 100 (of county land area).
+
+    Source: US Drought Monitor county statistics API
+    (usdmdataservices.unl.edu).
+    """
+
+    __tablename__ = "drought_county_weekly"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    week_start = Column(Date, nullable=False)  # USDM map valid-start date
+    none_pct = Column(Float, nullable=False)
+    d0_pct = Column(Float, nullable=False)  # abnormally dry
+    d1_pct = Column(Float, nullable=False)  # moderate drought
+    d2_pct = Column(Float, nullable=False)  # severe drought
+    d3_pct = Column(Float, nullable=False)  # extreme drought
+    d4_pct = Column(Float, nullable=False)  # exceptional drought
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "county_code", "week_start", name="uq_drought_county_week"
+        ),
+        Index("ix_drought_county_week", "county_code", "week_start"),
+        Index("ix_drought_week_start", "week_start"),
+    )
+
+
 class ChatFeedback(Base):
     """User feedback on Ask AI responses — stored when thumbs up/down is clicked."""
 

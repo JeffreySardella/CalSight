@@ -38,6 +38,10 @@ function renderPage(rows: ReservoirCondition[] | Error) {
         headers: { "Content-Type": "application/json" },
       });
     }
+    if (url.includes("/api/water/drought")) {
+      // No drought data in these scenarios — the section hides itself.
+      return new Response("not found", { status: 404 });
+    }
     throw new Error(`unexpected fetch: ${url}`);
   });
   const client = new QueryClient({
