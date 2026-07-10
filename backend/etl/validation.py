@@ -42,10 +42,19 @@ class ValidationCheck:
     threshold: Optional[float] = None
 
 
+def _utc_now() -> datetime:
+    """Naive UTC 'now' — deprecated datetime.utcnow() replacement.
+
+    Kept naive on purpose: report timestamps sit alongside etl_runs values,
+    which store naive UTC (see etl.orchestrator._utc_now, M-B12).
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 @dataclass
 class ValidationReport:
     source: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=_utc_now)
     checks: list[ValidationCheck] = field(default_factory=list)
 
     @property

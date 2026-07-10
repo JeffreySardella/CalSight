@@ -348,7 +348,10 @@ def _build_update_dict(stats: dict, narrative: str | None, now) -> dict:
     return update_dict
 
 
-@track_etl_run("generate_insights")
+# Source name matches the registry job name in etl/jobs.py ("insights", not
+# "generate_insights") so direct CLI runs and orchestrated runs share one
+# freshness history (audit M-B8 phantom-name fix).
+@track_etl_run("insights")
 def run() -> int:
     """Generate insight cards for all counties. Returns number of rows upserted."""
     db = SessionLocal()

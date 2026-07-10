@@ -61,6 +61,24 @@ class FunFactOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CountyInsightPayload(BaseModel):
+    """Response shape of GET /api/insights/{county_slug} (#291)."""
+
+    county_name: str
+    year: int
+    total_crashes: int | None
+    total_killed: int | None
+    total_injured: int | None
+    crash_rate_per_capita: float | None
+    top_cause: str | None
+    top_cause_pct: float | None
+    yoy_change_pct: float | None
+    peak_hour: int | None
+    dui_pct: float | None
+    narrative: str | None
+    generated_at: str | None  # ISO 8601
+
+
 @router.get("/insights/statewide", response_model=StatewideInsightOut)
 @_limiter.limit("1000/minute;20000/hour")
 def get_random_statewide_insight(
@@ -170,7 +188,7 @@ def get_random_county_insight_card(
     return CountyInsightCardOut.model_validate(row)
 
 
-@router.get("/insights/{county_slug}")
+@router.get("/insights/{county_slug}", response_model=CountyInsightPayload)
 @_limiter.limit("1000/minute;20000/hour")
 def get_insight(
     request: Request,

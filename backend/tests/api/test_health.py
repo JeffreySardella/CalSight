@@ -45,3 +45,17 @@ def test_maintenance_precedes_rebuilding(client, monkeypatch):
     resp = client.get("/api/health")
     assert resp.status_code == 503
     assert resp.json()["status"] == "maintenance"
+
+
+def test_health_is_explicitly_uncacheable(client, monkeypatch):
+    # (#291) monitors must always see live status — never a cached one.
+    monkeypatch.setattr(main_module, "is_rebuilding", lambda db: False)
+    resp = client.get("/api/health")
+    assert resp.headers.get("Cache-Control") == "no-store"
+
+
+def test_health_maintenance_response_is_uncacheable(client, monkeypatch):
+    monkeypatch.setattr(main_module.settings, "maintenance_mode", True)
+    resp = client.get("/api/health")
+    assert resp.status_code == 503
+    assert resp.headers.get("Cache-Control") == "no-store"

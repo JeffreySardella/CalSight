@@ -39,7 +39,10 @@ _limiter = Limiter(key_func=rate_limit_key)
 _ONE_HOUR = "public, max-age=3600"
 
 
-@router.get("/counties", response_model=list[CountyOut])
+# deprecated (#291): no frontend callers — the map bundles county boundaries
+# statically and filters resolve slugs server-side. Kept working for
+# external consumers; flagged in OpenAPI so new clients don't adopt it.
+@router.get("/counties", response_model=list[CountyOut], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def list_counties(
     request: Request,
@@ -60,7 +63,9 @@ def list_counties(
     return out
 
 
-@router.get("/cities", response_model=list[CityOut])
+# deprecated (#291): no frontend callers — the city autocomplete it was built
+# for was never wired up in the UI.
+@router.get("/cities", response_model=list[CityOut], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def list_cities(
     request: Request,
@@ -165,7 +170,9 @@ def list_calenviroscreen(
     return [CalenviroScreenOut.model_validate(r) for r in q.all()]
 
 
-@router.get("/road-miles", response_model=list[RoadMileOut])
+# deprecated (#291): no frontend callers — road mileage feeds crash-rate
+# denominators through /api/stats, not through this raw list.
+@router.get("/road-miles", response_model=list[RoadMileOut], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def list_road_miles(
     request: Request,
@@ -186,7 +193,9 @@ def list_road_miles(
     return [RoadMileOut.model_validate(r) for r in q.all()]
 
 
-@router.get("/traffic-volumes", response_model=list[TrafficVolumeOut])
+# deprecated (#291): no frontend callers — AADT exposure feeds /api/stats
+# (mv_crash_rates), not this raw per-county list.
+@router.get("/traffic-volumes", response_model=list[TrafficVolumeOut], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def list_traffic_volumes(
     request: Request,
@@ -204,7 +213,8 @@ def list_traffic_volumes(
     return [TrafficVolumeOut.model_validate(r) for r in q.all()]
 
 
-@router.get("/speed-limits", response_model=list[SpeedLimitOut])
+# deprecated (#291): no frontend callers.
+@router.get("/speed-limits", response_model=list[SpeedLimitOut], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def list_speed_limits(
     request: Request,

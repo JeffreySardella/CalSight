@@ -25,6 +25,11 @@ def list_weather(
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),
+    # Opt-in pagination (#291) — default None returns the full set because
+    # useCorrelationData.ts fetches /api/weather with no params and expects
+    # every county × year × month row.
+    limit: int | None = Query(None, ge=1, le=100_000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     """NOAA monthly temperature and precipitation per county."""
@@ -38,9 +43,13 @@ def list_weather(
         years = parse_year(year)
         if years:
             q = q.filter(Weather.year.in_(years))
-    rows = q.order_by(
+    q = q.order_by(
         Weather.county_code,
         Weather.year,
         Weather.month,
-    ).all()
-    return [WeatherOut.model_validate(r) for r in rows]
+    )
+    if offset:
+        q = q.offset(offset)
+    if limit is not None:
+        q = q.limit(limit)
+    return [WeatherOut.model_validate(r) for r in q.all()]

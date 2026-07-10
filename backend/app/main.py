@@ -218,14 +218,31 @@ app.include_router(fars_router, prefix="/api")
 app.include_router(tract_density_router, prefix="/api")
 
 
-@app.get("/api/health")
-def health(db: Session = Depends(get_db)):
+from pydantic import BaseModel  # noqa: E402
+
+
+class HealthResponse(BaseModel):
+    status: str
+
+
+# Every branch is stamped no-store (#291): uptime monitors and the frontend's
+# maintenance screen must always see the live status, never a cached one.
+_NO_STORE = {"Cache-Control": "no-store"}
+
+
+@app.get("/api/health", response_model=HealthResponse)
+def health(response: StarletteResponse, db: Session = Depends(get_db)):
+    response.headers["Cache-Control"] = "no-store"
     if settings.maintenance_mode:
-        return JSONResponse(status_code=503, content={"status": "maintenance"})
+        return JSONResponse(
+            status_code=503, content={"status": "maintenance"}, headers=_NO_STORE
+        )
     try:
         db.execute(text("SELECT 1"))
     except Exception:
-        return JSONResponse(status_code=503, content={"status": "db_unavailable"})
+        return JSONResponse(
+            status_code=503, content={"status": "db_unavailable"}, headers=_NO_STORE
+        )
     if is_rebuilding(db):
-        return {"status": "rebuilding"}
-    return {"status": "ok"}
+        return HealthResponse(status="rebuilding")
+    return HealthResponse(status="ok")

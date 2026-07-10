@@ -1,13 +1,15 @@
-"""Data freshness API — tells the frontend how stale each data source is.
+"""Data freshness API — per-source staleness detail.
 
-Endpoints:
+Endpoints (both deprecated, #291):
   GET /api/freshness          — per-source last-updated timestamps + row counts
   GET /api/freshness/summary  — single object with overall freshness status
 
-The frontend uses this to:
-  1. Show "Data last updated: 2 hours ago" in the footer
-  2. Display a warning banner if crash data is stale (>48h old)
-  3. Show per-source status in an admin/data-health page
+The frontend never adopted these — it reads GET /api/meta/data-freshness
+(app.routers.meta) for the "data as of" pill. Both routes keep working for
+external consumers, and the shared "latest success per source" query now
+lives in app.routers.meta.latest_successful_runs so there is a single
+implementation. The extra value here (staleness thresholds, fresh/stale
+rollup) remains available but is flagged deprecated in OpenAPI.
 
 All data comes from the etl_runs table — no extra bookkeeping needed.
 """
@@ -27,6 +29,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.freshness_logic import compute_staleness
 from app.models import EtlRun
+from app.routers.meta import latest_successful_runs
 
 router = APIRouter(tags=["freshness"])
 
@@ -84,37 +87,25 @@ _STALENESS_THRESHOLDS = {
 }
 
 
-@router.get("/freshness")
+# deprecated (#291): no frontend callers — the UI reads /api/meta/data-freshness.
+@router.get("/freshness", response_model=list[SourceFreshness], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def get_freshness(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> list[dict]:
+):
     """Per-source freshness information.
 
     Returns the last successful run timestamp and row count for each
-    ETL source. The frontend can use hours_since_update to show relative
-    freshness ("2 hours ago") and is_stale to trigger warning banners.
+    ETL source, with staleness computed against per-source thresholds.
+    Deprecated: prefer /api/meta/data-freshness (this route delegates to
+    the same underlying query).
     """
     response.headers["Cache-Control"] = "public, max-age=300"
 
-    # Get the most recent successful run per source
-    subq = (
-        db.query(
-            EtlRun.source,
-            func.max(EtlRun.finished_at).label("last_success"),
-        )
-        .filter(EtlRun.status == "success")
-        .group_by(EtlRun.source)
-        .subquery()
-    )
-
-    rows = (
-        db.query(EtlRun)
-        .join(subq, (EtlRun.source == subq.c.source) & (EtlRun.finished_at == subq.c.last_success))
-        .all()
-    )
+    # Most recent successful run per source — shared with /api/meta/data-freshness.
+    rows = latest_successful_runs(db)
 
     # Last time we confirmed sync with upstream per source — a successful load
     # OR a skipped_unchanged check both count. This is what staleness keys off,
@@ -158,17 +149,18 @@ def get_freshness(
     return results
 
 
-@router.get("/freshness/summary")
+# deprecated (#291): no frontend callers — the UI reads /api/meta/data-freshness.
+@router.get("/freshness/summary", response_model=FreshnessSummary, deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def get_freshness_summary(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> dict:
-    """Single-object summary of data freshness for the dashboard footer.
+):
+    """Single-object summary of data freshness.
 
-    The frontend calls this once on page load to decide whether to show
-    a "data may be stale" banner and to populate the footer timestamp.
+    Deprecated: no frontend callers — kept for external monitors that may
+    poll it.
     """
     response.headers["Cache-Control"] = "public, max-age=300"
 

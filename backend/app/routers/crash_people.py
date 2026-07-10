@@ -38,9 +38,12 @@ _limiter = Limiter(key_func=rate_limit_key)
 # ── Drill-down endpoints (B1) ──────────────────────────────────────────
 
 
+# deprecated (#291): no frontend callers — the crash drill-down UI that
+# would consume this was never shipped. Kept working; flagged in OpenAPI.
 @router.get(
     "/crashes/{collision_id}/parties",
     response_model=list[CrashPartyOut],
+    deprecated=True,
 )
 @_limiter.limit("1000/minute;20000/hour")
 def list_parties_for_crash(
@@ -71,9 +74,11 @@ def list_parties_for_crash(
     return [CrashPartyOut.model_validate(r) for r in rows]
 
 
+# deprecated (#291): no frontend callers — see /crashes/{collision_id}/parties.
 @router.get(
     "/crashes/{collision_id}/victims",
     response_model=list[CrashVictimOut],
+    deprecated=True,
 )
 @_limiter.limit("1000/minute;20000/hour")
 def list_victims_for_crash(
@@ -131,7 +136,9 @@ def _parse_gender(raw: str | None) -> set[str] | None:
     return out or None
 
 
-@router.get("/parties", response_model=PaginatedResponse[CrashPartyOut])
+# deprecated (#291): no frontend callers — demographic breakdowns are served
+# by /api/stats group_by=at_fault_* from the matviews, not this raw list.
+@router.get("/parties", response_model=PaginatedResponse[CrashPartyOut], deprecated=True)
 @_limiter.limit("60/minute;500/hour")
 def list_parties(
     request: Request,
@@ -229,7 +236,9 @@ def list_parties(
     )
 
 
-@router.get("/victims", response_model=PaginatedResponse[CrashVictimOut])
+# deprecated (#291): no frontend callers — victim demographics are served by
+# /api/stats group_by=victim_* from the matviews, not this raw list.
+@router.get("/victims", response_model=PaginatedResponse[CrashVictimOut], deprecated=True)
 @_limiter.limit("60/minute;500/hour")
 def list_victims(
     request: Request,

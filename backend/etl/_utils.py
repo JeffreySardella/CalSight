@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import functools
 import logging
+import os
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -207,6 +208,19 @@ def post_with_retry(
 # EtlRun tracking
 # ---------------------------------------------------------------------------
 
+# Set by etl.orchestrator.run_job in the environment of every job subprocess
+# it spawns. When present, etl_run()/track_etl_run() skip self-tracking —
+# run_job's etl_runs row (keyed by the registry job name) is the single
+# source of truth for orchestrated runs. Direct CLI runs (no flag) keep
+# self-tracking. See audit M-B8: without this, every orchestrated job that
+# also self-tracked produced two etl_runs rows per run.
+ORCHESTRATED_ENV_FLAG = "CALSIGHT_ORCHESTRATED"
+
+
+def _is_orchestrated() -> bool:
+    return os.environ.get(ORCHESTRATED_ENV_FLAG) == "1"
+
+
 @contextmanager
 def etl_run(source: str) -> Iterator[EtlRun]:
     """Track an ETL pipeline run in the etl_runs table.
@@ -233,6 +247,21 @@ def etl_run(source: str) -> Iterator[EtlRun]:
                 finally:
                     db.close()
     """
+    # Orchestrated runs: etl.orchestrator.run_job already owns the etl_runs
+    # row for this job (status, timing, validation) and sets the flag on the
+    # subprocess env. Writing a second row here duplicated every orchestrated
+    # run — and under the module's own source name ("generate_insights") vs
+    # the registry job name ("insights"), polluting freshness lookups (M-B8).
+    # Yield a transient, never-persisted record so callers can still set
+    # rows_loaded etc.; exceptions propagate unchanged for run_job to record.
+    if _is_orchestrated():
+        logger.info(
+            "EtlRun tracking for source=%r delegated to orchestrator (%s=1)",
+            source, ORCHESTRATED_ENV_FLAG,
+        )
+        yield EtlRun(source=source, status="running")
+        return
+
     db = SessionLocal()
     record = EtlRun(
         source=source,

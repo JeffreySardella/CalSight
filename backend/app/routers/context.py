@@ -40,6 +40,12 @@ def list_unemployment(
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),
+    # Opt-in pagination (#291). limit defaults to None (return everything)
+    # because the frontend (useCorrelationData, useChoroplethData) fetches
+    # the full unfiltered set and would silently lose rows with a capped
+    # default. Callers that page must pass limit explicitly.
+    limit: int | None = Query(None, ge=1, le=100_000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     """BLS monthly unemployment rates per county."""
@@ -53,12 +59,16 @@ def list_unemployment(
         years = parse_year(year)
         if years:
             q = q.filter(UnemploymentRate.year.in_(years))
-    rows = q.order_by(
+    q = q.order_by(
         UnemploymentRate.county_code,
         UnemploymentRate.year,
         UnemploymentRate.month,
-    ).all()
-    return [UnemploymentOut.model_validate(r) for r in rows]
+    )
+    if offset:
+        q = q.offset(offset)
+    if limit is not None:
+        q = q.limit(limit)
+    return [UnemploymentOut.model_validate(r) for r in q.all()]
 
 
 @router.get("/vehicles", response_model=list[VehicleRegistrationOut])
@@ -68,6 +78,11 @@ def list_vehicles(
     response: Response,
     county: str | None = Query(None),
     year: str | None = Query(None),
+    # Opt-in pagination (#291) — default None returns the full set because
+    # VehicleTrends.tsx and useCorrelationData.ts fetch /api/vehicles with
+    # no params and expect every county × year row.
+    limit: int | None = Query(None, ge=1, le=100_000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     """DMV vehicle registrations per county × year, including EV counts."""
@@ -81,13 +96,18 @@ def list_vehicles(
         years = parse_year(year)
         if years:
             q = q.filter(VehicleRegistration.year.in_(years))
-    rows = q.order_by(
-        VehicleRegistration.county_code, VehicleRegistration.year
-    ).all()
-    return [VehicleRegistrationOut.model_validate(r) for r in rows]
+    q = q.order_by(VehicleRegistration.county_code, VehicleRegistration.year)
+    if offset:
+        q = q.offset(offset)
+    if limit is not None:
+        q = q.limit(limit)
+    return [VehicleRegistrationOut.model_validate(r) for r in q.all()]
 
 
-@router.get("/licensed-drivers", response_model=list[LicensedDriverOut])
+# deprecated (#291): no frontend callers — the dashboard reads driver counts
+# via /api/stats (mv_crash_rates). Kept working for external consumers;
+# flagged in OpenAPI so new clients don't adopt it.
+@router.get("/licensed-drivers", response_model=list[LicensedDriverOut], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def list_licensed_drivers(
     request: Request,
@@ -153,7 +173,9 @@ def list_data_quality(
     return [DataQualityStatOut.model_validate(r) for r in q.all()]
 
 
-@router.get("/insights", response_model=list[CountyInsightOut])
+# deprecated (#291): no frontend callers — the UI uses /api/insights/{county_slug}
+# (single-county payload) and /api/insight-cards/random instead of this list.
+@router.get("/insights", response_model=list[CountyInsightOut], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def list_insights(
     request: Request,
@@ -179,7 +201,9 @@ def list_insights(
     return [CountyInsightOut.model_validate(r) for r in q.all()]
 
 
-@router.get("/insight-cards", response_model=list[CountyInsightCardOut])
+# deprecated (#291): no frontend callers — the UI fetches one card at a time
+# via /api/insight-cards/random rather than this full list.
+@router.get("/insight-cards", response_model=list[CountyInsightCardOut], deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def list_insight_cards(
     request: Request,

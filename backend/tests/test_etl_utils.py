@@ -510,3 +510,100 @@ class TestDedupeRows:
     def test_no_duplicates_is_identity(self):
         rows = [{"id": 1}, {"id": 2}]
         assert _utils.dedupe_rows(rows, ("id",)) == rows
+
+
+# ---------------------------------------------------------------------------
+# Orchestrated runs must not self-track (audit M-B8: duplicate etl_runs rows)
+# ---------------------------------------------------------------------------
+
+class TestOrchestratedTrackingSkip:
+    """When etl.orchestrator.run_job spawns a module subprocess it sets
+    CALSIGHT_ORCHESTRATED=1 — run_job's own etl_runs row is then the single
+    source of truth, and etl_run()/track_etl_run() must not write a second
+    (duplicate) row. Direct CLI runs (no flag) keep self-tracking.
+    """
+
+    def test_flag_constant_matches_env_name(self):
+        assert _utils.ORCHESTRATED_ENV_FLAG == "CALSIGHT_ORCHESTRATED"
+
+    def test_etl_run_skips_db_when_orchestrated(self, fake_db, monkeypatch):
+        monkeypatch.setenv(_utils.ORCHESTRATED_ENV_FLAG, "1")
+
+        with _utils.etl_run("hospitals") as record:
+            record.rows_loaded = 7
+
+        # Nothing persisted: no add/commit on the (patched) session.
+        assert fake_db.added == []
+        assert fake_db.committed == 0
+        # The transient record is still usable by the caller.
+        assert record.rows_loaded == 7
+
+    def test_etl_run_exception_still_propagates_when_orchestrated(
+        self, fake_db, monkeypatch
+    ):
+        # run_job records the failure from the subprocess exit code, so the
+        # exception must escape unchanged and nothing may be written here.
+        monkeypatch.setenv(_utils.ORCHESTRATED_ENV_FLAG, "1")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            with _utils.etl_run("hospitals"):
+                raise RuntimeError("boom")
+
+        assert fake_db.added == []
+        assert fake_db.committed == 0
+
+    def test_track_etl_run_skips_db_when_orchestrated(self, fake_db, monkeypatch):
+        monkeypatch.setenv(_utils.ORCHESTRATED_ENV_FLAG, "1")
+
+        @_utils.track_etl_run("schools")
+        def run():
+            return 42
+
+        assert run() == 42
+        assert fake_db.added == []
+        assert fake_db.committed == 0
+
+    def test_direct_cli_run_still_self_tracks(self, fake_db, monkeypatch):
+        monkeypatch.delenv(_utils.ORCHESTRATED_ENV_FLAG, raising=False)
+
+        @_utils.track_etl_run("schools")
+        def run():
+            return 42
+
+        run()
+        assert len(fake_db.added) == 1
+        assert fake_db.added[0].status == "success"
+        assert fake_db.added[0].rows_loaded == 42
+
+    def test_run_job_sets_flag_on_subprocess_env(self, monkeypatch):
+        """run_job must pass CALSIGHT_ORCHESTRATED=1 to the module subprocess."""
+        from etl import orchestrator
+
+        captured: dict = {}
+
+        def fake_subprocess_run(cmd, **kwargs):
+            captured["env"] = kwargs.get("env")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        class _Sess(FakeSession):
+            def expunge(self, obj):
+                pass
+
+            def query(self, *a, **k):  # zombie cleanup / row counts not exercised
+                raise AssertionError("unexpected query")
+
+            def execute(self, *a, **k):
+                raise RuntimeError("no db")
+
+        sess = _Sess()
+        monkeypatch.setattr(orchestrator, "SessionLocal", lambda: sess)
+        monkeypatch.setattr(orchestrator.subprocess, "run", fake_subprocess_run)
+        # Skip validation suite (would need a real DB).
+        monkeypatch.setattr(orchestrator, "_validate_job", lambda db, job, rb: ("skipped", None))
+
+        job = orchestrator.Job(name="schools", module="etl.load_schools")
+        record = orchestrator.run_job(job, triggered_by="test")
+
+        assert captured["env"] is not None
+        assert captured["env"][_utils.ORCHESTRATED_ENV_FLAG] == "1"
+        assert record.status == "success"

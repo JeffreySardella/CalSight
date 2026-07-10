@@ -1,6 +1,6 @@
 """Integration test for etl.clear_stale_runs."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -11,7 +11,7 @@ pytestmark = pytest.mark.integration
 
 
 def test_clears_only_stale_running_rows(db_session):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, matches EtlRun columns
     db_session.add_all([
         # Zombie: 'running' for 2 days — must be cleared.
         EtlRun(source="zombie_job", status="running",

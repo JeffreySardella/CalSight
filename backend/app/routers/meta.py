@@ -10,11 +10,38 @@ from app.county_slug_map import get_slug_map
 from app.database import get_db
 from app.filters import parse_county_codes
 from app.models import Crash, EtlRun
-from app.schemas.meta import SourceFreshness
+from app.schemas.meta import CoordMismatchesOut, CoordValidationOut, SourceFreshness
 
 router = APIRouter(tags=["meta"])
 
 _limiter = Limiter(key_func=rate_limit_key)
+
+
+def latest_successful_runs(db: Session) -> list[EtlRun]:
+    """Most recent EtlRun with status='success' per source.
+
+    Single implementation of the "latest success per source" query — shared
+    with the deprecated /api/freshness endpoint (app.routers.freshness),
+    which previously duplicated this join (#291).
+    """
+    subq = (
+        db.query(
+            EtlRun.source,
+            func.max(EtlRun.finished_at).label("last_loaded_at"),
+        )
+        .filter(EtlRun.status == "success")
+        .group_by(EtlRun.source)
+        .subquery()
+    )
+    return (
+        db.query(EtlRun)
+        .join(
+            subq,
+            (EtlRun.source == subq.c.source)
+            & (EtlRun.finished_at == subq.c.last_loaded_at),
+        )
+        .all()
+    )
 
 
 @router.get("/meta/data-freshness", response_model=dict[str, SourceFreshness])
@@ -25,31 +52,15 @@ def data_freshness(request: Request, response: Response, db: Session = Depends(g
     Backed by `etl_runs`. Returns a dict keyed by source name.
     """
     response.headers["Cache-Control"] = "public, max-age=300"
-    subq = (
-        db.query(
-            EtlRun.source,
-            func.max(EtlRun.finished_at).label("last_loaded_at"),
-        )
-        .filter(EtlRun.status == "success")
-        .group_by(EtlRun.source)
-        .subquery()
-    )
-    rows = (
-        db.query(EtlRun.source, EtlRun.finished_at, EtlRun.rows_loaded)
-        .join(
-            subq,
-            (EtlRun.source == subq.c.source)
-            & (EtlRun.finished_at == subq.c.last_loaded_at),
-        )
-        .all()
-    )
     return {
-        source: SourceFreshness(last_loaded_at=finished_at, rows_loaded=rows_loaded)
-        for source, finished_at, rows_loaded in rows
+        run.source: SourceFreshness(
+            last_loaded_at=run.finished_at, rows_loaded=run.rows_loaded
+        )
+        for run in latest_successful_runs(db)
     }
 
 
-@router.get("/meta/coord-validation")
+@router.get("/meta/coord-validation", response_model=CoordValidationOut)
 @_limiter.limit("1000/minute;20000/hour")
 def coord_validation_summary(request: Request, response: Response, db: Session = Depends(get_db)):
     """Summary stats for coordinate validation — how many valid/mismatched/unchecked."""
@@ -68,7 +79,10 @@ def coord_validation_summary(request: Request, response: Response, db: Session =
     }
 
 
-@router.get("/meta/coord-mismatches")
+# deprecated (#291): no frontend callers — the admin page only reads the
+# /api/meta/coord-validation summary; this per-row audit list is for
+# manual/ad-hoc use. Kept working; flagged in OpenAPI.
+@router.get("/meta/coord-mismatches", response_model=CoordMismatchesOut, deprecated=True)
 @_limiter.limit("1000/minute;20000/hour")
 def coord_mismatches(
     request: Request,

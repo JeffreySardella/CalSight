@@ -1,6 +1,6 @@
 """Integration tests for /api/freshness and /api/meta/data-freshness."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -51,7 +51,7 @@ def _get_source(body, name):
 
 def test_static_source_recently_checked_is_not_stale(client, db_session):
     """A source loaded long ago but confirmed unchanged recently is fresh."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, matches EtlRun columns
     db_session.add_all([
         EtlRun(source="hospitals", status="success", rows_loaded=500,
                started_at=now - timedelta(days=50, hours=1),
@@ -72,7 +72,7 @@ def test_static_source_recently_checked_is_not_stale(client, db_session):
 
 def test_source_not_checked_past_threshold_is_stale(client, db_session):
     """A source the pipeline hasn't even checked in weeks is stale."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, matches EtlRun columns
     db_session.add_all([
         EtlRun(source="weather", status="success", rows_loaded=10,
                started_at=now - timedelta(days=45, hours=1),
@@ -90,7 +90,7 @@ def test_source_not_checked_past_threshold_is_stale(client, db_session):
 
 
 def test_summary_counts_recently_checked_static_source_as_fresh(client, db_session):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, matches EtlRun columns
     db_session.add_all([
         EtlRun(source="demographics", status="success", rows_loaded=58,
                started_at=now - timedelta(days=48, hours=1),

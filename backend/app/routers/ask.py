@@ -156,9 +156,20 @@ class FeedbackRequest(BaseModel):
         return v
 
 
-@router.post("/feedback")
+class FeedbackResponse(BaseModel):
+    ok: bool
+
+
+@router.post("/feedback", response_model=FeedbackResponse)
 @limiter.limit("30/minute")
-def feedback(request: Request, body: FeedbackRequest, db: Session = Depends(get_db)):
+def feedback(
+    request: Request,
+    response: Response,
+    body: FeedbackRequest,
+    db: Session = Depends(get_db),
+):
+    # Explicitly uncacheable — a write endpoint (#291).
+    response.headers["Cache-Control"] = "no-store"
     row = ChatFeedback(
         question=body.question,
         answer=body.answer[:2000],
@@ -169,7 +180,7 @@ def feedback(request: Request, body: FeedbackRequest, db: Session = Depends(get_
     )
     db.add(row)
     db.commit()
-    return {"ok": True}
+    return FeedbackResponse(ok=True)
 
 
 @router.post("/ask", response_model=AskResponse)
@@ -179,6 +190,10 @@ async def ask(
     response: Response,
     body: AskRequest,
 ):
+    # Explicitly uncacheable at the HTTP layer (#291): answers depend on the
+    # POST body, so shared caches must never store them. The server-side
+    # answer cache below (X-Cache) is separate and unaffected.
+    response.headers["Cache-Control"] = "no-store"
     # Cache lookup happens before the LLM round trip — identical
     # (question, filters, history) produce the same answer, and the LLM
     # call is the slow + expensive part. See app.llm_cache for the design.
