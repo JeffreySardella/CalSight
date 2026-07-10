@@ -22,10 +22,13 @@ on:
         default: true
 
 concurrency:
-  # Don't let two manual ETL runs (or this + a deploy's backfill) clobber each
-  # other on the DB. Same group as nothing else; cancel-in-progress stays off so
-  # a long backfill is never killed mid-run.
-  group: run-etl
+  # Shared with deploy.yml so manual ETL runs and deploys are mutually
+  # exclusive (audit 2026-07-09 M1): a deploy's `up -d` recreates the
+  # backend container, which would kill this job's `exec` mid-write and
+  # strand a zombie `running` etl_runs row — and a deploy's backfill could
+  # race a manual job on the same tables. cancel-in-progress stays off so
+  # a long backfill is never killed mid-run; runs queue instead.
+  group: prod-mutex
   cancel-in-progress: false
 
 permissions:

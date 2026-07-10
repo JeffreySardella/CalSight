@@ -11,9 +11,15 @@ on:
     types: [completed]
 
 concurrency:
-  group: production-deploy
-  # Queue deploys instead of cancelling in-flight ones — killing a deploy
-  # mid-run can interrupt a live database migration.
+  # Shared with run-etl.yml so a deploy and a manual ETL run are mutually
+  # exclusive: a deploy's `up -d` recreates the backend container, which
+  # would kill an in-flight ETL exec mid-write and strand a zombie
+  # `running` row (audit 2026-07-09 M1). Disjoint groups only serialized
+  # deploys against deploys.
+  group: prod-mutex
+  # Queue instead of cancelling in-flight runs — killing a deploy mid-run
+  # can interrupt a live database migration, and killing an ETL run leaves
+  # partial writes.
   cancel-in-progress: false
 
 permissions:
@@ -43,6 +49,28 @@ jobs:
     outputs:
       needed: ${{ steps.check.outputs.needed }}
     steps:
+      - name: Verify DEPLOY_SHA is the current main head (re-run guard)
+        # workflow_run fires on RE-RUNS of old CI runs too, and DEPLOY_SHA is
+        # that run's head_sha — so an innocent "re-run to check flakiness" on
+        # a months-old green CI run would silently redeploy that old commit,
+        # including running its alembic migrations (audit 2026-07-09 M3).
+        # Refuse to deploy any SHA that is no longer the current main head.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MAIN_HEAD=$(git ls-remote "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)
+          if [ -z "$MAIN_HEAD" ]; then
+            echo "ERROR: could not resolve the current main head via git ls-remote — refusing to deploy." >&2
+            exit 1
+          fi
+          if [ "$MAIN_HEAD" != "$DEPLOY_SHA" ]; then
+            echo "ERROR: DEPLOY_SHA ($DEPLOY_SHA) is not the current main head ($MAIN_HEAD)." >&2
+            echo "This is most likely a re-run of an old CI run. To deploy the current" >&2
+            echo "main, re-run CI on the current head commit instead." >&2
+            exit 1
+          fi
+          echo "DEPLOY_SHA matches current main head — proceeding."
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
@@ -52,13 +80,46 @@ jobs:
           ref: ${{ env.DEPLOY_SHA }}
       - name: Detect migration/backfill changes or [backfill] tag
         id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           NEEDED=false
           if git log -1 --format='%s%b' | grep -qi '\[backfill\]'; then
             echo "Commit message contains [backfill]"
             NEEDED=true
           fi
-          if git diff --name-only HEAD~1 HEAD -- \
+          # Diff against the last successfully deployed SHA when we know it
+          # (written to /opt/calsight/.last-deployed-sha at the end of every
+          # successful deploy). Diffing only HEAD~1 misses backfill-relevant
+          # changes in multi-commit direct pushes — migrations still applied
+          # but backfills/matview refreshes were silently skipped (audit
+          # 2026-07-09 M4). Fall back to HEAD~1 when the file is absent
+          # (first deploy) or the stored SHA is no longer fetchable.
+          BASE=""
+          LAST_SHA_FILE=/opt/calsight/.last-deployed-sha
+          if [ -f "$LAST_SHA_FILE" ]; then
+            LAST_SHA=$(cat "$LAST_SHA_FILE")
+            if printf '%s' "$LAST_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+              # The checkout is shallow (fetch-depth: 2), so an arbitrary old
+              # SHA isn't in the local object store — fetch it explicitly.
+              # persist-credentials is false, so authenticate the fetch with
+              # the job token. If the SHA no longer exists upstream (history
+              # rewrite, GC), fall back to HEAD~1 rather than failing.
+              if git cat-file -e "${LAST_SHA}^{commit}" 2>/dev/null \
+                 || git fetch --depth=1 "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$LAST_SHA" 2>/dev/null; then
+                BASE="$LAST_SHA"
+              else
+                echo "Stored last-deployed SHA $LAST_SHA is not fetchable — falling back to HEAD~1"
+              fi
+            else
+              echo "Ignoring malformed $LAST_SHA_FILE contents — falling back to HEAD~1"
+            fi
+          else
+            echo "No $LAST_SHA_FILE (first deploy on this runner) — falling back to HEAD~1"
+          fi
+          [ -n "$BASE" ] || BASE=HEAD~1
+          echo "Diffing $BASE..HEAD for migration/backfill changes"
+          if git diff --name-only "$BASE" HEAD -- \
             'backend/migrations/versions/' \
             'backend/etl/backfill_derived.py' \
             'backend/etl/backfill_conditions.py' | grep -q .; then
@@ -78,6 +139,26 @@ jobs:
     needs: check-backfill
     runs-on: self-hosted
     steps:
+      - name: Verify DEPLOY_SHA is the current main head (re-run guard)
+        # Duplicated from check-backfill (like the `if:` guard above) so the
+        # gate survives future refactors, and because main can advance in the
+        # window between the two jobs. See audit 2026-07-09 M3.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MAIN_HEAD=$(git ls-remote "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)
+          if [ -z "$MAIN_HEAD" ]; then
+            echo "ERROR: could not resolve the current main head via git ls-remote — refusing to deploy." >&2
+            exit 1
+          fi
+          if [ "$MAIN_HEAD" != "$DEPLOY_SHA" ]; then
+            echo "ERROR: DEPLOY_SHA ($DEPLOY_SHA) is not the current main head ($MAIN_HEAD)." >&2
+            echo "This is most likely a re-run of an old CI run. To deploy the current" >&2
+            echo "main, re-run CI on the current head commit instead." >&2
+            exit 1
+          fi
+          echo "DEPLOY_SHA matches current main head — proceeding."
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
@@ -209,8 +290,12 @@ jobs:
         run: docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml up -d
 
       - name: Tag images with commit SHA for rollback
+        # Both images: rollback restores backend AND pipeline to the previous
+        # SHA (audit 2026-07-09 M2) — an untagged pipeline image could never
+        # be rolled back.
         run: |
           docker tag calsight-backend:latest "calsight-backend:${DEPLOY_SHA}"
+          docker tag calsight-pipeline:latest "calsight-pipeline:${DEPLOY_SHA}"
 
       - name: Prune old images (keep last 5 SHA tags)
         run: |
@@ -218,13 +303,15 @@ jobs:
           # rollback images accumulate forever. Instead keep the 5 newest SHA
           # tags (docker images lists newest first) and remove the rest —
           # never :latest, and never the SHA we just deployed.
-          docker images calsight-backend --format '{{.Tag}}' \
-            | grep -v '^latest$' \
-            | tail -n +6 \
-            | grep -v "^${DEPLOY_SHA}$" \
-            | while read -r TAG; do
-                docker rmi "calsight-backend:${TAG}" || true
-              done
+          for IMAGE in calsight-backend calsight-pipeline; do
+            docker images "$IMAGE" --format '{{.Tag}}' \
+              | grep -v '^latest$' \
+              | tail -n +6 \
+              | grep -v "^${DEPLOY_SHA}$" \
+              | while read -r TAG; do
+                  docker rmi "${IMAGE}:${TAG}" || true
+                done
+          done
 
       - name: Backfill derived fields (severity, flags, driver age, canonical cause)
         if: needs.check-backfill.outputs.needed == 'true'
@@ -276,18 +363,54 @@ jobs:
             && echo "Backup directory is writable" \
             || { echo "Pipeline cannot write to /backups — backups would fail silently"; exit 1; }
 
-      - name: Rollback to previous image on failure
+      - name: Record last successfully deployed SHA
+        # Read by check-backfill on the NEXT deploy so it diffs against the
+        # previously deployed commit instead of only HEAD~1 (audit 2026-07-09
+        # M4). No `if:` — the step only runs when every step above succeeded,
+        # i.e. after a healthy, verified deploy.
+        run: |
+          printf '%s\n' "$DEPLOY_SHA" > /opt/calsight/.last-deployed-sha 2>/dev/null \
+            || sudo -n sh -c "printf '%s\n' '$DEPLOY_SHA' > /opt/calsight/.last-deployed-sha"
+
+      - name: Rollback to previous images on failure
         if: failure()
+        env:
+          CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
         run: |
           echo "Deploy failed — attempting rollback..."
           # The just-deployed SHA is tagged before the health check, so it is
           # the newest tag — skip it (and :latest) to find the previous deploy.
           PREV_SHA=$(docker images calsight-backend --format '{{.Tag}}' | grep -v -e '^latest$' -e "^${DEPLOY_SHA}$" | head -1)
           if [ -n "$PREV_SHA" ]; then
-            echo "Rolling back to calsight-backend:$PREV_SHA"
-            docker tag calsight-backend:$PREV_SHA calsight-backend:latest
-            docker compose -f docker-compose.prod.yml up -d backend
-            sleep 5
+            echo "Rolling back backend + pipeline to :$PREV_SHA"
+            docker tag "calsight-backend:${PREV_SHA}" calsight-backend:latest
+            # The pipeline image is SHA-tagged alongside the backend, but tags
+            # created before that change may not exist — roll it back when the
+            # tag is available, otherwise leave the pipeline image untouched.
+            if docker image inspect "calsight-pipeline:${PREV_SHA}" >/dev/null 2>&1; then
+              docker tag "calsight-pipeline:${PREV_SHA}" calsight-pipeline:latest
+            else
+              echo "WARNING: no calsight-pipeline:${PREV_SHA} tag (predates pipeline SHA-tagging) — pipeline image left as-is"
+            fi
+            # NOTE: database migrations are NOT rolled back — there is no
+            # automated `alembic downgrade` (downgrades can destroy data and
+            # many migrations are irreversible). We assume backward-compatible
+            # (expand/contract) migrations, so the previous images must keep
+            # working against the already-migrated schema.
+            #
+            # Both compose files so backend AND pipeline are recreated on the
+            # restored :latest images, matching the deploy's `up -d`.
+            docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml up -d
+            # Same 6×5s retry loop as the health-verify step — a single probe
+            # after 5s under-measures a gunicorn cold start.
+            for i in 1 2 3 4 5 6; do
+              if curl -sf http://127.0.0.1:8000/api/health > /dev/null; then
+                echo "Backend is up"
+                break
+              fi
+              echo "Attempt $i/6 failed, waiting..."
+              sleep 5
+            done
             if curl -sf http://127.0.0.1:8000/api/health > /dev/null; then
               echo "Rollback successful — backend is healthy"
             else

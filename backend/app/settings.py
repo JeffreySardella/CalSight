@@ -26,10 +26,13 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://calsight:calsight_dev@localhost:5433/calsight"
 
     # Azure connection string. If set in .env, we use this instead of
-    # the local default above. The shared .env is posted in Discord so
-    # everyone queries the same loaded 25M-row dataset. If it's missing
-    # (or empty) the app falls back to the local Postgres URL so a fresh
-    # clone of the repo still boots against `docker compose up db`.
+    # the local default above so everyone queries the same loaded
+    # 25M-row dataset. Obtain the shared credentials through the team's
+    # secret manager or a direct share from an operator — never post
+    # them in chat — and rotate the shared password periodically. If
+    # it's missing (or empty) the app falls back to the local Postgres
+    # URL so a fresh clone of the repo still boots against
+    # `docker compose up db`.
     #
     # In production both DATABASE_URL and DATABASE_URL_AZURE point at a
     # read-only Postgres role — ETL/alembic use ETL_DATABASE_URL[_AZURE]
