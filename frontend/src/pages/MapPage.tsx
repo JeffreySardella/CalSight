@@ -771,6 +771,7 @@ function MapPageInner() {
           <AiInsightCard
             onClose={handleDeselect}
             countyName={insightCounty}
+            countyCode={inspectedCode}
             data={inspectedData}
             measureLabel={measureLabel}
             compareMode={compareMode}
