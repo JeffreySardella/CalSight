@@ -339,8 +339,11 @@ def _compose_quirky(name: str, s: dict) -> str:
                 f"a {pct_drop}% drop. {'The pandemic year likely played a role.' if low[0] == 2020 else ''}"
             )
 
-    # Pick the most interesting 1-2
-    random.seed(int(hashlib.md5(name.encode()).hexdigest(), 16))
+    # Pick the most interesting 1-2. MD5 here only maps a county name to a
+    # stable integer seed so the same county always shows the same facts — it
+    # is not used for security/integrity, so the weak-hash warning is a false
+    # positive on this line.
+    random.seed(int(hashlib.md5(name.encode()).hexdigest(), 16))  # nosec B324
     random.shuffle(options)
     return " ".join(options[:2]) if options else (
         f"{name} County saw {_fmt(s['tc'])} crashes and {_fmt(s['tk'])} fatalities — "

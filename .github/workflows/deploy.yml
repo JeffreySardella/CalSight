@@ -207,13 +207,23 @@ jobs:
           printf 'LLM_FALLBACK_2_KEY=%s\n' "$OPENROUTER_KEY" >> "$TMP_ENV"
           printf 'LLM_FALLBACK_3_PROVIDER=cerebras\n' >> "$TMP_ENV"
           printf 'LLM_FALLBACK_3_KEY=%s\n' "$CEREBRAS_KEY" >> "$TMP_ENV"
+          # Activate the daily LLM spend backstop in prod (#293). The setting
+          # defaults to 0 = unlimited (fine for local dev), so unless the deploy
+          # writes a non-zero value the cap never fires and an IP-rotating
+          # abuser can drain the providers' free-tier quotas (audit S-1). The
+          # counter is in-process and per-worker, so with 4 gunicorn workers
+          # this is an effective ~12k paid calls/day site-wide — comfortably
+          # above real demand for this niche civic-data site (well under 1k
+          # AI questions/day) yet a hard finite ceiling against sustained abuse.
+          # Override per-deploy by exporting LLM_DAILY_REQUEST_BUDGET on the runner.
+          printf 'LLM_DAILY_REQUEST_BUDGET=%s\n' "${LLM_DAILY_REQUEST_BUDGET:-3000}" >> "$TMP_ENV"
           printf 'DEBUG=false\n' >> "$TMP_ENV"
           # Sentry error monitoring for the API container. No-op until the
           # SENTRY_DSN repo secret is set (main.py gates on a non-empty DSN),
           # so this is safe to ship before the secret exists.
           printf 'SENTRY_DSN=%s\n' "$SENTRY" >> "$TMP_ENV"
           # Keys this workflow owns — must match the printf list above exactly.
-          MANAGED='DATABASE_URL CORS_ORIGINS CENSUS_API_KEY NOAA_API_TOKEN BLS_API_KEY LLM_PROVIDER LLM_API_KEY LLM_API_KEY_2 LLM_FALLBACK_1_PROVIDER LLM_FALLBACK_1_KEY LLM_FALLBACK_2_PROVIDER LLM_FALLBACK_2_KEY LLM_FALLBACK_3_PROVIDER LLM_FALLBACK_3_KEY DEBUG SENTRY_DSN'
+          MANAGED='DATABASE_URL CORS_ORIGINS CENSUS_API_KEY NOAA_API_TOKEN BLS_API_KEY LLM_PROVIDER LLM_API_KEY LLM_API_KEY_2 LLM_FALLBACK_1_PROVIDER LLM_FALLBACK_1_KEY LLM_FALLBACK_2_PROVIDER LLM_FALLBACK_2_KEY LLM_FALLBACK_3_PROVIDER LLM_FALLBACK_3_KEY LLM_DAILY_REQUEST_BUDGET DEBUG SENTRY_DSN'
           if [ -f backend/.env ]; then
             SEEN=" $MANAGED "
             while IFS= read -r LINE || [ -n "$LINE" ]; do
