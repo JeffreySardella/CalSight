@@ -50,6 +50,16 @@ const DROUGHT = {
   ],
 };
 
+const SNOWPACK = {
+  latest_date: "2026-03-01",
+  statewide_pct_of_average: 112,
+  regions: [
+    { region: "Central Sierra", station_count: 5, latest_date: "2026-03-01", swe_in: 24.6, avg_swe_in: 22.0, pct_of_average: 112 },
+    { region: "Northern Sierra / Trinity", station_count: 5, latest_date: "2026-03-01", swe_in: 30.1, avg_swe_in: 24.0, pct_of_average: 125 },
+    { region: "Southern Sierra", station_count: 5, latest_date: "2026-03-01", swe_in: 18.0, avg_swe_in: 20.0, pct_of_average: 90 },
+  ],
+};
+
 const DROUGHT_SERIES = Array.from({ length: 10 }, (_, i) => ({
   week_start: `2026-0${Math.floor(i / 4) + 4}-0${(i % 4) + 1}`,
   none_pct: 60 - i * 2,
@@ -89,6 +99,9 @@ async function mockWaterApi(page: Page) {
   );
   await page.route("**/api/water/drought/series**", (route) =>
     route.fulfill({ json: DROUGHT_SERIES }),
+  );
+  await page.route("**/api/water/snowpack", (route) =>
+    route.fulfill({ json: SNOWPACK }),
   );
 }
 
@@ -151,6 +164,20 @@ test("drought section shows weighted headline, choropleth, and hardest-hit count
   const list = page.locator("ul", { hasText: "Kern" }).last();
   await expect(list).toContainText("Kern");
   await expect(page.getByText("95%", { exact: true })).toBeVisible();
+});
+
+test("snowpack section shows statewide headline and per-region bars", async ({ page }) => {
+  await page.goto(`${BASE_URL}/water`);
+
+  await expect(
+    page.getByRole("heading", { name: /Statewide snowpack is 112% of average/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("progressbar", { name: /Central Sierra: 112% of average/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("progressbar", { name: /Northern Sierra .* 125% of average/ }),
+  ).toBeVisible();
 });
 
 test("water page is reachable from the navigation", async ({ page }) => {

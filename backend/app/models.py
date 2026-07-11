@@ -1026,12 +1026,58 @@ class ReservoirDaily(Base):
     )
 
 
+class SnowStation(Base):
+    """CDEC snow-pillow station metadata — water module snowpack (v1).
+
+    Metadata (name, elevation, DWR region) comes from the static
+    MAJOR_SNOW_STATIONS map in etl/cdec_api.py.
+
+    Source: DWR California Data Exchange Center (cdec.water.ca.gov).
+    """
+
+    __tablename__ = "snow_stations"
+
+    station_id = Column(String(10), primary_key=True)  # CDEC station id, e.g. "CSL"
+    name = Column(String(100), nullable=False)
+    elevation_ft = Column(Integer)
+    region = Column(String(40), nullable=False)  # DWR Sierra region
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (Index("ix_snow_stations_region", "region"),)
+
+
+class SnowDaily(Base):
+    """Daily snow water equivalent per station (CDEC sensor 3, inches).
+
+    One row per station per day. Regional/statewide percent-of-average is
+    derived at query time from same-day-of-year history; -9999/missing
+    sentinels are dropped by the ETL parser and never stored.
+    """
+
+    __tablename__ = "snow_daily"
+
+    id = Column(Integer, primary_key=True)
+    station_id = Column(
+        String(10), ForeignKey("snow_stations.station_id"), nullable=False
+    )
+    date = Column(Date, nullable=False)
+    swe_in = Column(Float, nullable=False)  # snow water equivalent, inches
+    created_at = Column(DateTime, server_default=func.now())
+
+    # As with reservoir_daily: the unique constraint's index serves
+    # (station_id, date); the migration adds an expression index on
+    # (station_id, extract(month), extract(day)) for the day-of-year query.
+    __table_args__ = (
+        UniqueConstraint("station_id", "date", name="uq_snow_daily_station_date"),
+    )
+
+
 class DroughtCountyWeekly(Base):
     """Weekly drought severity per county — US Drought Monitor.
 
-    One row per county per weekly USDM map. Percents are "traditional"
-    statistics: each class excludes the more severe ones, so
-    none + d0 + ... + d4 ≈ 100 (of county land area).
+    One row per county per weekly USDM map. Percents are "categorical"
+    statistics (statisticsType=2): each class excludes the more severe
+    ones, so none + d0 + ... + d4 ≈ 100 (of county land area).
 
     Source: US Drought Monitor county statistics API
     (usdmdataservices.unl.edu).

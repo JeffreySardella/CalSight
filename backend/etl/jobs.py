@@ -226,6 +226,17 @@ def build_default_registry() -> JobRegistry:
         source_type="none",
     ))
     registry.register(Job(
+        name="snowpack",
+        module="etl.load_snowpack",
+        # SWE is daily; the trailing-window pull is cheap. Like reservoirs,
+        # CDEC has no freshness probe, so just run it on the daily cadence.
+        schedule="daily",
+        table_name="snow_daily",
+        # Upserts never delete; a shrink means CDEC data vanished — fail loudly.
+        max_drop_pct=1,
+        source_type="none",
+    ))
+    registry.register(Job(
         name="drought",
         module="etl.load_drought",
         # The pipeline runs every non-static job on its daily cadence

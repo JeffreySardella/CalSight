@@ -152,7 +152,18 @@ redundant composite indexes were replaced by an expression index
 (station, month, day) INCLUDE (storage_af) that serves the day-of-year
 average query.
 
-## Snowpack (P3) — deliberately deferred, and why
+**Snowpack (P3) — now built (eighth+ commit).** The blocker (verified
+CDEC snow station codes) was resolved by research: 15 real snow-pillow
+stations across the three DWR regions, code/elevation verified against
+CDEC's SnowSensors.html (via the egagli/snotel_ccss_stations mirror),
+sensor 3 = daily SWE confirmed. Shipped: `snow_stations` + `snow_daily`
+tables + migration, `etl/load_snowpack.py` (daily `snowpack` job),
+`GET /api/water/snowpack` (per-region + statewide SWE as % of same-day-of-
+year average — no external April-1 constants needed, same data-driven
+approach as reservoirs), and a Snowpack section on `/water`. Verified
+visually light + dark against seeded demo data.
+
+## Snowpack (P3) — original deferral rationale (now resolved)
 
 Unlike the major reservoirs (whose CDEC codes are household names —
 SHA, ORO, FOL), snow-station codes and metadata can't be written down

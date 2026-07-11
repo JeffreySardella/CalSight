@@ -10,13 +10,21 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import County, DroughtCountyWeekly, Reservoir, ReservoirDaily
+from app.models import (
+    County,
+    DroughtCountyWeekly,
+    Reservoir,
+    ReservoirDaily,
+    SnowDaily,
+    SnowStation,
+)
 from app.schemas.drought import (
     DroughtCountyOut,
     DroughtPcts,
     DroughtSnapshotOut,
     DroughtWeekPoint,
 )
+from app.schemas.snow import RegionSnowpack, SnowpackOut
 from app.schemas.water import (
     ReservoirConditionOut,
     ReservoirSeriesOut,
@@ -256,3 +264,107 @@ def drought_series(
         )
         for r in rows
     ]
+
+
+# Below this SWE (inches) there is essentially no snow to compare against,
+# so a "percent of average" would be noise (near-0 / near-0). Snowpack
+# percentages are meaningful in accumulation season, not late summer.
+_MIN_MEANINGFUL_SWE = 0.5
+
+
+@router.get("/water/snowpack", response_model=SnowpackOut)
+@_limiter.limit("1000/minute;20000/hour")
+def snowpack(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Latest snow water equivalent by DWR region and statewide, each as a
+    percent of the same-day-of-year historical average across stations."""
+    response.headers["Cache-Control"] = _ONE_HOUR
+
+    # Latest observation per station.
+    latest_sq = (
+        db.query(
+            SnowDaily.station_id,
+            func.max(SnowDaily.date).label("latest_date"),
+        )
+        .group_by(SnowDaily.station_id)
+        .subquery()
+    )
+    rows = (
+        db.query(SnowStation.station_id, SnowStation.region, SnowDaily.date, SnowDaily.swe_in)
+        .join(latest_sq, latest_sq.c.station_id == SnowStation.station_id)
+        .join(
+            SnowDaily,
+            (SnowDaily.station_id == latest_sq.c.station_id)
+            & (SnowDaily.date == latest_sq.c.latest_date),
+        )
+        .all()
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="No snowpack data loaded")
+
+    # Same-day-of-year average (and contributing-year count) per station,
+    # grouped by the distinct (month, day) of the latest readings.
+    stations_by_md: dict[tuple[int, int], list[str]] = defaultdict(list)
+    for r in rows:
+        stations_by_md[(r.date.month, r.date.day)].append(r.station_id)
+    averages: dict[str, tuple[float, int]] = {}
+    for (month, day), station_ids in stations_by_md.items():
+        for sid, avg, years in (
+            db.query(
+                SnowDaily.station_id,
+                func.avg(SnowDaily.swe_in),
+                func.count(),
+            )
+            .filter(
+                SnowDaily.station_id.in_(station_ids),
+                func.extract("month", SnowDaily.date) == month,
+                func.extract("day", SnowDaily.date) == day,
+            )
+            .group_by(SnowDaily.station_id)
+            .all()
+        ):
+            averages[sid] = (float(avg), years)
+
+    # Aggregate by region, accumulating a statewide total alongside.
+    per_region: dict[str, dict] = defaultdict(
+        lambda: {"count": 0, "swe": 0.0, "hist_swe": 0.0, "hist_avg": 0.0, "date": None}
+    )
+    state = {"swe": 0.0, "hist_swe": 0.0, "hist_avg": 0.0}
+    for r in rows:
+        agg = per_region[r.region]
+        agg["count"] += 1
+        agg["swe"] += r.swe_in
+        agg["date"] = r.date if agg["date"] is None else max(agg["date"], r.date)
+        avg, years = averages.get(r.station_id, (None, 0))
+        # Only stations with >1 year of history contribute to the percent,
+        # for a like-for-like numerator/denominator.
+        if avg is not None and years > 1:
+            agg["hist_swe"] += r.swe_in
+            agg["hist_avg"] += avg
+            state["hist_swe"] += r.swe_in
+            state["hist_avg"] += avg
+        state["swe"] += r.swe_in
+
+    def pct(num: float, den: float) -> float | None:
+        return round(num / den * 100, 1) if den >= _MIN_MEANINGFUL_SWE else None
+
+    regions = [
+        RegionSnowpack(
+            region=region,
+            station_count=agg["count"],
+            latest_date=agg["date"],
+            swe_in=round(agg["swe"], 1),
+            avg_swe_in=round(agg["hist_avg"], 1) if agg["hist_avg"] > 0 else None,
+            pct_of_average=pct(agg["hist_swe"], agg["hist_avg"]),
+        )
+        for region, agg in sorted(per_region.items())
+    ]
+
+    return SnowpackOut(
+        latest_date=max(r.date for r in rows),
+        statewide_pct_of_average=pct(state["hist_swe"], state["hist_avg"]),
+        regions=regions,
+    )

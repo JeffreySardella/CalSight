@@ -50,9 +50,39 @@ REQUEST_DELAY = 0.5  # courtesy delay between batched requests
 
 # CDEC sensor numbers (https://cdec.water.ca.gov/misc/senslist.html)
 SENSOR_STORAGE = 15  # reservoir storage, acre-feet
-SENSOR_SNOW_WATER_CONTENT = 3  # snow water content, inches
+SENSOR_SNOW_WATER_CONTENT = 3  # snow water content (raw daily SWE), inches
+SENSOR_SNOW_WATER_CONTENT_REVISED = 82  # DWR-adjusted daily SWE, inches
 
 MISSING_VALUE = -9999
+
+# DWR groups its ~130 electronic snow sensors into three Sierra regions and
+# reports each as a percent of average. These are five verified snow-pillow
+# stations per region (all carry sensor 3, daily SWE), a representative
+# static sample — station codes/elevations verified July 2026 against CDEC's
+# SnowSensors.html (via the egagli/snotel_ccss_stations machine-readable
+# mirror). Region assignment follows CDEC's snow-chart basin grouping, where
+# Yuba/American sit in the Central region.
+SNOW_REGION_NORTH = "Northern Sierra / Trinity"
+SNOW_REGION_CENTRAL = "Central Sierra"
+SNOW_REGION_SOUTH = "Southern Sierra"
+
+MAJOR_SNOW_STATIONS = {
+    "GRZ": {"name": "Grizzly Ridge", "elevation_ft": 6900, "region": SNOW_REGION_NORTH},
+    "PLP": {"name": "Pilot Peak", "elevation_ft": 6800, "region": SNOW_REGION_NORTH},
+    "IDC": {"name": "Independence Camp", "elevation_ft": 7000, "region": SNOW_REGION_NORTH},
+    "HIG": {"name": "Highland Lakes", "elevation_ft": 6030, "region": SNOW_REGION_NORTH},
+    "MED": {"name": "Medicine Lake", "elevation_ft": 6700, "region": SNOW_REGION_NORTH},
+    "CSL": {"name": "Central Sierra Snow Lab", "elevation_ft": 6900, "region": SNOW_REGION_CENTRAL},
+    "BLK": {"name": "Blue Lakes", "elevation_ft": 8000, "region": SNOW_REGION_CENTRAL},
+    "GNL": {"name": "Gianelli Meadow", "elevation_ft": 8400, "region": SNOW_REGION_CENTRAL},
+    "DAN": {"name": "Dana Meadows", "elevation_ft": 9800, "region": SNOW_REGION_CENTRAL},
+    "GIN": {"name": "Gin Flat", "elevation_ft": 7050, "region": SNOW_REGION_CENTRAL},
+    "VLC": {"name": "Volcanic Knob", "elevation_ft": 10050, "region": SNOW_REGION_SOUTH},
+    "BSH": {"name": "Bishop Pass", "elevation_ft": 11200, "region": SNOW_REGION_SOUTH},
+    "CRL": {"name": "Charlotte Lake", "elevation_ft": 10400, "region": SNOW_REGION_SOUTH},
+    "UTY": {"name": "Upper Tyndall Creek", "elevation_ft": 11500, "region": SNOW_REGION_SOUTH},
+    "FRW": {"name": "Farewell Gap", "elevation_ft": 9500, "region": SNOW_REGION_SOUTH},
+}
 
 # Major reservoirs tracked in v1, keyed by CDEC station id. Static map by
 # design — CDEC has no clean metadata API — mirroring the RESOURCE_IDS
@@ -210,6 +240,18 @@ def fetch_reservoir_storage(start: date, end: date) -> list[Observation]:
     raw = fetch_sensor_data(
         stations=sorted(MAJOR_RESERVOIRS),
         sensor=SENSOR_STORAGE,
+        start=start,
+        end=end,
+    )
+    return parse_observations(raw)
+
+
+def fetch_snow_water_content(start: date, end: date) -> list[Observation]:
+    """Fetch daily snow water content (SWE) for every MAJOR_SNOW_STATIONS
+    station. Sensor 3 is the raw daily SWE, present at all snow pillows."""
+    raw = fetch_sensor_data(
+        stations=sorted(MAJOR_SNOW_STATIONS),
+        sensor=SENSOR_SNOW_WATER_CONTENT,
         start=start,
         end=end,
     )

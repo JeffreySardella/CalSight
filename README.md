@@ -14,7 +14,7 @@ CalSight pulls 11 million crash records from California's public data and lets y
 
 **Ask AI** — type a question like "Which county has the highest DUI fatality rate?" and get an answer with inline charts pulled from the actual data.
 
-**Check water conditions** — daily storage at the state's major reservoirs against capacity and historical averages, plus weekly county-level drought severity from the US Drought Monitor. (No AI anywhere in this module — pure data engineering.)
+**Check water conditions** — daily storage at the state's major reservoirs against capacity and historical averages, Sierra snowpack by region, plus weekly county-level drought severity from the US Drought Monitor. (No AI anywhere in this module — pure data engineering.)
 
 **AI insights** — every county gets pre-computed narratives highlighting what makes it unique. Click any county on the map to see its story.
 
