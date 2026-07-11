@@ -1,12 +1,25 @@
 """Integration tests for /api/crashes/clusters."""
 
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 
+import app.routers.clusters as clusters_mod
 from app.models import Crash
+from app.routers.clusters import clear_clusters_cache
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _fresh_clusters_cache():
+    """Cluster results are cached in-process on the filter tuple; tests seed
+    different data into the same app, so start (and leave) each with a cold
+    cache."""
+    clear_clusters_cache()
+    yield
+    clear_clusters_cache()
 
 
 def test_clusters_response_shape(client):
@@ -92,3 +105,31 @@ def test_clusters_detects_hotspot(client, db_session):
     assert cluster["crash_count"] == 8
     assert cluster["z_score"] > 2
     assert cluster["severity"] == {"fatal": 3, "injury": 5, "pdo": 0}
+
+
+def test_clusters_cached_within_ttl(client):
+    """A repeat /crashes/clusters call with identical filters is served from the
+    TTL cache without re-running the ~4.1M-row grid aggregation; a different
+    filter tuple misses. Byte-identical result on the hit."""
+    with patch.object(
+        clusters_mod, "_compute_clusters", wraps=clusters_mod._compute_clusters
+    ) as spy:
+        first = client.get("/api/crashes/clusters").json()
+        assert spy.call_count == 1
+        second = client.get("/api/crashes/clusters").json()
+        assert spy.call_count == 1  # cache hit — no second aggregation
+        assert second == first
+        # A different filter tuple is a cache miss and recomputes.
+        client.get("/api/crashes/clusters?severity=fatal")
+        assert spy.call_count == 2
+
+
+def test_clusters_invalid_filter_not_cached(client):
+    """An unknown county 422s and must never be cached — a repeat still 422s
+    (the compute helper is never reached for it)."""
+    with patch.object(
+        clusters_mod, "_compute_clusters", wraps=clusters_mod._compute_clusters
+    ) as spy:
+        assert client.get("/api/crashes/clusters?county=atlantis").status_code == 422
+        assert client.get("/api/crashes/clusters?county=atlantis").status_code == 422
+        assert spy.call_count == 0

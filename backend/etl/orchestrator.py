@@ -223,6 +223,13 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
     start = time.monotonic()
 
     try:
+        job_env = {**os.environ, ORCHESTRATED_ENV_FLAG: "1"}
+        # A force_refresh (weekly) run asks jobs to re-derive from scratch.
+        # backfill_derived scopes its nightly resync to the reloaded years for
+        # speed (deep-audit P-3); this flag tells it to do the full-history
+        # pass instead, so the weekly run stays a true full re-derive.
+        if force_refresh:
+            job_env["CALSIGHT_FORCE_REFRESH"] = "1"
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -230,7 +237,7 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             timeout=job.timeout,
             # Tell the module this run is orchestrator-owned so its own
             # etl_run tracking doesn't write a duplicate row (M-B8).
-            env={**os.environ, ORCHESTRATED_ENV_FLAG: "1"},
+            env=job_env,
         )
         elapsed = time.monotonic() - start
 

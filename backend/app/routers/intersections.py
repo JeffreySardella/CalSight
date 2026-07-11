@@ -206,6 +206,60 @@ def _aggregate(
     ]
 
 
+# The /intersections and /corridors aggregations GROUP BY an unindexed
+# functional expression on the road-name columns → a full 11M-row seq scan
+# with a per-row regexp_replace (~25s cold statewide, the same class of cost
+# as street-concentration). The result only changes when ETL loads rows, so —
+# exactly like _concentration above — cache the computed list in-process with
+# a short TTL, keyed on the FULL argument tuple. Each worker then pays the scan
+# at most once per TTL window per filter permutation, not once per visitor.
+_AGGREGATE_TTL_SECONDS = 6 * 3600  # matches _CONCENTRATION_TTL_SECONDS
+_AGGREGATE_CACHE_MAX = 256
+_aggregate_cache: dict[tuple, tuple[float, list[IntersectionOut]]] = {}
+
+
+def clear_aggregate_cache() -> None:
+    """Drop all cached intersection/corridor results (tests / invalidation)."""
+    _aggregate_cache.clear()
+
+
+def _cached_aggregate(
+    db: Session,
+    *,
+    by_secondary: bool,
+    county_code: int | None,
+    year_start: int | None,
+    year_end: int | None,
+    min_crashes: int,
+    limit: int,
+    pedestrian: bool | None,
+    cyclist: bool | None,
+    sort: str,
+) -> list[IntersectionOut]:
+    """_aggregate wrapped in the _concentration-style TTL cache.
+
+    Key is every argument the query reads, so any change in filter/sort/limit
+    misses and recomputes. The cached list is returned as-is (never mutated),
+    keeping responses byte-identical to an uncached run.
+    """
+    cache_key = (
+        by_secondary, county_code, year_start, year_end,
+        min_crashes, limit, pedestrian, cyclist, sort,
+    )
+    hit = _aggregate_cache.get(cache_key)
+    if hit is not None and hit[0] > time.monotonic():
+        return hit[1]
+    result = _aggregate(
+        db, by_secondary=by_secondary, county_code=county_code,
+        year_start=year_start, year_end=year_end, min_crashes=min_crashes,
+        limit=limit, pedestrian=pedestrian, cyclist=cyclist, sort=sort,
+    )
+    if len(_aggregate_cache) >= _AGGREGATE_CACHE_MAX:
+        _aggregate_cache.clear()
+    _aggregate_cache[cache_key] = (time.monotonic() + _AGGREGATE_TTL_SECONDS, result)
+    return result
+
+
 def _resolve_county(db: Session, county: str | None) -> int | None:
     if not county:
         return None
@@ -350,7 +404,7 @@ def get_intersections(
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     apply_statement_timeout(db, _STATEMENT_TIMEOUT_MS)
     code = _resolve_county(db, county)
-    return _aggregate(
+    return _cached_aggregate(
         db, by_secondary=True, county_code=code, year_start=year_start,
         year_end=year_end, min_crashes=min_crashes, limit=limit,
         pedestrian=pedestrian, cyclist=cyclist, sort=sort,
@@ -376,7 +430,7 @@ def get_corridors(
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     apply_statement_timeout(db, _STATEMENT_TIMEOUT_MS)
     code = _resolve_county(db, county)
-    return _aggregate(
+    return _cached_aggregate(
         db, by_secondary=False, county_code=code, year_start=year_start,
         year_end=year_end, min_crashes=min_crashes, limit=limit,
         pedestrian=pedestrian, cyclist=cyclist, sort=sort,
