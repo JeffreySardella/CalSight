@@ -16,3 +16,9 @@ def test_admin_verify_post_missing_key(client):
 def test_admin_verify_get_no_longer_works(client):
     response = client.get("/api/admin/verify?key=anything")
     assert response.status_code == 405
+
+
+def test_admin_verify_is_explicitly_uncacheable(client):
+    # (#291) auth verdicts must never be stored by any cache.
+    response = client.post("/api/admin/verify", json={"key": "wrong"})
+    assert response.headers.get("Cache-Control") == "no-store"

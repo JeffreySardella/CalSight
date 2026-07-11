@@ -23,6 +23,7 @@ import { useFilterParams, buildFilterQS } from "../../hooks/useFilterParams";
 import { useCustomTheme } from "../../context/CustomThemeContext";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
+import { partialYearNote } from "../../lib/partialYear";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
 import type { DragHandleProps } from "../../hooks/useDragReorder";
@@ -340,6 +341,12 @@ function ChartCard({
     exportChartCsv(data, title, isScatter);
   };
 
+  // Current-year buckets are partial (#293) — annotate year breakdowns so an
+  // apparent "drop" in the last bucket isn't misread as a real decline.
+  const partialNote = slot.dimension === "year"
+    ? partialYearNote(data.map((d) => d.label))
+    : null;
+
   return (
     <div
       ref={cardRef}
@@ -559,6 +566,10 @@ function ChartCard({
           }}
           getHighlight={getHighlight}
         />
+      )}
+
+      {!loading && hasData && partialNote && (
+        <p className="text-[10px] italic text-on-surface-variant/70 mt-1.5">{partialNote}</p>
       )}
 
       {narrativeResult && <ChartNarrative narrative={narrativeResult} />}

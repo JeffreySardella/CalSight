@@ -149,7 +149,7 @@ export default function SimpleLollipop({
         })}
       </svg>
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-        {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
+        {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
     </div>
   );

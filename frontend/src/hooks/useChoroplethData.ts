@@ -19,6 +19,7 @@ import {
   type DateRangeFilter,
 } from "./useFilterParams";
 import { API_BASE } from "../config";
+import { PERSISTED_QUERY_GC_TIME } from "../lib/queryPersistence";
 
 export type ChoroplethFilters = {
   dateRange: DateRangeFilter | null;
@@ -151,10 +152,14 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     rt: filters.roadType, hr: filters.hitRun,
   };
 
+  // All five queries below are persisted offline (queryPersistence.ts
+  // whitelist) — they carry PERSISTED_QUERY_GC_TIME so they outlive the short
+  // global gcTime and keep feeding the snapshot.
   const queries = useQueries({
     queries: [
       {
         queryKey: ["choropleth", "stats", cacheKey],
+        gcTime: PERSISTED_QUERY_GC_TIME,
         placeholderData: (prev: CountyStats[] | undefined) => prev,
         queryFn: async (): Promise<CountyStats[]> => {
           const res = await fetch(buildStatsUrl(filters));
@@ -168,6 +173,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       },
       {
         queryKey: ["choropleth", "demographics", dateKey],
+        gcTime: PERSISTED_QUERY_GC_TIME,
         placeholderData: (prev: CountyYearDemo[] | undefined) => prev,
         queryFn: async (): Promise<CountyYearDemo[]> => {
           const res = await fetch(buildDemoUrl(filters));
@@ -177,6 +183,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       },
       {
         queryKey: ["choropleth", "yearStats", cacheKey],
+        gcTime: PERSISTED_QUERY_GC_TIME,
         placeholderData: (prev: YearStats[] | undefined) => prev,
         queryFn: async (): Promise<YearStats[]> => {
           const res = await fetch(buildYearStatsUrl(filters));
@@ -187,6 +194,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       {
         queryKey: ["calenviroscreen"],
         staleTime: Infinity,
+        gcTime: PERSISTED_QUERY_GC_TIME,
         enabled: MEASURES[measure]?.kind === "context" && measure !== "unemployment_rate",
         queryFn: async (): Promise<CalEnviroScreenData[]> => {
           const res = await fetch(`${API_BASE}/api/calenviroscreen`);
@@ -197,6 +205,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       {
         queryKey: ["unemployment", dateKey],
         staleTime: 5 * 60 * 1000,
+        gcTime: PERSISTED_QUERY_GC_TIME,
         enabled: measure === "unemployment_rate",
         queryFn: async (): Promise<UnemploymentData[]> => {
           const p = new URLSearchParams();

@@ -21,7 +21,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 class PipelineHealth(BaseModel):
@@ -78,13 +78,13 @@ def _age_hours(now_naive: datetime, ts: datetime | None) -> float | None:
     return round((now_naive - ts).total_seconds() / 3600, 1)
 
 
-@router.get("/health")
+@router.get("/health", response_model=PipelineHealth)
 @_limiter.limit("10/minute")
 def pipeline_health(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> dict:
+):
     """Simple health check for monitoring tools.
 
     Returns status "healthy" when:
@@ -98,7 +98,9 @@ def pipeline_health(
     Returns "unhealthy" when:
       - No successful run in 96+ hours
     """
-    response.headers["Cache-Control"] = "no-cache"
+    # Monitoring status — explicitly uncacheable (#291): a stored "healthy"
+    # verdict replayed by an intermediary would mask a real outage.
+    response.headers["Cache-Control"] = "no-store"
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Last successful run
@@ -181,7 +183,7 @@ def pipeline_health(
         recent_failure_rate=round(failure_rate, 1),
         db_size_mb=round(db_size, 1) if db_size else None,
         matview_age_hours=matview_age,
-    ).model_dump()
+    )
 
 
 # Hardcoded allowlist of materialized view names. Only these identifiers
@@ -199,13 +201,20 @@ _ALLOWED_MATVIEWS = frozenset([
 ])
 
 
-@router.get("/matviews", dependencies=[Depends(_verify_etl_key)])
+@router.get(
+    "/matviews",
+    dependencies=[Depends(_verify_etl_key)],
+    response_model=list[MatviewStatus],
+)
 @_limiter.limit("10/minute")
 def matview_status(
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
-) -> list[dict]:
+):
     """Status of all materialized views — row counts and population state."""
+    # Key-protected operational state — explicitly uncacheable (#291).
+    response.headers["Cache-Control"] = "no-store"
     results = []
     for view in _ALLOWED_MATVIEWS:
         try:
@@ -227,25 +236,32 @@ def matview_status(
                 row_count=row_count or 0,
                 last_refresh=None,  # PG doesn't track this natively
                 is_populated=bool(populated),
-            ).model_dump())
+            ))
         except Exception:
             results.append(MatviewStatus(
                 name=view,
                 row_count=0,
                 last_refresh=None,
                 is_populated=False,
-            ).model_dump())
+            ))
 
     return results
 
 
-@router.get("/db-metrics", dependencies=[Depends(_verify_etl_key)])
+@router.get(
+    "/db-metrics",
+    dependencies=[Depends(_verify_etl_key)],
+    response_model=DbMetrics,
+)
 @_limiter.limit("10/minute")
 def db_metrics(
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
-) -> dict:
+):
     """Database performance metrics for capacity planning."""
+    # Key-protected operational state — explicitly uncacheable (#291).
+    response.headers["Cache-Control"] = "no-store"
     # Total size
     total_size = db.execute(text(
         "SELECT pg_database_size(current_database()) / (1024*1024.0)"
@@ -300,4 +316,4 @@ def db_metrics(
         } for r in dead_tuples],
         connection_count=connections,
         max_connections=int(max_conn),
-    ).model_dump()
+    )

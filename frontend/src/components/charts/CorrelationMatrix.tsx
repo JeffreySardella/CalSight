@@ -5,6 +5,7 @@ import { useIsDark } from "../../context/ThemeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { correlationColor, correlationDotColor, type CorrelationTokens } from "../../lib/theme/tokens";
 import { useTextScale } from "../../hooks/useTextScale";
+import { textOnColor } from "./onColorText";
 
 export interface CorrelationActiveFilters {
   severity?: string[];
@@ -29,13 +30,11 @@ function colorForR(r: number, _isDark: boolean, tokens: CorrelationTokens): stri
   return correlationColor(r, tokens);
 }
 
-function textColorForR(r: number, isDark: boolean): string {
-  // Strong correlation: white text on saturated blue/red backgrounds
-  if (Math.abs(r) >= 0.4) return "#ffffff";
-  // Weak positive/negative: colored bg is mid-tone, use dark text for contrast
-  if (Math.abs(r) >= 0.2) return "#1f1f23";
-  // Near-zero: neutral bg adapts to mode
-  return isDark ? "#e4e4e7" : "#1f1f23";
+function textColorForR(r: number, tokens: CorrelationTokens): string {
+  // Derive the text color from the actual cell color so it stays readable
+  // whichever theme palette drives the correlation tokens (was a hardcoded
+  // r-threshold heuristic that assumed the default blue/red palette).
+  return textOnColor(correlationColor(r, tokens));
 }
 
 function fmt(v: number): string {
@@ -245,7 +244,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
                     }}
                     className="cursor-pointer" />
                   {cellSize >= 28 && (
-                    <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={(cellSize >= 36 ? 9 : 7) * ts} fontWeight={700} fill={textColorForR(r, isDark)} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
+                    <text x={x + cellSize / 2} y={y + cellSize / 2 + 3} textAnchor="middle" fontSize={(cellSize >= 36 ? 9 : 7) * ts} fontWeight={700} fill={textColorForR(r, tokens.correlation)} fontFamily="'Inter Variable', Inter, sans-serif" style={{ pointerEvents: "none" }}>
                       {isNaN(r) ? "—" : r.toFixed(2)}
                     </text>
                   )}

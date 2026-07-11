@@ -23,7 +23,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,7 @@ from app.models import County, Crash
 
 router = APIRouter(tags=["stats"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 MetricKey = Literal["crashes", "fatal_crashes", "killed", "injured"]
 

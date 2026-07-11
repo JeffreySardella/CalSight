@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { copyText } from "../../lib/clipboard";
 
 /**
  * Copy-link button. The whole shareable view (filters, viewport, layers) is
@@ -12,32 +13,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type ShareStatus = "idle" | "copied" | "error";
 
 const RESET_MS = 2000;
-
-/** Copy text to the clipboard, falling back to execCommand on non-secure contexts. */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* clipboard API blocked (e.g. http://) — fall through to the legacy path */
-  }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.top = "-9999px";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
-  } catch {
-    return false;
-  }
-}
 
 interface ShareButtonProps {
   /** Runs synchronously immediately before window.location is read. */

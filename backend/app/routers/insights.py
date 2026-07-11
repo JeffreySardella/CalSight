@@ -38,7 +38,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -49,7 +49,7 @@ from app.schemas.context import CountyInsightCardOut, StatewideInsightOut
 
 router = APIRouter(tags=["insights"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 class FunFactOut(BaseModel):
@@ -59,6 +59,24 @@ class FunFactOut(BaseModel):
     county_name: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class CountyInsightPayload(BaseModel):
+    """Response shape of GET /api/insights/{county_slug} (#291)."""
+
+    county_name: str
+    year: int
+    total_crashes: int | None
+    total_killed: int | None
+    total_injured: int | None
+    crash_rate_per_capita: float | None
+    top_cause: str | None
+    top_cause_pct: float | None
+    yoy_change_pct: float | None
+    peak_hour: int | None
+    dui_pct: float | None
+    narrative: str | None
+    generated_at: str | None  # ISO 8601
 
 
 @router.get("/insights/statewide", response_model=StatewideInsightOut)
@@ -170,7 +188,7 @@ def get_random_county_insight_card(
     return CountyInsightCardOut.model_validate(row)
 
 
-@router.get("/insights/{county_slug}")
+@router.get("/insights/{county_slug}", response_model=CountyInsightPayload)
 @_limiter.limit("1000/minute;20000/hour")
 def get_insight(
     request: Request,

@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy.orm import Session
 
 from app.ai_prompt import (
@@ -25,6 +25,7 @@ from app.ai_prompt import (
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
 from app.database import SessionLocal, apply_statement_timeout, get_db
+from app.grounding import answer_cites_tool_numbers
 from app.llm_cache import get_ask_cache, make_cache_key
 from app.models import ChatFeedback
 from app.llm import (
@@ -36,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["ask"])
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=rate_limit_key)
 
 _MAX_TOOL_ROUNDS = 3
 _MAX_TOOL_CALLS_PER_ROUND = 3
@@ -56,6 +57,16 @@ class _AskAbandoned(Exception):
     """The HTTP request already timed out; stop burning LLM quota."""
 
 
+# Control characters have no legitimate use in chat text but do show up in
+# terminal-escape / token-smuggling injection tricks. Strip everything in C0
+# except newline (\x0a) and tab (\x09), plus DEL and the C1 range (#293).
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def _strip_control_chars(v: str) -> str:
+    return _CONTROL_CHARS_RE.sub("", v)
+
+
 class HistoryMessage(BaseModel):
     role: str
     content: str
@@ -70,6 +81,9 @@ class HistoryMessage(BaseModel):
     @field_validator("content")
     @classmethod
     def cap_content_length(cls, v: str) -> str:
+        # History content goes verbatim into the LLM message list — sanitize
+        # it, not just the role field (#293).
+        v = _strip_control_chars(v)
         if len(v) > 2000:
             return v[:2000]
         return v
@@ -83,12 +97,27 @@ class AskRequest(BaseModel):
     @field_validator("question")
     @classmethod
     def question_not_empty(cls, v: str) -> str:
-        v = v.strip()
+        v = _strip_control_chars(v).strip()
         if not v:
             raise ValueError("Question cannot be empty")
         if len(v) > 500:
             raise ValueError("Question must be 500 characters or less")
         return v
+
+    @field_validator("history")
+    @classmethod
+    def cap_history_length(cls, v: list) -> list:
+        # Only the last 10 messages reach the LLM, but the full list is
+        # parsed and hashed into the cache key — an unbounded history is a
+        # request-amplification vector (audit 2026-07-09 L2).
+        return v[-20:]
+
+    @field_validator("filters")
+    @classmethod
+    def cap_filters(cls, v: dict) -> dict:
+        if len(v) > 30:
+            raise ValueError("Too many filters")
+        return {k[:50]: (val[:200] if val else val) for k, val in v.items()}
 
 
 class AskResponse(BaseModel):
@@ -109,6 +138,30 @@ class FeedbackRequest(BaseModel):
     vote: str
     filters_used: dict[str, Any] = {}
 
+    @field_validator("question")
+    @classmethod
+    def cap_question(cls, v: str) -> str:
+        # Written verbatim to chat_feedback via the API role's INSERT grant;
+        # uncapped fields allow arbitrary-size rows (audit 2026-07-09 L2).
+        return v[:1000]
+
+    @field_validator("provider")
+    @classmethod
+    def cap_provider(cls, v: str) -> str:
+        return v[:100]
+
+    @field_validator("tools_called")
+    @classmethod
+    def cap_tools_called(cls, v: list[str]) -> list[str]:
+        return [t[:100] for t in v[:20]]
+
+    @field_validator("filters_used")
+    @classmethod
+    def cap_filters_used(cls, v: dict) -> dict:
+        if len(v) > 30:
+            raise ValueError("Too many filters")
+        return v
+
     @field_validator("vote")
     @classmethod
     def valid_vote(cls, v: str) -> str:
@@ -117,9 +170,20 @@ class FeedbackRequest(BaseModel):
         return v
 
 
-@router.post("/feedback")
+class FeedbackResponse(BaseModel):
+    ok: bool
+
+
+@router.post("/feedback", response_model=FeedbackResponse)
 @limiter.limit("30/minute")
-def feedback(request: Request, body: FeedbackRequest, db: Session = Depends(get_db)):
+def feedback(
+    request: Request,
+    response: Response,
+    body: FeedbackRequest,
+    db: Session = Depends(get_db),
+):
+    # Explicitly uncacheable — a write endpoint (#291).
+    response.headers["Cache-Control"] = "no-store"
     row = ChatFeedback(
         question=body.question,
         answer=body.answer[:2000],
@@ -130,7 +194,7 @@ def feedback(request: Request, body: FeedbackRequest, db: Session = Depends(get_
     )
     db.add(row)
     db.commit()
-    return {"ok": True}
+    return FeedbackResponse(ok=True)
 
 
 @router.post("/ask", response_model=AskResponse)
@@ -140,6 +204,10 @@ async def ask(
     response: Response,
     body: AskRequest,
 ):
+    # Explicitly uncacheable at the HTTP layer (#291): answers depend on the
+    # POST body, so shared caches must never store them. The server-side
+    # answer cache below (X-Cache) is separate and unaffected.
+    response.headers["Cache-Control"] = "no-store"
     # Cache lookup happens before the LLM round trip — identical
     # (question, filters, history) produce the same answer, and the LLM
     # call is the slow + expensive part. See app.llm_cache for the design.
@@ -157,24 +225,30 @@ async def ask(
     # teardown close it mid-query on timeout and hand the underlying
     # connection back to the pool while the thread is still using it.
     try:
-        result = await asyncio.wait_for(
+        handled = await asyncio.wait_for(
             asyncio.to_thread(_handle_ask, body),
             timeout=_ASK_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
-        result = None
-    if result is None:
+        handled = None
+    if handled is None:
         return JSONResponse(
             status_code=504,
             content={"message": "Request timed out. Please try again.", "retry_after": 5},
         )
 
-    cache.set(cache_key, result)
+    result, cacheable = handled
+    # Degraded answers (simple-mode fallback after provider exhaustion, or a
+    # run where no tool executed successfully) must not be served from cache
+    # for the next hour — the very next attempt would likely succeed (L6).
+    if cacheable:
+        cache.set(cache_key, result)
     response.headers["X-Cache"] = "MISS"
     return result
 
 
-def _handle_ask(body: AskRequest) -> AskResponse | None:
+def _handle_ask(body: AskRequest) -> tuple[AskResponse, bool] | None:
+    """Returns (response, cacheable) or None if the request was abandoned."""
     deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
     db = SessionLocal()
     try:
@@ -187,13 +261,13 @@ def _handle_ask(body: AskRequest) -> AskResponse | None:
         db.close()
 
 
-def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> AskResponse:
+def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> tuple[AskResponse, bool]:
     filters_summary = build_filters_summary(body.filters)
     # Quick Facts pre-queries the totals/severity-split for the active filters
     # and injects them into the system prompt. Saves a tool call for basic
     # count questions ("crashes in LA in 2023?") and gives the model a
     # grounded baseline before it decides whether to call tools.
-    quick_facts = build_quick_facts(db, body.filters)
+    quick_facts = build_quick_facts(db, body.filters, statement_timeout_ms=_STATEMENT_TIMEOUT_MS)
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
         active_filters=filters_summary,
         quick_facts=quick_facts,
@@ -207,32 +281,78 @@ def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> AskResp
     messages.append({"role": "user", "content": body.question})
 
     tools_called: list[str] = []
+    tools_succeeded: list[str] = []
+    tool_results: list[str] = []
+    degraded = False
 
     try:
-        answer, provider = _run_with_tools(db, messages, tools_called, deadline)
+        answer, provider = _run_with_tools(
+            db, messages, tools_called, tools_succeeded, deadline, tool_results
+        )
     except AllProvidersExhausted:
-        answer, provider = _run_simple_mode(db, body.filters, messages)
+        try:
+            answer, provider = _run_simple_mode(db, body.filters, messages)
+        except Exception:
+            # Simple mode makes its own LLM call (and a DB query) — if that
+            # fails too, return a graceful degraded answer instead of a 500,
+            # and never cache it: the very next attempt may succeed (#293).
+            logger.exception("Simple-mode fallback failed after provider exhaustion")
+            return AskResponse(
+                answer=(
+                    "AI is temporarily unavailable — all providers are busy or "
+                    "rate limited right now. Please try again in a few minutes."
+                ),
+                provider="none",
+                grounded=False,
+                filters_used=body.filters,
+                tools_called=tools_called,
+            ), False
+        degraded = True
 
     suggestions = _parse_suggestions(answer)
     chart = _parse_chart(answer)
     clean_answer = _strip_suggestions(_strip_chart(answer))
+
+    # grounded means "this answer is backed by at least one tool query that
+    # actually executed" — attempted-but-failed calls don't count, or a run
+    # where every tool errored would still present as data-backed.
+    tool_grounded = len(tools_succeeded) > 0
+    # Cacheability keys off tool success only: the numeric heuristic below is
+    # deliberately conservative and can false-negative on heavily rounded
+    # answers, so it downgrades the reported flag without evicting the answer.
+    cacheable = not degraded and tool_grounded
+
+    grounded = tool_grounded
+    # Calling a tool is not the same as citing it: cross-check that the raw
+    # answer (chart included) shares at least one distinctive number with the
+    # successful tool results. Only downgrade on zero overlap when the tool
+    # results actually contained distinctive numbers (#293).
+    if grounded and not answer_cites_tool_numbers(answer, tool_results):
+        logger.warning(
+            "Answer shares no distinctive numbers with tool results; "
+            "downgrading grounded=false (tools_called=%s)",
+            tools_called,
+        )
+        grounded = False
 
     return AskResponse(
         answer=clean_answer,
         provider=provider,
         suggestions=suggestions,
         chart=chart,
-        grounded=len(tools_called) > 0,
+        grounded=grounded,
         filters_used=body.filters,
         tools_called=tools_called,
-    )
+    ), cacheable
 
 
 def _run_with_tools(
     db: Session,
     messages: list[dict],
     tools_called: list[str],
+    tools_succeeded: list[str],
     deadline: float,
+    tool_results: list[str] | None = None,
 ) -> tuple[str, str]:
     """Run the tool-calling loop (max 3 rounds).
 
@@ -280,21 +400,39 @@ def _run_with_tools(
             for tool_call in capped_calls:
                 fn_name = tool_call.function.name
                 tools_called.append(fn_name)
+                succeeded = False
                 try:
                     args = json.loads(tool_call.function.arguments)
                     fn = TOOL_REGISTRY.get(fn_name)
                     if fn:
                         result = fn(db, **args)
+                        tools_succeeded.append(fn_name)
+                        succeeded = True
                     else:
                         result = {"error": f"Unknown tool: {fn_name}"}
                 except Exception as e:
                     logger.warning("Tool %s failed: %s", fn_name, e)
+                    # A failed query aborts the session's transaction; without
+                    # a rollback every subsequent tool call in this loop dies
+                    # with PendingRollbackError. SET LOCAL statement_timeout
+                    # dies with the transaction too, so re-apply it — later
+                    # tools must stay bounded.
+                    try:
+                        db.rollback()
+                        _apply_statement_timeout(db)
+                    except Exception:
+                        logger.exception("Failed to reset ask DB session after tool error")
                     result = {"error": "Tool execution failed. Please try again or rephrase your question."}
 
+                serialized = json.dumps(result, default=str)
+                # Collect successful results for the numeric-grounding check —
+                # error payloads carry no data the answer could cite.
+                if succeeded and tool_results is not None:
+                    tool_results.append(serialized)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
-                    "content": json.dumps(result, default=str),
+                    "content": serialized,
                 })
         else:
             return choice.message.content or "", provider

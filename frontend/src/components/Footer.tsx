@@ -5,6 +5,7 @@ const footerLinks = [
   { label: "Methodology", to: "/about#mission" },
   { label: "Project Info", to: "/about" },
   { label: "Privacy Policy", to: "/privacy" },
+  { label: "Terms of Service", to: "/terms" },
 ];
 
 export default function Footer() {

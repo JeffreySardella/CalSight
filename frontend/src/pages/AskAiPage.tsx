@@ -7,6 +7,7 @@ import ChatMessage from "../components/ask/ChatMessage";
 import SuggestionChips from "../components/ask/SuggestionChips";
 import ThinkingIndicator from "../components/ask/ThinkingIndicator";
 import MetaTags from "../components/seo/MetaTags";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 import { StoryCanvasProvider, useStoryCanvas } from "../hooks/useStoryCanvas";
 import StoryCanvasPanel from "../components/ask/StoryCanvasPanel";
 import StoryReportView from "../components/ask/StoryReportView";
@@ -47,6 +48,9 @@ function AskAiPageInner() {
   const { messages, isLoading, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
   const { title, blocks, count } = useStoryCanvas();
   const [storyOpen, setStoryOpen] = useState(false);
+  // "New Chat" only renders when there are messages, so opening the dialog
+  // always means there's a conversation to lose (#256/#293).
+  const [confirmNewChat, setConfirmNewChat] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -198,7 +202,7 @@ function AskAiPageInner() {
           {hasMessages && (
             <button
               type="button"
-              onClick={clearConversation}
+              onClick={() => setConfirmNewChat(true)}
               className="flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-surface-container text-on-surface-variant hover:text-on-surface text-xs font-medium transition-colors whitespace-nowrap"
             >
               <span className="material-symbols-outlined text-sm">add</span>
@@ -294,6 +298,18 @@ function AskAiPageInner() {
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmNewChat}
+        title="Start a new chat?"
+        message="This clears the current conversation. Items pinned to your story are kept."
+        confirmLabel="New chat"
+        onConfirm={() => {
+          setConfirmNewChat(false);
+          clearConversation();
+        }}
+        onCancel={() => setConfirmNewChat(false)}
+      />
 
       <StoryCanvasPanel
         open={storyOpen}

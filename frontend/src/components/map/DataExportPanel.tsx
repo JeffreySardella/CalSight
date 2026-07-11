@@ -10,6 +10,7 @@ import {
 } from "../../lib/export/csv";
 import { exportPdf } from "../../lib/export/pdf";
 import { exportPng, PngExportError } from "../../lib/export/png";
+import CopyLinkButton from "../ui/CopyLinkButton";
 import {
   type FormatKey,
   failExport,
@@ -228,6 +229,17 @@ export default function DataExportPanel() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Share — the URL already encodes filters, layers, and viewport */}
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          Share
+        </h3>
+        <CopyLinkButton />
+        <p className="text-[10px] text-on-surface-variant leading-snug">
+          The link reproduces your current filters, layers, and map view.
+        </p>
       </div>
 
       {/* Status / progress / error */}

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SEVERITIES, CAUSES, formatYearMonth, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
+import { PERSISTED_QUERY_GC_TIME } from "../lib/queryPersistence";
 
 export type StatsFilters = {
   dateRange: DateRangeFilter | null;
@@ -243,6 +244,11 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     queryKey: ["stats", "demographics", { d: dateKey, co: filters.counties }],
     queryFn: () => fetchJson<DemoRow[]>(buildDemoUrl(filters)),
     staleTime: 60_000,
+    // Persisted offline (queryPersistence.ts whitelist) — must outlive the
+    // short global gcTime to keep feeding the snapshot. Note the heavy
+    // stats/batch query above deliberately does NOT get this: it is excluded
+    // from persistence and should be collected promptly.
+    gcTime: PERSISTED_QUERY_GC_TIME,
   });
 
   const loading = batchQuery.isLoading;

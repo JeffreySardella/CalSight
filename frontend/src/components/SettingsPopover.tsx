@@ -66,7 +66,7 @@ export default function SettingsPopover({ onClose, containerRef }: SettingsPopov
       ref={popoverRef}
       role="dialog"
       aria-modal="true"
-      className="fixed bottom-0 left-0 right-0 z-[61] w-full rounded-t-2xl bg-surface-container-low backdrop-blur-xl ghost-border ambient-shadow p-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] space-y-4 max-h-[85vh] overflow-y-auto md:absolute md:bottom-auto md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 md:rounded-xl md:rounded-t-xl md:pb-4"
+      className="fixed bottom-0 left-0 right-0 z-[60] w-full rounded-t-2xl bg-surface-container-low backdrop-blur-xl ghost-border ambient-shadow p-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] space-y-4 max-h-[85vh] overflow-y-auto md:absolute md:bottom-auto md:left-auto md:right-0 md:top-full md:mt-2 md:w-80 md:rounded-xl md:rounded-t-xl md:pb-4"
     >
       {/* Mobile drag handle */}
       <div className="flex justify-center md:hidden py-1">

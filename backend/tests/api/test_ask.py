@@ -54,11 +54,38 @@ def _disable_ask_rate_limit():
 
 @pytest.fixture
 def fake_llm(monkeypatch):
-    """Patches `generate_with_fallback` to a counter we can assert against."""
+    """Patches `generate_with_fallback` to a counter we can assert against.
+
+    Round 0 (tool_choice="required") returns a query_crashes tool call so the
+    handler records a successful tool execution — answers with zero successful
+    tools are treated as degraded and are deliberately NOT cached, so a
+    text-only fake would make every cache-HIT assertion fail by design.
+    Later rounds return the plain text answer."""
     calls: list[dict] = []
 
     def fake(messages, **kwargs):
         calls.append({"messages": messages, "kwargs": kwargs})
+        if kwargs.get("tool_choice") == "required":
+            return (
+                SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(
+                                content="",
+                                tool_calls=[
+                                    SimpleNamespace(
+                                        id="call_1",
+                                        function=SimpleNamespace(
+                                            name="query_crashes", arguments="{}"
+                                        ),
+                                    )
+                                ],
+                            )
+                        )
+                    ]
+                ),
+                "TestProvider",
+            )
         return _fake_llm_response()
 
     monkeypatch.setattr("app.routers.ask.generate_with_fallback", fake)

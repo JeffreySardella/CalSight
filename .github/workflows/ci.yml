@@ -73,6 +73,11 @@ jobs:
       - run: npx eslint .
       - run: npx tsc --noEmit
       - run: npm test
+      # Gate the production vite build: Cloudflare Pages publishes on push to
+      # main independently of CI, so a build-breaking change (PWA plugin, CSP
+      # hashes, rollup config) must fail CI here — tsc/vitest alone don't
+      # exercise the build.
+      - run: npm run build
 
   security:
     runs-on: ubuntu-latest
@@ -109,6 +114,15 @@ jobs:
       - name: npm audit (frontend)
         working-directory: frontend
         run: npm audit --audit-level=high
+
+      # pip-audit — backend dependency CVE check (issue #300). Non-blocking:
+      # a new upstream advisory must not gate deploys (see audit M-I5 for why
+      # the npm gate above is debatable); this surfaces CVEs without blocking.
+      - name: pip-audit (backend, non-blocking)
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt
 
   docker-build:
     runs-on: ubuntu-latest

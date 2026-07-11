@@ -71,3 +71,16 @@ def test_pipeline_matviews_entry_shape(client):
 def test_pipeline_matviews_rejects_without_key(client):
     response = client.get("/api/pipeline/matviews")
     assert response.status_code in (403, 503)
+
+
+def test_pipeline_health_is_explicitly_uncacheable(client):
+    # (#291) monitors must always see the live verdict — never a stored one.
+    response = client.get("/api/pipeline/health")
+    assert response.headers.get("Cache-Control") == "no-store"
+
+
+def test_pipeline_matviews_is_explicitly_uncacheable(client):
+    response = client.get(
+        "/api/pipeline/matviews", headers={"X-ETL-API-KEY": _TEST_ETL_KEY}
+    )
+    assert response.headers.get("Cache-Control") == "no-store"

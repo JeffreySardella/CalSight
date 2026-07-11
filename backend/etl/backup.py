@@ -8,6 +8,10 @@ Strategy:
 
 Restore procedure:
   pg_restore --clean --if-exists -d calsight /backups/calsight_2026-05-16.dump
+  # Dumps are taken with --no-owner --no-acl, so GRANTs are NOT in the dump.
+  # After restoring, re-apply the API role's permissions or every API request
+  # will fail with permission errors:
+  #   psql -d calsight -f backend/sql/create_readonly_role.sql
 
 For point-in-time recovery, enable WAL archiving in postgresql.conf:
   archive_mode = on
@@ -224,6 +228,36 @@ def _split_db_password(url: str) -> tuple[str, str | None]:
     return sanitized, parts.password
 
 
+def verify_dump(filepath: Path) -> bool:
+    """Check a custom-format dump's integrity by reading its TOC.
+
+    `pg_restore --list` parses the archive header and full table of contents
+    without touching any database, so it reliably catches truncated or
+    corrupt files that pg_dump nevertheless exited 0 on (disk full mid-write,
+    interrupted container, bad sector).
+    """
+    try:
+        result = subprocess.run(
+            ["pg_restore", "--list", str(filepath)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=600,
+        )
+        if result.returncode != 0:
+            logger.error("pg_restore --list failed:\n%s", result.stderr[:1000])
+            return False
+        return True
+    except FileNotFoundError:
+        # pg_restore ships in the same postgresql-client package as pg_dump,
+        # so this should be unreachable when the dump itself succeeded.
+        logger.error("pg_restore not found; cannot verify dump integrity")
+        return False
+    except subprocess.TimeoutExpired:
+        logger.error("Dump verification timed out")
+        return False
+
+
 def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
     """Execute pg_dump and return the path to the backup file.
 
@@ -233,8 +267,9 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
       - Supports selective restore (individual tables)
       - Supports --clean to drop objects before recreating
 
-    We exclude etl_runs because it's operational log data that's easily
-    regenerated, and excluding it saves ~5-10% of backup size.
+    The dump is verified with `pg_restore --list` before being reported as
+    a success — a truncated or corrupt file must not rotate in as a "good"
+    recovery point.
     """
     backup_path = Path(backup_dir)
     backup_path.mkdir(parents=True, exist_ok=True)
@@ -271,6 +306,18 @@ def run_backup(backup_dir: str = DEFAULT_BACKUP_DIR) -> Path | None:
 
         if result.returncode != 0:
             logger.error("pg_dump failed:\n%s", result.stderr[:1000])
+            return None
+
+        if not verify_dump(filepath):
+            # Quarantine rather than delete: keep the bad file for forensics,
+            # but move it out of the calsight_*.dump namespace so rotation
+            # and --upload-only never treat it as a recovery point.
+            corrupt_path = filepath.with_name(filepath.name + ".corrupt")
+            filepath.rename(corrupt_path)
+            logger.error(
+                "Dump failed integrity check (pg_restore --list); quarantined as %s",
+                corrupt_path.name,
+            )
             return None
 
         elapsed = time.monotonic() - start

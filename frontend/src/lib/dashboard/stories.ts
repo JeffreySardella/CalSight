@@ -1,4 +1,4 @@
-import type { Dimension, Measure, ChartType } from "./types";
+import type { ChartOptions, ChartType, Dimension, Measure } from "./types";
 
 export type StoryContext = {
   countyCount: number;
@@ -22,7 +22,7 @@ export type ChartBlock = {
   dimension: Dimension;
   measure: Measure;
   chartType: ChartType;
-  options?: { trendLine?: boolean };
+  options?: ChartOptions;
   filterOverrides?: {
     alcohol?: boolean;
     pedestrian?: boolean;

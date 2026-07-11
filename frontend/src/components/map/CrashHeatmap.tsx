@@ -9,6 +9,22 @@ import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 
+/**
+ * Private leaflet.heat internals this component relies on. These are not part
+ * of the public HeatLayer type (see src/types/leaflet.heat.d.ts), so access is
+ * funneled through {@link heatInternals} — the single, documented cast — rather
+ * than scattering `as unknown as` assertions at every use site.
+ */
+interface HeatLayerInternals {
+  _canvas?: HTMLCanvasElement;
+  _animateZoom: (e: L.ZoomAnimEvent) => void;
+  _reset: () => void;
+}
+
+function heatInternals(layer: L.HeatLayer): HeatLayerInternals {
+  return layer as unknown as HeatLayerInternals;
+}
+
 const BASE_RADIUS: Record<HeatmapResolution, number> = {
   raw: 8,
   low: 18,
@@ -82,12 +98,7 @@ export function useHeatLayer(
     layer.addTo(map);
     layerRef.current = layer;
 
-    type HeatInternals = {
-      _canvas: HTMLCanvasElement;
-      _animateZoom: (e: L.ZoomAnimEvent) => void;
-      _reset: () => void;
-    };
-    const internals = layer as unknown as HeatInternals;
+    const internals = heatInternals(layer);
 
     if (internals._canvas) {
       internals._canvas.style.pointerEvents = "none";
@@ -97,20 +108,20 @@ export function useHeatLayer(
 
     const onZoomStart = () => {
       if (!layerRef.current) return;
-      const c = (layerRef.current as unknown as HeatInternals)._canvas;
+      const c = heatInternals(layerRef.current)._canvas;
       if (c) c.style.display = "none";
     };
 
     const onZoomEnd = () => {
       if (!layerRef.current) return;
-      const cast = layerRef.current as unknown as HeatInternals;
-      if (cast._canvas) cast._canvas.style.display = "";
+      const current = heatInternals(layerRef.current);
+      if (current._canvas) current._canvas.style.display = "";
       if (!isRaw) {
         const z = map.getZoom();
         const newR = radiusForZoom(base, z);
         layerRef.current.setOptions({ radius: newR, blur: Math.max(1, Math.round(newR * 0.3)) });
       }
-      cast._reset();
+      current._reset();
     };
 
     map.on("zoomstart", onZoomStart);
@@ -205,12 +216,7 @@ function useFatalLayer(
     layer.addTo(map);
     layerRef.current = layer;
 
-    type HeatInternals = {
-      _canvas: HTMLCanvasElement;
-      _animateZoom: (e: L.ZoomAnimEvent) => void;
-      _reset: () => void;
-    };
-    const internals = layer as unknown as HeatInternals;
+    const internals = heatInternals(layer);
 
     if (internals._canvas) {
       internals._canvas.style.pointerEvents = "none";
@@ -219,13 +225,15 @@ function useFatalLayer(
     map.off("zoomanim", internals._animateZoom, layer);
 
     const onZoomStart = () => {
-      const c = (layerRef.current as unknown as HeatInternals)?._canvas;
+      if (!layerRef.current) return;
+      const c = heatInternals(layerRef.current)._canvas;
       if (c) c.style.display = "none";
     };
     const onZoomEnd = () => {
-      const cast = layerRef.current as unknown as HeatInternals;
-      if (cast?._canvas) cast._canvas.style.display = "";
-      cast?._reset();
+      if (!layerRef.current) return;
+      const current = heatInternals(layerRef.current);
+      if (current._canvas) current._canvas.style.display = "";
+      current._reset();
     };
 
     map.on("zoomstart", onZoomStart);

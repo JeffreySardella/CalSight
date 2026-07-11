@@ -1,0 +1,6 @@
+# CalSight security contact (RFC 9116)
+Contact: https://github.com/JeffreySardella/CalSight/security/advisories/new
+Expires: 2027-07-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://calsight.org/.well-known/security.txt
+Policy: https://github.com/JeffreySardella/CalSight/security/policy

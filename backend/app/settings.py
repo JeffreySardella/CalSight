@@ -26,10 +26,13 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://calsight:calsight_dev@localhost:5433/calsight"
 
     # Azure connection string. If set in .env, we use this instead of
-    # the local default above. The shared .env is posted in Discord so
-    # everyone queries the same loaded 25M-row dataset. If it's missing
-    # (or empty) the app falls back to the local Postgres URL so a fresh
-    # clone of the repo still boots against `docker compose up db`.
+    # the local default above so everyone queries the same loaded
+    # 25M-row dataset. Obtain the shared credentials through the team's
+    # secret manager or a direct share from an operator — never post
+    # them in chat — and rotate the shared password periodically. If
+    # it's missing (or empty) the app falls back to the local Postgres
+    # URL so a fresh clone of the repo still boots against
+    # `docker compose up db`.
     #
     # In production both DATABASE_URL and DATABASE_URL_AZURE point at a
     # read-only Postgres role — ETL/alembic use ETL_DATABASE_URL[_AZURE]
@@ -75,6 +78,15 @@ class Settings(BaseSettings):
     # -- App --
     debug: bool = False
     etl_api_key: str = ""
+    # Separate admin credential (issue #300): one secret should not gate both
+    # ETL triggers and the admin UI, so rotating one never locks out the
+    # other. Empty means "fall back to etl_api_key" for backward
+    # compatibility with deployments that predate the split.
+    admin_api_key: str = ""
+
+    @property
+    def effective_admin_key(self) -> str:
+        return self.admin_api_key or self.etl_api_key
 
     # Maintenance mode: when true, the API returns 503 + Retry-After for all
     # /api/* requests (except /api/health) so the app can be taken offline
@@ -114,6 +126,13 @@ class Settings(BaseSettings):
     # the model more likely to phrase numbers loosely or drift. Tune via
     # LLM_TEMPERATURE without a code change.
     llm_temperature: float = 0.4
+    # Spending backstop: max provider calls per day across paid LLM providers
+    # (0 = unlimited). Counted per worker process, like the rate limits — with
+    # 4 gunicorn workers the effective cap is 4x this value. Local ollama is
+    # free and never counted. When the budget is spent, /api/ask degrades
+    # through simple mode to a graceful "temporarily unavailable" answer.
+    # See app/llm_budget.py.
+    llm_daily_request_budget: int = 0
     llm_api_key: str = ""
     llm_api_key_2: str = ""
     llm_model: str = ""

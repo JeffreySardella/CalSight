@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
-import { useFilterParams, CA_COUNTIES } from "../hooks/useFilterParams";
+import { useFilterParams, CA_COUNTIES, YEARS } from "../hooks/useFilterParams";
 import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
 import { useAutoDisableHeatmap } from "../hooks/useAutoDisableHeatmap";
 import { selectHeatmapDetailSlugs } from "../lib/map/heatmapDetail";
@@ -36,7 +36,13 @@ import Breadcrumb from "../components/map/Breadcrumb";
 import StatewideHeatmapCard from "../components/map/StatewideHeatmapCard";
 import { EmptyState } from "../components/ui/EmptyState";
 import ShareButton from "../components/ui/ShareButton";
-import { useCrashHeatmap, useBatchedHeatmap } from "../hooks/useCrashHeatmap";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import { useToast } from "../components/ui/toastContext";
+import { isSelfCompare } from "../lib/map/compare";
+import { useCrashHeatmap, useBatchedHeatmap, heatmapQueryOptions } from "../hooks/useCrashHeatmap";
+import { useHeatmapTimelapse } from "../hooks/useHeatmapTimelapse";
+import TemporalScrubber from "../components/map/TemporalScrubber";
+import { useAccessibility } from "../context/AccessibilityContext";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
@@ -179,14 +185,81 @@ function MapPageInner() {
     hitRun: selectedHitRun || undefined,
   };
 
+  // ── Temporal heatmap timelapse (issue #279) ──
+  // The animated year lives in component state (never the URL): while the
+  // timelapse is active it overrides the statewide heatmap's date range with
+  // a single-year window at "low" resolution; deactivating simply lets the
+  // user's own filters take effect again — nothing to restore.
+  const queryClient = useQueryClient();
+  const { effectiveReducedMotion } = useAccessibility();
+  const timelapseMinYear = YEARS[0];
+  const timelapseMaxYear = YEARS[YEARS.length - 1];
+
+  // Params for a single animation frame — identical shape to the live
+  // statewide query below (county-less, resolution locked to "low"), so
+  // prefetched frames share the React Query cache entry with the live query.
+  const timelapseFrameParams = useCallback((year: number) => ({
+    enabled: true,
+    county: null,
+    dateRange: { start: { year, month: 1 }, end: { year, month: 12 } },
+    severities: [...selectedSeverities],
+    causes: [...selectedCauses],
+    alcohol: selectedAlcohol || undefined,
+    distracted: selectedDistracted || undefined,
+    pedestrian: selectedPedestrian || undefined,
+    cyclist: selectedCyclist || undefined,
+    drug: selectedDrug || undefined,
+    driverAge: selectedDriverAge ?? undefined,
+    weather: selectedWeather.size > 0 ? [...selectedWeather] : undefined,
+    lighting: selectedLighting.size > 0 ? [...selectedLighting] : undefined,
+    collisionType: selectedCollisionType.size > 0 ? [...selectedCollisionType] : undefined,
+    roadType: selectedRoadType ?? undefined,
+    hitRun: selectedHitRun || undefined,
+    resolution: "low" as const,
+  }), [selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedWeather, selectedLighting, selectedCollisionType, selectedRoadType, selectedHitRun]);
+
+  const handleTimelapsePrefetch = useCallback((years: number[]) => {
+    for (const year of years) {
+      void queryClient.prefetchQuery(heatmapQueryOptions(timelapseFrameParams(year)));
+    }
+  }, [queryClient, timelapseFrameParams]);
+
+  const timelapse = useHeatmapTimelapse({
+    minYear: timelapseMinYear,
+    maxYear: timelapseMaxYear,
+    onPrefetch: handleTimelapsePrefetch,
+    reducedMotion: effectiveReducedMotion,
+  });
+
+  // The timelapse only drives the statewide (grid-aggregated) heatmap layer.
+  const timelapseAvailable = otherLayers.heatmapStatewide && !useCountyDetail;
+  const timelapseDriving = timelapse.active && timelapseAvailable;
+
+  // Exit the timelapse if its layer goes away (statewide toggled off or a
+  // county drill-down takes over) so the override can't silently linger.
+  const { active: timelapseIsActive, stop: stopTimelapse } = timelapse;
+  useEffect(() => {
+    if (!timelapseAvailable && timelapseIsActive) stopTimelapse();
+  }, [timelapseAvailable, timelapseIsActive, stopTimelapse]);
+
+  const timelapseRange = useMemo(
+    () => ({
+      start: { year: timelapse.currentYear, month: 1 },
+      end: { year: timelapse.currentYear, month: 12 },
+    }),
+    [timelapse.currentYear],
+  );
+
   const statewideHeatmap = useCrashHeatmap({
     enabled: heatmapEnabled && !useCountyDetail,
     county: null,
-    dateRange: selectedDateRange,
+    dateRange: timelapseDriving ? timelapseRange : selectedDateRange,
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
     ...involvementFilters,
-    resolution: effectiveResolution,
+    // Lock resolution to "low" during animation: each frame is a fresh query,
+    // and low keeps frame payloads small enough to keep up with playback.
+    resolution: timelapseDriving ? "low" : effectiveResolution,
   });
 
   const countyHeatmap = useBatchedHeatmap({
@@ -301,8 +374,15 @@ function MapPageInner() {
   }, [writeViewport]);
 
   const selectingRef = useRef(false);
+  const { showToast } = useToast();
 
   const handleSelectCounty = useCallback((name: string) => {
+    // Compare mode: picking the focused county again would compare it with
+    // itself — reject the pick and say why instead of silently exiting (#256).
+    if (isSelfCompare(compareMode, name, focusedCounty)) {
+      showToast(`${name} is already selected — pick a different county to compare`, { variant: "info" });
+      return;
+    }
     if (selectingRef.current) return;
     selectingRef.current = true;
 
@@ -319,7 +399,7 @@ function MapPageInner() {
       setCounty(name);
       setTimeout(() => { selectingRef.current = false; }, 300);
     }
-  }, [compareMode, focusedCounty, setCounty, toggleCounty]);
+  }, [compareMode, focusedCounty, setCounty, toggleCounty, showToast]);
 
   const handleSelectHighway = useCallback((row: HighwayRow) => {
     setSelectedHighway(row);
@@ -336,6 +416,13 @@ function MapPageInner() {
   const handleSelectedHighwayGone = useCallback(() => {
     setSelectedHighway(null);
     setActivePanel((p) => (p === "highway" ? null : p));
+  }, []);
+
+  // M18: same for clusters — the selected hotspot cell is no longer
+  // significant under the new filters (or the layer was toggled off).
+  const handleSelectedClusterGone = useCallback(() => {
+    setSelectedCluster(null);
+    setActivePanel((p) => (p === "cluster" ? null : p));
   }, []);
 
   const handleSelectPlace = useCallback((lat: number, lng: number) => {
@@ -400,6 +487,34 @@ function MapPageInner() {
     setCompareMode(false);
     setShowInsight(false);
     clearCounties();
+  }
+
+  // Clear-all confirmation (#256/#293): only prompt when there is actually
+  // something to lose. The mobile sheet closes first so its focus trap can't
+  // fight the dialog's.
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const hasClearableState =
+    selectedDateRange !== null
+    || selectedSeverities.size > 0
+    || selectedCauses.size > 0
+    || selectedAlcohol || selectedDistracted || selectedPedestrian
+    || selectedCyclist || selectedDrug
+    || selectedDriverAge !== null
+    || selectedWeather.size > 0
+    || selectedLighting.size > 0
+    || selectedCollisionType.size > 0
+    || selectedRoadType !== null
+    || selectedHitRun
+    || selectedCounties.size > 0
+    || focusedCounty !== null;
+
+  function requestClearAll() {
+    if (hasClearableState) {
+      setShowMobileFilters(false);
+      setConfirmClearOpen(true);
+    } else {
+      handleClearAll();
+    }
   }
 
   const handleCloseOverlay = useCallback(() => {
@@ -565,7 +680,7 @@ function MapPageInner() {
             onToggleCounty={toggleCounty}
             onClearCounties={clearCounties}
             onApply={handleApplyFilters}
-            onClear={handleClearAll}
+            onClear={requestClearAll}
           />
         );
       case "layers":
@@ -642,10 +757,12 @@ function MapPageInner() {
           onSelectCluster={handleSelectCluster}
           selectedHighwayRoute={activePanel === "highway" ? selectedHighway?.route_number ?? null : null}
           onSelectedHighwayGone={handleSelectedHighwayGone}
+          selectedCluster={activePanel === "cluster" ? selectedCluster : null}
+          onSelectedClusterGone={handleSelectedClusterGone}
           onMapReady={handleMapReady}
           heatmapPoints={heatmap.points}
           heatmapActive={heatmapEnabled}
-          heatmapResolution={effectiveResolution}
+          heatmapResolution={timelapseDriving ? "low" : effectiveResolution}
           heatmapPalette={palette}
           countyDrilldown={useCountyDetail}
           mismatchPoints={otherLayers.coordMismatches ? mismatchHeatmap.points : []}
@@ -697,7 +814,7 @@ function MapPageInner() {
           hitRun={selectedHitRun}
           totalCrashes={choroplethData.dataSummary.totalCrashes}
           isLoading={choroplethData.isLoading}
-          onClear={handleClearAll}
+          onClear={requestClearAll}
           searchOpen={mobileSearchOpen}
         />
 
@@ -760,7 +877,7 @@ function MapPageInner() {
                   </button>
                 )}
               </div>
-              <button onClick={handleClearAll} className="w-full text-sm font-semibold text-primary hover:underline">
+              <button onClick={requestClearAll} className="w-full text-sm font-semibold text-primary hover:underline">
                 Clear All Filters
               </button>
             </div>
@@ -799,6 +916,24 @@ function MapPageInner() {
           searchOpen={mobileSearchOpen}
           mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
         />
+        {timelapseAvailable && (
+          <TemporalScrubber
+            active={timelapse.active}
+            currentYear={timelapse.currentYear}
+            isPlaying={timelapse.isPlaying}
+            speed={timelapse.speed}
+            minYear={timelapseMinYear}
+            maxYear={timelapseMaxYear}
+            loading={timelapseDriving && statewideHeatmap.isLoading}
+            reducedMotion={timelapse.reducedMotion}
+            searchOpen={mobileSearchOpen}
+            onPlay={timelapse.play}
+            onPause={timelapse.pause}
+            onSeek={timelapse.seek}
+            onSetSpeed={timelapse.setSpeed}
+            onStop={timelapse.stop}
+          />
+        )}
         {otherLayers.heatmapStatewide && !focusedCounty && !choroplethOn && (
           <StatewideHeatmapCard
             totalCrashes={statewideHeatmap.totalCrashes}
@@ -889,7 +1024,7 @@ function MapPageInner() {
       <MobileFilterSheet
         isOpen={showMobileFilters}
         onClose={() => setShowMobileFilters(false)}
-        onClear={handleClearAll}
+        onClear={requestClearAll}
         tabs={[
           {
             key: "filters",
@@ -903,7 +1038,7 @@ function MapPageInner() {
                 onToggleCounty={toggleCounty}
                 onClearCounties={clearCounties}
                 onApply={handleApplyFilters}
-                onClear={handleClearAll}
+                onClear={requestClearAll}
               />
             ),
           },
@@ -926,6 +1061,19 @@ function MapPageInner() {
             ),
           },
         ]}
+      />
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        title="Clear all filters?"
+        message="This removes every active filter and county selection from the map."
+        confirmLabel="Clear all"
+        destructive
+        onConfirm={() => {
+          setConfirmClearOpen(false);
+          handleClearAll();
+        }}
+        onCancel={() => setConfirmClearOpen(false)}
       />
 
       <KeyboardHelpModal

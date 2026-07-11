@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 # Future bulk/export endpoints (see #57) should use their own longer budget.
 COUNT_STATEMENT_TIMEOUT_MS = 5000
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 @router.get("/crashes", response_model=PaginatedResponse[CrashOut])

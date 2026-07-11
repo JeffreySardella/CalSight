@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ErrorBoundary } from "./ErrorBoundary";
-
-vi.mock("../../lib/queryClient", () => ({
-  queryClient: { clear: vi.fn() },
-}));
+import { queryClient } from "../../lib/queryClient";
 
 // Defined at module level so the reference is stable across rerenders —
 // if defined inside a test, React sees a new component type and unmounts/remounts.
@@ -87,6 +84,22 @@ describe("ErrorBoundary", () => {
     fireEvent.click(btn()); // triggers reload
 
     expect(reloadSpy).toHaveBeenCalledOnce();
+  });
+
+  it("does not wipe the query cache on retry — M17", () => {
+    // Boundaries wrap individual chart cards; a retry must not clear (or
+    // otherwise touch) the app-wide query cache.
+    const clearSpy = vi.spyOn(queryClient, "clear");
+    const removeSpy = vi.spyOn(queryClient, "removeQueries");
+    throwOnRender = true;
+    render(<ErrorBoundary><Bomb /></ErrorBoundary>);
+
+    throwOnRender = false;
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    expect(screen.getByText("OK")).toBeInTheDocument();
+    expect(clearSpy).not.toHaveBeenCalled();
+    expect(removeSpy).not.toHaveBeenCalled();
   });
 
   it("resets retry count after a successful recovery", () => {

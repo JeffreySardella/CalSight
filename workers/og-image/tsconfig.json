@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    // No "DOM": a Worker runs on workerd globals, which @cloudflare/workers-types
+    // provides — including the DOM lib alongside it produces hundreds of
+    // duplicate-identifier conflicts and was why tsc never ran clean here.
+    "lib": ["ES2022"],
     "module": "ES2022",
     "moduleResolution": "bundler",
     "strict": true,

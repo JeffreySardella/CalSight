@@ -120,7 +120,10 @@ def backfill_route_number(db) -> int:
     return total_updated
 
 
-@track_etl_run("extract_route_number")
+# Source name matches the registry job name in etl/jobs.py ("route_number",
+# not "extract_route_number") so direct CLI runs and orchestrated runs share
+# one freshness history (audit M-B8 phantom-name fix).
+@track_etl_run("route_number")
 def run() -> int:
     db = SessionLocal()
     try:

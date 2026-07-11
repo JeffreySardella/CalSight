@@ -16,7 +16,7 @@ describe("lived-density correlation field", () => {
         { county_code: 19, year: 2021, weighted_density: 8400, tract_count: 1 },
         { county_code: 19, year: 2022, weighted_density: 8500, tract_count: 1 },
         { county_code: 30, year: 2022, weighted_density: 4200, tract_count: 1 }, // not in byCounty
-      ] as unknown as Record<string, unknown>[],
+      ],
       byCounty,
     );
     expect(byCounty["19"].weighted_density).toBe(8500); // latest year wins

@@ -291,7 +291,7 @@ export default function AiInsightCard({
 
                 {compareMode && !compareCountyName && (
                   <p className="text-xs text-on-surface-variant text-center py-1">
-                    Click a county to compare
+                    Click a different county to compare
                   </p>
                 )}
 

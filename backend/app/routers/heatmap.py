@@ -5,7 +5,7 @@ from enum import Enum
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import rate_limit_key
 from sqlalchemy import func, literal_column, or_
 from sqlalchemy.orm import Session
 
@@ -56,7 +56,7 @@ _DECIMALS = {
 }
 
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 
 @router.get("/crashes/heatmap", response_model=HeatmapResponse)

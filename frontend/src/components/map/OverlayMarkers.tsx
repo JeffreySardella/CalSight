@@ -101,7 +101,7 @@ export default memo(function OverlayMarkers({ hospitals, schools, showHospitals,
                     <strong>Hospital</strong>
                   </div>
                   <div style={{ fontWeight: 600, marginBottom: 2 }}>{h.facility_name}</div>
-                  <div style={{ color: "#666" }}>{h.city}</div>
+                  <div style={{ color: "rgb(var(--on-surface-variant))" }}>{h.city}</div>
                   {h.trauma_center && <div style={{ color: "#dc2626", fontWeight: 600, marginTop: 4 }}>{h.trauma_center}</div>}
                 </div>
               </Popup>
@@ -130,7 +130,7 @@ export default memo(function OverlayMarkers({ hospitals, schools, showHospitals,
                     <strong>School</strong>
                   </div>
                   <div style={{ fontWeight: 600, marginBottom: 2 }}>{s.school_name}</div>
-                  <div style={{ color: "#666" }}>{s.city} — {s.school_type}</div>
+                  <div style={{ color: "rgb(var(--on-surface-variant))" }}>{s.city} — {s.school_type}</div>
                 </div>
               </Popup>
             </Marker>

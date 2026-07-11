@@ -7,6 +7,7 @@ import { useFilterParams } from "../../hooks/useFilterParams";
 import { useCountyGeoJson } from "../../hooks/useCountyGeoJson";
 import { quantileBuckets, bucketFor } from "../../lib/choropleth/binning";
 import { getPalette, HATCH_PATTERN_ID, installHatchPattern } from "../../lib/choropleth/palettes";
+import { prefersReducedMotionNow } from "../../lib/a11y/motion";
 import { useIsDark } from "../../context/ThemeContext";
 
 interface CountyBoundariesProps {
@@ -336,7 +337,12 @@ export default memo(function CountyBoundaries({
     if (compareCounty) showTooltipFor(compareCounty, compareTooltipRef);
 
     if (combined) {
-      map.fitBounds(combined, { animate: true, padding: [40, 40], maxZoom: 11 });
+      // No animated zoom under reduced motion — jump straight to the bounds.
+      map.fitBounds(combined, {
+        animate: !prefersReducedMotionNow(),
+        padding: [40, 40],
+        maxZoom: 11,
+      });
     }
 
     return () => {

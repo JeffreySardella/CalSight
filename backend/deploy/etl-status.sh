@@ -26,11 +26,12 @@ db.close()
 echo ""
 echo "=== Failures (last 7 days) ==="
 docker exec "$CONTAINER_NAME" python -c "
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.database import SessionLocal
 from app.models import EtlRun
 db = SessionLocal()
-cutoff = datetime.utcnow() - timedelta(days=7)
+# naive UTC, matching EtlRun columns (datetime.utcnow is deprecated)
+cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
 fails = db.query(EtlRun).filter(EtlRun.status == 'error', EtlRun.started_at >= cutoff).all()
 if not fails:
     print('  None')

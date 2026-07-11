@@ -102,10 +102,18 @@ export function useClusterHotspots(params: ClusterHotspotsParams) {
     queryFn: () => fetchClusterHotspots(params),
     enabled: params.enabled,
     staleTime: 5 * 60 * 1000,
+    // Explicitly short: statewide cluster responses are large and keyed per
+    // filter permutation — collect promptly after unmount (H7) regardless of
+    // what the global default is set to.
+    gcTime: 5 * 60 * 1000,
   });
 
   return {
     clusters: data?.clusters ?? [],
+    // Distinguishes "loaded, zero clusters" from "no response yet" (new query
+    // key loading, or errored) — consumers re-syncing a selection against the
+    // refetched list must not treat a still-loading [] as "cluster gone".
+    hasData: data !== undefined,
     totalGridCells: data?.total_grid_cells ?? 0,
     meanCount: data?.mean_count ?? 0,
     stddevCount: data?.stddev_count ?? 0,

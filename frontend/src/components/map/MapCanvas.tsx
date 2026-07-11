@@ -112,6 +112,10 @@ interface MapCanvasProps {
    * panel re-syncs when the rankings refetch on a filter change (M-F5). */
   selectedHighwayRoute?: string | null;
   onSelectedHighwayGone?: () => void;
+  /** Cluster whose side panel is open — threaded to ClusterLayer so the panel
+   * re-syncs when the hotspots refetch on a filter change (M18). */
+  selectedCluster?: ClusterPoint | null;
+  onSelectedClusterGone?: () => void;
   onMapReady: (map: LeafletMap) => void;
   heatmapPoints: HeatmapPoint[];
   heatmapActive: boolean;
@@ -142,6 +146,8 @@ function MapInternals({
   onSelectCluster,
   selectedHighwayRoute,
   onSelectedHighwayGone,
+  selectedCluster,
+  onSelectedClusterGone,
   onMapReady,
   heatmapPoints,
   heatmapActive,
@@ -197,7 +203,11 @@ function MapInternals({
         selectedRoute={selectedHighwayRoute}
         onSelectedRouteGone={onSelectedHighwayGone}
       />
-      <ClusterLayer onSelectCluster={onSelectCluster} />
+      <ClusterLayer
+        onSelectCluster={onSelectCluster}
+        selectedCluster={selectedCluster}
+        onSelectedClusterGone={onSelectedClusterGone}
+      />
       <TopIntersectionsLayer county={focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null} />
       {heatmapActive && (
         <CrashHeatmap
@@ -234,6 +244,8 @@ export default function MapCanvas({
   onSelectCluster,
   selectedHighwayRoute,
   onSelectedHighwayGone,
+  selectedCluster,
+  onSelectedClusterGone,
   onMapReady,
   heatmapPoints,
   heatmapActive,
@@ -316,6 +328,8 @@ export default function MapCanvas({
         onSelectCluster={onSelectCluster}
         selectedHighwayRoute={selectedHighwayRoute}
         onSelectedHighwayGone={onSelectedHighwayGone}
+        selectedCluster={selectedCluster}
+        onSelectedClusterGone={onSelectedClusterGone}
         onMapReady={onMapReady}
         heatmapPoints={heatmapPoints}
         heatmapActive={heatmapActive}

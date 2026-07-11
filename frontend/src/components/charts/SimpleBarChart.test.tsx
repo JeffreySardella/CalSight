@@ -102,4 +102,69 @@ describe("SimpleBarChart keyboard accessibility", () => {
     fireEvent.keyDown(bars[0], { key: "Enter" });
     expect(onBarClick).toHaveBeenCalledWith(data[0], 0);
   });
+
+  it("moves focus between bars with arrow keys and Home/End", () => {
+    render(<SimpleBarChart data={data} onBarClick={() => {}} />);
+    const bars = screen.getAllByRole("button");
+    (bars[0] as unknown as { focus(): void }).focus();
+
+    fireEvent.keyDown(bars[0], { key: "ArrowRight" });
+    expect(document.activeElement).toBe(bars[1]);
+
+    fireEvent.keyDown(bars[1], { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(bars[0]);
+
+    fireEvent.keyDown(bars[0], { key: "End" });
+    expect(document.activeElement).toBe(bars[1]);
+
+    fireEvent.keyDown(bars[1], { key: "Home" });
+    expect(document.activeElement).toBe(bars[0]);
+  });
+
+  it("clamps arrow-key navigation at the ends", () => {
+    render(<SimpleBarChart data={data} onBarClick={() => {}} />);
+    const bars = screen.getAllByRole("button");
+    (bars[0] as unknown as { focus(): void }).focus();
+    fireEvent.keyDown(bars[0], { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(bars[0]);
+
+    fireEvent.keyDown(bars[0], { key: "End" });
+    fireEvent.keyDown(bars[1], { key: "ArrowRight" });
+    expect(document.activeElement).toBe(bars[1]);
+  });
+});
+
+describe("SimpleBarChart tooltip bounds safety", () => {
+  const tip = (item: { label: string; value: number }) => <span>tip-{item.label}</span>;
+
+  it("does not render the tooltip for a stale hover index after data shrinks", () => {
+    const three = [
+      { label: "A", value: 1 },
+      { label: "B", value: 2 },
+      { label: "C", value: 3 },
+    ];
+    const { container, rerender } = rtlRender(
+      <ThemeProvider>
+        <CustomThemeProvider>
+          <SimpleBarChart data={three} renderTooltip={tip} />
+        </CustomThemeProvider>
+      </ThemeProvider>,
+    );
+    const rects = container.querySelectorAll("rect");
+    fireEvent.mouseMove(rects[2], { clientX: 100, clientY: 50 });
+    expect(screen.getByText("tip-C")).toBeInTheDocument();
+
+    // Shrink the data while hover still points at index 2 — must not throw
+    // and must not call renderTooltip with undefined.
+    expect(() =>
+      rerender(
+        <ThemeProvider>
+          <CustomThemeProvider>
+            <SimpleBarChart data={[{ label: "A", value: 1 }]} renderTooltip={tip} />
+          </CustomThemeProvider>
+        </ThemeProvider>,
+      ),
+    ).not.toThrow();
+    expect(screen.queryByText("tip-C")).toBeNull();
+  });
 });

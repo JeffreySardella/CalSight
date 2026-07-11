@@ -251,6 +251,27 @@
 
 }
 
+/*
+ * Sticky filter bar (Stats dashboard, mobile).
+ * Sticks just below the fixed 3rem mobile nav, honoring the iOS safe-area
+ * top inset. z-index 30 keeps it within the page's 0–50 band — under the
+ * fixed chrome (nav z-50, skip link z-[60]). On md+ the taller layout has
+ * room, so the bar flows normally again.
+ */
+.sticky-filter-bar {
+  position: sticky;
+  top: calc(3rem + env(safe-area-inset-top, 0px));
+  z-index: 30;
+}
+
+@media (min-width: 768px) {
+  .sticky-filter-bar {
+    position: static;
+    top: auto;
+    z-index: auto;
+  }
+}
+
 /* Bottom padding that accounts for the tab bar + iPhone safe area */
 .pb-safe-bottom {
   padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)) !important;
@@ -313,6 +334,19 @@
 
 .leaflet-overlay-pane canvas {
   pointer-events: none;
+}
+
+/* Theme Leaflet popups. leaflet.css hardcodes a white wrapper + #333 text,
+ * so popup content styled with dark-mode tokens (e.g. on-surface-variant)
+ * was unreadable in dark mode. Follow the theme instead. */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgb(var(--surface-container-lowest));
+  color: rgb(var(--on-surface));
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: rgb(var(--on-surface-variant));
 }
 
 .county-focus-tooltip {
@@ -533,15 +567,10 @@
   /* ── Hide Non-Content UI ── */
   nav,
   footer,
-  .mobile-share-fab,
-  .mobile-nav,
-  .filter-bar-actions,
   [data-print-hide],
   button:not(.print-keep),
   a:not(.print-keep),
   .no-scrollbar,
-  .bottom-tab-bar,
-  #bottom-tab-bar,
   [aria-live="polite"],
   [role="status"] {
     display: none !important;
@@ -562,10 +591,6 @@
   }
 
   /* Hide interactive-only elements */
-  .correlation-controls,
-  .correlation-tooltip,
-  .chart-config-panel,
-  .add-chart-card,
   .drag-handle,
   [aria-label="Time-lapse controls"],
   [aria-label="Natural language chart query"],
@@ -840,8 +865,7 @@
     break-after: auto;
   }
 
-  /* Force break before correlation matrix (it's large) */
-  section:has(.correlation-matrix),
+  /* Force break before large canvas-based sections */
   section:has(canvas) {
     page-break-before: always !important;
     break-before: page !important;
@@ -903,12 +927,6 @@
   .max-h-\[360px\] {
     max-height: none !important;
     overflow: visible !important;
-  }
-
-  /* ── Insight Banner: simplify for print ── */
-  .insight-banner {
-    border: 1px solid #ddd !important;
-    background: #fafafa !important;
   }
 }
 
@@ -1030,15 +1048,10 @@ body.print-mode .print-footer__disclaimer {
 /* Hide non-content UI */
 body.print-mode nav,
 body.print-mode footer,
-body.print-mode .mobile-share-fab,
-body.print-mode .mobile-nav,
-body.print-mode .filter-bar-actions,
 body.print-mode [data-print-hide],
 body.print-mode button:not(.print-keep),
 body.print-mode a:not(.print-keep),
-body.print-mode .no-scrollbar,
-body.print-mode .bottom-tab-bar,
-body.print-mode #bottom-tab-bar {
+body.print-mode .no-scrollbar {
   display: none !important;
 }
 body.print-mode [aria-label*="config"],
@@ -1053,10 +1066,6 @@ body.print-mode [aria-label*="Download"],
 body.print-mode [aria-label*="Explain"] {
   display: none !important;
 }
-body.print-mode .correlation-controls,
-body.print-mode .correlation-tooltip,
-body.print-mode .chart-config-panel,
-body.print-mode .add-chart-card,
 body.print-mode .drag-handle,
 body.print-mode [aria-label="Time-lapse controls"],
 body.print-mode [aria-label="Natural language chart query"],

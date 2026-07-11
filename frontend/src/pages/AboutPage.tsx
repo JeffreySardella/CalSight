@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import MetaTags from "../components/seo/MetaTags";
+import JargonTerm from "../components/ui/JargonTerm";
 
 export default function AboutPage() {
   return (
@@ -109,7 +111,7 @@ export default function AboutPage() {
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
               <h2 className="font-headline text-xl font-bold text-on-surface">US Census Bureau</h2>
-              <p className="text-sm text-on-surface-variant mt-1">ACS Demographics + TIGER/Line Boundaries</p>
+              <p className="text-sm text-on-surface-variant mt-1"><JargonTerm term="ACS">ACS</JargonTerm> Demographics + TIGER/Line Boundaries</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
                 28 demographic fields per county per year (population, income, poverty, race, education). TIGER/Line 2023 survey-grade county boundaries for coordinate validation. AREAWATER 2023 for lake and harbor exclusion.
               </p>
@@ -125,7 +127,7 @@ export default function AboutPage() {
               <h2 className="font-headline text-xl font-bold text-on-surface">Caltrans</h2>
               <p className="text-sm text-on-surface-variant mt-1">Traffic Volumes &amp; Road Classification</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
-                <li>AADT annual average daily traffic counts for all state highway segments</li>
+                <li><JargonTerm term="AADT">AADT</JargonTerm> annual average daily traffic counts for all state highway segments</li>
                 <li>Public Road Functional Classification — road miles by county and road type</li>
               </ul>
             </div>
@@ -140,7 +142,7 @@ export default function AboutPage() {
               <h2 className="font-headline text-xl font-bold text-on-surface">CalEnviroScreen 4.0</h2>
               <p className="text-sm text-on-surface-variant mt-1">Environmental Justice Scores — OEHHA</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                Population-weighted county scores aggregated from ~8,000 census tracts. Includes CES composite score, pollution burden, PM2.5, ozone, diesel particulate matter, traffic proximity, poverty, unemployment, linguistic isolation, and housing burden.
+                Population-weighted county scores aggregated from ~8,000 census tracts. Includes <JargonTerm term="CES">CES</JargonTerm> composite score, pollution burden, PM2.5, ozone, diesel particulate matter, traffic proximity, poverty, unemployment, linguistic isolation, and housing burden.
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
@@ -243,7 +245,13 @@ export default function AboutPage() {
             },
             {
               title: "No driver demographics before 2016",
-              body: "SWITRS (2001-2015) records the crash but not who was involved. Age, gender, sobriety, and cell phone data come from CCRS (2016+) only. Charts for those fields are blank or greyed out for pre-2016 years.",
+              body: (
+                <>
+                  <JargonTerm term="SWITRS">SWITRS</JargonTerm> (2001-2015) records the crash but not who was involved.
+                  Age, gender, sobriety, and cell phone data come from <JargonTerm term="CCRS">CCRS</JargonTerm> (2016+)
+                  only. Charts for those fields are blank or greyed out for pre-2016 years.
+                </>
+              ),
             },
             {
               title: "Underreporting: real crash numbers are probably 2-3x higher",
@@ -264,13 +272,25 @@ export default function AboutPage() {
             },
             {
               title: "Small counties missing 2005-2009",
-              body: "ACS 1-year estimates only cover counties with 65K+ population. About 28 smaller counties have no demographic data for those five years. Full 58-county coverage begins with the ACS 5-year estimates in 2010.",
+              body: (
+                <>
+                  <JargonTerm term="ACS">ACS</JargonTerm> 1-year estimates only cover counties with 65K+ population.
+                  About 28 smaller counties have no demographic data for those five years. Full 58-county coverage
+                  begins with the ACS 5-year estimates in 2010.
+                </>
+              ),
             },
             {
               title: "Traffic volumes cover state highways only",
-              body: "Caltrans AADT data is limited to state-managed roads. Local streets, county roads, and city streets — where many crashes occur — are not included. Per-road-mile rates should be interpreted with this in mind.",
+              body: (
+                <>
+                  Caltrans <JargonTerm term="AADT">AADT</JargonTerm> data is limited to state-managed roads.
+                  Local streets, county roads, and city streets — where many crashes occur — are not included.
+                  Per-road-mile rates should be interpreted with this in mind.
+                </>
+              ),
             },
-          ].map(({ title, body, source }: { title: string; body: string; source?: { label: string; url: string } }) => (
+          ].map(({ title, body, source }: { title: string; body: ReactNode; source?: { label: string; url: string } }) => (
             <div key={title} className="border-t border-outline-variant/20 pt-4">
               <h3 className="text-sm font-semibold text-on-surface mb-1">{title}</h3>
               <p className="text-sm text-on-surface-variant leading-relaxed">{body}</p>

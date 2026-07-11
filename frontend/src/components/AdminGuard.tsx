@@ -73,12 +73,12 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     <div className="flex items-center justify-center min-h-[60vh]">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm p-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm space-y-4"
+        className="w-full max-w-sm p-6 rounded-lg border border-outline-variant/40 bg-surface-container-lowest ambient-shadow space-y-4"
       >
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="text-lg font-semibold text-on-surface">
           Admin Access Required
         </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-on-surface-variant">
           Enter the admin key to access this page.
         </p>
         <input
@@ -88,15 +88,15 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Admin key"
-          className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 rounded border border-outline-variant bg-surface-container text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
         />
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-error">{error}</p>
         )}
         <button
           type="submit"
           disabled={loading || !password}
-          className="w-full px-4 py-2 rounded bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full px-4 py-2 rounded bg-primary text-on-primary font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? "Verifying..." : "Unlock"}
         </button>

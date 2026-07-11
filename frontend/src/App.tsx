@@ -6,6 +6,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { CustomThemeProvider } from "./context/CustomThemeContext";
 import { LiteModeProvider } from "./context/LiteModeContext";
 import { AccessibilityProvider } from "./context/AccessibilityContext";
+import ToastProvider from "./components/ui/ToastProvider";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { queryClient } from "./lib/queryClient";
 import {
@@ -26,6 +27,7 @@ const StatsPage = lazyWithRetry(() => import("./pages/StatsPage"));
 const AboutPage = lazyWithRetry(() => import("./pages/AboutPage"));
 const AskAiPage = lazyWithRetry(() => import("./pages/AskAiPage"));
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
+const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const AdminEtlPage = lazyWithRetry(() => import("./pages/AdminEtlPage"));
 const NotFoundPage = lazyWithRetry(() => import("./pages/NotFoundPage"));
 
@@ -54,6 +56,7 @@ export default function App() {
         <CustomThemeProvider>
         <LiteModeProvider>
           <AccessibilityProvider>
+          <ToastProvider>
           <MaintenanceGate />
           <RebuildingBanner />
           <BrowserRouter>
@@ -67,6 +70,7 @@ export default function App() {
                 <Route path="about" element={<AboutPage />} />
                 <Route path="ask" element={<AskAiPage />} />
                 <Route path="privacy" element={<PrivacyPage />} />
+                <Route path="terms" element={<TermsPage />} />
                 <Route path="admin/etl" element={<AdminGuard><AdminEtlPage /></AdminGuard>} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
@@ -75,6 +79,7 @@ export default function App() {
           </AiCompanionProvider>
           </AskAiProvider>
           </BrowserRouter>
+          </ToastProvider>
           </AccessibilityProvider>
         </LiteModeProvider>
         </CustomThemeProvider>

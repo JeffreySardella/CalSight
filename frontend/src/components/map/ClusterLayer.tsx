@@ -17,6 +17,15 @@ const MAX_Z_SCORE_FOR_SCALE = 6;
 
 interface ClusterLayerProps {
   onSelectCluster: (cluster: ClusterPoint) => void;
+  /** Cluster whose side panel is currently open. When the hotspot list
+   * refetches (filter change), the layer pushes that cell's fresh stats back
+   * through onSelectCluster so the panel never shows numbers from stale
+   * filters (M18) — mirrors HighwayDangerLayer's selectedRoute. */
+  selectedCluster?: ClusterPoint | null;
+  /** Called when the selected cell is no longer a hotspot under the new
+   * filters, or the layer is toggled off — the panel should close rather
+   * than keep stale stats on screen. */
+  onSelectedClusterGone?: () => void;
 }
 
 function radiusFor(zScore: number): number {
@@ -31,13 +40,13 @@ function radiusFor(zScore: number): number {
  * Renders nothing when the layer is toggled off. Imperative Leaflet layer
  * management mirrors TopIntersectionsLayer / HighwayDangerLayer.
  */
-export default memo(function ClusterLayer({ onSelectCluster }: ClusterLayerProps) {
+export default memo(function ClusterLayer({ onSelectCluster, selectedCluster, onSelectedClusterGone }: ClusterLayerProps) {
   const map = useMap();
   const fp = useFilterParams();
   const { otherLayers } = useLayersState();
   const enabled = otherLayers.crashClusters;
 
-  const { clusters } = useClusterHotspots({
+  const { clusters, hasData } = useClusterHotspots({
     enabled,
     county: fp.selectedCounties.size > 0
       ? [...fp.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")).join(",")
@@ -65,6 +74,30 @@ export default memo(function ClusterLayer({ onSelectCluster }: ClusterLayerProps
 
   const onSelectRef = useRef(onSelectCluster);
   onSelectRef.current = onSelectCluster;
+  const onGoneRef = useRef(onSelectedClusterGone);
+  onGoneRef.current = onSelectedClusterGone;
+
+  // M18: keep the open side panel in sync with the active filters. When the
+  // hotspot list refetches, re-match the selected grid cell by its coordinates
+  // (the cell's identity — counts/z-score change with filters, the cell center
+  // doesn't) and push the fresh stats up; if the cell fell below the
+  // significance threshold, or the layer was toggled off, close the panel.
+  // Skips while a new response is loading/errored (hasData false) so a
+  // transient empty list doesn't slam the panel shut. Mirrors
+  // HighwayDangerLayer's M-F5 fix.
+  useEffect(() => {
+    if (!selectedCluster) return;
+    if (!enabled) {
+      onGoneRef.current?.();
+      return;
+    }
+    if (!hasData) return;
+    const fresh = clusters.find(
+      (c) => c.lat === selectedCluster.lat && c.lng === selectedCluster.lng,
+    );
+    if (fresh) onSelectRef.current(fresh);
+    else onGoneRef.current?.();
+  }, [enabled, hasData, clusters, selectedCluster]);
 
   const layerRef = useRef<L.LayerGroup | null>(null);
 

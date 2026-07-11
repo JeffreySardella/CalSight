@@ -75,13 +75,28 @@ _PROMPT_TEMPLATE = (
 
 _MIN_CRASHES_FOR_FULL_YEAR = 50
 
+# Only complete calendar years produce insight cards (M12). The >= 50-crash
+# gate alone does NOT exclude the in-progress year — by February any real
+# county clears 50 crashes — and building cards from a partial year meant:
+#   - yoy_change_pct divided a partial year by a full prior year (every
+#     county read ~-50% in July);
+#   - the skip-if-unchanged guard never skipped because the current-year
+#     count grows daily, burning 58 LLM calls/day.
+# Same exclusion generate_llm_cards uses for its "latest" mode.
+_EXCLUDE_CURRENT_YEAR_SQL = "AND crash_year < EXTRACT(year FROM CURRENT_DATE) "
+
 
 def _all_years(db: Session, county_code: int) -> list[int]:
-    """Return all crash years with enough data for this county."""
+    """Return all complete crash years with enough data for this county.
+
+    Excludes the current (partial) calendar year — see
+    _EXCLUDE_CURRENT_YEAR_SQL.
+    """
     rows = db.execute(
         text(
             "SELECT crash_year FROM crashes "
             "WHERE county_code = :c "
+            + _EXCLUDE_CURRENT_YEAR_SQL +
             "GROUP BY crash_year "
             "HAVING COUNT(*) >= :min "
             "ORDER BY crash_year DESC"
@@ -92,15 +107,18 @@ def _all_years(db: Session, county_code: int) -> list[int]:
 
 
 def _latest_year(db: Session, county_code: int) -> int | None:
-    """Return the most recent full crash year for this county.
+    """Return the most recent COMPLETE crash year for this county.
 
-    Skips partial years (e.g. current calendar year with only a few hundred
-    records) by requiring at least _MIN_CRASHES_FOR_FULL_YEAR crashes.
+    Excludes the current (partial) calendar year — see
+    _EXCLUDE_CURRENT_YEAR_SQL — and requires at least
+    _MIN_CRASHES_FOR_FULL_YEAR crashes so sparse historical years are
+    skipped too.
     """
     row = db.execute(
         text(
             "SELECT crash_year FROM crashes "
             "WHERE county_code = :c "
+            + _EXCLUDE_CURRENT_YEAR_SQL +
             "GROUP BY crash_year "
             "HAVING COUNT(*) >= :min "
             "ORDER BY crash_year DESC LIMIT 1"
@@ -330,7 +348,10 @@ def _build_update_dict(stats: dict, narrative: str | None, now) -> dict:
     return update_dict
 
 
-@track_etl_run("generate_insights")
+# Source name matches the registry job name in etl/jobs.py ("insights", not
+# "generate_insights") so direct CLI runs and orchestrated runs share one
+# freshness history (audit M-B8 phantom-name fix).
+@track_etl_run("insights")
 def run() -> int:
     """Generate insight cards for all counties. Returns number of rows upserted."""
     db = SessionLocal()

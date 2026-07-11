@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -166,7 +167,7 @@ def _validate_job(db, job: Job, rows_before: int | None) -> tuple[str, str | Non
 
 
 def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False) -> EtlRun:
-    from etl._utils import check_source_freshness
+    from etl._utils import ORCHESTRATED_ENV_FLAG, check_source_freshness
 
     db = SessionLocal()
 
@@ -217,6 +218,9 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             capture_output=True,
             text=True,
             timeout=job.timeout,
+            # Tell the module this run is orchestrator-owned so its own
+            # etl_run tracking doesn't write a duplicate row (M-B8).
+            env={**os.environ, ORCHESTRATED_ENV_FLAG: "1"},
         )
         elapsed = time.monotonic() - start
 

@@ -203,7 +203,8 @@ class Crash(Base):
         Index("ix_crashes_canonical_cause", "canonical_cause"),
         Index("ix_crashes_canonical_weather", "canonical_weather"),
         Index("ix_crashes_canonical_lighting", "canonical_lighting"),
-        Index("ix_crashes_canonical_road_condition", "canonical_road_condition"),
+        # ix_crashes_canonical_road_condition removed (w1x2y3z4a5b6): zero
+        # scans in pg_stat_user_indexes — no query filters on the column.
         Index("ix_crashes_canonical_collision_type", "canonical_collision_type"),
         Index("ix_crashes_city_id", "city_id", postgresql_where="city_id IS NOT NULL"),
         Index("ix_crashes_crash_year", "crash_year"),
@@ -246,6 +247,15 @@ class CrashParty(Base):
         Index("ix_crash_parties_collision_id", "collision_id"),
         Index("ix_crash_parties_gender", "gender"),
         Index("ix_crash_parties_at_fault", "at_fault"),
+        # Matches the mv_at_fault_parties_by_demographics refresh query:
+        # join on (collision_id, data_source) filtered to at_fault rows
+        # (migration y3z4a5b6c7d8).
+        Index(
+            "ix_crash_parties_at_fault_collision_ds",
+            "collision_id",
+            "data_source",
+            postgresql_where="at_fault = true",
+        ),
     )
 
 
@@ -460,8 +470,10 @@ class CountyInsightCard(Base):
     __tablename__ = "county_insight_cards"
 
     id = Column(Integer, primary_key=True)
+    # SmallInteger to match counties.code and every other county_code column
+    # (was Integer; aligned in migration x2y3z4a5b6c7).
     county_code = Column(
-        Integer, ForeignKey("counties.code"), nullable=False
+        SmallInteger, ForeignKey("counties.code"), nullable=False
     )
     county_name = Column(String(50), nullable=False)
     year = Column(Integer, nullable=False)

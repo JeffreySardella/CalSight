@@ -1,6 +1,7 @@
 ﻿import { useState, useRef, useEffect, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { useTextScale } from "../../hooks/useTextScale";
+import { textOnColor } from "./onColorText";
 
 interface TreemapItem {
   label: string;
@@ -69,15 +70,6 @@ function squarify(items: { label: string; value: number; color?: string }[], w: 
   }
 
   return rects;
-}
-
-function textOnColor(hex: string): string {
-  if (!hex.startsWith("#") || hex.length < 7) return "#ffffff";
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const lum = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
-  return lum > 0.4 ? "#1a1a1a" : "#ffffff";
 }
 
 export default function SimpleTreemap({

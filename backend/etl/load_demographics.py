@@ -222,6 +222,14 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
             len(failed_years),
             failed_years if failed_years else "",
         )
+
+        if failed_years:
+            # Loud partial failure (M-B9 discipline): the years that did
+            # load are committed above, but a Census outage or schema
+            # change must not record success.
+            raise RuntimeError(
+                f"Demographics: {len(failed_years)} year(s) failed: {failed_years}"
+            )
     finally:
         db.close()
 

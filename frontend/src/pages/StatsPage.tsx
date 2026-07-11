@@ -10,6 +10,10 @@ import { useStats } from "../hooks/useStats";
 import { Skeleton } from "../components/ui/Skeleton";
 import DashboardModeToggle from "../components/stats/DashboardModeToggle";
 import DataFreshnessBanner from "../components/stats/DataFreshnessBanner";
+import DataQualityNotice from "../components/stats/DataQualityNotice";
+import FilterSummaryBar, { type FilterChip } from "../components/stats/FilterSummaryBar";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import { useDataQualityDisclaimer } from "../hooks/useDataQualityDisclaimer";
 import PresetPicker from "../components/stats/PresetPicker";
 import DashboardGrid from "../components/stats/DashboardGrid";
 import InsightBanner from "../components/stats/InsightBanner";
@@ -64,6 +68,10 @@ function StatsPageInner() {
   const [storiesMode, setStoriesMode] = useState(false);
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
   const filters = useFilterParams();
+  const dataQuality = useDataQualityDisclaimer(
+    filters.selectedDateRange,
+    [...filters.selectedCounties],
+  );
   const { drillState, drillToCounty, drillUp, resetDrill } = useDrillDown();
   const crossFilter = useCrossFilter();
 
@@ -221,6 +229,35 @@ function StatsPageInner() {
     setResetKey((k) => k + 1);
   }
 
+  // Clear-all confirmation (#256/#293): only prompt when there is actually
+  // something to lose. The mobile sheet closes first so its focus trap can't
+  // fight the dialog's.
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const hasActiveFilters =
+    filters.selectedCounties.size > 0
+    || filters.selectedDateRange !== null
+    || filters.selectedSeverities.size > 0
+    || filters.selectedCauses.size > 0
+    || filters.selectedAlcohol || filters.selectedDistracted || filters.selectedPedestrian
+    || filters.selectedCyclist || filters.selectedDrug
+    || filters.selectedDriverAge !== null
+    || filters.selectedWeather.size > 0
+    || filters.selectedLighting.size > 0
+    || filters.selectedCollisionType.size > 0
+    || filters.selectedRoadType !== null
+    || filters.selectedHitRun
+    || !!drillState.county
+    || !!crossFilter.state.selection;
+
+  function requestClearAll() {
+    if (hasActiveFilters) {
+      setShowMobileFilters(false);
+      setConfirmClearOpen(true);
+    } else {
+      handleClearAll();
+    }
+  }
+
   const [printPreview, setPrintPreview] = useState(false);
 
   useEffect(() => {
@@ -238,7 +275,7 @@ function StatsPageInner() {
 
   // Build typed chips so each one knows how to remove itself.
   // "All X" chips open the filter panel instead of removing — they have no onRemove.
-  type Chip = { label: string; onRemove?: () => void; onOpen?: () => void; variant?: "default" | "tertiary" };
+  type Chip = FilterChip;
 
   const openFilters = () => setShowMobileFilters(true);
 
@@ -426,56 +463,11 @@ function StatsPageInner() {
           </button>
         </div>
       )}
-      {/* Filter Summary Bar */}
-      <section className="bg-surface-container-low rounded-lg px-4 md:px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-fade-r pr-8 w-full md:w-auto min-w-0">
-          <span className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest mr-2 flex-shrink-0">
-            Filters:
-          </span>
-          <div className="flex items-center gap-2">
-            {chips.map((chip) => (
-              chip.onRemove ? (
-                <span
-                  key={chip.label}
-                  className={`inline-flex items-center gap-1 px-3 py-2.5 min-h-[44px] rounded-full text-xs font-medium whitespace-nowrap ${
-                    chip.variant === "tertiary"
-                      ? "bg-tertiary/15 text-tertiary border border-tertiary/30"
-                      : "bg-surface-container-highest text-on-surface"
-                  }`}
-                >
-                  {chip.label}
-                  <button
-                    type="button"
-                    aria-label={`Remove ${chip.label} filter`}
-                    onClick={chip.onRemove}
-                    className="hover:text-error transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -my-2 -mr-2"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">close</span>
-                  </button>
-                </span>
-              ) : (
-                <button
-                  key={chip.label}
-                  type="button"
-                  onClick={chip.onOpen}
-                  className="inline-flex items-center gap-1 bg-surface-container-high px-3 py-2.5 min-h-[44px] rounded-full text-xs font-medium text-on-surface-variant whitespace-nowrap hover:text-on-surface transition-colors"
-                >
-                  {chip.label}
-                  <span className="material-symbols-outlined text-[14px]">tune</span>
-                </button>
-              )
-            ))}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowMobileFilters(true)}
-          className="text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-1 hover:underline flex-shrink-0 min-h-[44px] py-2"
-        >
-          Edit Filters
-          <span className="material-symbols-outlined text-[16px]">tune</span>
-        </button>
-      </section>
+      {/* Filter Summary Bar — sticky on mobile (#256) */}
+      <FilterSummaryBar chips={chips} onEditFilters={() => setShowMobileFilters(true)} />
+
+      {/* Data-quality disclaimers for the active scope (#293) */}
+      <DataQualityNotice disclaimers={dataQuality} />
 
       {/* Hero Metrics Row */}
       <section aria-label="Key metrics summary" className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
@@ -593,7 +585,7 @@ function StatsPageInner() {
           </p>
           <button
             type="button"
-            onClick={handleClearAll}
+            onClick={requestClearAll}
             className="px-5 py-2.5 bg-primary text-on-primary rounded-full font-semibold text-sm hover:opacity-90 transition-opacity"
           >
             Clear All Filters
@@ -851,11 +843,24 @@ function StatsPageInner() {
 
       <PrintFooter />
 
+      <ConfirmDialog
+        open={confirmClearOpen}
+        title="Clear all filters?"
+        message="This removes every active filter, county selection, drill-down, and cross-filter from the dashboard."
+        confirmLabel="Clear all"
+        destructive
+        onConfirm={() => {
+          setConfirmClearOpen(false);
+          handleClearAll();
+        }}
+        onCancel={() => setConfirmClearOpen(false)}
+      />
+
       {/* Mobile filter sheet overlay */}
       <MobileFilterSheet
         isOpen={showMobileFilters}
         onClose={() => setShowMobileFilters(false)}
-        onClear={handleClearAll}
+        onClear={requestClearAll}
         tabs={[
           {
             key: "filters",

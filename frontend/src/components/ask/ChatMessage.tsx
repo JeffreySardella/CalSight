@@ -4,6 +4,8 @@ import type { ChatMessage as ChatMessageType } from "../../hooks/useAskAi";
 import { API_BASE } from "../../config";
 import InlineChart from "./InlineChart";
 import { useStoryCanvas } from "../../hooks/useStoryCanvas";
+import { useToast } from "../ui/toastContext";
+import { copyText } from "../../lib/clipboard";
 
 interface Props {
   message: ChatMessageType;
@@ -52,6 +54,15 @@ export default memo(function ChatMessage({ message }: Props) {
   );
   const { pinAnswer, isPinned } = useStoryCanvas();
   const pinned = !isUser && isPinned(message.timestamp);
+  const { showToast } = useToast();
+
+  const handleCopy = async () => {
+    const ok = await copyText(message.content);
+    showToast(
+      ok ? "Answer copied to clipboard" : "Couldn't copy to clipboard",
+      { variant: ok ? "success" : "error" },
+    );
+  };
 
   const handleFeedback = (vote: "up" | "down") => {
     const newVote = feedback === vote ? null : vote;
@@ -90,7 +101,7 @@ export default memo(function ChatMessage({ message }: Props) {
               <button
                 type="button"
                 onClick={() => handleFeedback("up")}
-                className={`p-1 rounded transition-colors ${feedback === "up" ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${feedback === "up" ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
                 aria-label="Helpful response"
               >
                 <span className="material-symbols-outlined text-sm" style={feedback === "up" ? { fontVariationSettings: "'FILL' 1" } : undefined}>thumb_up</span>
@@ -98,7 +109,7 @@ export default memo(function ChatMessage({ message }: Props) {
               <button
                 type="button"
                 onClick={() => handleFeedback("down")}
-                className={`p-1 rounded transition-colors ${feedback === "down" ? "text-error" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${feedback === "down" ? "text-error" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
                 aria-label="Unhelpful response"
               >
                 <span className="material-symbols-outlined text-sm" style={feedback === "down" ? { fontVariationSettings: "'FILL' 1" } : undefined}>thumb_down</span>
@@ -109,7 +120,7 @@ export default memo(function ChatMessage({ message }: Props) {
               onClick={() => pinAnswer(message)}
               aria-label={pinned ? "Pinned to story" : "Pin to story"}
               aria-pressed={pinned}
-              className={`p-1 rounded transition-colors ${pinned ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${pinned ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
             >
               <span
                 className="material-symbols-outlined text-sm"
@@ -117,6 +128,15 @@ export default memo(function ChatMessage({ message }: Props) {
               >
                 push_pin
               </span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCopy}
+              aria-label="Copy answer"
+              title="Copy answer to clipboard"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors text-on-surface-variant/60 hover:text-on-surface-variant"
+            >
+              <span className="material-symbols-outlined text-sm">content_copy</span>
             </button>
             <p className="text-[10px] text-on-surface-variant/50">
               {message.grounded ? (

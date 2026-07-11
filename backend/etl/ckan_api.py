@@ -55,11 +55,28 @@ RESOURCE_IDS = {
     2026: "b8ce0ca4-b4e9-490d-b4d1-1f4ec48cbefb",
 }
 
-# Successful discoveries, keyed by resource-name prefix. One package_show per
-# prefix per process is plenty — the orchestrator and each loader run in their
-# own process, and resources don't appear mid-run. Failures are NOT cached so
-# a transient outage doesn't pin an empty result for the whole process.
-_DISCOVERY_CACHE: dict[str, dict[int, str]] = {}
+# Successful discoveries, keyed by resource-name prefix, with the monotonic
+# time they were fetched. Failures are NOT cached so a transient outage
+# doesn't pin an empty result for the whole process.
+#
+# Entries expire after _DISCOVERY_TTL_SECONDS. The cache used to be
+# process-lifetime, which was fine for the loaders (each runs in its own
+# short-lived subprocess) but wrong for the freshness probe, which runs
+# inside the weeks-old scheduler process: a newly published Crashes_<year>
+# resource wasn't seen until a container restart (M7 — a partial rerun of
+# the January no-op bug).
+#
+# TTL choice: 12 hours, because it has to satisfy two bounds.
+#   - Lower bound: much longer than one pipeline run, so a single run still
+#     sees a stable view of the package ("resources don't appear mid-run").
+#     The daily pipeline starts at 11:00 UTC and even the slowest job
+#     (parties) is capped by a 6h timeout, so 12h comfortably covers a full
+#     run end-to-end.
+#   - Upper bound: shorter than the 24h daily cadence, so the NEXT daily run
+#     always re-lists the package and picks up a newly published year at
+#     daily — not restart-or-weekly — cadence.
+_DISCOVERY_TTL_SECONDS = 12 * 60 * 60
+_DISCOVERY_CACHE: dict[str, tuple[float, dict[int, str]]] = {}
 
 
 def discover_resource_ids(prefix: str) -> dict[int, str]:
@@ -70,11 +87,17 @@ def discover_resource_ids(prefix: str) -> dict[int, str]:
     years the moment they're published, instead of waiting for someone to
     hand-edit RESOURCE_IDS each January.
 
+    Successful results are cached per prefix for _DISCOVERY_TTL_SECONDS
+    (see the cache comment above for why a TTL and why 12h).
+
     Returns {} on any failure — callers merge over the static maps, so a
     discovery outage degrades to exactly the old hardcoded behavior.
     """
-    if prefix in _DISCOVERY_CACHE:
-        return _DISCOVERY_CACHE[prefix]
+    cached = _DISCOVERY_CACHE.get(prefix)
+    if cached is not None:
+        cached_at, cached_ids = cached
+        if time.monotonic() - cached_at < _DISCOVERY_TTL_SECONDS:
+            return cached_ids
 
     try:
         resp = httpx.get(
@@ -98,7 +121,7 @@ def discover_resource_ids(prefix: str) -> dict[int, str]:
             found[int(match.group(1))] = res["id"]
 
     logger.info("Discovered %d %s_* resources: %s", len(found), prefix, sorted(found))
-    _DISCOVERY_CACHE[prefix] = found
+    _DISCOVERY_CACHE[prefix] = (time.monotonic(), found)
     return found
 
 
