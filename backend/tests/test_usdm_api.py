@@ -56,6 +56,29 @@ class TestParseDroughtWeeks:
         assert weeks[0].fips == "06067"
         assert weeks[0].d0_pct == 45.0
 
+    def test_parses_real_pascalcase_response_shape(self):
+        # The live API returns PascalCase keys — the no-drought key is the
+        # literal "None" — ISO datetime dates, and string percents.
+        real_row = {
+            "MapDate": "2026-06-30T00:00:00",
+            "FIPS": "06019",
+            "County": "Fresno County",
+            "State": "CA",
+            "None": "24.79",
+            "D0": "75.21",
+            "D1": "47.19",
+            "D2": "0.00",
+            "D3": "0.00",
+            "D4": "0.00",
+            "ValidStart": "2026-06-30T00:00:00",
+            "ValidEnd": "2026-07-06T00:00:00",
+            "StatisticFormatID": 2,
+        }
+        weeks = parse_drought_weeks([real_row])
+        assert weeks == [
+            DroughtWeek("06019", date(2026, 6, 30), 24.79, 75.21, 47.19, 0.0, 0.0, 0.0)
+        ]
+
     def test_falls_back_to_map_date_without_valid_start(self):
         row = _row()
         del row["validStart"]
@@ -103,7 +126,9 @@ class TestFetchCountyDrought:
         # USDM wants M/D/YYYY, not ISO.
         assert params["startdate"] == "1/5/2026"
         assert params["enddate"] == "7/1/2026"
-        assert params["statisticsType"] == "1"
+        # 2 = categorical (exclusive classes summing to ~100), NOT 1 =
+        # cumulative (D0 = D0-or-worse). The stacked bar depends on this.
+        assert params["statisticsType"] == "2"
 
     @patch("etl._utils.time.sleep")
     @patch("etl._utils.httpx.get")

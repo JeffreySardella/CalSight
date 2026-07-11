@@ -119,7 +119,7 @@ class TestFetchSensorData:
         params = mock_get.call_args.kwargs["params"]
         assert params["Stations"] == "SHA,ORO"
         assert params["SensorNums"] == str(SENSOR_STORAGE)
-        assert params["dur_code"] == "D"
+        assert params["dur_code"] == "d"
         assert params["Start"] == "2026-06-01"
         assert params["End"] == "2026-07-01"
 

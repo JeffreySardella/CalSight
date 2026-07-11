@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 
 class DroughtPcts(BaseModel):
-    """Percent of land area per USDM severity class (traditional stats:
+    """Percent of land area per USDM severity class (categorical stats:
     classes are exclusive and sum to ~100 with none_pct)."""
 
     none_pct: float

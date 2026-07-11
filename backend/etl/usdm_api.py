@@ -16,34 +16,41 @@ Endpoint used (GET, JSON):
 
     https://usdmdataservices.unl.edu/api/CountyStatistics/
         GetDroughtSeverityStatisticsByAreaPercent
-        ?aoi=CA&startdate=1/1/2024&enddate=7/1/2026&statisticsType=1
+        ?aoi=CA&startdate=1/1/2024&enddate=7/1/2026&statisticsType=2
 
-Response: a JSON array with one row per (county, week):
+Response: a JSON array with one row per (county, week). The live API
+returns PascalCase keys (the no-drought key is literally ``None``) and
+percent values as quoted strings; parsing here is case-insensitive and
+coerces the strings:
 
     [
         {
-            "fips": "06067",
-            "county": "Sacramento County",
-            "state": "CA",
-            "mapDate": "2026-06-30",
-            "none": "12.34",
-            "d0": "45.00",
-            "d1": "30.00",
-            "d2": "12.66",
-            "d3": "0.00",
-            "d4": "0.00",
-            "validStart": "2026-06-30",
-            "validEnd": "2026-07-06"
+            "MapDate": "2026-06-30T00:00:00",
+            "FIPS": "06067",
+            "County": "Sacramento County",
+            "State": "CA",
+            "None": "12.34",
+            "D0": "45.00",
+            "D1": "30.00",
+            "D2": "12.66",
+            "D3": "0.00",
+            "D4": "0.00",
+            "ValidStart": "2026-06-30",
+            "ValidEnd": "2026-07-06",
+            "StatisticFormatID": 2
         },
         ...
     ]
 
-Percent fields arrive as strings; key casing has varied across API
-versions (e.g. "FIPS"/"fips", "MapDate"/"mapDate"), so parsing is
-case-insensitive.
+``aoi=CA`` (state abbreviation) is valid for CountyStatistics and returns
+every California county. ``validStart`` is the map's Tuesday; maps are
+released the following Thursday.
 
-NOTE: authored in a sandbox that cannot reach usdmdataservices.unl.edu —
-shapes are from the published API docs. Run the smoke test first:
+NOTE: the request/response shape is web-verified against the official
+USDM docs (droughtmonitor.unl.edu Statistics Explanation / Web Service
+Information) and multiple real captured responses in public code, but
+the endpoint was not reachable from the authoring sandbox. Confirm
+end-to-end with the smoke test first:
 
     python -m etl.usdm_api --smoke
 """
@@ -62,14 +69,20 @@ USDM_BASE_URL = (
     "GetDroughtSeverityStatisticsByAreaPercent"
 )
 
-# statisticsType=1 is "traditional": each class percent EXCLUDES the more
-# severe classes, so none + d0 + ... + d4 sums to ~100.
-STATISTICS_TYPE_TRADITIONAL = 1
+# statisticsType controls how the six area percentages relate:
+#   1 = "traditional"/cumulative — each class is percent-in-that-class-OR-WORSE,
+#       so D0 >= D1 >= ... and None + D0 = 100 (does NOT sum across classes).
+#   2 = "categorical" — non-overlapping classes, so None + D0 + ... + D4 = 100.
+# We need the categorical breakdown: the 100%-stacked severity bar and the
+# "D1+" in-drought share both assume exclusive, additive percentages.
+# (Verified against droughtmonitor.unl.edu's Statistics Explanation page.)
+STATISTICS_TYPE_CATEGORICAL = 2
 
 
 @dataclass(frozen=True)
 class DroughtWeek:
-    """One county-week of drought area percentages (traditional stats)."""
+    """One county-week of drought area percentages (categorical stats:
+    the classes are exclusive and sum to ~100 with none_pct)."""
 
     fips: str  # 5-digit county FIPS, e.g. "06067"
     week_start: date  # the map's valid start date
@@ -91,7 +104,7 @@ def fetch_county_drought(start: date, end: date, aoi: str = "CA") -> list[dict]:
         "aoi": aoi,
         "startdate": f"{start.month}/{start.day}/{start.year}",
         "enddate": f"{end.month}/{end.day}/{end.year}",
-        "statisticsType": str(STATISTICS_TYPE_TRADITIONAL),
+        "statisticsType": str(STATISTICS_TYPE_CATEGORICAL),
     }
     headers = {"Accept": "application/json"}
 

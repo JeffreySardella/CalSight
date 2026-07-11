@@ -5,14 +5,17 @@ JSON Data Servlet (https://cdec.water.ca.gov). CDEC is DWR's public
 hub for real-time hydrologic data: reservoir storage, snow water
 content, river stages, and more.
 
-The servlet returns a JSON array (no envelope):
+The servlet returns a JSON array (no envelope). Field casing is mixed —
+``stationId`` is camelCase while the sensor field is ``SENSOR_NUM``
+(upper), confirmed against production CDEC clients (drivendataorg
+water-supply-forecast-rodeo, ncss-tech/sharpshootR):
     [
         {
             "stationId": "SHA",
             "durCode": "D",
-            "sensorNumber": 15,
+            "SENSOR_NUM": 15,
             "sensorType": "STORAGE",
-            "date": "2026-7-1 00:00",
+            "date": "2026-07-01 00:00",
             "value": 3201453,
             "dataFlag": " ",
             "units": "AF"
@@ -22,12 +25,13 @@ The servlet returns a JSON array (no envelope):
 
 Missing observations come back as -9999 (sometimes as the string
 "---"); parse_observations() drops them rather than storing sentinel
-values.
+values. parse_observations reads both ``SENSOR_NUM`` and the newer
+``sensorNumber`` for the (informational) sensor field.
 
-NOTE: this module was authored in a sandbox that could not reach
-cdec.water.ca.gov, so the response shape above is from CDEC's docs and
-prior observation, not a live check. Run the smoke test before wiring
-a loader on top of this:
+NOTE: the request/response shape is web-verified against production CDEC
+clients, but the endpoint itself was not reachable from the authoring
+sandbox. Confirm end-to-end with the live smoke test before wiring a
+loader on top of this:
 
     python -m etl.cdec_api --smoke
 """
@@ -52,9 +56,16 @@ MISSING_VALUE = -9999
 
 # Major reservoirs tracked in v1, keyed by CDEC station id. Static map by
 # design — CDEC has no clean metadata API — mirroring the RESOURCE_IDS
-# pattern in ckan_api.py. Capacities (acre-feet) and counties are
-# best-effort from DWR publications and MUST be verified against CDEC
-# station pages before these numbers reach the database.
+# pattern in ckan_api.py. Capacities (gross pool, acre-feet) and counties
+# were verified July 2026 against CDEC station pages, DWR/USBR/USACE
+# publications, and Wikipedia cross-checks.
+#
+# County notes: for reservoirs whose water body spans a county line we use
+# the DAM's county (the convention CDEC/DWR follow). NML (dam on the
+# Tuolumne/Calaveras line) and MIL (Friant Dam, Fresno, on the
+# Fresno/Madera line) are the ambiguous ones. ISB reflects full gross pool
+# — the pre-2023 storage restriction was lifted after the USACE Isabella
+# Dam Safety Modification Project completed.
 MAJOR_RESERVOIRS = {
     "SHA": {"name": "Shasta Lake", "capacity_af": 4_552_000, "county": "Shasta"},
     "ORO": {"name": "Lake Oroville", "capacity_af": 3_537_577, "county": "Butte"},
@@ -107,7 +118,8 @@ def fetch_sensor_data(
     params = {
         "Stations": ",".join(stations),
         "SensorNums": str(sensor),
-        "dur_code": duration,
+        # Production CDEC clients in the wild send the duration lowercase.
+        "dur_code": duration.lower(),
         "Start": start.isoformat(),
         "End": end.isoformat(),
     }
