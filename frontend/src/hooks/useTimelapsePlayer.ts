@@ -73,6 +73,10 @@ export function useTimelapsePlayer(minYear: number, maxYear: number): TimelapseS
       setCurrentYear(minYear);
       currentYearRef.current = minYear;
     }
+    // Double-play guard: a loop is already scheduled; starting a second one
+    // would double the advance rate and leak the first loop. (Same convention
+    // as useHeatmapTimelapse.)
+    if (rafRef.current != null) return;
     lastFrameRef.current = 0;
     accumulatorRef.current = 0;
     setIsPlaying(true);

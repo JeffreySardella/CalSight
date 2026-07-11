@@ -69,10 +69,20 @@ const COLUMNS: { key: keyof CrashRow; header: string }[] = [
 ];
 
 /** RFC 4180-flavored escape: quote if the value contains comma, quote, CR,
- *  or LF; double internal quotes. null/undefined → empty cell. */
+ *  or LF; double internal quotes. null/undefined → empty cell.
+ *
+ *  Also neutralizes CSV formula injection: a cell that begins with =, +, -, @,
+ *  tab, or CR can be executed as a formula by Excel / Google Sheets, so such a
+ *  value is prefixed with a single quote. Genuine numeric cells (e.g. negative
+ *  longitudes like -118.24) are left untouched — only non-numeric values that
+ *  start with a dangerous character are guarded. */
 export function csvEscape(v: unknown): string {
   if (v === null || v === undefined) return "";
-  const s = String(v);
+  let s = String(v);
+  const isNumber = typeof v === "number" && Number.isFinite(v);
+  if (!isNumber && /^[=+\-@\t\r]/.test(s)) {
+    s = `'${s}`;
+  }
   if (/[",\r\n]/.test(s)) {
     return `"${s.replace(/"/g, '""')}"`;
   }
