@@ -1,10 +1,12 @@
+import JargonTerm from "../components/ui/JargonTerm";
+
 export default function PrivacyPage() {
   return (
     <div className="max-w-[700px] mx-auto px-6 pt-16 pb-24">
       <h1 className="font-headline text-3xl font-extrabold tracking-tighter text-on-surface mb-2">
         Privacy Policy
       </h1>
-      <p className="text-xs text-on-surface-variant mb-8">Last updated: May 17, 2026</p>
+      <p className="text-xs text-on-surface-variant mb-8">Last updated: July 10, 2026</p>
 
       <div className="space-y-8 text-on-surface-variant text-sm leading-relaxed">
         <section>
@@ -31,10 +33,19 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="font-headline text-lg font-bold text-on-surface mb-2">Ask AI Feature</h2>
-          <p>
+          <p className="mb-3">
             When you use the Ask AI feature, your question is sent to a third-party AI provider
             to generate a response. Chat history exists only in your browser&apos;s session storage
             and is cleared when you close the tab.
+          </p>
+          <p>
+            <strong className="text-on-surface">Important:</strong> some of our fallback providers
+            — notably the free tier of Google Gemini — may use text submitted through their APIs
+            for model training and product improvement (see the provider list below). Treat
+            anything you type into Ask AI as if it could be retained by a third party:{" "}
+            <strong className="text-on-surface">do not include personal information</strong>{" "}
+            (names, addresses, license plates, case numbers, or details of a specific crash you
+            were involved in) in your questions.
           </p>
         </section>
 
@@ -47,6 +58,21 @@ export default function PrivacyPage() {
             (IP address, name, or account data) is attached to feedback — it is completely anonymous.
             The suggested &ldquo;Popular Questions&rdquo; shown on the Ask AI page are curated examples,
             not sourced from user queries.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-headline text-lg font-bold text-on-surface mb-2">Data Retention</h2>
+          <p>
+            Feedback records (the question, the AI&apos;s answer, the provider, the tools called,
+            your vote, and the active filters) are the only user-generated data we store on our
+            servers. They are retained indefinitely for quality improvement unless deletion is
+            requested. Because no IP address, account, or other identifier is attached to a
+            feedback record, we cannot link a record to you — if you want a specific record
+            deleted, contact us via GitHub (link below) with the approximate question text and
+            we will remove matching records. Questions asked through Ask AI that you do not rate
+            are not stored in our database; they are processed to generate the answer (including
+            a short-lived server-side answer cache) and sent to the AI provider as described above.
           </p>
         </section>
 
@@ -83,7 +109,10 @@ export default function PrivacyPage() {
               <a href="https://cerebras.ai/privacy-policy" className="text-primary underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
             </li>
             <li>
-              <strong>Google Gemini</strong> (free tier) — Fallback. May use inputs to improve products.{" "}
+              <strong>Google Gemini</strong> (free tier) — Fallback. Under Google&apos;s terms for
+              unpaid API use, Google may use submitted text (your question and conversation
+              context) to train and improve its models, and human reviewers may read it. Do not
+              include personal information in questions.{" "}
               <a href="https://ai.google.dev/gemini-api/terms" className="text-primary underline" target="_blank" rel="noopener noreferrer">Terms of Service</a>
             </li>
             <li>
@@ -152,8 +181,11 @@ export default function PrivacyPage() {
           <h2 className="font-headline text-lg font-bold text-on-surface mb-2">Data Sources</h2>
           <p>
             All crash and demographic data displayed on CalSight is sourced from publicly available
-            California and federal datasets (CCRS, SWITRS, Census ACS, NOAA, BLS, Caltrans, DMV,
-            CalEnviroScreen, FHWA). No private or proprietary data is used. No individual crash
+            California and federal datasets (<JargonTerm term="CCRS">CCRS</JargonTerm>,{" "}
+            <JargonTerm term="SWITRS">SWITRS</JargonTerm>, Census{" "}
+            <JargonTerm term="ACS">ACS</JargonTerm>, NOAA, BLS, Caltrans, DMV,{" "}
+            <JargonTerm term="CalEnviroScreen">CalEnviroScreen</JargonTerm>, FHWA). No private or
+            proprietary data is used. No individual crash
             records contain personally identifiable information — all data is aggregated at the
             county level or anonymized at the record level by the source agencies.
           </p>
