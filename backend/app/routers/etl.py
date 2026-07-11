@@ -83,10 +83,18 @@ class EtlTriggerResponse(BaseModel):
 
 
 def _verify_etl_key(x_etl_api_key: str = Header(None)):
+    # no-store on the auth failures too: this dependency raises before the
+    # endpoint body sets the header, and a raised HTTPException drops any
+    # header set on the injected response (#291).
+    no_store = {"Cache-Control": "no-store"}
     if not settings.etl_api_key:
-        raise HTTPException(status_code=503, detail="ETL API key not configured")
+        raise HTTPException(
+            status_code=503, detail="ETL API key not configured", headers=no_store
+        )
     if not x_etl_api_key or not hmac.compare_digest(x_etl_api_key, settings.etl_api_key):
-        raise HTTPException(status_code=403, detail="Invalid ETL API key")
+        raise HTTPException(
+            status_code=403, detail="Invalid ETL API key", headers=no_store
+        )
 
 
 @router.get(
