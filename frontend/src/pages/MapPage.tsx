@@ -36,6 +36,9 @@ import Breadcrumb from "../components/map/Breadcrumb";
 import StatewideHeatmapCard from "../components/map/StatewideHeatmapCard";
 import { EmptyState } from "../components/ui/EmptyState";
 import ShareButton from "../components/ui/ShareButton";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import { useToast } from "../components/ui/toastContext";
+import { isSelfCompare } from "../lib/map/compare";
 import { useCrashHeatmap, useBatchedHeatmap, heatmapQueryOptions } from "../hooks/useCrashHeatmap";
 import { useHeatmapTimelapse } from "../hooks/useHeatmapTimelapse";
 import TemporalScrubber from "../components/map/TemporalScrubber";
@@ -371,8 +374,15 @@ function MapPageInner() {
   }, [writeViewport]);
 
   const selectingRef = useRef(false);
+  const { showToast } = useToast();
 
   const handleSelectCounty = useCallback((name: string) => {
+    // Compare mode: picking the focused county again would compare it with
+    // itself — reject the pick and say why instead of silently exiting (#256).
+    if (isSelfCompare(compareMode, name, focusedCounty)) {
+      showToast(`${name} is already selected — pick a different county to compare`, { variant: "info" });
+      return;
+    }
     if (selectingRef.current) return;
     selectingRef.current = true;
 
@@ -389,7 +399,7 @@ function MapPageInner() {
       setCounty(name);
       setTimeout(() => { selectingRef.current = false; }, 300);
     }
-  }, [compareMode, focusedCounty, setCounty, toggleCounty]);
+  }, [compareMode, focusedCounty, setCounty, toggleCounty, showToast]);
 
   const handleSelectHighway = useCallback((row: HighwayRow) => {
     setSelectedHighway(row);
@@ -477,6 +487,34 @@ function MapPageInner() {
     setCompareMode(false);
     setShowInsight(false);
     clearCounties();
+  }
+
+  // Clear-all confirmation (#256/#293): only prompt when there is actually
+  // something to lose. The mobile sheet closes first so its focus trap can't
+  // fight the dialog's.
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const hasClearableState =
+    selectedDateRange !== null
+    || selectedSeverities.size > 0
+    || selectedCauses.size > 0
+    || selectedAlcohol || selectedDistracted || selectedPedestrian
+    || selectedCyclist || selectedDrug
+    || selectedDriverAge !== null
+    || selectedWeather.size > 0
+    || selectedLighting.size > 0
+    || selectedCollisionType.size > 0
+    || selectedRoadType !== null
+    || selectedHitRun
+    || selectedCounties.size > 0
+    || focusedCounty !== null;
+
+  function requestClearAll() {
+    if (hasClearableState) {
+      setShowMobileFilters(false);
+      setConfirmClearOpen(true);
+    } else {
+      handleClearAll();
+    }
   }
 
   const handleCloseOverlay = useCallback(() => {
@@ -642,7 +680,7 @@ function MapPageInner() {
             onToggleCounty={toggleCounty}
             onClearCounties={clearCounties}
             onApply={handleApplyFilters}
-            onClear={handleClearAll}
+            onClear={requestClearAll}
           />
         );
       case "layers":
@@ -776,7 +814,7 @@ function MapPageInner() {
           hitRun={selectedHitRun}
           totalCrashes={choroplethData.dataSummary.totalCrashes}
           isLoading={choroplethData.isLoading}
-          onClear={handleClearAll}
+          onClear={requestClearAll}
           searchOpen={mobileSearchOpen}
         />
 
@@ -839,7 +877,7 @@ function MapPageInner() {
                   </button>
                 )}
               </div>
-              <button onClick={handleClearAll} className="w-full text-sm font-semibold text-primary hover:underline">
+              <button onClick={requestClearAll} className="w-full text-sm font-semibold text-primary hover:underline">
                 Clear All Filters
               </button>
             </div>
@@ -986,7 +1024,7 @@ function MapPageInner() {
       <MobileFilterSheet
         isOpen={showMobileFilters}
         onClose={() => setShowMobileFilters(false)}
-        onClear={handleClearAll}
+        onClear={requestClearAll}
         tabs={[
           {
             key: "filters",
@@ -1000,7 +1038,7 @@ function MapPageInner() {
                 onToggleCounty={toggleCounty}
                 onClearCounties={clearCounties}
                 onApply={handleApplyFilters}
-                onClear={handleClearAll}
+                onClear={requestClearAll}
               />
             ),
           },
@@ -1023,6 +1061,19 @@ function MapPageInner() {
             ),
           },
         ]}
+      />
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        title="Clear all filters?"
+        message="This removes every active filter and county selection from the map."
+        confirmLabel="Clear all"
+        destructive
+        onConfirm={() => {
+          setConfirmClearOpen(false);
+          handleClearAll();
+        }}
+        onCancel={() => setConfirmClearOpen(false)}
       />
 
       <KeyboardHelpModal

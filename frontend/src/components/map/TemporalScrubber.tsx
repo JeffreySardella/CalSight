@@ -1,4 +1,5 @@
 import type { TimelapseSpeed } from "../../hooks/useHeatmapTimelapse";
+import { isPartialYear } from "../../lib/partialYear";
 
 interface Props {
   active: boolean;
@@ -55,6 +56,15 @@ export default function TemporalScrubber({
           <span className="text-2xl md:text-3xl font-headline font-bold text-on-surface tabular-nums tracking-tight">
             {currentYear}
           </span>
+          {isPartialYear(currentYear) && (
+            <span
+              className="text-[9px] font-semibold uppercase tracking-wider text-on-surface-variant"
+              aria-hidden="true"
+              title={`${currentYear} is partial-year data`}
+            >
+              partial
+            </span>
+          )}
           {loading && (
             <span
               className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"
@@ -63,6 +73,7 @@ export default function TemporalScrubber({
           )}
           <span className="sr-only">
             {loading ? `Loading crashes for ${currentYear}` : `Showing crashes for ${currentYear}`}
+            {isPartialYear(currentYear) ? ` — ${currentYear} is partial-year data` : ""}
           </span>
         </div>
       )}

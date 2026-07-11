@@ -251,6 +251,27 @@
 
 }
 
+/*
+ * Sticky filter bar (Stats dashboard, mobile).
+ * Sticks just below the fixed 3rem mobile nav, honoring the iOS safe-area
+ * top inset. z-index 30 keeps it within the page's 0–50 band — under the
+ * fixed chrome (nav z-50, skip link z-[60]). On md+ the taller layout has
+ * room, so the bar flows normally again.
+ */
+.sticky-filter-bar {
+  position: sticky;
+  top: calc(3rem + env(safe-area-inset-top, 0px));
+  z-index: 30;
+}
+
+@media (min-width: 768px) {
+  .sticky-filter-bar {
+    position: static;
+    top: auto;
+    z-index: auto;
+  }
+}
+
 /* Bottom padding that accounts for the tab bar + iPhone safe area */
 .pb-safe-bottom {
   padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)) !important;
