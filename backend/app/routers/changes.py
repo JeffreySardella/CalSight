@@ -27,7 +27,7 @@ from app.rate_limit import rate_limit_key
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import apply_statement_timeout, get_db
 from app.models import County, Crash
 
 router = APIRouter(tags=["stats"])
@@ -175,5 +175,10 @@ def get_yoy_changes(
     db: Session = Depends(get_db),
 ):
     """Per-county YoY change ranking for a metric — see compute_yoy_changes."""
+    # Bound the query the way every other heavy endpoint is bounded: the
+    # default path (year omitted) runs an unbounded full-table GROUP BY
+    # crash_year over 11M rows, so without this a pathological plan holds a
+    # pool connection indefinitely (deep-audit P-2 / prior L4).
+    apply_statement_timeout(db, 30_000)
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     return compute_yoy_changes(db, metric=metric, year=year)

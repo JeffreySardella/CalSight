@@ -38,7 +38,7 @@ def test_heavy_endpoints_call_the_timeout(monkeypatch):
     table statewide applies the timeout before querying."""
     import inspect
 
-    from app.routers import clusters, intersections, stats
+    from app.routers import changes, clusters, intersections, stats
 
     for fn in (
         intersections.get_intersections,
@@ -47,6 +47,7 @@ def test_heavy_endpoints_call_the_timeout(monkeypatch):
         stats.stats_distribution,
         stats.stats_highways,
         clusters.crash_clusters,
+        changes.get_yoy_changes,
     ):
         src = inspect.getsource(fn)
         assert "apply_statement_timeout(" in src, fn.__name__
