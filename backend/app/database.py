@@ -14,6 +14,14 @@ engine = create_engine(
     max_overflow=settings.db_max_overflow,
     pool_recycle=3600,
     pool_pre_ping=True,
+    # Fail fast when the pool is exhausted instead of blocking for the
+    # SQLAlchemy default of 30s. Under load (P-1) that default meant a burst
+    # of heavy sync requests queued for connections would each hang ~30s and
+    # then 500; a short timeout surfaces a clean error quickly and lets the
+    # anyio thread-limiter (aligned to this pool in app.main) shed load. The
+    # request threadpool is capped to pool_size + max_overflow, so a waiter
+    # here means genuine saturation, not transient contention.
+    pool_timeout=5,
 )
 SessionLocal = sessionmaker(bind=engine)
 

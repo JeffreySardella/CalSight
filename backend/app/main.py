@@ -38,9 +38,33 @@ if settings.sentry_dsn:
     )
 
 
+def align_thread_limiter_to_pool() -> int:
+    """Cap anyio's default sync-worker threadpool to the DB pool size.
+
+    FastAPI runs every `def` (non-async) endpoint in anyio's default thread
+    limiter, whose default is 40 tokens per worker. Each of those handlers
+    grabs a DB connection, but the pool only supplies
+    ``db_pool_size + db_max_overflow`` (10) per worker — so up to 40 threads
+    could contend for 10 connections, and the surplus would block on
+    ``pool_timeout`` and fail (P-1). Aligning the limiter to the pool means
+    excess concurrency waits on the threadpool (cheap, no connection held)
+    instead of piling onto the pool. Must be called from within the running
+    event loop (the limiter is loop-scoped); the lifespan startup does this.
+
+    Returns the token count it set so tests/observability can assert it.
+    """
+    import anyio.to_thread
+
+    total = settings.db_pool_size + settings.db_max_overflow
+    anyio.to_thread.current_default_thread_limiter().total_tokens = total
+    logger.info("Aligned anyio thread limiter to DB pool: %d tokens", total)
+    return total
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("CalSight API starting up")
+    align_thread_limiter_to_pool()
     yield
     logger.info("CalSight API shutting down — disposing DB pool")
     engine.dispose()
