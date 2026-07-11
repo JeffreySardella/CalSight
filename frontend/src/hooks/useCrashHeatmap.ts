@@ -21,7 +21,7 @@ export interface HeatmapPoint {
   hit_run?: string | null;
 }
 
-interface HeatmapParams {
+export interface HeatmapParams {
   enabled: boolean;
   county: string | null;
   dateRange: DateRangeFilter | null;
@@ -94,8 +94,14 @@ async function fetchHeatmap(params: HeatmapParams): Promise<HeatmapApiResponse> 
   return res.json();
 }
 
-export function useCrashHeatmap(params: HeatmapParams) {
-  const { data, isLoading, error, refetch } = useQuery({
+/**
+ * Shared queryKey/queryFn/cache options for a heatmap request. Exported so
+ * callers (e.g. the map timelapse) can `queryClient.prefetchQuery()` upcoming
+ * frames with exactly the same key shape `useCrashHeatmap` uses — a prefetched
+ * frame then resolves from cache instead of refetching.
+ */
+export function heatmapQueryOptions(params: HeatmapParams) {
+  return {
     queryKey: [
       "crashHeatmap",
       params.county,
@@ -121,12 +127,18 @@ export function useCrashHeatmap(params: HeatmapParams) {
       params._retryKey ?? 0,
     ],
     queryFn: () => fetchHeatmap(params),
-    enabled: params.enabled,
     staleTime: 5 * 60 * 1000,
     // Explicitly short: each batch is up to 150k points × 15 fields, keyed per
     // filter permutation. These must be collected promptly after unmount (H7)
     // regardless of what the global default is set to.
     gcTime: 5 * 60 * 1000,
+  };
+}
+
+export function useCrashHeatmap(params: HeatmapParams) {
+  const { data, isLoading, error, refetch } = useQuery({
+    ...heatmapQueryOptions(params),
+    enabled: params.enabled,
   });
 
   return {

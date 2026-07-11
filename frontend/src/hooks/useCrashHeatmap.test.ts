@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, type ReactNode } from "react";
-import { useCrashHeatmap, useBatchedHeatmap, FETCH_TIMEOUT_MS, MAX_HEATMAP_POINTS } from "./useCrashHeatmap";
+import { useCrashHeatmap, useBatchedHeatmap, heatmapQueryOptions, FETCH_TIMEOUT_MS, MAX_HEATMAP_POINTS } from "./useCrashHeatmap";
 
 const MOCK_RESPONSE = {
   points: [
@@ -157,6 +157,40 @@ describe("useCrashHeatmap", () => {
 
     await waitFor(() => expect(result.current.error).toBeFalsy());
     expect(result.current.points).toEqual(MOCK_RESPONSE.points);
+  });
+});
+
+describe("heatmapQueryOptions (timelapse prefetch parity)", () => {
+  it("a prefetched frame is served from cache — useCrashHeatmap issues no second fetch", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(MOCK_RESPONSE)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const frameParams = {
+      enabled: true,
+      county: null,
+      dateRange: { start: { year: 2012, month: 1 }, end: { year: 2012, month: 12 } },
+      severities: ["Fatal"],
+      causes: [],
+      resolution: "low" as const,
+    };
+
+    // Prefetch the frame the way the map timelapse does…
+    await qc.prefetchQuery(heatmapQueryOptions(frameParams));
+    expect(spy).toHaveBeenCalledTimes(1);
+    const url = String(spy.mock.calls[0][0]);
+    expect(url).toContain("start=2012-01");
+    expect(url).toContain("end=2012-12");
+    expect(url).toContain("resolution=low");
+
+    // …then mount the live query with the same params: cache hit, no refetch.
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children);
+    const { result } = renderHook(() => useCrashHeatmap(frameParams), { wrapper });
+
+    await waitFor(() => expect(result.current.points).toEqual(MOCK_RESPONSE.points));
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });
 
