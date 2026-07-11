@@ -75,3 +75,62 @@ describe("computeMeasureValue", () => {
     expect(keys).toContain("crashes_per_income");
   });
 });
+
+// --- Regression: D-1 (per-capita rate ~18x too low under a year filter) -----
+//
+// The choropleth calls computeMeasureValue WITHOUT perYearCrashes, so
+// crashes_per_100k takes the fallback branch: crash_count / summed-population.
+// That branch is only correct when the demographics list is scoped to the
+// same year window as the crash count. Before the fix, /api/demographics
+// ignored the date filter and returned every seeded population-year, so the
+// fallback divided a single-year crash count by ~18 years of population —
+// yielding a rate ~1/18 of the true annual value.
+describe("crashes_per_100k annual-average denominator (regression: D-1)", () => {
+  // Los-Angeles-ish scale: ~10M residents, ~40k crashes in a single year.
+  const laStats = {
+    county_code: 19,
+    county_name: "Los Angeles",
+    crash_count: 40_000,
+    total_killed: 300,
+    total_injured: 20_000,
+  };
+  const POP_PER_YEAR = 10_000_000;
+  const ANNUAL_RATE = 400; // 40,000 / (10,000,000 / 100,000)
+
+  it("single-year selection yields an annual-order rate (~400/100k)", () => {
+    // Post-fix: backend filters demographics to the selected year → one row.
+    const oneYear = [{ county_code: 19, year: 2023, population: POP_PER_YEAR }];
+    const r = computeMeasureValue("crashes_per_100k", laStats, oneYear);
+    expect(r.hasEnoughData).toBe(true);
+    expect(r.value).toBeCloseTo(ANNUAL_RATE, 5);
+  });
+
+  it("pins the ~18x understatement the bug caused vs. the fixed value", () => {
+    // Pre-fix data flow: 18 population-years for a single-year crash count.
+    const eighteenYears = Array.from({ length: 18 }, (_, i) => ({
+      county_code: 19,
+      year: 2006 + i,
+      population: POP_PER_YEAR,
+    }));
+    const buggy = computeMeasureValue("crashes_per_100k", laStats, eighteenYears);
+    // 40,000 / (180,000,000 / 100,000) = 40,000 / 1800 ≈ 22.2 per 100k.
+    expect(buggy.value).toBeCloseTo(ANNUAL_RATE / 18, 4);
+
+    // Fixed data flow (demographics scoped to the selected year) is ~18x higher.
+    const oneYear = [{ county_code: 19, year: 2023, population: POP_PER_YEAR }];
+    const fixed = computeMeasureValue("crashes_per_100k", laStats, oneYear);
+    expect(fixed.value! / buggy.value!).toBeCloseTo(18, 5);
+  });
+
+  it("stays a stable annual-average as the selected range widens", () => {
+    // 3-year window: 3-year crash total over 3 population-years → same rate.
+    const threeYearStats = { ...laStats, crash_count: 40_000 * 3 };
+    const threeYears = [2021, 2022, 2023].map((year) => ({
+      county_code: 19,
+      year,
+      population: POP_PER_YEAR,
+    }));
+    const r = computeMeasureValue("crashes_per_100k", threeYearStats, threeYears);
+    expect(r.value).toBeCloseTo(ANNUAL_RATE, 5);
+  });
+});
