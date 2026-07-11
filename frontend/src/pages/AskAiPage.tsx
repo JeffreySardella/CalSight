@@ -8,6 +8,7 @@ import SuggestionChips from "../components/ask/SuggestionChips";
 import ThinkingIndicator from "../components/ask/ThinkingIndicator";
 import MetaTags from "../components/seo/MetaTags";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import ConversationExportMenu from "../components/ask/ConversationExportMenu";
 import { StoryCanvasProvider, useStoryCanvas } from "../hooks/useStoryCanvas";
 import StoryCanvasPanel from "../components/ask/StoryCanvasPanel";
 import StoryReportView from "../components/ask/StoryReportView";
@@ -199,6 +200,7 @@ function AskAiPageInner() {
             <span className="material-symbols-outlined text-sm">auto_stories</span>
             Story{count > 0 ? ` (${count})` : ""}
           </button>
+          <ConversationExportMenu messages={messages} />
           {hasMessages && (
             <button
               type="button"
