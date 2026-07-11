@@ -14,21 +14,21 @@ function timeAgo(iso: string): string {
 
 function statusColor(status: string): string {
   switch (status) {
-    case "success": return "bg-green-500";
-    case "error": return "bg-red-500";
-    case "running": return "bg-amber-500 animate-pulse";
-    case "skipped": return "bg-gray-400";
-    default: return "bg-gray-400";
+    case "success": return "bg-primary";
+    case "error": return "bg-error";
+    case "running": return "bg-tertiary animate-pulse";
+    case "skipped": return "bg-outline-variant";
+    default: return "bg-outline-variant";
   }
 }
 
 function scheduleBadge(schedule: string): string {
   switch (schedule) {
-    case "daily": return "text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-blue-900/40";
-    case "weekly": return "text-purple-600 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/40";
-    case "monthly": return "text-teal-600 bg-teal-100 dark:text-teal-300 dark:bg-teal-900/40";
-    case "static": return "text-gray-500 bg-gray-100 dark:text-gray-400 dark:bg-gray-800";
-    default: return "text-gray-500 bg-gray-100 dark:text-gray-400 dark:bg-gray-800";
+    case "daily": return "text-on-primary-container bg-primary-container";
+    case "weekly": return "text-on-tertiary-container bg-tertiary-container";
+    case "monthly": return "text-on-secondary-container bg-secondary-container";
+    case "static": return "text-on-surface-variant bg-surface-container-high";
+    default: return "text-on-surface-variant bg-surface-container-high";
   }
 }
 
@@ -58,7 +58,7 @@ function SourceCard({ source }: { source: EtlSource }) {
             </p>
           )}
           {run.error_message && (
-            <p className="text-xs text-red-500 line-clamp-2">{run.error_message}</p>
+            <p className="text-xs text-error line-clamp-2">{run.error_message}</p>
           )}
         </>
       ) : (
@@ -96,13 +96,13 @@ export default function AdminEtlPage() {
       </div>
 
       {trigger.isSuccess && (
-        <div className="mb-6 p-3 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 text-sm">
+        <div className="mb-6 p-3 rounded-lg bg-primary-container text-on-primary-container text-sm">
           Pipeline triggered successfully. Refresh to see progress.
         </div>
       )}
 
       {sourcesError && (
-        <div className="mb-6 p-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 text-sm">
+        <div className="mb-6 p-3 rounded-lg bg-error-container text-on-error-container text-sm">
           Failed to load ETL status: {(sourcesError as Error).message}
         </div>
       )}

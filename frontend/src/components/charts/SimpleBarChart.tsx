@@ -82,17 +82,32 @@ export default function SimpleBarChart({
 
   // Keyboard/AT affordance for clickable bars: without this the drill-down /
   // cross-filter is mouse-only (M-F16). When there's no click handler the bars
-  // stay decorative inside the chart's role="img".
+  // stay decorative inside the chart's role="img". Arrow keys move focus
+  // between bars (each announces its value via aria-label); Home/End jump to
+  // the first/last bar; Enter/Space activate the same handler as click.
+  const barRefs = useRef<(SVGRectElement | null)[]>([]);
+
   const barButtonProps = (d: BarItem, i: number) =>
     onBarClick
       ? ({
           role: "button",
           tabIndex: 0,
+          ref: (el: SVGRectElement | null) => { barRefs.current[i] = el; },
           "aria-label": barLabel ? barLabel(d, i) : `${d.label}: ${d.value.toLocaleString()}`,
           onKeyDown: (e: React.KeyboardEvent<SVGRectElement>) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               onBarClick(d, i);
+              return;
+            }
+            let next: number | null = null;
+            if (e.key === "ArrowRight" || e.key === "ArrowDown") next = Math.min(data.length - 1, i + 1);
+            else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = Math.max(0, i - 1);
+            else if (e.key === "Home") next = 0;
+            else if (e.key === "End") next = data.length - 1;
+            if (next !== null) {
+              e.preventDefault();
+              barRefs.current[next]?.focus();
             }
           },
           onFocus: (e: React.FocusEvent<SVGRectElement>) => {
@@ -156,7 +171,7 @@ export default function SimpleBarChart({
           })}
         </svg>
         <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-          {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
+          {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
         </ChartTooltip>
       </div>
     );
@@ -255,7 +270,7 @@ export default function SimpleBarChart({
         })()}
       </svg>
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-        {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
+        {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
     </div>
   );

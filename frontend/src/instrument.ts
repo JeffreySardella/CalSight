@@ -5,6 +5,14 @@ import * as Sentry from '@sentry/react'
 // must be imported first in main.tsx so Sentry initializes before any app code.
 const dsn = import.meta.env.VITE_SENTRY_DSN
 
+// Global observability for unhandled promise rejections (issue #303). When
+// Sentry is active its GlobalHandlers integration reports these to Sentry;
+// this listener guarantees a recognizable console trail in EVERY environment
+// (including builds without a DSN) so silent async failures stay visible.
+window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+  console.error('[calsight:unhandledrejection]', event.reason)
+})
+
 if (dsn) {
   Sentry.init({
     dsn,

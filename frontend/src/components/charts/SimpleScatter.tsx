@@ -3,6 +3,7 @@ import ChartTooltip from "./ChartTooltip";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { useTextScale } from "../../hooks/useTextScale";
+import { CHART_PALETTES } from "../../lib/theme/palettes";
 
 interface ScatterItem {
   label: string;
@@ -28,12 +29,6 @@ function formatNumber(val: number): string {
   return val.toLocaleString();
 }
 
-/** Fallback palette used only when design tokens aren't available */
-const FALLBACK_COLORS = [
-  "#2563eb", "#dc2626", "#059669", "#7c3aed", "#d97706",
-  "#0891b2", "#e11d48", "#4f46e5", "#0d9488", "#ca8a04",
-];
-
 export default function SimpleScatter({
   data,
   height = 240,
@@ -46,7 +41,8 @@ export default function SimpleScatter({
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const tokens = useDesignTokens();
-  const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : FALLBACK_COLORS;
+  // Shared fallback: the canonical default chart palette (same as SimplePolarArea)
+  const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : CHART_PALETTES.default;
   const [svgWidth, setSvgWidth] = useState(400);
   const titleId = useId();
   const ts = useTextScale();
@@ -206,7 +202,7 @@ export default function SimpleScatter({
         })()}
       </svg>
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-        {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
+        {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
     </div>
   );

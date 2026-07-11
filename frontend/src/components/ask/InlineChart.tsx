@@ -2,13 +2,16 @@ import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleLineChart from "../charts/SimpleLineChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
 import type { ChartData } from "../../hooks/useAskAi";
+import { useIsDark } from "../../context/ThemeContext";
 
 const COLORS_LIGHT = ["#4a7a8c", "#994444", "#6b6b2e", "#3d7a5c", "#8a6d3b", "#5b4fa0", "#2d7d8a", "#b45309"];
 const COLORS_DARK = ["#6b8fa3", "#c28a8a", "#b0a050", "#7ba088", "#b89a6b", "#8e7cc3", "#6baab5", "#c27862"];
 
 function useColors(forceLight?: boolean) {
+  // Subscribe to the theme context (not a one-shot DOM class read) so charts
+  // re-render with the correct palette when the user toggles dark mode.
+  const isDark = useIsDark();
   if (forceLight) return COLORS_LIGHT;
-  const isDark = document.documentElement.classList.contains("dark");
   return isDark ? COLORS_DARK : COLORS_LIGHT;
 }
 

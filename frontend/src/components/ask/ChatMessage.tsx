@@ -90,7 +90,7 @@ export default memo(function ChatMessage({ message }: Props) {
               <button
                 type="button"
                 onClick={() => handleFeedback("up")}
-                className={`p-1 rounded transition-colors ${feedback === "up" ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${feedback === "up" ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
                 aria-label="Helpful response"
               >
                 <span className="material-symbols-outlined text-sm" style={feedback === "up" ? { fontVariationSettings: "'FILL' 1" } : undefined}>thumb_up</span>
@@ -98,7 +98,7 @@ export default memo(function ChatMessage({ message }: Props) {
               <button
                 type="button"
                 onClick={() => handleFeedback("down")}
-                className={`p-1 rounded transition-colors ${feedback === "down" ? "text-error" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${feedback === "down" ? "text-error" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
                 aria-label="Unhelpful response"
               >
                 <span className="material-symbols-outlined text-sm" style={feedback === "down" ? { fontVariationSettings: "'FILL' 1" } : undefined}>thumb_down</span>
@@ -109,7 +109,7 @@ export default memo(function ChatMessage({ message }: Props) {
               onClick={() => pinAnswer(message)}
               aria-label={pinned ? "Pinned to story" : "Pin to story"}
               aria-pressed={pinned}
-              className={`p-1 rounded transition-colors ${pinned ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${pinned ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
             >
               <span
                 className="material-symbols-outlined text-sm"

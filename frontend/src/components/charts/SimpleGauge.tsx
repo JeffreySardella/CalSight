@@ -1,6 +1,8 @@
-import { useId } from "react";
+import { useId, useState, useRef, useCallback } from "react";
+import ChartTooltip from "./ChartTooltip";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { useTextScale } from "../../hooks/useTextScale";
+import { CHART_PALETTES } from "../../lib/theme/palettes";
 
 interface GaugeItem {
   label: string;
@@ -20,13 +22,51 @@ function formatNumber(val: number): string {
   return val.toLocaleString();
 }
 
-const FALLBACK_COLORS = ["#dc2626", "#f59e0b", "#2563eb", "#7c3aed", "#059669", "#6b7280"];
 
 export default function SimpleGauge({ data, height = 180, title }: SimpleGaugeProps) {
   const titleId = useId();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
   const tokens = useDesignTokens();
-  const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : FALLBACK_COLORS;
+  // Shared fallback: the canonical default chart palette (same as SimplePolarArea)
+  const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : CHART_PALETTES.default;
   const ts = useTextScale();
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
+    setHover({ idx, x: e.clientX, y: e.clientY });
+  }, []);
+
+  // Touch scrub: map the touch point's angle around the gauge center to a
+  // segment (angular scrub like SimpleRadar/SimplePolarArea). The svg is
+  // scaled via viewBox, so client coords are converted to viewBox coords
+  // first (preserveAspectRatio default: xMidYMid meet).
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    const total = data.reduce((s, d) => s + d.value, 0);
+    if (!svg || !data.length || total === 0) return;
+    const rect = svg.getBoundingClientRect();
+    const vw = 240;
+    const vh = height - 20;
+    const scale = Math.min(rect.width / vw, rect.height / vh) || 1;
+    const offsetX = (rect.width - vw * scale) / 2;
+    const offsetY = (rect.height - vh * scale) / 2;
+    const vx = (e.touches[0].clientX - rect.left - offsetX) / scale;
+    const vy = (e.touches[0].clientY - rect.top - offsetY) / scale;
+    const cx = vw / 2;
+    const cy = height - 40;
+    // Segments sweep from PI (left) to 2*PI (right) across the top half.
+    const raw = Math.atan2(vy - cy, vx - cx);
+    const angle = raw <= 0 ? raw + 2 * Math.PI : raw;
+    const frac = Math.max(0, Math.min(1, (angle - Math.PI) / Math.PI));
+    let cum = 0;
+    let idx = data.length - 1;
+    for (let i = 0; i < data.length; i++) {
+      cum += data[i].value / total;
+      if (frac <= cum) { idx = i; break; }
+    }
+    setHover({ idx, x: e.touches[0].clientX, y: e.touches[0].clientY });
+  }, [data, height]);
+
   if (!data.length) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -69,13 +109,15 @@ export default function SimpleGauge({ data, height = 180, title }: SimpleGaugePr
       path,
       color: d.color ?? paletteColors[i % paletteColors.length],
       label: d.label,
+      value: d.value,
       pct: Math.round(pct * 100),
     };
   });
 
   return (
-    <div className="w-full flex flex-col items-center" style={{ minHeight: height }}>
-      <svg width="100%" height={height - 20} viewBox={`0 0 ${vw} ${height - 20}`} className="block" role="img" aria-labelledby={title ? titleId : undefined}>
+    <div className="w-full flex flex-col items-center relative" style={{ minHeight: height }}>
+      <svg ref={svgRef} width="100%" height={height - 20} viewBox={`0 0 ${vw} ${height - 20}`} className="block" role="img" aria-labelledby={title ? titleId : undefined}
+        onTouchStart={handleTouchScrub} onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         <path
           d={`M ${cx - outerR} ${cy} A ${outerR} ${outerR} 0 0 1 ${cx + outerR} ${cy}`}
@@ -84,7 +126,15 @@ export default function SimpleGauge({ data, height = 180, title }: SimpleGaugePr
           strokeWidth={trackW}
         />
         {arcs.map((arc, i) => (
-          <path key={i} d={arc.path} fill={arc.color} />
+          <path
+            key={i}
+            d={arc.path}
+            fill={arc.color}
+            fillOpacity={hover !== null && hover.idx !== i ? 0.45 : 1}
+            onMouseMove={(e) => handleMouseMove(e, i)}
+            onMouseLeave={() => setHover(null)}
+            className="cursor-pointer transition-opacity"
+          />
         ))}
         <text x={cx} y={cy - 12} textAnchor="middle" fontSize={26 * ts} fontWeight={800} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
           {formatNumber(total)}
@@ -101,6 +151,16 @@ export default function SimpleGauge({ data, height = 180, title }: SimpleGaugePr
           </div>
         ))}
       </div>
+      <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null}>
+        {hover !== null && arcs[hover.idx] != null && (
+          <>
+            <p className="font-bold text-on-surface">{arcs[hover.idx].label}</p>
+            <p className="text-on-surface-variant">
+              {arcs[hover.idx].value.toLocaleString()} ({arcs[hover.idx].pct}%)
+            </p>
+          </>
+        )}
+      </ChartTooltip>
     </div>
   );
 }

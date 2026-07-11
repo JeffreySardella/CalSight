@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
+import { useTextScale } from "../../hooks/useTextScale";
 
 export interface DualAxisPoint {
   label: string;
@@ -56,6 +57,7 @@ export default function DualAxisLineChart({
   const [svgWidth, setSvgWidth] = useState(400);
   const titleId = useId();
   const { progress } = useChartAnimation(svgRef);
+  const ts = useTextScale();
 
   useEffect(() => {
     const el = svgRef.current;
@@ -67,6 +69,24 @@ export default function DualAxisLineChart({
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGRectElement>, idx: number) => {
     setHover({ idx, x: e.clientX, y: e.clientY });
+  }, []);
+
+  // Touch scrub: snap to the nearest data point on the x axis, mirroring
+  // SimpleLineChart's touch handling.
+  const pointsRef = useRef<{ x: number }[]>([]);
+
+  const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || pointsRef.current.length === 0) return;
+    const rect = svg.getBoundingClientRect();
+    const touchX = e.touches[0].clientX - rect.left;
+    let closest = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < pointsRef.current.length; i++) {
+      const d = Math.abs(pointsRef.current[i].x - touchX);
+      if (d < minDist) { minDist = d; closest = i; }
+    }
+    setHover({ idx: closest, x: e.touches[0].clientX, y: e.touches[0].clientY });
   }, []);
 
   if (!data.length) return null;
@@ -99,6 +119,7 @@ export default function DualAxisLineChart({
     x: xPos(i),
     y: padding.top + chartH - (d.primary / leftMax) * chartH,
   }));
+  pointsRef.current = primaryPoints;
 
   const secondaryPoints = data.map((d, i) => ({
     x: xPos(i),
@@ -129,6 +150,8 @@ export default function DualAxisLineChart({
         className="block"
         role="img"
         aria-labelledby={title ? titleId : undefined}
+        onTouchMove={handleTouchScrub}
+        onTouchEnd={() => setHover(null)}
       >
         {title && <title id={titleId}>{title}</title>}
 
@@ -149,7 +172,7 @@ export default function DualAxisLineChart({
                 x={padding.left - 6}
                 y={y + 3}
                 textAnchor="end"
-                fontSize={9}
+                fontSize={9 * ts}
                 fill={primaryColor}
                 fontFamily="'Inter Variable', Inter, sans-serif"
               >
@@ -168,7 +191,7 @@ export default function DualAxisLineChart({
                 x={padding.left + chartW + 6}
                 y={y + 3}
                 textAnchor="start"
-                fontSize={9}
+                fontSize={9 * ts}
                 fill={secondaryColor}
                 fontFamily="'Inter Variable', Inter, sans-serif"
               >
@@ -302,7 +325,7 @@ export default function DualAxisLineChart({
                 x={xPos(i)}
                 y={height - padding.bottom + 16}
                 textAnchor="middle"
-                fontSize={10}
+                fontSize={10 * ts}
                 fill="rgb(var(--on-surface-variant))"
                 fontFamily="'Inter Variable', Inter, sans-serif"
               >
@@ -329,13 +352,13 @@ export default function DualAxisLineChart({
         <g transform={`translate(${padding.left + 4}, ${padding.top - 6})`}>
           <line x1={0} x2={12} y1={0} y2={0} stroke={primaryColor} strokeWidth={2} />
           <circle cx={6} cy={0} r={2.5} fill={primaryColor} />
-          <text x={16} y={3} fontSize={9} fill={primaryColor} fontWeight={600} fontFamily="'Inter Variable', Inter, sans-serif">
+          <text x={16} y={3} fontSize={9 * ts} fill={primaryColor} fontWeight={600} fontFamily="'Inter Variable', Inter, sans-serif">
             {primaryLabel}
           </text>
 
           <line x1={100} x2={112} y1={0} y2={0} stroke={secondaryColor} strokeWidth={2} strokeDasharray="4 2" />
           <circle cx={106} cy={0} r={2.5} fill="rgb(var(--surface))" stroke={secondaryColor} strokeWidth={1.5} />
-          <text x={116} y={3} fontSize={9} fill={secondaryColor} fontWeight={600} fontFamily="'Inter Variable', Inter, sans-serif">
+          <text x={116} y={3} fontSize={9 * ts} fill={secondaryColor} fontWeight={600} fontFamily="'Inter Variable', Inter, sans-serif">
             {secondaryLabel}
           </text>
         </g>
@@ -343,7 +366,7 @@ export default function DualAxisLineChart({
 
       {/* Combined tooltip showing both values */}
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
-        {hover !== null && renderTooltip?.(data[hover.idx], hover.idx)}
+        {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
     </div>
   );
