@@ -80,18 +80,6 @@ class MaintenanceModeMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-# Added before CORS so CORS remains the outer layer — the 503 must carry
-# Access-Control-Allow-Origin or the browser can't read it to show the screen.
-app.add_middleware(MaintenanceModeMiddleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-ETL-API-KEY"],
-    expose_headers=["X-Cache"],
-)
-
 class NullByteSanitizationMiddleware(BaseHTTPMiddleware):
     """Reject requests containing null bytes in the URL or query string.
 
@@ -121,8 +109,26 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# Middleware registration order matters: Starlette applies middleware in the
+# REVERSE of the order added, so the LAST one added is the OUTERMOST wrapper.
+# CORS must be outermost (added last) so that early error responses from the
+# inner middleware — a 400 from NullByte, a 503 from Maintenance — still pass
+# back out through CORS and pick up Access-Control-Allow-Origin. Without this,
+# a browser sees an opaque CORS failure instead of the real status/body.
+#
+# Resulting request flow (outer -> inner):
+#   CORS -> SecurityHeaders -> NullByte -> Maintenance -> GZip -> app
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(MaintenanceModeMiddleware)
 app.add_middleware(NullByteSanitizationMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-ETL-API-KEY"],
+    expose_headers=["X-Cache"],
+)
 
 from slowapi import Limiter  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
