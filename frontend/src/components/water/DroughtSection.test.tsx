@@ -57,6 +57,28 @@ function mockApi(snapshot: DroughtSnapshot | null) {
         headers: { "Content-Type": "application/json" },
       });
     }
+    if (url.includes("ca-counties.topo.json")) {
+      // Minimal one-county topology so the choropleth renders.
+      return new Response(
+        JSON.stringify({
+          type: "Topology",
+          objects: {
+            counties: {
+              type: "GeometryCollection",
+              geometries: [
+                {
+                  type: "Polygon",
+                  arcs: [[0]],
+                  properties: { name: "Kern", county_code: 15, fips: "06029" },
+                },
+              ],
+            },
+          },
+          arcs: [[[-119, 35], [-118, 35], [-118, 36], [-119, 35]]],
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    }
     throw new Error(`unexpected fetch: ${url}`);
   });
 }
@@ -111,6 +133,14 @@ describe("DroughtSection", () => {
       (el) => el.textContent,
     );
     expect(names).toEqual(["Kern", "Sacramento"]); // Alameda (clear) excluded
+  });
+
+  it("renders the county choropleth map", async () => {
+    mockApi(SNAPSHOT);
+    renderSection();
+    expect(
+      await screen.findByRole("img", { name: /map of california counties/i }),
+    ).toBeInTheDocument();
   });
 
   it("plots the statewide trend sparkline from the series", async () => {

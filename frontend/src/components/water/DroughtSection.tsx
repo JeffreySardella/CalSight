@@ -1,4 +1,5 @@
 import Sparkline from "../charts/Sparkline";
+import DroughtMap from "./DroughtMap";
 import {
   inDroughtPct,
   severePct,
@@ -127,6 +128,8 @@ export default function DroughtSection() {
           </p>
         </div>
       )}
+
+      <DroughtMap counties={snapshot.counties} weekStart={snapshot.week_start} />
 
       {hardestHit.length > 0 && (
         <div className="max-w-2xl mx-auto mt-12">
