@@ -85,12 +85,15 @@ def main() -> int:
     succeeded = sum(1 for r in results if r.status == "success")
     failed_count = sum(1 for r in results if r.status == "error")
     skipped = sum(1 for r in results if r.status == "skipped")
-    unchanged = sum(1 for r in results if r.status == "skipped_unchanged")
+    unchanged = sum(
+        1 for r in results if r.status in ("skipped_unchanged", "skipped_unverified")
+    )
+    unverified = sum(1 for r in results if r.status == "skipped_unverified")
 
     logger.info("=" * 50)
     logger.info(
-        "  Complete: %d succeeded, %d failed, %d skipped, %d unchanged",
-        succeeded, failed_count, skipped, unchanged,
+        "  Complete: %d succeeded, %d failed, %d skipped, %d unchanged (%d unverified)",
+        succeeded, failed_count, skipped, unchanged, unverified,
     )
     logger.info("=" * 50)
 

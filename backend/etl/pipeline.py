@@ -130,12 +130,16 @@ def run_daily_pipeline():
 
     succeeded = sum(1 for r in results if r.status == "success")
     failed = sum(1 for r in results if r.status == "error")
-    unchanged = sum(1 for r in results if r.status == "skipped_unchanged")
+    unchanged = sum(
+        1 for r in results if r.status in ("skipped_unchanged", "skipped_unverified")
+    )
+    unverified = sum(1 for r in results if r.status == "skipped_unverified")
     skipped = sum(1 for r in results if r.status == "skipped")
 
     logger.info(
-        "Daily pipeline complete: %d succeeded, %d failed, %d unchanged, %d skipped",
-        succeeded, failed, unchanged, skipped,
+        "Daily pipeline complete: %d succeeded, %d failed, %d unchanged "
+        "(%d unverified), %d skipped",
+        succeeded, failed, unchanged, unverified, skipped,
     )
 
     disk = check_disk_and_alert()
