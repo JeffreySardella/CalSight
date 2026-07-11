@@ -16,7 +16,7 @@ export default function Footer() {
           CalSight
         </span>
         <p className="font-body text-xs uppercase tracking-widest text-on-surface-variant">
-          © 2026 CalSight. Data Methodology & Institutional Transparency.
+          © {new Date().getFullYear()} CalSight. Data Methodology & Institutional Transparency.
         </p>
         <p className="font-body text-xs text-on-surface-variant max-w-md text-center md:text-left">
           CalSight is an independent project and is not affiliated with, endorsed by,
