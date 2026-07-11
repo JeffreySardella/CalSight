@@ -163,6 +163,14 @@ year average — no external April-1 constants needed, same data-driven
 approach as reservoirs), and a Snowpack section on `/water`. Verified
 visually light + dark against seeded demo data.
 
+A review of the snowpack endpoint caught and fixed two aggregation bugs
+before they could mislead against real data: a 14-day recency cutoff now
+drops offline sensors (so a buried station's years-old reading can't
+count as "current"), and every region figure comes from one consistent
+station set using means (not sums) with the min-SWE floor applied
+per station — so `swe_in`, `avg_swe_in`, and `pct_of_average` always
+reconcile (swe_in IS pct% of avg_swe_in).
+
 ## Snowpack (P3) — original deferral rationale (now resolved)
 
 Unlike the major reservoirs (whose CDEC codes are household names —
