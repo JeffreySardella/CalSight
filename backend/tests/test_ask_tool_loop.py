@@ -10,6 +10,7 @@ The DB session and the LLM are both faked — no live Postgres.
 
 from __future__ import annotations
 
+import logging
 import time
 from types import SimpleNamespace
 
@@ -23,6 +24,25 @@ from app.routers.ask import (
     _handle_ask_inner,
     _run_with_tools,
 )
+
+
+class _CapturingHandler(logging.Handler):
+    """Capture records straight off a specific logger.
+
+    pytest's ``caplog`` attaches to the root logger and relies on
+    propagation, so a sibling test that mutates global logging state (level,
+    propagation, ``logging.disable``) can make it silently miss records — which
+    is exactly what happened in CI when the DB-backed integration tests ran in
+    the same session. Binding a handler to the module logger sidesteps all of
+    that.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
 
 
 class FakeResult:
@@ -207,7 +227,7 @@ def test_simple_mode_fallback_is_degraded_and_not_cacheable(monkeypatch):
     assert cacheable is False
 
 
-def test_grounded_downgraded_when_answer_ignores_tool_numbers(monkeypatch, caplog):
+def test_grounded_downgraded_when_answer_ignores_tool_numbers(monkeypatch):
     """Calling a tool is not citing it: an answer that shares no distinctive
     number with the tool results is downgraded to grounded=false with a
     warning (#293). Cacheability stays keyed off tool success — the heuristic
@@ -221,12 +241,23 @@ def test_grounded_downgraded_when_answer_ignores_tool_numbers(monkeypatch, caplo
         _llm_response(content="Rain is associated with roughly 99,999 crashes."),
     ])
 
-    with caplog.at_level("WARNING"):
+    handler = _CapturingHandler()
+    handler.setLevel(logging.WARNING)
+    prev_level = ask_module.logger.level
+    prev_disable = logging.root.manager.disable
+    ask_module.logger.addHandler(handler)
+    ask_module.logger.setLevel(logging.WARNING)
+    logging.disable(logging.NOTSET)  # undo any global disable a sibling test left
+    try:
         result, cacheable = _handle_ask_inner(_body(), db, _deadline())
+    finally:
+        ask_module.logger.removeHandler(handler)
+        ask_module.logger.setLevel(prev_level)
+        logging.disable(prev_disable)
 
     assert result.grounded is False, "answer cites none of the tool's distinctive numbers"
     assert cacheable is True
-    assert any("no distinctive numbers" in r.message for r in caplog.records)
+    assert any("no distinctive numbers" in r.getMessage() for r in handler.records)
 
 
 def test_grounded_kept_when_answer_cites_tool_numbers(monkeypatch):
