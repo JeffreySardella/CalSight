@@ -1,0 +1,45 @@
+name: Pipeline Diagnostics
+
+# Read-only look at the ETL pipeline container on the prod runner (LXC 100):
+# state, restart count, and recent logs. Exists because the deploy workflow's
+# failure notification only captures BACKEND logs — when the pipeline
+# container crash-loops (2026-07-13 incident), nothing surfaces its traceback.
+# No checkout, no compose, no mutex: plain docker reads, safe to run anytime.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tail:
+        description: "How many log lines to show"
+        required: false
+        default: "200"
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: self-hosted
+    env:
+      TAIL: ${{ inputs.tail }}
+    steps:
+      - name: Validate tail input
+        run: |
+          if ! printf '%s' "$TAIL" | grep -Eq '^[0-9]{1,4}$'; then
+            echo "tail must be a number (1-4 digits), got: $TAIL" >&2
+            exit 1
+          fi
+
+      - name: Container state
+        run: |
+          docker ps -a --filter name=pipeline --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+          for c in $(docker ps -a --filter name=pipeline --format '{{.Names}}'); do
+            docker inspect "$c" --format "$c: state={{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}} started={{.State.StartedAt}} oom={{.State.OOMKilled}}"
+          done
+
+      - name: Pipeline logs
+        run: |
+          for c in $(docker ps -a --filter name=pipeline --format '{{.Names}}'); do
+            echo "===== logs: $c (last $TAIL lines) ====="
+            docker logs --tail "$TAIL" "$c" 2>&1 || true
+          done
