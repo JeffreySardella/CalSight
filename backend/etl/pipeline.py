@@ -276,6 +276,80 @@ def _job_listener(event):
 
 
 # ---------------------------------------------------------------------------
+# Scheduler construction
+# ---------------------------------------------------------------------------
+
+def build_scheduler(no_backup: bool = False) -> BlockingScheduler:
+    """Create the scheduler with all cron jobs registered and log the plan.
+
+    Kept separate from main() so tests can exercise the full startup path
+    without blocking: this exact code crash-looped the pipeline container in
+    production for weeks (2026-07 incident) because pending APScheduler jobs
+    have no `next_run_time` attribute until the scheduler starts, and nothing
+    in CI ever ran it.
+    """
+    scheduler = BlockingScheduler()
+    scheduler.add_listener(_job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+
+    # Daily crash pipeline
+    scheduler.add_job(
+        run_daily_pipeline,
+        CronTrigger.from_crontab(SCHEDULES["daily_crashes"]["cron"], timezone=ETL_TIMEZONE),
+        id="daily_crashes",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    # Weekly full refresh
+    scheduler.add_job(
+        run_weekly_pipeline,
+        CronTrigger.from_crontab(SCHEDULES["weekly_full"]["cron"], timezone=ETL_TIMEZONE),
+        id="weekly_full",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+
+    # Database maintenance
+    scheduler.add_job(
+        lambda: run_pipeline(
+            build_default_registry(), triggered_by="schedule", only=["vacuum"]
+        ),
+        CronTrigger.from_crontab(SCHEDULES["maintenance"]["cron"], timezone=ETL_TIMEZONE),
+        id="maintenance",
+        replace_existing=True,
+    )
+
+    # Backup
+    if not no_backup:
+        scheduler.add_job(
+            run_backup,
+            CronTrigger.from_crontab(SCHEDULES["backup"]["cron"], timezone=ETL_TIMEZONE),
+            id="backup",
+            replace_existing=True,
+        )
+
+    logger.info("=" * 60)
+    logger.info("  CalSight Automated Data Pipeline — Started")
+    logger.info("=" * 60)
+    logger.info("Schedules:")
+    for name, config in SCHEDULES.items():
+        if name == "backup" and no_backup:
+            continue
+        job = scheduler.get_job(name)
+        # Jobs are "pending" until the scheduler starts and have no
+        # next_run_time attribute yet — attribute access here raised
+        # AttributeError and killed the container before start().
+        next_run = getattr(job, "next_run_time", None) if job else None
+        logger.info(
+            "  %-20s  cron=%-15s  next=%s",
+            name, config["cron"], next_run or "(computed at scheduler start)",
+        )
+    logger.info("=" * 60)
+
+    return scheduler
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -322,57 +396,7 @@ def main() -> int:
         return 1
 
     # --- Start the scheduler ---
-    scheduler = BlockingScheduler()
-    scheduler.add_listener(_job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
-
-    # Daily crash pipeline
-    scheduler.add_job(
-        run_daily_pipeline,
-        CronTrigger.from_crontab(SCHEDULES["daily_crashes"]["cron"], timezone=ETL_TIMEZONE),
-        id="daily_crashes",
-        replace_existing=True,
-        misfire_grace_time=3600,
-    )
-
-    # Weekly full refresh
-    scheduler.add_job(
-        run_weekly_pipeline,
-        CronTrigger.from_crontab(SCHEDULES["weekly_full"]["cron"], timezone=ETL_TIMEZONE),
-        id="weekly_full",
-        replace_existing=True,
-        misfire_grace_time=3600,
-    )
-
-    # Database maintenance
-    scheduler.add_job(
-        lambda: run_pipeline(
-            build_default_registry(), triggered_by="schedule", only=["vacuum"]
-        ),
-        CronTrigger.from_crontab(SCHEDULES["maintenance"]["cron"], timezone=ETL_TIMEZONE),
-        id="maintenance",
-        replace_existing=True,
-    )
-
-    # Backup
-    if not args.no_backup:
-        scheduler.add_job(
-            run_backup,
-            CronTrigger.from_crontab(SCHEDULES["backup"]["cron"], timezone=ETL_TIMEZONE),
-            id="backup",
-            replace_existing=True,
-        )
-
-    logger.info("=" * 60)
-    logger.info("  CalSight Automated Data Pipeline — Started")
-    logger.info("=" * 60)
-    logger.info("Schedules:")
-    for name, config in SCHEDULES.items():
-        if name == "backup" and args.no_backup:
-            continue
-        job = scheduler.get_job(name)
-        next_run = job.next_run_time if job else "not scheduled"
-        logger.info("  %-20s  cron=%-15s  next=%s", name, config["cron"], next_run)
-    logger.info("=" * 60)
+    scheduler = build_scheduler(no_backup=args.no_backup)
 
     try:
         scheduler.start()

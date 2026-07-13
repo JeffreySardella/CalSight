@@ -361,6 +361,31 @@ jobs:
           echo "Checking tunnel..."
           docker compose -f docker-compose.prod.yml ps tunnel --format '{{.State}}' | grep -q running && echo "Tunnel is running" || { echo "Tunnel not running:"; docker compose -f docker-compose.prod.yml logs --tail=20 tunnel; exit 1; }
 
+      - name: Verify pipeline container is stable (not crash-looping)
+        # A pipeline container that dies at startup restarts forever and is
+        # only "running" a few seconds per minute — every scheduled ETL, backup
+        # and vacuum silently stops while `up -d` still reports success. This
+        # went unnoticed for weeks (2026-07-13 incident, 257 restarts) because
+        # nothing checked the container after start and the failure alert only
+        # ships backend logs. Require zero restarts AND a running state, and
+        # dump the pipeline's own logs when it fails.
+        env:
+          CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
+        run: |
+          CID=$(docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml ps -aq pipeline)
+          if [ -z "$CID" ]; then
+            echo "Pipeline container not found"; exit 1
+          fi
+          # The container has been up since the `up -d` step several minutes
+          # ago — a healthy scheduler has zero restarts by now.
+          STATE=$(docker inspect "$CID" --format '{{.State.Status}} restarts={{.RestartCount}}')
+          echo "Pipeline container: $STATE"
+          if [ "$(docker inspect "$CID" --format '{{.State.Status}}{{.RestartCount}}')" != "running0" ]; then
+            echo "Pipeline container is not stably running — recent logs:"
+            docker logs --tail=60 "$CID" 2>&1 || true
+            exit 1
+          fi
+
       - name: Verify pipeline can write backups
         # Scheduled pg_dump writes to the /backups bind mount as the `app`
         # user; catch a permissions regression at deploy time instead of at
@@ -371,7 +396,9 @@ jobs:
           docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml \
             exec -T pipeline sh -c 'touch /backups/.write-test && rm /backups/.write-test' \
             && echo "Backup directory is writable" \
-            || { echo "Pipeline cannot write to /backups — backups would fail silently"; exit 1; }
+            || { echo "Pipeline cannot write to /backups — backups would fail silently"; \
+                 docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml logs --tail=60 pipeline || true; \
+                 exit 1; }
 
       - name: Record last successfully deployed SHA
         # Read by check-backfill on the NEXT deploy so it diffs against the
