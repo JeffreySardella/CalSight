@@ -21,6 +21,7 @@ const convo: ChatMessage[] = [
       data: [
         { label: "Los Angeles", value: 12345 },
         { label: "San Diego | South", value: 6789 },
+        { label: "Kern \\ East", value: 42 },
       ],
     },
   },
@@ -42,6 +43,8 @@ describe("conversationToMarkdown", () => {
     expect(md).toContain("| Los Angeles | 12,345 |");
     // The pipe inside the label is escaped so it can't break the table.
     expect(md).toContain("San Diego \\| South");
+    // Backslashes are escaped first, so they can't re-arm an escaped pipe.
+    expect(md).toContain("Kern \\\\ East");
   });
 
   it("includes provider/grounded metadata for assistant turns", () => {
@@ -67,7 +70,7 @@ describe("conversationToJson", () => {
     expect(parsed.exportedAt).toBe("t");
     expect(parsed.messageCount).toBe(2);
     expect(parsed.messages[0]).toMatchObject({ role: "user", content: convo[0].content });
-    expect(parsed.messages[1].chart.data).toHaveLength(2);
+    expect(parsed.messages[1].chart.data).toHaveLength(3);
   });
 });
 

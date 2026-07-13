@@ -13,8 +13,9 @@ function chartToMarkdown(chart: ChartData): string {
   if (chart.title) lines.push(`**${chart.title}**`);
   lines.push("| Label | Value |", "| --- | ---: |");
   for (const row of chart.data) {
-    // Escape pipes so a label can't break the table layout.
-    const label = String(row.label).replace(/\|/g, "\\|");
+    // Escape backslashes before pipes so a label can't break the table
+    // layout (a trailing "\" would otherwise re-arm the pipe we escape).
+    const label = String(row.label).replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
     lines.push(`| ${label} | ${row.value.toLocaleString()} |`);
   }
   return lines.join("\n");
