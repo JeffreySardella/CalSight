@@ -24,10 +24,10 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, case, func, select, text
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import apply_statement_timeout, get_db
 from app.models import County, Crash
 
 router = APIRouter(tags=["stats"])
@@ -52,13 +52,27 @@ _MIN_COVERAGE_RATIO = 0.2
 
 
 def _default_year(db: Session) -> int:
-    """Latest crash_year with meaningful coverage relative to the year before."""
+    """Latest crash_year with meaningful coverage relative to the year before.
+
+    Sourced from mv_crashes_by_year — a ~6K-row pre-aggregate (county x year x
+    severity) refreshed by the same nightly pipeline — rather than a full
+    GROUP BY crash_year over the 11M-row crashes table (deep-audit P-2). The MV
+    is built ``FROM crashes WHERE crash_year IS NOT NULL`` across every county
+    and severity, so ``SUM(crash_count)`` per year equals the live per-year
+    crash count: on a fresh MV the chosen year is identical to the old
+    live-table result. The rest of the endpoint still aggregates the live
+    crashes table, so per-county numbers are never stale. The API layer already
+    depends on these MVs existing (see app/routers/stats.py), so no fallback.
+    """
     counts = {
         int(y): int(n)
         for y, n in db.execute(
-            select(Crash.crash_year, func.count())
-            .where(Crash.crash_year.isnot(None))
-            .group_by(Crash.crash_year)
+            text(
+                "SELECT crash_year, SUM(crash_count) "
+                "FROM mv_crashes_by_year "
+                "WHERE crash_year IS NOT NULL "
+                "GROUP BY crash_year"
+            )
         ).all()
     }
     if not counts:
@@ -175,5 +189,10 @@ def get_yoy_changes(
     db: Session = Depends(get_db),
 ):
     """Per-county YoY change ranking for a metric — see compute_yoy_changes."""
+    # Bound the query the way every other heavy endpoint is bounded: the
+    # default path (year omitted) runs an unbounded full-table GROUP BY
+    # crash_year over 11M rows, so without this a pathological plan holds a
+    # pool connection indefinitely (deep-audit P-2 / prior L4).
+    apply_statement_timeout(db, 30_000)
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     return compute_yoy_changes(db, metric=metric, year=year)

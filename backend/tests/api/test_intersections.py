@@ -7,22 +7,27 @@ fixture yields the same `db_session`), then exercise the aggregation.
 from __future__ import annotations
 
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 
+import app.routers.intersections as intersections_mod
 from app.models import Crash
-from app.routers.intersections import clear_concentration_cache
+from app.routers.intersections import clear_aggregate_cache, clear_concentration_cache
 
 pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(autouse=True)
-def _fresh_concentration_cache():
-    """Concentration results are cached in-process; tests seed different data
-    into the same app, so every test starts (and leaves) with a cold cache."""
+def _fresh_caches():
+    """Concentration AND intersection/corridor results are cached in-process;
+    tests seed different data into the same app, so every test starts (and
+    leaves) with a cold cache."""
     clear_concentration_cache()
+    clear_aggregate_cache()
     yield
     clear_concentration_cache()
+    clear_aggregate_cache()
 
 
 def _crash(cid, primary, secondary, *, severity="Injury", killed=0, injured=1,
@@ -191,3 +196,50 @@ def test_centroid_coordinates_present(client, seed_intersections):
     top = r.json()[0]
     assert top["latitude"] is not None
     assert top["longitude"] is not None
+
+
+def test_intersections_cached_within_ttl(client, seed_intersections):
+    """A repeat /intersections call with identical args is served from the TTL
+    cache without re-running the aggregate query; a different filter tuple
+    misses and recomputes. Byte-identical result on the hit."""
+    url = "/api/intersections?county=los-angeles&min_crashes=1"
+    with patch.object(
+        intersections_mod, "_aggregate", wraps=intersections_mod._aggregate
+    ) as spy:
+        first = client.get(url).json()
+        assert spy.call_count == 1
+        second = client.get(url).json()
+        assert spy.call_count == 1  # cache hit — no second query
+        assert second == first
+        # A different filter tuple is a cache miss and recomputes.
+        client.get("/api/intersections?county=los-angeles&min_crashes=3")
+        assert spy.call_count == 2
+
+
+def test_corridors_cached_within_ttl(client, seed_intersections):
+    """Same TTL-cache guarantee for /corridors; a corridor call never returns
+    an intersection cache entry (by_secondary is part of the key)."""
+    url = "/api/corridors?county=los-angeles&min_crashes=1"
+    with patch.object(
+        intersections_mod, "_aggregate", wraps=intersections_mod._aggregate
+    ) as spy:
+        first = client.get(url).json()
+        assert spy.call_count == 1
+        second = client.get(url).json()
+        assert spy.call_count == 1  # cache hit
+        assert second == first
+        # An /intersections call shares the same aggregate cache but keys on
+        # by_secondary=True, so it must miss (not reuse the corridor entry).
+        client.get("/api/intersections?county=los-angeles&min_crashes=1")
+        assert spy.call_count == 2
+
+
+def test_intersection_cache_isolated_from_corridor(client, seed_intersections):
+    """MAIN ST rolls up 5 crashes as a corridor but only 3 as an intersection —
+    a shared cache keyed on by_secondary must never cross them over."""
+    inter = client.get("/api/intersections?county=los-angeles&min_crashes=1").json()
+    corr = client.get("/api/corridors?county=los-angeles&min_crashes=1").json()
+    inter_main = next(x for x in inter if x["primary_road"] == "MAIN ST")
+    corr_main = next(x for x in corr if x["primary_road"] == "MAIN ST")
+    assert inter_main["crash_count"] == 3
+    assert corr_main["crash_count"] == 5

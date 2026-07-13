@@ -131,7 +131,8 @@ class Settings(BaseSettings):
     # 4 gunicorn workers the effective cap is 4x this value. Local ollama is
     # free and never counted. When the budget is spent, /api/ask degrades
     # through simple mode to a graceful "temporarily unavailable" answer.
-    # See app/llm_budget.py.
+    # See app/llm_budget.py. NB: 0 is a dev-only default — the deploy workflow
+    # writes a non-zero value in prod so the backstop actually fires (audit S-1).
     llm_daily_request_budget: int = 0
     llm_api_key: str = ""
     llm_api_key_2: str = ""

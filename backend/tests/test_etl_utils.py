@@ -234,6 +234,29 @@ class TestArcgisFreshness:
         assert result.is_fresh is True
         assert result.source_row_count == 250
 
+    def test_unchanged_count_is_upstream_verified(self, monkeypatch):
+        # We reached the service and it reported the same feature count — a
+        # genuine upstream signal, so this skip counts as a confirmed sync.
+        monkeypatch.setattr(httpx, "get", lambda url, **kw: _make_response(200, b'{"count": 100}'))
+        monkeypatch.setattr(_utils.time, "sleep", lambda _: None)
+
+        result = _utils._check_arcgis_freshness(_arcgis_job(), _last_run(100))
+
+        assert result.is_fresh is False
+        assert result.upstream_verified is True
+
+    def test_outage_skip_is_not_upstream_verified(self, monkeypatch):
+        # A dead / 404ing endpoint must NOT read as a confirmed sync — otherwise
+        # the source pins the last good count and never trips stale (M8).
+        monkeypatch.setattr(httpx, "get", lambda url, **kw: _make_response(404))
+        monkeypatch.setattr(_utils.time, "sleep", lambda _: None)
+
+        result = _utils._check_arcgis_freshness(_arcgis_job(), _last_run(100))
+
+        assert result.is_fresh is False
+        assert result.upstream_verified is False
+        assert "could not verify" in result.reason.lower()
+
 
 # ---------------------------------------------------------------------------
 # etl_run / track_etl_run
@@ -404,6 +427,40 @@ class TestFederalFreshnessAllowlist:
         last_run = SimpleNamespace(source_row_count=1383)
         res = _utils._check_federal_freshness(self._fars_job(), last_run, db)
         assert res.is_fresh is True
+
+
+class TestFederalFreshnessVerification:
+    """M8: the federal freshness probe compares the TARGET table's own row
+    count to the last success — it never contacts upstream. An unchanged count
+    therefore cannot be reported as a confirmed sync, or a silently-failing /
+    year-pinned loader freezes the count and the source reads 'fresh' forever.
+    An unchanged federal count must skip the reload (is_fresh=False) but be
+    flagged upstream_verified=False so staleness still surfaces.
+    """
+
+    def _fars_job(self):
+        from etl.orchestrator import Job
+        return Job(
+            name="fars", module="etl.nhtsa_fars", source_type="federal",
+            freshness_table="fars_county_year",
+        )
+
+    def test_unchanged_count_is_not_upstream_verified(self):
+        db = SimpleNamespace(execute=lambda *a, **k: SimpleNamespace(scalar=lambda: 1383))
+        last_run = SimpleNamespace(source_row_count=1383)
+        res = _utils._check_federal_freshness(self._fars_job(), last_run, db)
+        assert res.is_fresh is False           # still skip the reload
+        assert res.upstream_verified is False  # but do NOT claim a sync
+        assert "could not verify" in res.reason.lower()
+
+    def test_grown_count_defaults_to_verified(self):
+        # A real change means the loader ran and data moved — the job runs,
+        # so the flag is left at its default (True) and never masks anything.
+        db = SimpleNamespace(execute=lambda *a, **k: SimpleNamespace(scalar=lambda: 1400))
+        last_run = SimpleNamespace(source_row_count=1383)
+        res = _utils._check_federal_freshness(self._fars_job(), last_run, db)
+        assert res.is_fresh is True
+        assert res.upstream_verified is True
 
 
 # ---------------------------------------------------------------------------
@@ -607,3 +664,44 @@ class TestOrchestratedTrackingSkip:
         assert captured["env"] is not None
         assert captured["env"][_utils.ORCHESTRATED_ENV_FLAG] == "1"
         assert record.status == "success"
+
+
+# ---------------------------------------------------------------------------
+# run_job records an HONEST skip status (M8): a skip only reads as a confirmed
+# sync (skipped_unchanged) when upstream was actually verified; an unverifiable
+# skip is recorded as skipped_unverified so /api/freshness surfaces staleness.
+# ---------------------------------------------------------------------------
+
+class TestRunJobSkipStatus:
+    class _SkipSess(FakeSession):
+        def expunge(self, obj):
+            pass
+
+    def _run_with_freshness(self, monkeypatch, freshness):
+        from etl import orchestrator
+
+        sess = self._SkipSess()
+        monkeypatch.setattr(orchestrator, "SessionLocal", lambda: sess)
+        monkeypatch.setattr(_utils, "check_source_freshness", lambda job, db: freshness)
+        # A skip must never spawn the loader subprocess.
+        monkeypatch.setattr(
+            orchestrator.subprocess, "run",
+            lambda *a, **k: (_ for _ in ()).throw(AssertionError("subprocess spawned on skip")),
+        )
+
+        job = orchestrator.Job(name="fars", module="etl.nhtsa_fars", source_type="federal")
+        return orchestrator.run_job(job, triggered_by="test")
+
+    def test_verified_unchanged_records_skipped_unchanged(self, monkeypatch):
+        fr = _utils.FreshnessResult(
+            False, None, 1383, "upstream reports unchanged", upstream_verified=True,
+        )
+        record = self._run_with_freshness(monkeypatch, fr)
+        assert record.status == "skipped_unchanged"
+
+    def test_unverified_skip_records_skipped_unverified(self, monkeypatch):
+        fr = _utils.FreshnessResult(
+            False, None, 1383, "could not verify upstream", upstream_verified=False,
+        )
+        record = self._run_with_freshness(monkeypatch, fr)
+        assert record.status == "skipped_unverified"

@@ -1,10 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { LayersStateProvider, useLayersState } from "./useLayersState";
 import { ThemeProvider } from "../context/ThemeContext";
 import { CustomThemeProvider } from "../context/CustomThemeContext";
 import { DEFAULT_MEASURE } from "../lib/choropleth/measures";
+import * as safeStorage from "../lib/safeStorage";
+
+const STORAGE_KEY = "calsight-layers";
 
 function wrap({ children }: { children: ReactNode }) {
   return <ThemeProvider><CustomThemeProvider><LayersStateProvider>{children}</LayersStateProvider></CustomThemeProvider></ThemeProvider>;
@@ -77,5 +80,19 @@ describe("useLayersState", () => {
     act(() => result.current.setHeatmapResolution("medium"));
     act(() => result.current.reset());
     expect(result.current.heatmapResolution).toBe("low");
+  });
+
+  it("parses localStorage only once, not on every provider re-render", () => {
+    const spy = vi.spyOn(safeStorage, "safeGetItem");
+    const { result } = renderHook(() => useLayersState(), { wrapper: wrap });
+    const countFor = () => spy.mock.calls.filter((c) => c[0] === STORAGE_KEY).length;
+    const afterMount = countFor();
+    expect(afterMount).toBe(1);
+    // State updates re-render the provider; the lazy initializer must not re-parse.
+    act(() => result.current.setMeasure("fatality_rate"));
+    act(() => result.current.setPalette("colorblind"));
+    act(() => result.current.setHeatmapResolution("medium"));
+    expect(countFor()).toBe(afterMount);
+    spy.mockRestore();
   });
 });

@@ -5,12 +5,11 @@ import logging
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
-from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
-from app.database import get_db
+from app.database import apply_statement_timeout, get_db
 from app.filters import (
     build_crash_predicates,
     parse_bool_flag,
@@ -155,17 +154,23 @@ def list_crashes(
         # the unfiltered case; this catches broad filter combos.)
         #
         try:
-            db.execute(text("BEGIN"))
-            db.execute(text(f"SET LOCAL statement_timeout = {COUNT_STATEMENT_TIMEOUT_MS}"))
+            # Bound only the COUNT, then reset. We work inside the Session's
+            # existing (autobegun) transaction and use the Session's own
+            # rollback on timeout — no manual BEGIN/COMMIT, which would desync
+            # the Session from the DB's transaction state (audit M-B3). The
+            # explicit reset keeps the timeout from bounding the rows query
+            # below; on timeout the rollback ends the aborted transaction so
+            # that query starts clean, and SET LOCAL is dropped with it.
+            apply_statement_timeout(db, COUNT_STATEMENT_TIMEOUT_MS)
             total = q.count()
-            db.execute(text("COMMIT"))
+            apply_statement_timeout(db, 0)
         except OperationalError as exc:
+            db.rollback()
             logger.warning(
                 "include_total COUNT exceeded %dms; returning total=null (%s)",
                 COUNT_STATEMENT_TIMEOUT_MS,
                 exc.__class__.__name__,
             )
-            db.rollback()
             total = None
 
     rows = q.offset(offset).limit(limit).all()

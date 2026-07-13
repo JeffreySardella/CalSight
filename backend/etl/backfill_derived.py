@@ -20,7 +20,9 @@ Usage:
     python -m etl.backfill_derived
 """
 
+import argparse
 import logging
+import os
 import re
 from datetime import datetime, timezone
 
@@ -74,6 +76,24 @@ def _all_crash_year_range(db) -> range:
 
     min_year, max_year = int(row[0]), int(row[1])
     return range(min_year, max_year + 1)
+
+
+def _daily_since_year(db) -> int:
+    """Lower-bound year for the nightly (scoped) resync: the previous data year.
+
+    CCRS reloads only the current + previous year of crashes/parties each night,
+    so any flag/derived drift is confined to ``crash_datetime >= (max_year-1)``.
+    Deriving the bound from the data's own latest year (not wall-clock) keeps
+    the still-active prior year in scope even early in a new calendar year.
+    Falls back to the current calendar year - 1 if the table is empty.
+    """
+    row = db.execute(text("SELECT MAX(crash_year) FROM crashes")).scalar()
+    if row is None:
+        row = db.execute(text(
+            "SELECT MAX(EXTRACT(YEAR FROM crash_datetime)::int) FROM crashes"
+        )).scalar()
+    max_year = int(row) if row is not None else datetime.now(timezone.utc).year
+    return max_year - 1
 
 logging.basicConfig(
     level=logging.INFO,
@@ -208,7 +228,7 @@ _PARTY_FLAG_COLUMNS = frozenset({
 })
 
 
-def _resync_party_flag(db, *, column: str, party_where: str, label: str):
+def _resync_party_flag(db, *, column: str, party_where: str, label: str, since_year: int | None = None):
     """Ground-truth re-sync of one party-derived boolean flag on crashes.
 
     This is the backfill_pedestrian_flags pattern (M10) applied generically:
@@ -234,27 +254,52 @@ def _resync_party_flag(db, *, column: str, party_where: str, label: str):
     _PARTY_FLAG_COLUMNS); ``party_where`` must reference crash_parties via
     the alias ``p``.
 
+    ``since_year`` (P-3): when set, both the positive-ID SELECT and the FALSE
+    anti-join are bounded to crashes with ``crash_datetime >= <since_year>-01-01``.
+    CCRS parties only reload the current + previous year, so nightly flag drift
+    is confined to that window — bounding the ROW SCOPE skips reads over older
+    years that (by the IS DISTINCT FROM guard) would write nothing anyway. The
+    flag LOGIC is untouched: only which rows are examined changes, never how a
+    row's flag is decided. ``since_year=None`` re-derives all years (the
+    weekly / force-refresh full path).
+
     Returns (rows_set_false, rows_set_true) so callers/tests can verify the
     second run over an unchanged dataset writes nothing.
     """
     if column not in _PARTY_FLAG_COLUMNS:
         raise ValueError(f"Refusing to resync unknown flag column: {column!r}")
 
-    # Step 1: the current ground truth — collision ids with a qualifying party
+    # Step 1: the current ground truth — collision ids with a qualifying party.
+    # When scoped, join crashes so only qualifying parties on in-window CCRS
+    # crashes are considered (the TRUE pass then only flips those rows).
     logger.info("Finding %s collision IDs...", label)
-    result = db.execute(text(f"""
-        SELECT DISTINCT p.collision_id
-        FROM crash_parties p
-        WHERE {party_where}
-    """))
+    if since_year is None:
+        result = db.execute(text(f"""
+            SELECT DISTINCT p.collision_id
+            FROM crash_parties p
+            WHERE {party_where}
+        """))
+    else:
+        result = db.execute(text(f"""
+            SELECT DISTINCT p.collision_id
+            FROM crash_parties p
+            JOIN crashes c ON c.collision_id = p.collision_id
+                AND c.data_source = p.data_source
+            WHERE ({party_where})
+              AND c.data_source = 'ccrs'
+              AND c.crash_datetime >= :since
+        """), {"since": f"{since_year}-01-01"})
     positive_ids = [row[0] for row in result]
     logger.info("Found %d %s collision IDs", len(positive_ids), label)
 
     # Step 2: FALSE for CCRS rows not backed by a qualifying party and not
     # already FALSE. Year-by-year so each UPDATE stays manageable (same
     # batching as before; _ccrs_year_range reads the bounds from the data).
+    # When scoped, skip years below since_year — those rows can't have drifted.
     total_negative = 0
     for year in _ccrs_year_range(db):
+        if since_year is not None and year < since_year:
+            continue
         r = db.execute(text(f"""
             UPDATE crashes c
             SET {column} = FALSE
@@ -291,7 +336,7 @@ def _resync_party_flag(db, *, column: str, party_where: str, label: str):
     return total_negative, total_positive
 
 
-def backfill_alcohol_flags(db):
+def backfill_alcohol_flags(db, since_year: int | None = None):
     """Sync each CCRS crash's alcohol/drug-impairment flag from crash_parties.
 
     The crash_parties table has a sobriety field for each driver/pedestrian.
@@ -311,10 +356,11 @@ def backfill_alcohol_flags(db):
         column="is_alcohol_involved",
         party_where="p.sobriety IN ('HBD-UNDER INFLUENCE', 'UNDER_DRUG_INFLUENCE')",
         label="alcohol-involved",
+        since_year=since_year,
     )
 
 
-def backfill_distraction_flags(db):
+def backfill_distraction_flags(db, since_year: int | None = None):
     """Sync each CCRS crash's phone-distraction flag from crash_parties.
 
     The cell_phone_use field in crash_parties has values like
@@ -339,10 +385,11 @@ def backfill_distraction_flags(db):
             "OR p.cell_phone_use LIKE '%HANDSFREE IN USE%'"
         ),
         label="distraction-involved",
+        since_year=since_year,
     )
 
 
-def backfill_pedestrian_flags(db):
+def backfill_pedestrian_flags(db, since_year: int | None = None):
     """Fix pedestrian_involved using crash_parties as ground truth.
 
     The original ETL set this from PedestrianActionCode, but code "A"
@@ -359,6 +406,15 @@ def backfill_pedestrian_flags(db):
     commits separately, API readers saw committed intermediate state where
     pedestrian counts were wrong until the TRUE pass caught up.
 
+    ``since_year`` (P-3): when set, the pedestrian-party SELECT and the FALSE
+    anti-join are bounded to CCRS crashes with
+    ``crash_datetime >= <since_year>-01-01`` — parties only reload the current
+    + previous year, so older rows can't have drifted. Row SCOPE only; the
+    NULL/FALSE/TRUE decision logic is unchanged. ``since_year=None`` covers all
+    years (weekly / force-refresh full path). The SWITRS-NULL pass is left
+    unscoped: SWITRS is pre-2016 and, once nulled, its IS NOT NULL guard makes
+    the pass a no-op regardless.
+
     Returns (rows_set_false, rows_set_true) so callers/tests can verify the
     second run of an unchanged dataset writes nothing.
     """
@@ -374,12 +430,24 @@ def backfill_pedestrian_flags(db):
     db.commit()
     logger.info("Set %d SWITRS rows to NULL", r.rowcount)
 
-    # Step 2: find CCRS crashes with a pedestrian party
-    result = db.execute(text("""
-        SELECT DISTINCT collision_id
-        FROM crash_parties
-        WHERE party_type = 'Pedestrian'
-    """))
+    # Step 2: find CCRS crashes with a pedestrian party (scoped to the
+    # reloaded window when since_year is set — see docstring).
+    if since_year is None:
+        result = db.execute(text("""
+            SELECT DISTINCT collision_id
+            FROM crash_parties
+            WHERE party_type = 'Pedestrian'
+        """))
+    else:
+        result = db.execute(text("""
+            SELECT DISTINCT p.collision_id
+            FROM crash_parties p
+            JOIN crashes c ON c.collision_id = p.collision_id
+                AND c.data_source = p.data_source
+            WHERE p.party_type = 'Pedestrian'
+              AND c.data_source = 'ccrs'
+              AND c.crash_datetime >= :since
+        """), {"since": f"{since_year}-01-01"})
     ped_ids = [row[0] for row in result]
     logger.info("Found %d pedestrian-involved collision IDs", len(ped_ids))
 
@@ -387,6 +455,8 @@ def backfill_pedestrian_flags(db):
     # and don't already say FALSE.
     total_reset = 0
     for year in _ccrs_year_range(db):
+        if since_year is not None and year < since_year:
+            continue
         r = db.execute(text("""
             UPDATE crashes c
             SET pedestrian_involved = FALSE
@@ -421,7 +491,7 @@ def backfill_pedestrian_flags(db):
     return total_reset, total_positive
 
 
-def backfill_cyclist_flags(db):
+def backfill_cyclist_flags(db, since_year: int | None = None):
     """Sync each CCRS crash's cyclist flag from crash_parties.
 
     Checks crash_parties.party_type for 'Bicyclist'. pedestrian_involved
@@ -433,10 +503,11 @@ def backfill_cyclist_flags(db):
         column="cyclist_involved",
         party_where="p.party_type = 'Bicyclist'",
         label="cyclist-involved",
+        since_year=since_year,
     )
 
 
-def backfill_drug_flags(db):
+def backfill_drug_flags(db, since_year: int | None = None):
     """Sync each CCRS crash's drug flag from crash_parties.
 
     Distinct from is_alcohol_involved -- this only matches
@@ -450,6 +521,7 @@ def backfill_drug_flags(db):
         column="is_drug_involved",
         party_where="p.sobriety = 'UNDER_DRUG_INFLUENCE'",
         label="drug-involved",
+        since_year=since_year,
     )
 
 
@@ -464,7 +536,7 @@ _AT_FAULT_AGE_PARTY_WHERE = """
 """
 
 
-def backfill_at_fault_driver_age(db):
+def backfill_at_fault_driver_age(db, since_year: int | None = None):
     """Copy the at-fault driver's age onto the crash row.
 
     Finds the party where at_fault = TRUE and party_type = 'Driver',
@@ -486,6 +558,12 @@ def backfill_at_fault_driver_age(db):
         about an age, so absence of party data must read as unknown.
     Both passes only touch rows that actually change — no daily WAL churn.
 
+    ``since_year`` (P-3): when set, only years >= since_year are processed —
+    both the set-pass subquery and the clear-pass anti-join are already
+    year-bounded (crash_datetime BETWEEN the year's start/end), so skipping
+    lower years narrows the ROW SCOPE without touching the qualifying-party
+    logic. ``since_year=None`` processes all years (weekly / force-refresh).
+
     Returns (rows_cleared, rows_set) so tests can verify a second run over
     an unchanged dataset writes nothing.
     """
@@ -493,6 +571,8 @@ def backfill_at_fault_driver_age(db):
     total_set = 0
     total_cleared = 0
     for year in _ccrs_year_range(db):
+        if since_year is not None and year < since_year:
+            continue
         r = db.execute(text(f"""
             UPDATE crashes c
             SET at_fault_driver_age = sub.age
@@ -822,7 +902,7 @@ def backfill_severity(db):
     logger.info("Severity: %d property damage only", r.rowcount)
 
 
-def repair_drifted_derived(db) -> int:
+def repair_drifted_derived(db, since_year: int | None = None) -> int:
     """Fix derived columns that disagree with the raw values they derive from.
 
     Before 2026-07 the upsert didn't recompute derived columns, so a CHP
@@ -836,9 +916,18 @@ def repair_drifted_derived(db) -> int:
     new tuple versions: after the first pass this is a read-mostly scan per
     year with ~zero writes (no daily WAL churn — the M7 lesson). Rows whose
     severity is still NULL are left for backfill_severity to fill first.
+
+    ``since_year`` (P-3): when set, only years >= since_year are scanned.
+    Amendments (a victim dying within 30 days, a corrected datetime) land on
+    recent crashes, so the nightly path bounds the scan to the reloaded window;
+    the weekly / force-refresh path (since_year=None) revalidates every year.
+    The IS DISTINCT FROM guard and the derivation logic are unchanged — only
+    the year range scanned differs.
     """
     total = 0
     for year in _all_crash_year_range(db):
+        if since_year is not None and year < since_year:
+            continue
         r = db.execute(text("""
             UPDATE crashes SET
                 severity = CASE
@@ -874,11 +963,36 @@ def repair_drifted_derived(db) -> int:
 
 
 @track_etl_run("backfill")
-def run():
-    """Run all the backfills in order. Land area first since density needs it."""
+def run(since_year: int | None = None, *, daily: bool = False):
+    """Run all the backfills in order. Land area first since density needs it.
+
+    ``since_year`` / ``daily`` (P-3): the party-flag resyncs, at-fault-age
+    backfill, and derived-drift repair full-scan/anti-join the crashes and
+    crash_parties tables, but CCRS only reloads the current + previous year, so
+    a nightly full-history pass reads years that can't have changed. When
+    ``daily=True`` (and no explicit ``since_year``), the bound is computed from
+    the data as the previous data year; when ``since_year`` is given, that is
+    used verbatim. ``since_year=None`` with ``daily=False`` (the default)
+    re-derives ALL years — the weekly / force-refresh full path. Only the ROW
+    SCOPE narrows; the M10 IS DISTINCT FROM flag logic is never altered, so a
+    scoped run and a full run agree on every row they both touch.
+
+    The idempotent, NULL-guarded backfills (crash_hour/year/month/dow,
+    county_name, severity, canonical_cause) are always run over all years —
+    after their first pass they touch only NULL rows, so they carry no
+    per-night full-scan write cost worth scoping.
+    """
     db = SessionLocal()
     try:
-        logger.info("=== Backfilling derived fields ===")
+        if daily and since_year is None:
+            since_year = _daily_since_year(db)
+        if since_year is not None:
+            logger.info(
+                "=== Backfilling derived fields (scoped: crash_datetime >= %d-01-01) ===",
+                since_year,
+            )
+        else:
+            logger.info("=== Backfilling derived fields (full history) ===")
         backfill_land_areas(db)
         backfill_population_density(db)
         backfill_crash_hour(db)
@@ -887,18 +1001,53 @@ def run():
         backfill_day_of_week(db)
         backfill_county_name(db)
         backfill_severity(db)
-        repair_drifted_derived(db)
-        backfill_pedestrian_flags(db)
-        backfill_alcohol_flags(db)
-        backfill_distraction_flags(db)
-        backfill_cyclist_flags(db)
-        backfill_drug_flags(db)
-        backfill_at_fault_driver_age(db)
+        repair_drifted_derived(db, since_year=since_year)
+        backfill_pedestrian_flags(db, since_year=since_year)
+        backfill_alcohol_flags(db, since_year=since_year)
+        backfill_distraction_flags(db, since_year=since_year)
+        backfill_cyclist_flags(db, since_year=since_year)
+        backfill_drug_flags(db, since_year=since_year)
+        backfill_at_fault_driver_age(db, since_year=since_year)
         backfill_canonical_cause(db)
         logger.info("=== Done ===")
     finally:
         db.close()
 
 
+def main(argv: list[str] | None = None) -> None:
+    """CLI entry: default is the scoped nightly resync; --full re-derives all years.
+
+    Scope selection (highest precedence first):
+      --full / CALSIGHT_FORCE_REFRESH=1  -> full history (weekly / force refresh)
+      --since-year YYYY                  -> explicit lower-bound year
+      (default)                          -> daily scope (previous data year)
+
+    The daily pipeline invokes this module with no args, so the nightly run is
+    scoped automatically. The weekly/force pipeline calls run_pipeline(
+    force_refresh=True); wiring that to a full backfill only needs the weekly
+    run to export CALSIGHT_FORCE_REFRESH=1 into this subprocess (or pass
+    --full). Until then, --full remains the explicit full-history entry point.
+    """
+    parser = argparse.ArgumentParser(description="Backfill derived crash fields")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--full", action="store_true",
+        help="Re-derive ALL years (weekly / force-refresh full path).",
+    )
+    group.add_argument(
+        "--since-year", type=int, default=None,
+        help="Scope the party-flag/at-fault/repair resyncs to this year and later.",
+    )
+    args = parser.parse_args(argv)
+
+    force_full = args.full or os.environ.get("CALSIGHT_FORCE_REFRESH") == "1"
+    if force_full:
+        run(since_year=None)
+    elif args.since_year is not None:
+        run(since_year=args.since_year)
+    else:
+        run(daily=True)
+
+
 if __name__ == "__main__":
-    run()
+    main()

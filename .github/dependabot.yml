@@ -12,12 +12,25 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
 
+  # The og-image Cloudflare Worker is a separate npm root with its own
+  # package.json/lockfile (wrangler etc.); without this entry its deps
+  # (e.g. wrangler) go un-updated.
+  - package-ecosystem: npm
+    directory: /workers/og-image
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
 
+  # NOTE: the docker updater only reads Dockerfiles (FROM lines) — it does NOT
+  # bump image tags pinned in docker-compose*.yml. So the compose-only images
+  # (postgres, cloudflared in docker-compose.prod.yml / .pipeline.yml) are not
+  # covered here and must be bumped manually.
   - package-ecosystem: docker
     directory: /backend
     schedule:

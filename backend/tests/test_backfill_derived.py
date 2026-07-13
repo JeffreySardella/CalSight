@@ -8,6 +8,7 @@ verified by running the script and spot-checking.
 
 import pytest
 
+import etl.backfill_derived as backfill_mod
 from etl.backfill_derived import (
     COUNTY_LAND_AREAS,
     _categorize_primary_factor as categorize,
@@ -17,6 +18,8 @@ from etl.backfill_derived import (
     backfill_cyclist_flags,
     backfill_distraction_flags,
     backfill_drug_flags,
+    backfill_pedestrian_flags,
+    repair_drifted_derived,
 )
 
 
@@ -230,6 +233,9 @@ class _FakeExecResult:
     def scalar(self):
         return self._scalar
 
+    def one_or_none(self):
+        return self._rows[0] if self._rows else None
+
 
 class _FlagSyncFakeDB:
     """Session stand-in: serves the flag-resync queries, records every UPDATE.
@@ -377,3 +383,189 @@ class TestAtFaultDriverAgeResync:
     def test_returns_cleared_and_set_counts(self):
         _, result = self._run()
         assert result == (1, 1)
+
+
+# ---------------------------------------------------------------------------
+# P-3 — the nightly resync bounds its row SCOPE to the reloaded year range
+# (crash_datetime >= <since_year>-01-01) without changing the M10 flag LOGIC.
+# CCRS reloads only current + previous year, so a full-history pass every night
+# reads years that (by IS DISTINCT FROM) can't have drifted. A weekly / force
+# full path (since_year=None) still revalidates every year.
+# ---------------------------------------------------------------------------
+
+
+class _ScopeFakeDB:
+    """Session stand-in that records every statement it executes.
+
+    max_year=2025 keeps _ccrs_year_range / _all_crash_year_range multi-year so
+    the FALSE anti-join and repair emit one statement per year — the tests then
+    check which years survive the scope filter.
+    """
+
+    def __init__(self, positive_ids=(101, 102), max_year=2025):
+        self.statements = []  # list of (normalized_sql, params)
+        self._positive_ids = list(positive_ids)
+        self._max_year = max_year
+
+    def execute(self, clause, params=None):
+        sql = " ".join(str(clause).split())
+        low = sql.lower()
+        self.statements.append((sql, params or {}))
+        if low.startswith("update"):
+            return _FakeExecResult(rowcount=1)
+        if "min(extract(year" in low:  # _all_crash_year_range -> (min, max)
+            return _FakeExecResult(rows=[(2001, self._max_year)])
+        if "select max(extract(year" in low:  # _ccrs_year_range
+            return _FakeExecResult(scalar_value=self._max_year)
+        if "select max(crash_year)" in low:  # _daily_since_year
+            return _FakeExecResult(scalar_value=self._max_year)
+        if low.startswith("select distinct") and "collision_id" in low:
+            return _FakeExecResult(rows=[(i,) for i in self._positive_ids])
+        raise AssertionError(f"Unexpected SQL in scoped resync: {sql}")
+
+    def commit(self):
+        pass
+
+    def updates(self):
+        return [(s, p) for s, p in self.statements if s.lower().startswith("update")]
+
+    def selects(self):
+        return [(s, p) for s, p in self.statements if s.lower().startswith("select")]
+
+
+def _false_pass_years(db, column):
+    """Start-year of every FALSE-pass UPDATE the resync emitted for *column*."""
+    years = []
+    for sql, params in db.updates():
+        if f"set {column} = false" in sql.lower() and "start" in params:
+            years.append(int(str(params["start"])[:4]))
+    return years
+
+
+class TestScopedResync:
+    def test_scoped_false_pass_bounds_years(self):
+        """A scoped alcohol resync only rewrites FALSE for years >= since_year;
+        the full path covers every CCRS year."""
+        scoped = _ScopeFakeDB(max_year=2025)
+        backfill_alcohol_flags(scoped, since_year=2024)
+        assert sorted(_false_pass_years(scoped, "is_alcohol_involved")) == [2024, 2025]
+
+        full = _ScopeFakeDB(max_year=2025)
+        backfill_alcohol_flags(full)  # since_year=None
+        assert sorted(_false_pass_years(full, "is_alcohol_involved")) == list(range(2016, 2026))
+
+    def test_scoped_positive_id_select_bounds_by_datetime(self):
+        """The scoped positive-ID SELECT joins crashes and bounds by
+        crash_datetime; the full path uses the plain unscoped SELECT."""
+        scoped = _ScopeFakeDB()
+        backfill_alcohol_flags(scoped, since_year=2024)
+        sel = [s for s, _ in scoped.selects() if "collision_id" in s.lower()][0]
+        params = [p for s, p in scoped.selects() if "collision_id" in s.lower()][0]
+        low = sel.lower()
+        assert "join crashes" in low
+        assert "crash_datetime >= :since" in low
+        assert params["since"] == "2024-01-01"
+
+        full = _ScopeFakeDB()
+        backfill_alcohol_flags(full)
+        sel_full = [s for s, _ in full.selects() if "collision_id" in s.lower()][0]
+        assert "join crashes" not in sel_full.lower()
+        assert ":since" not in sel_full.lower()
+
+    def test_scope_preserves_is_distinct_from_logic(self):
+        """Scoping narrows rows only — the ground-truth flag logic (IS DISTINCT
+        FROM, NOT EXISTS) is byte-for-byte the same as the full path."""
+        for column, func in (
+            ("is_alcohol_involved", backfill_alcohol_flags),
+            ("is_drug_involved", backfill_drug_flags),
+            ("cyclist_involved", backfill_cyclist_flags),
+            ("is_distraction_involved", backfill_distraction_flags),
+        ):
+            db = _ScopeFakeDB()
+            func(db, since_year=2024)
+            false_sqls = [s.lower() for s, _ in db.updates() if f"set {column} = false" in s.lower()]
+            true_sqls = [s.lower() for s, _ in db.updates() if f"set {column} = true" in s.lower()]
+            assert false_sqls and true_sqls
+            for s in false_sqls:
+                assert f"{column} is distinct from false" in s
+                assert "not exists" in s
+            for s in true_sqls:
+                assert f"{column} is distinct from true" in s
+
+    def test_scoped_pedestrian_flags(self):
+        scoped = _ScopeFakeDB(max_year=2025)
+        backfill_pedestrian_flags(scoped, since_year=2024)
+        assert sorted(_false_pass_years(scoped, "pedestrian_involved")) == [2024, 2025]
+        sel = [s for s, _ in scoped.selects() if "collision_id" in s.lower()][0]
+        assert "join crashes" in sel.lower()
+        # The SWITRS-NULL pass is always emitted, scoped or not.
+        assert any("set pedestrian_involved = null" in s.lower() for s, _ in scoped.updates())
+
+        full = _ScopeFakeDB(max_year=2025)
+        backfill_pedestrian_flags(full)
+        assert sorted(_false_pass_years(full, "pedestrian_involved")) == list(range(2016, 2026))
+
+    def test_scoped_at_fault_age(self):
+        def start_years(db, kind):
+            return sorted(
+                int(str(p["start"])[:4])
+                for s, p in db.updates()
+                if kind in s.lower() and "start" in p
+            )
+
+        scoped = _ScopeFakeDB(max_year=2025)
+        backfill_at_fault_driver_age(scoped, since_year=2024)
+        assert start_years(scoped, "set at_fault_driver_age = sub.age") == [2024, 2025]
+        assert start_years(scoped, "set at_fault_driver_age = null") == [2024, 2025]
+
+        full = _ScopeFakeDB(max_year=2025)
+        backfill_at_fault_driver_age(full)
+        assert start_years(full, "set at_fault_driver_age = sub.age") == list(range(2016, 2026))
+
+    def test_scoped_repair_drifted(self):
+        def start_years(db):
+            return sorted(int(str(p["start"])[:4]) for _, p in db.updates() if "start" in p)
+
+        scoped = _ScopeFakeDB(max_year=2025)
+        repair_drifted_derived(scoped, since_year=2024)
+        assert start_years(scoped) == [2024, 2025]
+
+        full = _ScopeFakeDB(max_year=2025)
+        repair_drifted_derived(full)
+        assert start_years(full) == list(range(2001, 2026))
+
+
+class TestRunScopeWiring:
+    """run()/main() wire daily -> scoped, weekly/force -> full history."""
+
+    def test_daily_since_year_is_previous_data_year(self):
+        db = _ScopeFakeDB(max_year=2025)
+        assert backfill_mod._daily_since_year(db) == 2024
+
+    def test_main_default_is_daily_scoped(self, monkeypatch):
+        recorded = {}
+        monkeypatch.setattr(backfill_mod, "run", lambda *a, **k: recorded.update(a=a, k=k))
+        monkeypatch.delenv("CALSIGHT_FORCE_REFRESH", raising=False)
+        backfill_mod.main([])
+        assert recorded == {"a": (), "k": {"daily": True}}
+
+    def test_main_full_flag_is_full_history(self, monkeypatch):
+        recorded = {}
+        monkeypatch.setattr(backfill_mod, "run", lambda *a, **k: recorded.update(a=a, k=k))
+        monkeypatch.delenv("CALSIGHT_FORCE_REFRESH", raising=False)
+        backfill_mod.main(["--full"])
+        assert recorded == {"a": (), "k": {"since_year": None}}
+
+    def test_main_since_year_explicit(self, monkeypatch):
+        recorded = {}
+        monkeypatch.setattr(backfill_mod, "run", lambda *a, **k: recorded.update(a=a, k=k))
+        monkeypatch.delenv("CALSIGHT_FORCE_REFRESH", raising=False)
+        backfill_mod.main(["--since-year", "2022"])
+        assert recorded == {"a": (), "k": {"since_year": 2022}}
+
+    def test_main_force_refresh_env_is_full(self, monkeypatch):
+        recorded = {}
+        monkeypatch.setattr(backfill_mod, "run", lambda *a, **k: recorded.update(a=a, k=k))
+        monkeypatch.setenv("CALSIGHT_FORCE_REFRESH", "1")
+        backfill_mod.main([])
+        assert recorded == {"a": (), "k": {"since_year": None}}

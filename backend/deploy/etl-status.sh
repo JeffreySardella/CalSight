@@ -1,13 +1,20 @@
 #!/bin/bash
 # Quick check of ETL pipeline status.
-# Run on LXC 100: bash etl-status.sh
+# Run from the repo root on the deploy host (LXC 100): bash backend/deploy/etl-status.sh
 #
-# Shows: last 10 runs, any failures, next scheduled run
+# Shows: last 10 runs and any failures in the last 7 days.
+#
+# The backend runs under Docker Compose v2, whose default container name is
+# derived from the project + service (not a fixed `calsight-backend`), so we
+# address it through `docker compose ... exec backend` — matching the deploy
+# workflow and backend/deploy/README.md — rather than `docker exec <name>`.
+# Override the compose file location with COMPOSE_FILE if not run from the root.
 
-CONTAINER_NAME="calsight-backend"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE=(docker compose -f "$COMPOSE_FILE")
 
 echo "=== Last 10 ETL Runs ==="
-docker exec "$CONTAINER_NAME" python -c "
+"${COMPOSE[@]}" exec -T backend python -c "
 from app.database import SessionLocal
 from app.models import EtlRun
 db = SessionLocal()
@@ -25,7 +32,7 @@ db.close()
 
 echo ""
 echo "=== Failures (last 7 days) ==="
-docker exec "$CONTAINER_NAME" python -c "
+"${COMPOSE[@]}" exec -T backend python -c "
 from datetime import datetime, timedelta, timezone
 from app.database import SessionLocal
 from app.models import EtlRun
@@ -42,6 +49,7 @@ else:
 db.close()
 "
 
-echo ""
-echo "=== Cron Schedule ==="
-crontab -l 2>/dev/null | grep etl || echo "  No ETL cron job found"
+# NOTE: scheduling is no longer a host crontab. The `pipeline` compose service
+# (APScheduler in python -m etl.pipeline) owns the cron schedules — see
+# docker-compose.pipeline.yml and backend/etl/pipeline.py. Inspect it with:
+#   docker compose -f docker-compose.pipeline.yml logs pipeline

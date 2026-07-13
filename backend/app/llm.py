@@ -12,7 +12,14 @@ import threading
 import time
 from typing import Any
 
-from openai import APIConnectionError, APITimeoutError, BadRequestError, OpenAI, RateLimitError
+from openai import (
+    APIConnectionError,
+    APIError,
+    APITimeoutError,
+    BadRequestError,
+    OpenAI,
+    RateLimitError,
+)
 
 from app import llm_budget
 from app.settings import settings
@@ -303,11 +310,33 @@ def generate_with_fallback(
             last_error = e
             continue
 
-        except (APIConnectionError, APITimeoutError, Exception) as e:
+        except (APIConnectionError, APITimeoutError) as e:
             _mark_cooled_down(name, 30)
             logger.warning("Provider %s connection/timeout error: %s", name, e)
             last_error = e
             continue
+
+        except APIError as e:
+            # Any other provider-side API error (5xx, auth, unexpected status,
+            # etc.). Still a transient/provider problem, not our bug — cool the
+            # provider and fall through to the next one.
+            _mark_cooled_down(name, 30)
+            logger.warning("Provider %s API error: %s", name, e)
+            last_error = e
+            continue
+
+        except Exception:
+            # A non-API exception is almost certainly a bug in *our* code
+            # (e.g. a TypeError building the request), not a provider outage.
+            # Cooling the provider here would wrongly bench a healthy provider
+            # and silently hide the bug. Log distinctly and re-raise so it
+            # surfaces immediately instead of degrading into AllProvidersExhausted.
+            logger.exception(
+                "Unexpected non-API error while calling provider %s; "
+                "re-raising without cooldown (likely a code bug, not an outage)",
+                name,
+            )
+            raise
 
     raise AllProvidersExhausted(
         f"All providers exhausted ({tried} tried, {len(chain)} configured). Last error: {last_error}"

@@ -31,4 +31,11 @@ describe("Footer", () => {
     const link = screen.getByRole("link", { name: /terms of service/i });
     expect(link).toHaveAttribute("href", "/terms");
   });
+
+  it("shows the current year in the copyright notice (D-5)", () => {
+    renderFooter();
+    const year = String(new Date().getFullYear());
+    const notice = screen.getByText(new RegExp(`©\\s*${year} CalSight`));
+    expect(notice).toBeInTheDocument();
+  });
 });

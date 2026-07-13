@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
+from openai import APIConnectionError
 
 import app.llm as llm_module
 from app import llm_budget
@@ -95,10 +97,12 @@ def test_budget_spent_skips_paid_providers_and_raises(monkeypatch):
 
 
 def test_budget_counts_failed_provider_calls(monkeypatch):
-    """The unit is actual provider calls — a call that raises still spends."""
+    """The unit is actual provider calls — a call that raises a transient API
+    error still spends the budget (the counter is consumed before the call)."""
     monkeypatch.setattr(llm_module.settings, "llm_daily_request_budget", 1)
 
-    with patch("app.llm._call_provider", side_effect=RuntimeError("boom")) as mock_call:
+    err = APIConnectionError(request=httpx.Request("POST", "http://provider/v1"))
+    with patch("app.llm._call_provider", side_effect=err) as mock_call:
         with pytest.raises(AllProvidersExhausted):
             generate_with_fallback(messages=[{"role": "user", "content": "q"}])
     assert mock_call.call_count == 1, "second chain entry must be budget-skipped"

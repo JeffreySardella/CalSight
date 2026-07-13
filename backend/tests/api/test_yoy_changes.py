@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
+from sqlalchemy import text
 
 from app.ai_tools import TOOL_REGISTRY, get_yoy_changes
 from app.models import Crash
@@ -104,6 +105,10 @@ def test_yoy_default_skips_barely_loaded_trailing_year(client, db_session):
             cid += 1
     db_session.add_all(rows)
     db_session.flush()
+    # _default_year is sourced from mv_crashes_by_year (P-2), so make the MV
+    # reflect the seeded years before asking for the default. A plain (non-
+    # CONCURRENT) REFRESH in this transaction sees the flushed rows.
+    db_session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_year"))
 
     body = client.get("/api/stats/yoy-changes?metric=crashes").json()
     assert body["year"] == 2030
@@ -112,6 +117,25 @@ def test_yoy_default_skips_barely_loaded_trailing_year(client, db_session):
     # An explicit request for the sliver year is still honored.
     body = client.get("/api/stats/yoy-changes?metric=crashes&year=2031").json()
     assert body["year"] == 2031
+
+
+def test_yoy_default_year_reads_from_matview(client, db_session):
+    """_default_year routes off mv_crashes_by_year, not a full GROUP BY over the
+    11M-row crashes table: a live-table row in a brand-new max year is ignored
+    until the MV is refreshed, then honored."""
+    rows = [_crash(9900 + i, 19, 2040) for i in range(200)]
+    db_session.add_all(rows)
+    db_session.flush()
+
+    # MV not yet refreshed — default stays at the MV's latest (2023 from seed),
+    # proving the year is read from the MV rather than the live table.
+    assert client.get("/api/stats/yoy-changes?metric=crashes").json()["year"] == 2023
+
+    db_session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_year"))
+    body = client.get("/api/stats/yoy-changes?metric=crashes").json()
+    assert body["year"] == 2040
+    # Per-county numbers still come from the live table: 2040 has the 200 rows.
+    assert body["rows"][0]["current"] == 200
 
 
 def test_yoy_ai_tool(db_session, seed_years):

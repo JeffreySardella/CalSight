@@ -49,6 +49,24 @@ from app.models import (  # noqa: E402
 )
 
 
+def _db_available(url: str) -> bool:
+    """Return True if a Postgres connection to `url` can be opened.
+
+    Used to gracefully skip DB-backed tests (some of which are unmarked and
+    therefore run under `pytest -m "not integration"`) when no database is
+    reachable, instead of erroring out. CI has a real Postgres, so there the
+    connection succeeds and the tests run normally.
+    """
+    try:
+        eng = create_engine(url)
+        with eng.connect():
+            pass
+        eng.dispose()
+        return True
+    except Exception:
+        return False
+
+
 def _create_test_db() -> None:
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
@@ -249,6 +267,12 @@ def _seed(session: Session) -> None:
 
 @pytest.fixture(scope="session")
 def test_engine():
+    if not _db_available(ADMIN_URL):
+        pytest.skip(
+            "PostgreSQL not reachable at "
+            f"{ADMIN_URL!r}; skipping DB-backed tests. Start the test database "
+            "(or set TEST_DATABASE_ADMIN_URL) to run them."
+        )
     _create_test_db()
     _run_alembic_migrations()
     engine = create_engine(TEST_DB_URL)

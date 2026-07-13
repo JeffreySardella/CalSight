@@ -177,9 +177,19 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
         logger.info("Freshness check for %s: %s", job.name, freshness.reason)
 
         if not freshness.is_fresh:
+            # A skip is only a "confirmed sync" (status skipped_unchanged, which
+            # /api/freshness treats as keeping the source fresh) when we actually
+            # reached upstream. When we could NOT verify upstream — a dead ArcGIS
+            # endpoint, or a federal source whose only signal is its own frozen
+            # row count — record skipped_unverified instead. That status is NOT
+            # in freshness.py's _SYNC_STATUSES, so it does not reset staleness and
+            # the source correctly reads stale once its threshold elapses (M8).
+            skip_status = (
+                "skipped_unchanged" if freshness.upstream_verified else "skipped_unverified"
+            )
             record = EtlRun(
                 source=job.name,
-                status="skipped_unchanged",
+                status=skip_status,
                 started_at=_utc_now(),
                 finished_at=_utc_now(),
                 triggered_by=triggered_by,
@@ -213,6 +223,13 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
     start = time.monotonic()
 
     try:
+        job_env = {**os.environ, ORCHESTRATED_ENV_FLAG: "1"}
+        # A force_refresh (weekly) run asks jobs to re-derive from scratch.
+        # backfill_derived scopes its nightly resync to the reloaded years for
+        # speed (deep-audit P-3); this flag tells it to do the full-history
+        # pass instead, so the weekly run stays a true full re-derive.
+        if force_refresh:
+            job_env["CALSIGHT_FORCE_REFRESH"] = "1"
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -220,7 +237,7 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             timeout=job.timeout,
             # Tell the module this run is orchestrator-owned so its own
             # etl_run tracking doesn't write a duplicate row (M-B8).
-            env={**os.environ, ORCHESTRATED_ENV_FLAG: "1"},
+            env=job_env,
         )
         elapsed = time.monotonic() - start
 
@@ -423,7 +440,11 @@ def _run_pipeline_locked(
         results.append(record)
         if record.status == "error":
             failed.add(job.name)
-        elif record.status == "skipped_unchanged":
+        elif record.status in ("skipped_unchanged", "skipped_unverified"):
+            # Either kind of skip means the loader did not run, so downstream
+            # transforms have no new input and can defer too. (The staleness
+            # distinction between the two lives on the SOURCE's own row; a
+            # dependent gets its own freshness accounting.)
             skipped_unchanged.add(job.name)
 
     return results

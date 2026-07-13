@@ -82,3 +82,61 @@ describe("CrashHeatmap", () => {
     expect(L.heatLayer).toHaveBeenCalled();
   });
 });
+
+describe("useFatalLayer", () => {
+  const fatalPoints = [
+    { lat: 34.0, lng: -118.0, weight: 3, severity: "Fatal" },
+    { lat: 34.1, lng: -118.1, weight: 2, severity: "Injury" },
+  ];
+
+  it("builds the fatal heat layer once and does not rebuild when the gradient reference is stable (P-4)", async () => {
+    vi.mocked(L.heatLayer).mockClear();
+    const { useFatalLayer } = await import("./CrashHeatmap");
+
+    // A memoized gradient keeps the same reference across renders.
+    const gradient = { 0: "transparent", 0.3: "#f00", 0.6: "#a00", 1.0: "#500" };
+
+    const { rerender } = renderHook(
+      ({ g }) => useFatalLayer(fatalPoints, "raw", g),
+      { initialProps: { g: gradient } },
+    );
+
+    expect(L.heatLayer).toHaveBeenCalledTimes(1);
+
+    // Re-render with the SAME gradient object (simulating an unrelated parent
+    // re-render). The effect must NOT tear down and rebuild the layer.
+    rerender({ g: gradient });
+    rerender({ g: gradient });
+
+    expect(L.heatLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it("rebuilds when the gradient reference changes, proving the dep is live", async () => {
+    vi.mocked(L.heatLayer).mockClear();
+    const { useFatalLayer } = await import("./CrashHeatmap");
+
+    const { rerender } = renderHook(
+      ({ g }) => useFatalLayer(fatalPoints, "raw", g),
+      { initialProps: { g: { 0: "transparent", 1.0: "#500" } } },
+    );
+
+    expect(L.heatLayer).toHaveBeenCalledTimes(1);
+
+    // A fresh object literal (what an unmemoized gradient would produce every
+    // render) forces the rebuild the P-4 fix's useMemo is meant to prevent.
+    rerender({ g: { 0: "transparent", 1.0: "#500" } });
+
+    expect(L.heatLayer).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not build a fatal layer outside raw resolution", async () => {
+    vi.mocked(L.heatLayer).mockClear();
+    const { useFatalLayer } = await import("./CrashHeatmap");
+
+    renderHook(() =>
+      useFatalLayer(fatalPoints, "medium", { 0: "transparent", 1.0: "#500" }),
+    );
+
+    expect(L.heatLayer).not.toHaveBeenCalled();
+  });
+});

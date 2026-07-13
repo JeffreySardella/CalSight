@@ -119,7 +119,10 @@ export function LayersStateProvider({
   /** Called whenever layer state changes, so MapPage can mirror it to the URL. */
   onStateChange?: (state: LayerUrlState) => void;
 }) {
-  const saved = loadSaved();
+  // Lazy initializer: parse localStorage exactly once on mount rather than on
+  // every render. The result only seeds the useState initializers below, so it
+  // is never needed again after the first render.
+  const [saved] = useState(loadSaved);
   const { customization } = useCustomTheme();
   const [choroplethOn, setChoroplethOn] = useState(urlSeed?.choroplethOn ?? saved.choroplethOn ?? true);
   const [measure, setMeasure] = useState<MeasureKey>(urlSeed?.measure ?? saved.measure ?? DEFAULT_MEASURE);

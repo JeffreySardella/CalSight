@@ -29,6 +29,19 @@ describe("csvEscape", () => {
     expect(csvEscape(true)).toBe("true");
     expect(csvEscape(false)).toBe("false");
   });
+
+  it("neutralizes formula injection in non-numeric string cells", () => {
+    expect(csvEscape("=SUM(A1:A2)")).toBe("'=SUM(A1:A2)");
+    expect(csvEscape("+1+2")).toBe("'+1+2");
+    expect(csvEscape("@import")).toBe("'@import");
+    // Leading '-' with a comma triggers both the guard and RFC-4180 quoting.
+    expect(csvEscape("-cmd, evil")).toBe('"\'-cmd, evil"');
+  });
+
+  it("leaves genuine negative numbers untouched (e.g. longitudes)", () => {
+    expect(csvEscape(-118.24)).toBe("-118.24");
+    expect(csvEscape(-1)).toBe("-1");
+  });
 });
 
 describe("buildCsv", () => {

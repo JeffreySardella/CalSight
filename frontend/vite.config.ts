@@ -54,6 +54,21 @@ export default defineConfig({
             handler: 'NetworkOnly',
           },
           {
+            // PII guard: the raw /api/crashes rows (per-row lat/lng + involvement
+            // flags) and the parties/victims endpoints are served with
+            // Cache-Control: no-store and must never be cached. This must
+            // precede the api-data route below, whose `crashes` prefix would
+            // otherwise cache them. Note the `$` after `crashes` — it excludes
+            // the aggregated /api/crashes/heatmap and /api/crashes/clusters,
+            // which stay cacheable.
+            urlPattern: ({ url, sameOrigin }) =>
+              (sameOrigin || url.origin === 'https://api.calsight.org') &&
+              (/^\/api\/crashes$/.test(url.pathname) ||
+                /^\/api\/(parties|victims)(\/|$)/.test(url.pathname) ||
+                /^\/api\/crashes\/\d+\/(parties|victims)(\/|$)/.test(url.pathname)),
+            handler: 'NetworkOnly',
+          },
+          {
             urlPattern: ({ url, sameOrigin }) =>
               (sameOrigin || url.origin === 'https://api.calsight.org') &&
               /^\/api\/(insights|calenviroscreen|unemployment|data-quality|meta)/.test(url.pathname),

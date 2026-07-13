@@ -9,11 +9,12 @@ site (audit H3). Cloudflare sets ``CF-Connecting-IP`` to the real client IP
 on each proxied request, so we key on that header when present and fall back
 to the socket address otherwise (local dev, tests, direct calls).
 
-Why trusting the header is safe here: production ingress is tunnel-only —
-the backend publishes no host port in docker-compose.prod.yml, so the only
-path to the API is via Cloudflare's edge, which overwrites any
-client-supplied ``CF-Connecting-IP`` with the connecting IP it observed.
-External clients therefore cannot spoof the key.
+Why trusting the header is safe here: production ingress is tunnel-only. The
+backend's only published port in docker-compose.prod.yml is bound to loopback
+(``127.0.0.1:8000:8000``), so it is unreachable from off-host — the sole path
+to the API is via the cloudflared tunnel and Cloudflare's edge, which
+overwrites any client-supplied ``CF-Connecting-IP`` with the connecting IP it
+observed. External clients therefore cannot spoof the key.
 
 Residual risk: if the backend were ever exposed directly (a misconfigured
 compose file, a dev port binding reachable from outside), a direct client

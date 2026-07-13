@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.heat";
@@ -184,7 +184,7 @@ function buildFatalGradient(fatalLow: string, fatalMid: string, fatalHigh: strin
   };
 }
 
-function useFatalLayer(
+export function useFatalLayer(
   points: HeatmapPoint[],
   resolution: HeatmapResolution,
   fatalGradient: Record<number, string>,
@@ -259,10 +259,14 @@ interface CrashHeatmapProps {
 export default memo(function CrashHeatmap({ points, resolution, palette }: CrashHeatmapProps) {
   const isDark = useIsDark();
   const tokens = useDesignTokens();
-  const fatalGradient = buildFatalGradient(
-    tokens.map.fatalLow,
-    tokens.map.fatalMid,
-    tokens.map.fatalHigh,
+  // Memoize on the token strings the gradient derives from (mirrors how
+  // useHeatLayer depends only on primitives like isDark/palette). Without this,
+  // a fresh object literal every render would make useFatalLayer's effect deps
+  // change on each render, tearing down + re-filtering up to 600K points and
+  // rebuilding the Leaflet heat layer on every render.
+  const fatalGradient = useMemo(
+    () => buildFatalGradient(tokens.map.fatalLow, tokens.map.fatalMid, tokens.map.fatalHigh),
+    [tokens.map.fatalLow, tokens.map.fatalMid, tokens.map.fatalHigh],
   );
   useHeatLayer(points, resolution, palette, isDark);
   useFatalLayer(points, resolution, fatalGradient);

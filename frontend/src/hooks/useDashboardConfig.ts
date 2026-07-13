@@ -35,14 +35,30 @@ type NewChart = { dimension: Dimension; measure: Measure; secondaryMeasure?: Mea
 export function useDashboardConfig() {
   const [config, setConfig] = useState<DashboardConfig>(loadInitialConfig);
   const isFirstRender = useRef(true);
+  const configRef = useRef(config);
+  const pendingSaveRef = useRef(false);
 
   useEffect(() => {
+    configRef.current = config;
     if (isFirstRender.current) { isFirstRender.current = false; return; }
+    pendingSaveRef.current = true;
     const id = setTimeout(() => {
       safeSetItem(STORAGE_KEY, JSON.stringify(config));
+      pendingSaveRef.current = false;
     }, 400);
     return () => clearTimeout(id);
   }, [config]);
+
+  // Flush a still-pending debounced save on unmount so a fast navigate-away
+  // (before the 400ms timer fires) doesn't discard the user's last edit.
+  useEffect(() => {
+    return () => {
+      if (pendingSaveRef.current) {
+        safeSetItem(STORAGE_KEY, JSON.stringify(configRef.current));
+        pendingSaveRef.current = false;
+      }
+    };
+  }, []);
 
   const setMode = useCallback((mode: "simple" | "advanced") => {
     setConfig((prev) => {

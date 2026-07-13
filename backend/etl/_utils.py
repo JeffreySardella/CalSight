@@ -365,6 +365,23 @@ class FreshnessResult:
     last_source_modified: datetime | None
     source_row_count: int | None
     reason: str
+    # Did we actually reach the UPSTREAM source and get a definitive signal?
+    #
+    #   True  — we contacted upstream (CKAN resource_show last_modified, an
+    #           ArcGIS feature count, etc.) and it told us whether the data
+    #           changed. A `is_fresh=False` here is a genuine "verified
+    #           unchanged" and legitimately counts as a confirmed sync.
+    #
+    #   False — we could NOT verify upstream: the host was unreachable / 404,
+    #           or the only signal we have is our OWN target table's row count,
+    #           which says nothing about whether upstream moved. A skip like
+    #           this must NOT masquerade as a healthy sync — otherwise a dead
+    #           endpoint or a frozen year-pinned loader reads "fresh" forever
+    #           and the source silently fossilizes (audit M8).
+    #
+    # Only meaningful when is_fresh is False (a skip). When is_fresh is True the
+    # job runs regardless, so the flag is left at its default.
+    upstream_verified: bool = True
 
 
 def check_source_freshness(job: Job, db_session) -> FreshnessResult:
@@ -463,9 +480,12 @@ def _check_arcgis_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
 
         prior_count = last_run.source_row_count
         if prior_count is not None and count == prior_count:
+            # We DID reach the ArcGIS service and it reports the same feature
+            # count — a real upstream signal, so this counts as a verified sync.
             return FreshnessResult(
                 False, None, count,
-                f"row count unchanged at {count}",
+                f"upstream reports feature count unchanged at {count}",
+                upstream_verified=True,
             )
 
         return FreshnessResult(
@@ -478,10 +498,18 @@ def _check_arcgis_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
         # the loader would just hit the same dead host and fail the whole
         # pipeline. Skip this cycle instead, leaving the last good data in
         # place; the next run retries automatically once the source recovers.
+        #
+        # But we did NOT verify upstream: an endpoint that 404s / 5xxes forever
+        # (e.g. a decommissioned 2022-vintage service) would otherwise skip
+        # every cycle and read "fresh" indefinitely. Mark it unverified so the
+        # freshness API surfaces the outage as stale once the threshold passes
+        # (audit M8) instead of silently pinning the last good count.
         logger.warning("ArcGIS source unreachable for %s: %s — skipping run", job.name, exc)
         return FreshnessResult(
             False, None, last_run.source_row_count,
-            f"source unreachable ({exc}); skipping run, will retry next cycle",
+            f"could not verify upstream: source unreachable ({exc}); "
+            "skipping run, will retry next cycle",
+            upstream_verified=False,
         )
     except Exception as exc:
         logger.warning("ArcGIS freshness check failed for %s: %s", job.name, exc)
@@ -508,9 +536,18 @@ def _check_federal_freshness(job: Job, last_run: EtlRun, db_session) -> Freshnes
         prior_count = last_run.source_row_count
 
         if prior_count is not None and current_count == prior_count:
+            # This is our OWN target table's row count, not an upstream probe.
+            # An unchanged count can mean "upstream genuinely unchanged" OR
+            # "the loader silently added nothing / is year-pinned / failed" —
+            # we cannot tell them apart from here. Skip the reload (no point
+            # re-loading identical data) but mark it UNVERIFIED so the source
+            # isn't perpetually reported as a confirmed sync; the freshness API
+            # then surfaces it as stale once its threshold elapses (audit M8).
             return FreshnessResult(
                 False, None, current_count,
-                f"DB row count unchanged at {current_count}",
+                f"could not verify upstream: no cheap upstream probe for "
+                f"{job.name}; own DB row count unchanged at {current_count}",
+                upstream_verified=False,
             )
 
         return FreshnessResult(
