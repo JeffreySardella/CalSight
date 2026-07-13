@@ -24,10 +24,25 @@ schedule:
   `etl.run_all` path.
 
 **Operator action still required on LXC 100** (cannot be verified from
-this repo): confirm the old unit is inert and remove it —
+this repo) — **ORDER MATTERS**. The 2026-07-13 incident showed the compose
+pipeline container had been crash-looping for weeks while a host-side
+runner (systemd/cron, firing 02:00 UTC) was the ONLY thing actually
+loading data. Disabling the host runner before the container is verified
+healthy would stop all ETL.
 
 ```bash
-systemctl status calsight-etl-scheduler   # expect: not-found / inactive
+# 1. FIRST verify the compose scheduler is genuinely alive:
+docker ps --filter name=pipeline          # expect: Up (not Restarting)
+docker inspect calsight-pipeline-1 --format '{{.State.Status}} restarts={{.RestartCount}}'
+docker logs --tail 30 calsight-pipeline-1 # expect the "Schedules:" banner, no traceback
+
+# 2. Identify what actually fires the 02:00 UTC nightly (issue #370):
+systemctl cat calsight-etl-scheduler 2>/dev/null || echo "no such unit"
+crontab -l | grep -i -e etl -e calsight
+
+# 3. ONLY after step 1 shows a stable scheduler AND at least one
+#    container-scheduled run has landed in etl_runs (daily fires 11:00 UTC),
+#    retire the host runner:
 systemctl disable --now calsight-etl-scheduler 2>/dev/null || true
 rm -f /etc/systemd/system/calsight-etl-scheduler.service && systemctl daemon-reload
 crontab -l | grep -v etl | crontab -      # drop any leftover ETL cron line
