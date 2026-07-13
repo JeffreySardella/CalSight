@@ -51,3 +51,14 @@ def test_weekly_runs_sunday_and_daily_skips_sunday():
     )
     next_daily = daily.get_next_fire_time(None, after_sat)
     assert next_daily == datetime(2026, 7, 20, 11, 0, tzinfo=timezone.utc)  # Monday
+
+
+def test_init_sentry_never_raises(monkeypatch):
+    import sys
+
+    # Monitoring must not stop the scheduler: no DSN → early return; a
+    # broken settings import → warning, not a crash.
+    pipeline._init_sentry()
+
+    monkeypatch.setitem(sys.modules, "app.settings", None)
+    pipeline._init_sentry()  # import failure path — must be swallowed

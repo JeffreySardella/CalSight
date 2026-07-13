@@ -46,6 +46,36 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _init_sentry() -> None:
+    """Sentry for the scheduler process (no-op unless SENTRY_DSN is set).
+
+    The API initializes Sentry in app.main, but this process never imports
+    it — so the 2026-07 startup crash-loop (an AttributeError before
+    scheduler.start(), weeks of restarts) produced zero Sentry events.
+    Mirrors app.main's config: send_default_pii stays False.
+    """
+    try:
+        from app.settings import settings
+
+        if not settings.sentry_dsn:
+            return
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            environment=settings.sentry_environment,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+            send_default_pii=False,
+        )
+        logger.info(
+            "Sentry error monitoring enabled (environment=%s)",
+            settings.sentry_environment,
+        )
+    except Exception as exc:
+        # Monitoring must never stop the scheduler from starting.
+        logger.warning("Sentry init failed (continuing without it): %s", exc)
+
+
 # ---------------------------------------------------------------------------
 # Schedule Configuration
 # ---------------------------------------------------------------------------
@@ -360,6 +390,8 @@ def build_scheduler(no_backup: bool = False) -> BlockingScheduler:
 # ---------------------------------------------------------------------------
 
 def main() -> int:
+    _init_sentry()
+
     parser = argparse.ArgumentParser(description="CalSight Automated Data Pipeline")
     parser.add_argument(
         "--no-backup",
