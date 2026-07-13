@@ -151,6 +151,10 @@ def test_validate_job_swallows_check_errors():
         def execute(self, *_a, **_k):
             raise RuntimeError("connection lost")
 
+        def rollback(self):
+            # _validate_job must clear the aborted transaction it caused.
+            pass
+
     job = Job(name="parties", module="etl.x", table_name="crash_parties")
     status, summary = _validate_job(_BoomDB(), job, rows_before=1_000_000)
     # A broken check must not fail an otherwise-successful load.
@@ -177,6 +181,9 @@ class _FakeSession:
         self.added.append(obj)
 
     def commit(self):
+        pass
+
+    def rollback(self):
         pass
 
     def refresh(self, obj):
@@ -240,3 +247,45 @@ def test_matviews_runs_after_victims():
 
     order = [j.name for j in resolve_execution_order(registry)]
     assert order.index("victims") < order.index("matviews")
+
+
+# ---------------------------------------------------------------------------
+# 2026-07-13 incident regressions: the scheduler's first-ever live runs
+# failed on (a) registry table names that don't exist in the schema and
+# (b) a failed row-count SELECT poisoning the shared session so the next
+# commit died and the connection leaked out of the size-1 pool.
+# ---------------------------------------------------------------------------
+
+def test_registry_table_names_exist_in_schema():
+    from app.database import Base
+    import app.models  # noqa: F401 — register all tables on Base.metadata
+
+    known = set(Base.metadata.tables)
+    bad = [
+        (job.name, job.table_name)
+        for job in build_default_registry().jobs.values()
+        if job.table_name and job.table_name not in known
+    ]
+    assert not bad, f"registry names tables that don't exist: {bad}"
+
+
+def test_row_count_failure_leaves_session_usable():
+    from datetime import datetime
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from etl.orchestrator import _table_row_count
+
+    engine = create_engine("sqlite://")
+    EtlRun.__table__.create(engine)
+    db = sessionmaker(bind=engine)()
+    try:
+        assert _table_row_count(db, "no_such_table") is None
+        # The failed SELECT must not abort the transaction: tracking rows
+        # are committed on this same session right afterwards.
+        db.add(EtlRun(source="x", status="running", started_at=datetime(2026, 7, 13)))
+        db.commit()
+        assert db.query(EtlRun).count() == 1
+    finally:
+        db.close()
