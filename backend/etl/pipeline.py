@@ -56,17 +56,23 @@ logger = logging.getLogger(__name__)
 ETL_TIMEZONE = "UTC"
 
 SCHEDULES = {
+    # Day-of-week fields use NAMES, never numbers: APScheduler's CronTrigger
+    # treats 0 as Monday (unlike standard crontab's 0=Sunday), so the numeric
+    # "0" here silently ran the weekly on Mondays and skipped the daily every
+    # Monday (caught live 2026-07-13). Names mean the same thing in both
+    # conventions.
+    #
     # Daily crash data refresh — CHP updates the CCRS CKAN dataset overnight
     # Mon-Sat only: Sunday is covered by weekly_full (which starts at 9 AM UTC),
     # so skipping daily on Sunday prevents the two pipelines from overlapping.
     "daily_crashes": {
-        "cron": "0 11 * * 1-6",  # 11 AM UTC = 4 AM Pacific (PDT), Mon-Sat only
+        "cron": "0 11 * * mon-sat",  # 11 AM UTC = 4 AM Pacific (PDT), Mon-Sat only
         "jobs": None,  # None = all non-static jobs (respects dependency order)
         "description": "Full daily pipeline: crashes, parties, victims, backfill, matviews",
     },
     # Weekly full refresh — includes monthly sources that might have updated
     "weekly_full": {
-        "cron": "0 9 * * 0",  # 9 AM UTC = 2 AM Pacific (PDT), Sunday
+        "cron": "0 9 * * sun",  # 9 AM UTC = 2 AM Pacific (PDT), Sunday
         "jobs": None,
         "force_refresh": True,
         "description": "Weekly forced refresh of all sources",

@@ -119,6 +119,11 @@ def _table_row_count(db, table_name: str | None) -> int | None:
         stmt = select(func.count()).select_from(sa_table(table_name))
         return db.execute(stmt).scalar()
     except Exception as exc:
+        # Roll back so the failed SELECT doesn't leave the session's
+        # transaction aborted — the caller commits etl_runs rows on this
+        # same session, and a poisoned transaction killed the whole weekly
+        # pipeline (2026-07-13: registry named a nonexistent table).
+        db.rollback()
         logger.warning("Row count for %s failed: %s", table_name, exc)
         return None
 
@@ -161,15 +166,35 @@ def _validate_job(db, job: Job, rows_before: int | None) -> tuple[str, str | Non
             return "warning", summary[:2000]
         return "passed", report.summary()
     except Exception as exc:
-        # A broken check must not fail an otherwise-successful load.
+        # A broken check must not fail an otherwise-successful load — and it
+        # must not leave the shared session's transaction aborted either, or
+        # the caller's status commit fails right after.
+        db.rollback()
         logger.exception("Validation errored for %s: %s", job.name, exc)
         return "skipped", f"validation error: {str(exc)[:500]}"
 
 
 def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False) -> EtlRun:
-    from etl._utils import ORCHESTRATED_ENV_FLAG, check_source_freshness
+    """Run one job with etl_runs tracking on a session that is guaranteed to
+    be rolled back (on error) and closed.
 
+    The guarantee matters because the scheduler is a long-lived process on a
+    tiny pool (size 1): a session that escapes still checked out wedges every
+    later scheduled run with a QueuePool timeout (2026-07-13 incident — the
+    09:00 weekly leaked its session and the 15:00 vacuum starved).
+    """
     db = SessionLocal()
+    try:
+        return _run_job_tracked(db, job, triggered_by, force_refresh)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def _run_job_tracked(db, job: Job, triggered_by: str, force_refresh: bool) -> EtlRun:
+    from etl._utils import ORCHESTRATED_ENV_FLAG, check_source_freshness
 
     freshness = None
     if not force_refresh and job.source_type != "none":
@@ -202,7 +227,6 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
             db.commit()
             db.refresh(record)
             db.expunge(record)
-            db.close()
             return record
 
     rows_before = _table_row_count(db, job.table_name)
@@ -275,6 +299,9 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
         logger.error("Job %s timed out", job.name)
 
     except Exception as exc:
+        # If the failure came from the DB itself, the transaction is aborted
+        # and the error-status commit below would fail too — clear it first.
+        db.rollback()
         record.status = "error"
         record.error_message = str(exc)[:2000]
         record.finished_at = _utc_now()
@@ -283,9 +310,14 @@ def run_job(job: Job, triggered_by: str = "manual", force_refresh: bool = False)
         logger.exception("Job %s failed unexpectedly", job.name)
 
     finally:
-        db.refresh(record)
-        db.expunge(record)
-        db.close()
+        # Best-effort: after a failed commit the session may be unusable, and
+        # an exception raised here would mask the real one (and skip the
+        # caller's close). The record object still carries its state.
+        try:
+            db.refresh(record)
+            db.expunge(record)
+        except Exception:
+            logger.warning("Could not refresh etl_run record for %s", job.name)
 
     return record
 

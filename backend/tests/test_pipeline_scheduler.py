@@ -31,3 +31,23 @@ def test_schedule_crons_parse_and_match_registered_jobs():
     scheduler = pipeline.build_scheduler()
     for name in pipeline.SCHEDULES:
         assert scheduler.get_job(name) is not None, f"schedule {name} not registered"
+
+
+def test_weekly_runs_sunday_and_daily_skips_sunday():
+    """APScheduler's numeric day_of_week is 0=Monday (standard crontab says
+    0=Sunday), so the old numeric fields ran the weekly on MONDAYS and
+    skipped the daily every Monday (caught live 2026-07-13). Day names are
+    unambiguous — pin the actual fire days."""
+    from datetime import datetime, timezone
+
+    scheduler = pipeline.build_scheduler()
+    weekly = scheduler.get_job("weekly_full").trigger
+    daily = scheduler.get_job("daily_crashes").trigger
+
+    # Sunday 2026-07-19: weekly fires at 09:00, daily does NOT fire.
+    after_sat = datetime(2026, 7, 18, 23, 0, tzinfo=timezone.utc)
+    assert weekly.get_next_fire_time(None, after_sat) == datetime(
+        2026, 7, 19, 9, 0, tzinfo=timezone.utc
+    )
+    next_daily = daily.get_next_fire_time(None, after_sat)
+    assert next_daily == datetime(2026, 7, 20, 11, 0, tzinfo=timezone.utc)  # Monday
