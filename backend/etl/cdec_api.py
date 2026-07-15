@@ -86,32 +86,34 @@ MAJOR_SNOW_STATIONS = {
 
 # Major reservoirs tracked in v1, keyed by CDEC station id. Static map by
 # design — CDEC has no clean metadata API — mirroring the RESOURCE_IDS
-# pattern in ckan_api.py. Capacities (gross pool, acre-feet) and counties
-# were verified July 2026 against CDEC station pages, DWR/USBR/USACE
-# publications, and Wikipedia cross-checks.
+# pattern in ckan_api.py. Capacities (gross pool, acre-feet) verified
+# 2026-07-15 against CDEC's Daily Reservoir Storage Summary
+# (reportapp/javareports?name=RES) so our percent-of-capacity matches
+# CDEC's published percents; counties verified against each station's
+# CDEC staMeta page.
 #
 # County notes: for reservoirs whose water body spans a county line we use
-# the DAM's county (the convention CDEC/DWR follow). NML (dam on the
-# Tuolumne/Calaveras line) and MIL (Friant Dam, Fresno, on the
-# Fresno/Madera line) are the ambiguous ones. ISB reflects full gross pool
-# — the pre-2023 storage restriction was lifted after the USACE Isabella
-# Dam Safety Modification Project completed.
+# the county on the station's CDEC staMeta page (NML says Calaveras; MIL —
+# Friant Dam, on the Fresno/Madera line — says Fresno). ISB reflects full
+# gross pool — the pre-2023 storage restriction was lifted after the USACE
+# Isabella Dam Safety Modification Project completed. ORO is the post-2017
+# spillway-rebuild figure CDEC uses, not the 3,537,577 nameplate.
 MAJOR_RESERVOIRS = {
     "SHA": {"name": "Shasta Lake", "capacity_af": 4_552_000, "county": "Shasta"},
-    "ORO": {"name": "Lake Oroville", "capacity_af": 3_537_577, "county": "Butte"},
+    "ORO": {"name": "Lake Oroville", "capacity_af": 3_424_753, "county": "Butte"},
     "CLE": {"name": "Trinity Lake", "capacity_af": 2_447_650, "county": "Trinity"},
-    "NML": {"name": "New Melones Lake", "capacity_af": 2_400_000, "county": "Tuolumne"},
+    "NML": {"name": "New Melones Lake", "capacity_af": 2_400_000, "county": "Calaveras"},
     "SNL": {"name": "San Luis Reservoir", "capacity_af": 2_041_000, "county": "Merced"},
     "DNP": {"name": "Don Pedro Reservoir", "capacity_af": 2_030_000, "county": "Tuolumne"},
     "BER": {"name": "Lake Berryessa", "capacity_af": 1_602_000, "county": "Napa"},
     "EXC": {"name": "Lake McClure", "capacity_af": 1_024_600, "county": "Mariposa"},
     "PNF": {"name": "Pine Flat Reservoir", "capacity_af": 1_000_000, "county": "Fresno"},
     "FOL": {"name": "Folsom Lake", "capacity_af": 977_000, "county": "Sacramento"},
-    "BUL": {"name": "New Bullards Bar", "capacity_af": 966_103, "county": "Yuba"},
+    "BUL": {"name": "New Bullards Bar", "capacity_af": 966_000, "county": "Yuba"},
     "ISB": {"name": "Lake Isabella", "capacity_af": 568_000, "county": "Kern"},
     "MIL": {"name": "Millerton Lake", "capacity_af": 520_500, "county": "Fresno"},
     "CAS": {"name": "Castaic Lake", "capacity_af": 325_000, "county": "Los Angeles"},
-    "PYM": {"name": "Pyramid Lake", "capacity_af": 171_200, "county": "Los Angeles"},
+    "PYM": {"name": "Pyramid Lake", "capacity_af": 180_000, "county": "Los Angeles"},
 }
 
 
