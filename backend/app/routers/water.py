@@ -5,7 +5,6 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -25,6 +24,7 @@ from app.schemas.drought import (
     DroughtWeekPoint,
 )
 from app.schemas.snow import RegionSnowpack, SnowpackOut
+from app.rate_limit import rate_limit_key
 from app.schemas.water import (
     ReservoirConditionOut,
     ReservoirSeriesOut,
@@ -33,7 +33,7 @@ from app.schemas.water import (
 
 router = APIRouter(tags=["water"])
 
-_limiter = Limiter(key_func=get_remote_address)
+_limiter = Limiter(key_func=rate_limit_key)
 
 _ONE_HOUR = "public, max-age=3600"
 
