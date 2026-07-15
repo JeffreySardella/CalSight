@@ -5,6 +5,7 @@ const tabs = [
   { to: "/", icon: "map", label: "Map" },
   { to: "/stats", icon: "insights", label: "Stats" },
   { to: "/ask", icon: "auto_awesome", label: "Ask AI" },
+  { to: "/water", icon: "water_drop", label: "Water" },
   { to: "/about", icon: "info", label: "About" },
 ] as const;
 

@@ -1,10 +1,26 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import AiInsightCard from "./AiInsightCard";
 
+function Providers({ children, initialEntries }: { children: React.ReactNode; initialEntries?: string[] }) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
 beforeAll(() => {
+  // CountyDroughtRow fetches the drought snapshot; 404 = row hidden,
+  // which is the right backdrop for these crash-card tests.
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response("not found", { status: 404 }),
+  );
+
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
@@ -45,28 +61,28 @@ async function expandCard() {
 describe("AiInsightCard", () => {
   it("renders county name in collapsed bar", () => {
     render(
-      <MemoryRouter><AiInsightCard
+      <Providers><AiInsightCard
         onClose={vi.fn()}
         countyName="Los Angeles"
         data={POINT_A}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      /></MemoryRouter>,
+      /></Providers>,
     );
     expect(screen.getByText("Los Angeles County")).toBeInTheDocument();
   });
 
   it("shows stats when expanded", async () => {
     render(
-      <MemoryRouter><AiInsightCard
+      <Providers><AiInsightCard
         onClose={vi.fn()}
         countyName="Los Angeles"
         data={POINT_A}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      /></MemoryRouter>,
+      /></Providers>,
     );
     await expandCard();
     expect(screen.getByText("48.3K")).toBeInTheDocument();
@@ -77,14 +93,14 @@ describe("AiInsightCard", () => {
   it("calls onClose when close button is clicked", async () => {
     const onClose = vi.fn();
     render(
-      <MemoryRouter><AiInsightCard
+      <Providers><AiInsightCard
         onClose={onClose}
         countyName="Fresno"
         data={POINT_A}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      /></MemoryRouter>,
+      /></Providers>,
     );
     await userEvent.click(screen.getByText("close").closest("button")!);
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -92,14 +108,14 @@ describe("AiInsightCard", () => {
 
   it("shows Compare button when expanded", async () => {
     render(
-      <MemoryRouter><AiInsightCard
+      <Providers><AiInsightCard
         onClose={vi.fn()}
         countyName="Fresno"
         data={POINT_A}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      /></MemoryRouter>,
+      /></Providers>,
     );
     await expandCard();
     expect(screen.getByRole("button", { name: /compare/i })).toBeInTheDocument();
@@ -107,7 +123,7 @@ describe("AiInsightCard", () => {
 
   it("shows compare layout with both counties", () => {
     render(
-      <MemoryRouter><AiInsightCard
+      <Providers><AiInsightCard
         onClose={vi.fn()}
         countyName="Los Angeles"
         data={POINT_A}
@@ -116,7 +132,7 @@ describe("AiInsightCard", () => {
         onCompare={vi.fn()}
         compareCountyName="Orange"
         compareData={POINT_B}
-      /></MemoryRouter>,
+      /></Providers>,
     );
     expect(screen.getByText("Los Angeles vs Orange")).toBeInTheDocument();
   });
@@ -124,14 +140,14 @@ describe("AiInsightCard", () => {
   it("shows N/A for measure value when hasEnoughData is false", async () => {
     const noData: ChoroplethPoint = { value: null, rawCount: 3, totalKilled: 0, totalInjured: 1, hasEnoughData: false };
     render(
-      <MemoryRouter><AiInsightCard
+      <Providers><AiInsightCard
         onClose={vi.fn()}
         countyName="Alpine"
         data={noData}
         measureLabel="Per 100k"
         compareMode={false}
         onCompare={vi.fn()}
-      /></MemoryRouter>,
+      /></Providers>,
     );
     await expandCard();
     expect(screen.getByText("N/A")).toBeInTheDocument();
@@ -139,7 +155,7 @@ describe("AiInsightCard", () => {
 
   it("View Stats link drills into the county and carries active filters", async () => {
     render(
-      <MemoryRouter initialEntries={["/?severity=fatal&start=2020-01&alcohol=true"]}>
+      <Providers initialEntries={["/?severity=fatal&start=2020-01&alcohol=true"]}>
         <AiInsightCard
           onClose={vi.fn()}
           countyName="Los Angeles"
@@ -148,7 +164,7 @@ describe("AiInsightCard", () => {
           compareMode={false}
           onCompare={vi.fn()}
         />
-      </MemoryRouter>,
+      </Providers>,
     );
     await expandCard();
     const link = screen.getByRole("link", { name: /view stats/i });
@@ -166,7 +182,7 @@ describe("AiInsightCard", () => {
 
   it("hides View Stats link in compare mode", () => {
     render(
-      <MemoryRouter><AiInsightCard
+      <Providers><AiInsightCard
         onClose={vi.fn()}
         countyName="Los Angeles"
         data={POINT_A}
@@ -175,7 +191,7 @@ describe("AiInsightCard", () => {
         onCompare={vi.fn()}
         compareCountyName="Orange"
         compareData={POINT_B}
-      /></MemoryRouter>,
+      /></Providers>,
     );
     expect(screen.queryByRole("link", { name: /view stats/i })).not.toBeInTheDocument();
   });

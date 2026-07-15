@@ -215,6 +215,41 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
     ))
     registry.register(Job(
+        name="reservoirs",
+        module="etl.load_reservoirs",
+        schedule="daily",
+        table_name="reservoir_daily",
+        # Upserts never delete; a shrink means CDEC data vanished — fail loudly.
+        max_drop_pct=1,
+        # CDEC has no freshness probe endpoint; the trailing-window fetch is
+        # cheap enough to just run daily.
+        source_type="none",
+    ))
+    registry.register(Job(
+        name="snowpack",
+        module="etl.load_snowpack",
+        # SWE is daily; the trailing-window pull is cheap. Like reservoirs,
+        # CDEC has no freshness probe, so just run it on the daily cadence.
+        schedule="daily",
+        table_name="snow_daily",
+        # Upserts never delete; a shrink means CDEC data vanished — fail loudly.
+        max_drop_pct=1,
+        source_type="none",
+    ))
+    registry.register(Job(
+        name="drought",
+        module="etl.load_drought",
+        # The pipeline runs every non-static job on its daily cadence
+        # (schedule strings other than "static" are informational). USDM
+        # only publishes weekly, but the trailing 8-week pull is one tiny
+        # request, so a daily re-pull is cheap and absorbs their revisions.
+        schedule="daily",
+        table_name="drought_county_weekly",
+        # Upserts never delete; a shrink means USDM data vanished — fail loudly.
+        max_drop_pct=1,
+        source_type="none",
+    ))
+    registry.register(Job(
         name="insights",
         module="etl.generate_insights",
         depends_on=["matviews"],
