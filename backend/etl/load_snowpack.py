@@ -87,7 +87,10 @@ def upsert_observations(db, observations: list[Observation]) -> int:
             {
                 "station_id": obs.station_id,
                 "date": obs.date,
-                "swe_in": obs.value,
+                # Snow pillows drift slightly negative when bare (live CDEC
+                # returns e.g. -0.1 in July); negative SWE is physically
+                # meaningless, so clamp to zero rather than store drift.
+                "swe_in": max(obs.value, 0.0),
             }
         )
     if skipped:

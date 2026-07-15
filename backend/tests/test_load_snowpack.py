@@ -54,6 +54,15 @@ class TestUpsertObservations:
         assert 20.0 in values.values()
         assert 10.0 not in values.values()
 
+    def test_clamps_negative_swe_to_zero(self):
+        # Bare snow pillows drift slightly negative (live CDEC returns e.g.
+        # -0.1 in July); the loader stores 0.0, never negative snow.
+        db = MagicMock()
+        assert upsert_observations(db, [_obs(day=1, value=-2.4)]) == 1
+        values = db.execute.call_args.args[0].compile().params
+        assert 0.0 in values.values()
+        assert -2.4 not in values.values()
+
     def test_no_execute_for_empty_input(self):
         db = MagicMock()
         assert upsert_observations(db, []) == 0
