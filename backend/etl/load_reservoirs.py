@@ -103,9 +103,16 @@ def upsert_observations(db, observations: list[Observation]) -> int:
     known = set(MAJOR_RESERVOIRS)
     rows = []
     skipped = 0
+    negative = 0
     for obs in observations:
         if obs.station_id not in known:
             skipped += 1
+            continue
+        # Negative storage is telemetry garbage, not a small value like
+        # snow-pillow drift — drop it rather than store or clamp it, so it
+        # can't poison the day-of-year averages.
+        if obs.value < 0:
+            negative += 1
             continue
         rows.append(
             {
@@ -118,6 +125,8 @@ def upsert_observations(db, observations: list[Observation]) -> int:
         logger.warning(
             "Dropped %d observations for stations not in MAJOR_RESERVOIRS", skipped
         )
+    if negative:
+        logger.warning("Dropped %d negative storage observations", negative)
 
     # CDEC can return an original plus a revised reading for one station-day;
     # duplicate conflict keys in a single statement are a Postgres error.

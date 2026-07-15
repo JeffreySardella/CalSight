@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import { useCountyGeoJson } from "./useCountyGeoJson";
 
 export interface DroughtPcts {
   none_pct: number;
@@ -53,22 +55,20 @@ export function useDroughtSeries(weeks = 104, enabled = true) {
   });
 }
 
-interface CountyRef {
-  code: number;
-  name: string;
-}
-
+/** code → name, derived from the county topojson the drought map on the
+ * same page already downloads — no extra API round-trip, and one source
+ * of truth for names between the map tooltips and the hardest-hit list. */
 export function useCountyNames() {
-  return useQuery<Map<number, string>>({
-    queryKey: ["counties", "names"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/counties?include_geojson=false`);
-      if (!res.ok) throw new Error(`counties ${res.status}`);
-      const rows: CountyRef[] = await res.json();
-      return new Map(rows.map((r) => [r.code, r.name]));
-    },
-    staleTime: Infinity,
-  });
+  const { data: geojson } = useCountyGeoJson();
+  return useMemo(() => {
+    if (!geojson) return undefined;
+    return new Map<number, string>(
+      geojson.features.map((f) => [
+        Number(f.properties?.county_code),
+        String(f.properties?.name ?? ""),
+      ]),
+    );
+  }, [geojson]);
 }
 
 /** Percent of area in drought proper: D1 and worse (D0 is "abnormally

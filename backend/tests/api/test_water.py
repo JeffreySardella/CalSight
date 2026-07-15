@@ -85,14 +85,38 @@ def test_reservoirs_empty_db_returns_empty_list(client):
     assert client.get("/api/water/reservoirs").json() == []
 
 
+def test_reservoirs_stale_station_omitted(client, water_data, db_session):
+    # A station whose feed died must not contribute a months-old reading to
+    # "current" conditions (mirrors the snowpack recency cutoff).
+    db_session.add(
+        Reservoir(station_id="DED", name="Dead Feed Lake", capacity_af=100_000, county_code=1)
+    )
+    db_session.flush()
+    db_session.add(
+        ReservoirDaily(station_id="DED", date=date(2026, 1, 1), storage_af=50_000)
+    )
+    db_session.commit()
+    ids = [r["station_id"] for r in client.get("/api/water/reservoirs").json()]
+    assert "DED" not in ids
+    assert {"FOL", "CAS"} <= set(ids)
+
+
 # --- /water/reservoirs/{station_id}/series ---
 
 def test_series_returns_ordered_points(client, water_data):
-    body = client.get("/api/water/reservoirs/FOL/series").json()
+    body = client.get("/api/water/reservoirs/FOL/series?start=2024-01-01").json()
     assert body["name"] == "Folsom Lake"
     dates = [p["date"] for p in body["points"]]
     assert dates == sorted(dates)
     assert len(dates) == 4
+
+
+def test_series_defaults_to_trailing_year(client, water_data):
+    # With no explicit start, the window is the year before `end` (or today)
+    # — a backfilled station must not ship its whole multi-decade history.
+    body = client.get("/api/water/reservoirs/FOL/series?end=2026-12-31").json()
+    dates = [p["date"] for p in body["points"]]
+    assert dates == ["2026-06-30", "2026-07-01"]
 
 
 def test_series_window_filters(client, water_data):

@@ -67,21 +67,21 @@ SNOW_REGION_CENTRAL = "Central Sierra"
 SNOW_REGION_SOUTH = "Southern Sierra"
 
 MAJOR_SNOW_STATIONS = {
-    "GRZ": {"name": "Grizzly Ridge", "elevation_ft": 6900, "region": SNOW_REGION_NORTH},
+    "GRZ": {"name": "Grizzly Ridge", "elevation_ft": 6760, "region": SNOW_REGION_NORTH},
     "PLP": {"name": "Pilot Peak", "elevation_ft": 6800, "region": SNOW_REGION_NORTH},
     "IDC": {"name": "Independence Camp", "elevation_ft": 7000, "region": SNOW_REGION_NORTH},
-    "HIG": {"name": "Highland Lakes", "elevation_ft": 6030, "region": SNOW_REGION_NORTH},
+    "HIG": {"name": "Highland Lakes", "elevation_ft": 5830, "region": SNOW_REGION_NORTH},
     "MED": {"name": "Medicine Lake", "elevation_ft": 6700, "region": SNOW_REGION_NORTH},
     "CSL": {"name": "Central Sierra Snow Lab", "elevation_ft": 6900, "region": SNOW_REGION_CENTRAL},
-    "BLK": {"name": "Blue Lakes", "elevation_ft": 8000, "region": SNOW_REGION_CENTRAL},
+    "BLK": {"name": "Blue Lakes", "elevation_ft": 7990, "region": SNOW_REGION_CENTRAL},
     "GNL": {"name": "Gianelli Meadow", "elevation_ft": 8400, "region": SNOW_REGION_CENTRAL},
-    "DAN": {"name": "Dana Meadows", "elevation_ft": 9800, "region": SNOW_REGION_CENTRAL},
+    "DAN": {"name": "Dana Meadows", "elevation_ft": 9760, "region": SNOW_REGION_CENTRAL},
     "GIN": {"name": "Gin Flat", "elevation_ft": 7050, "region": SNOW_REGION_CENTRAL},
     "VLC": {"name": "Volcanic Knob", "elevation_ft": 10050, "region": SNOW_REGION_SOUTH},
     "BSH": {"name": "Bishop Pass", "elevation_ft": 11200, "region": SNOW_REGION_SOUTH},
     "CRL": {"name": "Charlotte Lake", "elevation_ft": 10400, "region": SNOW_REGION_SOUTH},
     "UTY": {"name": "Upper Tyndall Creek", "elevation_ft": 11500, "region": SNOW_REGION_SOUTH},
-    "FRW": {"name": "Farewell Gap", "elevation_ft": 9500, "region": SNOW_REGION_SOUTH},
+    "FRW": {"name": "Farewell Gap", "elevation_ft": 9275, "region": SNOW_REGION_SOUTH},
 }
 
 # Major reservoirs tracked in v1, keyed by CDEC station id. Static map by

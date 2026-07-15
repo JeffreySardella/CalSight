@@ -83,12 +83,25 @@ describe("DroughtMap", () => {
     expect(titles).toContain("Alameda — no data");
   });
 
+  it("fills no-data counties with the hatch, not the None color", async () => {
+    renderMap([COUNTIES[0]]); // no Alameda row
+    const svg = await screen.findByRole("img", { name: /map of california/i });
+    const noDataPath = [...svg.querySelectorAll("path")].find((p) =>
+      p.querySelector("title")?.textContent?.includes("no data"),
+    )!;
+    expect(noDataPath.getAttribute("fill")).toBe("url(#drought-no-data)");
+    const legend = await screen.findByRole("list", { name: /map legend/i });
+    expect(legend).toHaveTextContent("No data");
+  });
+
   it("shows a legend with every bin labeled", async () => {
     renderMap();
     const legend = await screen.findByRole("list", { name: /map legend/i });
     for (const label of ["None", "<20%", "20–40%", "40–60%", "60–80%", "80%+"]) {
       expect(legend).toHaveTextContent(label);
     }
+    // Every county has data here — no misleading "No data" legend entry.
+    expect(legend).not.toHaveTextContent("No data");
   });
 });
 

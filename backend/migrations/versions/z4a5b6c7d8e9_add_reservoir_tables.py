@@ -27,8 +27,6 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=100), nullable=False),
         sa.Column("capacity_af", sa.Integer(), nullable=False),
         sa.Column("county_code", sa.SmallInteger(), nullable=True),
-        sa.Column("latitude", sa.Float(), nullable=True),
-        sa.Column("longitude", sa.Float(), nullable=True),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=True),
         sa.ForeignKeyConstraint(["county_code"], ["counties.code"]),
         sa.PrimaryKeyConstraint("station_id"),

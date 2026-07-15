@@ -12,6 +12,13 @@ const BINS = [
 ] as const;
 const BIN_UNDER_20 = { color: "rgb(var(--drought-d0))", label: "<20%" };
 const NO_DROUGHT_FILL = "rgb(var(--surface-container-highest))";
+// Counties absent from the snapshot must not wear the "None" color — a
+// missing county-week would otherwise read as verified drought-free. The
+// hatch keeps "no data" visually distinct from every data state.
+const NO_DATA_PATTERN_ID = "drought-no-data";
+const NO_DATA_FILL = `url(#${NO_DATA_PATTERN_ID})`;
+const NO_DATA_STRIPE = "rgb(var(--on-surface-variant) / 0.35)";
+const NO_DATA_LEGEND_BG = `repeating-linear-gradient(45deg, rgb(var(--surface-container-highest)) 0 2px, rgb(var(--on-surface-variant) / 0.35) 2px 3px)`;
 
 export function fillForDroughtShare(pct: number): string {
   if (pct < 0.5) return NO_DROUGHT_FILL;
@@ -111,7 +118,8 @@ export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
       return {
         key: code || name,
         d: featurePath(f, project),
-        fill: drought === null ? NO_DROUGHT_FILL : fillForDroughtShare(drought),
+        noData: drought === null,
+        fill: drought === null ? NO_DATA_FILL : fillForDroughtShare(drought),
         title:
           drought === null
             ? `${name} — no data`
@@ -123,6 +131,7 @@ export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
   }, [geojson, byCode]);
 
   if (!paths) return null;
+  const hasNoData = paths.some((p) => p.noData);
 
   return (
     <figure className="flex flex-col items-center mt-12">
@@ -132,6 +141,18 @@ export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
         role="img"
         aria-label={`Map of California counties shaded by share of land in drought for the week of ${weekStart}. Details per county are in the hardest-hit list below.`}
       >
+        <defs>
+          <pattern
+            id={NO_DATA_PATTERN_ID}
+            width={5}
+            height={5}
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <rect width={5} height={5} fill={NO_DROUGHT_FILL} />
+            <line x1={0} y1={0} x2={0} y2={5} stroke={NO_DATA_STRIPE} strokeWidth={1.5} />
+          </pattern>
+        </defs>
         {paths.map((p) => (
           <path
             key={p.key}
@@ -153,6 +174,9 @@ export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
             { color: NO_DROUGHT_FILL, label: "None" },
             BIN_UNDER_20,
             ...BINS,
+            ...(hasNoData
+              ? [{ color: NO_DATA_LEGEND_BG, label: "No data" }]
+              : []),
           ].map((bin) => (
             <li
               key={bin.label}
@@ -161,7 +185,7 @@ export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
               <span
                 aria-hidden="true"
                 className="inline-block w-2.5 h-2.5 rounded-sm"
-                style={{ backgroundColor: bin.color }}
+                style={{ background: bin.color }}
               />
               {bin.label}
             </li>

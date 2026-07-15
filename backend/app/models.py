@@ -1006,8 +1006,6 @@ class Reservoir(Base):
     name = Column(String(100), nullable=False)
     capacity_af = Column(Integer, nullable=False)      # gross pool capacity, acre-feet
     county_code = Column(SmallInteger, ForeignKey("counties.code"))
-    latitude = Column(Float)
-    longitude = Column(Float)
     created_at = Column(DateTime, server_default=func.now())
 
 

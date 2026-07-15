@@ -26,7 +26,8 @@ export interface ReservoirSeries {
 }
 
 export function formatAcreFeet(af: number): string {
-  if (af >= 1_000_000) return `${(af / 1_000_000).toFixed(2)}M`;
+  // 999,500+ would round to "1000K" — promote to the M format instead.
+  if (af >= 999_500) return `${(af / 1_000_000).toFixed(2)}M`;
   if (af >= 1_000) return `${Math.round(af / 1_000)}K`;
   return Math.round(af).toLocaleString();
 }

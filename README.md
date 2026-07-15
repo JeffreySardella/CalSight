@@ -28,7 +28,7 @@ Also: dark mode, offline support (PWA), keyboard accessibility, high contrast mo
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 |
 | Database | PostgreSQL 17 — 11M crashes, 25M parties, 8 materialized views |
 | AI | Multi-provider fallback: Groq, OpenRouter, Cerebras, Gemini |
-| ETL | 24 jobs pulling from CKAN, Census, NOAA, BLS, CalEnviroScreen, CDEC, USDM |
+| ETL | 28 jobs pulling from CKAN, Census, NOAA, BLS, CalEnviroScreen, CDEC, USDM |
 | Infra | Cloudflare Pages + self-hosted backend on Proxmox LXC |
 
 ## Run it locally
@@ -74,7 +74,7 @@ cd frontend && npm test                     # 173 tests
 ```
 backend/
   app/          FastAPI app — routers, models, filters, LLM client
-  etl/          Data pipeline — 22 jobs across 5 data sources
+  etl/          Data pipeline — 28 jobs across 7+ data sources
   migrations/   Alembic schema migrations
   tests/        Backend test suite
 

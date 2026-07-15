@@ -25,11 +25,8 @@ const SNAPSHOT: DroughtSnapshot = {
   ],
 };
 
-const COUNTIES = [
-  { code: 1, name: "Alameda" },
-  { code: 15, name: "Kern" },
-  { code: 34, name: "Sacramento" },
-];
+// County names come from the topojson (single source shared with the map),
+// so the mock topology below carries all three counties.
 
 function mockApi(snapshot: DroughtSnapshot | null) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -52,13 +49,8 @@ function mockApi(snapshot: DroughtSnapshot | null) {
         headers: { "Content-Type": "application/json" },
       });
     }
-    if (url.includes("/api/counties")) {
-      return new Response(JSON.stringify(COUNTIES), {
-        headers: { "Content-Type": "application/json" },
-      });
-    }
     if (url.includes("ca-counties.topo.json")) {
-      // Minimal one-county topology so the choropleth renders.
+      // Minimal topology so the choropleth renders and names resolve.
       return new Response(
         JSON.stringify({
           type: "Topology",
@@ -70,6 +62,16 @@ function mockApi(snapshot: DroughtSnapshot | null) {
                   type: "Polygon",
                   arcs: [[0]],
                   properties: { name: "Kern", county_code: 15, fips: "06029" },
+                },
+                {
+                  type: "Polygon",
+                  arcs: [[0]],
+                  properties: { name: "Sacramento", county_code: 34, fips: "06067" },
+                },
+                {
+                  type: "Polygon",
+                  arcs: [[0]],
+                  properties: { name: "Alameda", county_code: 1, fips: "06001" },
                 },
               ],
             },
@@ -157,6 +159,14 @@ describe("DroughtSection", () => {
     // Give the query a beat to settle, then expect an empty render.
     await new Promise((r) => setTimeout(r, 50));
     expect(container.innerHTML).toBe("");
+  });
+
+  it("shows an error state instead of vanishing when the fetch fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response("boom", { status: 500 }),
+    );
+    renderSection();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/drought/i);
   });
 
   it("celebrates a drought-free week instead of showing 0%", async () => {

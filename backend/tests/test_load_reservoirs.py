@@ -62,6 +62,16 @@ class TestUpsertObservations:
         count = upsert_observations(db, [_obs(station="XXX"), _obs()])
         assert count == 1
 
+    def test_drops_negative_storage(self):
+        # Negative storage is telemetry garbage (unlike small snow-pillow
+        # drift) — it is dropped, not clamped, so it can't poison the
+        # day-of-year averages.
+        db = MagicMock()
+        count = upsert_observations(db, [_obs(day=1, value=-500.0), _obs(day=2)])
+        assert count == 1
+        values = db.execute.call_args.args[0].compile().params
+        assert -500.0 not in values.values()
+
     def test_no_execute_for_empty_input(self):
         db = MagicMock()
         assert upsert_observations(db, []) == 0

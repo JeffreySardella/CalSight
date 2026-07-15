@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from slowapi import Limiter
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -106,6 +106,14 @@ def latest_with_doy_average(db, model, value_col) -> dict[str, StationCondition]
     }
 
 
+# A reservoir's latest reading must be within this many days of the newest
+# reading across all reservoirs to count as "current" — same rationale as
+# _SNOW_RECENCY_DAYS: a station whose CDEC feed died must not contribute a
+# months-old value to today's cards and statewide totals. CDEC reservoirs
+# report daily, so 14 days is generous.
+_RESERVOIR_RECENCY_DAYS = 14
+
+
 @router.get("/water/reservoirs", response_model=list[ReservoirConditionOut])
 @_limiter.limit("1000/minute;20000/hour")
 def list_reservoir_conditions(
@@ -113,12 +121,19 @@ def list_reservoir_conditions(
     response: Response,
     db: Session = Depends(get_db),
 ):
-    """Every tracked reservoir with its latest storage reading,
+    """Every tracked reservoir with a current storage reading, its
     percent of capacity, and percent of the historical average for
-    that day of year."""
+    that day of year. Stations whose feed has gone stale are omitted
+    rather than shown with an old reading."""
     response.headers["Cache-Control"] = _ONE_HOUR
 
     conditions = latest_with_doy_average(db, ReservoirDaily, ReservoirDaily.storage_af)
+    if conditions:
+        newest = max(c.latest_date for c in conditions.values())
+        cutoff = newest - timedelta(days=_RESERVOIR_RECENCY_DAYS)
+        conditions = {
+            sid: c for sid, c in conditions.items() if c.latest_date >= cutoff
+        }
     reservoirs = (
         db.query(Reservoir)
         .filter(Reservoir.station_id.in_(conditions.keys()))
@@ -161,12 +176,20 @@ def reservoir_series(
     end: date | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    """Daily storage time series for one reservoir, optionally windowed."""
+    """Daily storage time series for one reservoir, optionally windowed.
+
+    With no ``start``, the window defaults to the year before ``end`` (or
+    today) — after a multi-decade backfill the full history is ~10k rows
+    per station, and no UI consumer asks for more than a year at once.
+    """
     response.headers["Cache-Control"] = _ONE_HOUR
 
     reservoir = db.get(Reservoir, station_id.upper())
     if reservoir is None:
         raise HTTPException(status_code=404, detail="Unknown reservoir")
+
+    if start is None:
+        start = (end or date.today()) - timedelta(days=365)
 
     q = db.query(ReservoirDaily.date, ReservoirDaily.storage_af).filter(
         ReservoirDaily.station_id == reservoir.station_id
@@ -195,9 +218,16 @@ def _weighted_pct_columns():
 
     The single definition both drought endpoints aggregate with, so the
     snapshot headline and the series' latest point can never disagree.
-    Counties missing a land area fall back to weight 1 so they still count.
+    Counties missing a land area fall back to the average county land
+    area — falling back to 1.0 would effectively zero-weight them against
+    counties measured in thousands of square miles.
     """
-    weight = func.coalesce(County.land_area_sq_miles, 1.0)
+    avg_area = (
+        select(func.avg(County.land_area_sq_miles))
+        .where(County.land_area_sq_miles.isnot(None))
+        .scalar_subquery()
+    )
+    weight = func.coalesce(County.land_area_sq_miles, avg_area, 1.0)
     return [
         (
             func.sum(getattr(DroughtCountyWeekly, c) * weight) / func.sum(weight)

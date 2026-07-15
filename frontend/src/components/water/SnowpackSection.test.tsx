@@ -80,6 +80,14 @@ describe("SnowpackSection", () => {
     await waitFor(() => expect(container.innerHTML).toBe(""));
   });
 
+  it("shows an error state instead of vanishing when the fetch fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Response("boom", { status: 500 }),
+    );
+    renderSection();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/snowpack/i);
+  });
+
   it("falls back to a neutral heading when statewide pct is null (off-season)", async () => {
     mockApi({ ...SNOWPACK, statewide_pct_of_average: null });
     renderSection();

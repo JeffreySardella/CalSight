@@ -51,7 +51,20 @@ function RegionRow({ region }: { region: RegionSnowpack }) {
  * until CDEC snow data is loaded.
  */
 export default function SnowpackSection() {
-  const { data } = useSnowpack();
+  const { data, isError } = useSnowpack();
+
+  // A failed fetch is not the same as "no data loaded yet" (404 → null):
+  // the section must not silently vanish on an outage.
+  if (isError) {
+    return (
+      <section aria-label="Snowpack conditions" className="mt-20 max-w-2xl mx-auto">
+        <p role="alert" className="text-center text-error py-8">
+          Couldn&rsquo;t load snowpack conditions. Please try again shortly.
+        </p>
+      </section>
+    );
+  }
+
   if (!data) return null;
 
   const statewide = data.statewide_pct_of_average;

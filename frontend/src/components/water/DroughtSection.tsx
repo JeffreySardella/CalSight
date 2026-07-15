@@ -56,11 +56,23 @@ export function SeverityBar({ pcts, label, height = "h-2" }: SeverityBarProps) {
 }
 
 export default function DroughtSection() {
-  const { data: snapshot, isLoading } = useDroughtSnapshot();
-  const { data: countyNames } = useCountyNames();
+  const { data: snapshot, isLoading, isError } = useDroughtSnapshot();
+  const countyNames = useCountyNames();
   // Fetch the trend only once we know the section will render.
   const { data: series } = useDroughtSeries(104, !!snapshot);
   const trend = (series ?? []).map(inDroughtPct);
+
+  // A failed fetch is not the same as "no data loaded yet" (404 → null):
+  // the section must not silently vanish on an outage.
+  if (isError) {
+    return (
+      <section aria-label="Drought conditions" className="mt-20">
+        <p role="alert" className="text-center text-error py-8">
+          Couldn&rsquo;t load drought conditions. Please try again shortly.
+        </p>
+      </section>
+    );
+  }
 
   // No data yet (or still loading) — the page reads fine without this
   // section, so it simply doesn't render.
