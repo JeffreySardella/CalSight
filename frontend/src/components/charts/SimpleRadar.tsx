@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { nextChartIndex } from "./chartKeyboardNav";
 import { useTextScale } from "../../hooks/useTextScale";
 
 interface RadarItem {
@@ -24,12 +25,30 @@ export default function SimpleRadar({
 }: SimpleRadarProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [announce, setAnnounce] = useState("");
   const titleId = useId();
   const ts = useTextScale();
 
   const handleMouseMove = useCallback((e: React.MouseEvent, idx: number) => {
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
+
+  // Keyboard access: the chart itself is focusable; arrow keys walk the
+  // vertices (tooltip follows) and each is announced through the polite live
+  // region below the svg. Same convention as SimpleLineChart.
+  const pointsRef = useRef<{ x: number; y: number }[]>([]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<SVGSVGElement>) => {
+    const next = nextChartIndex(e.key, hover?.idx, data.length);
+    if (next === null) return;
+    e.preventDefault();
+    const rect = svgRef.current?.getBoundingClientRect();
+    const p = pointsRef.current[next];
+    if (!rect || !p) return;
+    setHover({ idx: next, x: rect.left + p.x, y: rect.top + p.y });
+    const d = data[next];
+    setAnnounce(`${d.label}: ${d.value.toLocaleString()}`);
+  }, [data, hover]);
 
   const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -70,10 +89,15 @@ export default function SimpleRadar({
   });
 
   const polyPoints = points.map((p) => `${p.x},${p.y}`).join(" ");
+  pointsRef.current = points;
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
       <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Radar chart. Use arrow keys to explore categories."}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { setHover(null); setAnnounce(""); }}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: rings }).map((_, ring) => {
@@ -136,6 +160,8 @@ export default function SimpleRadar({
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
+      {/* Announces the keyboard-focused category to screen readers */}
+      <div className="sr-only" role="status">{announce}</div>
     </div>
   );
 }

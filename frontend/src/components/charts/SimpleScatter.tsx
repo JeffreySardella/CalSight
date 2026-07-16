@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { nextChartIndex } from "./chartKeyboardNav";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { useTextScale } from "../../hooks/useTextScale";
@@ -40,6 +41,7 @@ export default function SimpleScatter({
 }: SimpleScatterProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [announce, setAnnounce] = useState("");
   const tokens = useDesignTokens();
   // Shared fallback: the canonical default chart palette (same as SimplePolarArea)
   const paletteColors = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : CHART_PALETTES.default;
@@ -58,6 +60,23 @@ export default function SimpleScatter({
   const handleMouseMove = useCallback((e: React.MouseEvent, idx: number) => {
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
+
+  // Keyboard access: the chart itself is focusable; arrow keys walk the data
+  // points (tooltip follows) and each point is announced through the polite
+  // live region below the svg. Same convention as SimpleLineChart.
+  const dotPosRef = useRef<{ x: number; y: number }[]>([]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<SVGSVGElement>) => {
+    const next = nextChartIndex(e.key, hover?.idx, data.length);
+    if (next === null) return;
+    e.preventDefault();
+    const rect = svgRef.current?.getBoundingClientRect();
+    const p = dotPosRef.current[next];
+    if (!rect || !p) return;
+    setHover({ idx: next, x: rect.left + p.x, y: rect.top + p.y });
+    const d = data[next];
+    setAnnounce(`${d.label}: ${xLabel} ${(d.x ?? d.value).toLocaleString()}, ${yLabel} ${(d.y ?? 0).toLocaleString()}`);
+  }, [data, hover, xLabel, yLabel]);
 
   const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -98,6 +117,11 @@ export default function SimpleScatter({
   const xTicks = 4;
   const yTicks = 4;
 
+  dotPosRef.current = points.map((p) => ({
+    x: padding.left + (p.xVal / maxX) * chartW,
+    y: padding.top + chartH - (p.yVal / maxY) * chartH,
+  }));
+
   const scatterR2 = points.length >= 3 ? linearRegressionXY(points.map(p => ({ x: p.xVal, y: p.yVal }))).r2 : null;
 
   return (
@@ -108,6 +132,10 @@ export default function SimpleScatter({
         </span>
       )}
       <svg ref={svgRef} width="100%" height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Scatter plot. Use arrow keys to explore data points."}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { setHover(null); setAnnounce(""); }}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {Array.from({ length: yTicks + 1 }).map((_, i) => {
@@ -204,6 +232,8 @@ export default function SimpleScatter({
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
+      {/* Announces the keyboard-focused data point to screen readers */}
+      <div className="sr-only" role="status">{announce}</div>
     </div>
   );
 }

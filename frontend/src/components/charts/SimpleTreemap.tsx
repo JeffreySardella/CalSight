@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useEffect, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { nextChartIndex } from "./chartKeyboardNav";
 import { useTextScale } from "../../hooks/useTextScale";
 import { textOnColor } from "./onColorText";
 
@@ -81,6 +82,7 @@ export default function SimpleTreemap({
 }: SimpleTreemapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [announce, setAnnounce] = useState("");
   const [svgWidth, setSvgWidth] = useState(300);
   const titleId = useId();
   const ts = useTextScale();
@@ -95,6 +97,23 @@ export default function SimpleTreemap({
   }, []);
 
   const rectsRef = useRef<{ x: number; y: number; w: number; h: number; idx: number }[]>([]);
+
+  // Keyboard access: the chart itself is focusable; arrow keys walk the tiles
+  // in data order (tooltip follows) and each tile is announced through the
+  // polite live region below the svg. Same convention as SimpleLineChart.
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<SVGSVGElement>) => {
+    const next = nextChartIndex(e.key, hover?.idx, data.length);
+    if (next === null) return;
+    e.preventDefault();
+    const rect = svgRef.current?.getBoundingClientRect();
+    const cell = rectsRef.current.find((r) => r.idx === next);
+    if (!rect || !cell) return;
+    setHover({ idx: next, x: rect.left + cell.x + cell.w / 2, y: rect.top + cell.y + cell.h / 2 });
+    const d = data[next];
+    const total = data.reduce((s, dd) => s + dd.value, 0);
+    const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
+    setAnnounce(`${d.label}: ${d.value.toLocaleString()} (${pct}%)`);
+  }, [data, hover]);
 
   const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -147,6 +166,10 @@ export default function SimpleTreemap({
   return (
     <div className="w-full overflow-visible relative" style={{ height: effectiveH }}>
       <svg ref={svgRef} width="100%" height={effectiveH} className="block" role="img" aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Treemap. Use arrow keys to explore tiles."}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { setHover(null); setAnnounce(""); }}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {rects.map((r) => {
@@ -189,6 +212,8 @@ export default function SimpleTreemap({
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && data[hover.idx] && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
+      {/* Announces the keyboard-focused tile to screen readers */}
+      <div className="sr-only" role="status">{announce}</div>
     </div>
   );
 }
