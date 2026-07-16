@@ -180,11 +180,15 @@ test("snowpack section shows statewide headline and per-region bars", async ({ p
   ).toBeVisible();
 });
 
-test("water page is reachable from the navigation", async ({ page }) => {
-  await page.goto(`${BASE_URL}/about`);
-  await page.getByRole("link", { name: "Water", exact: true }).click();
-  await expect(page).toHaveURL(/\/water$/);
+test("water page is soft-launched: direct link works, nav does not advertise it", async ({ page }) => {
+  // While WATER_PAGE_PUBLIC is false the page must stay reachable by URL…
+  await page.goto(`${BASE_URL}/water`);
   await expect(
     page.getByRole("heading", { name: /California.s Reservoirs/ }),
   ).toBeVisible();
+  // …but no navigation surface may link to it.
+  await page.goto(`${BASE_URL}/about`);
+  await expect(
+    page.getByRole("link", { name: "Water", exact: true }),
+  ).toHaveCount(0);
 });

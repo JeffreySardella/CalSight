@@ -232,7 +232,7 @@ export default function AboutPage() {
               <h2 className="font-headline text-xl font-bold text-on-surface">DWR / CDEC</h2>
               <p className="text-sm text-on-surface-variant mt-1">California Data Exchange Center</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                Daily reservoir storage for 15 major reservoirs and snow water equivalent from 15 Sierra snow sensors, powering the Water page. Published by the Department of Water Resources.
+                Daily reservoir storage for 15 major reservoirs and snow water equivalent from 15 Sierra snow sensors. Published by the Department of Water Resources.
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">

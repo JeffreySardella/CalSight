@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { NavLink, useSearchParams } from "react-router-dom";
+import { WATER_PAGE_PUBLIC } from "../config";
 import { buildFilterQS } from "../hooks/useFilterParams";
 import logo from "../assets/logo.webp";
 import SettingsPopover from "./SettingsPopover";
@@ -10,7 +11,7 @@ const navLinks = [
   { to: "/ask", label: "Ask AI" },
   { to: "/water", label: "Water" },
   { to: "/about", label: "About" },
-];
+].filter((l) => WATER_PAGE_PUBLIC || l.to !== "/water");
 
 export default function NavBar() {
   const [showSettings, setShowSettings] = useState(false);

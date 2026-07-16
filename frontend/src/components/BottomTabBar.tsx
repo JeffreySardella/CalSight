@@ -1,4 +1,5 @@
 import { NavLink, useSearchParams } from "react-router-dom";
+import { WATER_PAGE_PUBLIC } from "../config";
 import { buildFilterQS } from "../hooks/useFilterParams";
 
 const tabs = [
@@ -7,7 +8,7 @@ const tabs = [
   { to: "/ask", icon: "auto_awesome", label: "Ask AI" },
   { to: "/water", icon: "water_drop", label: "Water" },
   { to: "/about", icon: "info", label: "About" },
-] as const;
+].filter((t) => WATER_PAGE_PUBLIC || t.to !== "/water");
 
 export default function BottomTabBar() {
   const [searchParams] = useSearchParams();
