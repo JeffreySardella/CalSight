@@ -68,6 +68,23 @@ Confirm how backups actually run on LXC 100:
 
 ---
 
+## 7. Secrets rotation runbook
+
+Rotate on a schedule (yearly is fine for a solo project) or immediately on any suspected leak. Order matters: create the new secret first, deploy it, verify, then revoke the old one — never revoke first.
+
+| Secret | Where it lives | Rotate by |
+|--------|----------------|-----------|
+| `ETL_API_KEY` (admin/run-etl auth) | GitHub repo secret + backend `.env` on LXC 100 | Generate a new random value (`openssl rand -hex 32`), update backend `.env`, `docker compose up -d backend`, then update the GitHub secret. Old key dies with the restart. |
+| Postgres `calsight` / `calsight_api_ro` passwords | LXC 100 Postgres + backend `.env` (`DATABASE_URL`, `ETL_DATABASE_URL`) | `ALTER USER … WITH PASSWORD …` in psql, update both URLs in `.env`, restart backend + pipeline containers. Do the RO role first (read-only traffic degrades gracefully), the writer second. |
+| Groq / OpenRouter / Cerebras / Gemini API keys | backend `.env` on LXC 100 | Create the new key in the provider console, swap in `.env`, restart backend, then delete the old key in the console. The multi-provider fallback keeps Ask AI alive if one provider's swap goes wrong. |
+| R2 access keys (`R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`) | LXC 100 `.env` | Cloudflare dashboard → R2 → Manage API tokens: create the new token, swap `.env`, run one manual `python -m etl.backup` to prove offsite upload works, then revoke the old token. |
+| `CLOUDFLARED_TOKEN` (tunnel) | VM 101 compose env | Cloudflare Zero Trust → refresh the tunnel token, update env, `docker compose up -d tunnel`. Site goes unreachable if this is botched — do it while watching `curl https://calsight.org/api/health`. |
+| `SENTRY_DSN` / `VITE_SENTRY_DSN`, `ALERT_WEBHOOK_URL`, `HEARTBEAT_URL` | per the table below | Low-sensitivity (write-only endpoints): regenerate in the respective dashboard and swap. Losing one costs observability, not availability. |
+
+After any rotation, confirm: `/api/health` 200, a manual run-etl dispatch succeeds (proves `ETL_API_KEY` + DB creds), and the next nightly Discord alert arrives (proves webhook).
+
+---
+
 ## Quick env-var reference by host
 
 | Host | Vars |
