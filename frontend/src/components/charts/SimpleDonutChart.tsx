@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { nextChartIndex } from "./chartKeyboardNav";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
 
 interface Segment {
@@ -45,6 +46,7 @@ export default function SimpleDonutChart({
 }: SimpleDonutChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [announce, setAnnounce] = useState("");
   const titleId = useId();
   const { progress } = useChartAnimation(svgRef);
 
@@ -53,6 +55,29 @@ export default function SimpleDonutChart({
   }, []);
 
   const segAnglesRef = useRef<{ start: number; end: number }[]>([]);
+  const segPosRef = useRef<{ x: number; y: number }[]>([]);
+  const segPctRef = useRef<number[]>([]);
+
+  // Keyboard access: the chart itself is focusable; arrow keys walk the
+  // segments (tooltip follows), each announced through the polite live region
+  // below the svg; Enter/Space activates the same handler as click. Same
+  // convention as SimpleLineChart / SimpleBarChart.
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<SVGSVGElement>) => {
+    if ((e.key === "Enter" || e.key === " ") && hover !== null && data[hover.idx] && onSegmentClick) {
+      e.preventDefault();
+      onSegmentClick(data[hover.idx], hover.idx);
+      return;
+    }
+    const next = nextChartIndex(e.key, hover?.idx, data.length);
+    if (next === null) return;
+    e.preventDefault();
+    const rect = svgRef.current?.getBoundingClientRect();
+    const p = segPosRef.current[next];
+    if (!rect || !p) return;
+    setHover({ idx: next, x: rect.left + p.x, y: rect.top + p.y });
+    const d = data[next];
+    setAnnounce(`${d.label}: ${d.value.toLocaleString()} (${segPctRef.current[next] ?? 0}%)`);
+  }, [data, hover, onSegmentClick]);
 
   const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -126,10 +151,19 @@ export default function SimpleDonutChart({
   });
 
   const withPct = data.map((d) => ({ ...d, pct: Math.round((d.value / total) * 100) }));
+  // Mid-arc anchor for the keyboard-focus tooltip, at the ring's midline.
+  segPosRef.current = segments.map((seg) =>
+    polarToCartesian(cx, cy, (effectiveInner + effectiveOuter) / 2, seg.midAngle),
+  );
+  segPctRef.current = segments.map((seg) => seg.pct);
 
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
       <svg ref={svgRef} width={vw} height={height} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Donut chart. Use arrow keys to explore segments."}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { setHover(null); setAnnounce(""); }}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {segments.map((seg, i) => {
@@ -165,6 +199,8 @@ export default function SimpleDonutChart({
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && withPct[hover.idx] != null && renderTooltip?.(withPct[hover.idx], hover.idx)}
       </ChartTooltip>
+      {/* Announces the keyboard-focused segment to screen readers */}
+      <div className="sr-only" role="status">{announce}</div>
     </div>
   );
 }

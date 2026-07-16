@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { nextChartIndex } from "./chartKeyboardNav";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
 import { useTextScale } from "../../hooks/useTextScale";
 
@@ -54,6 +55,7 @@ export default function DualAxisLineChart({
 }: DualAxisLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [announce, setAnnounce] = useState("");
   const [svgWidth, setSvgWidth] = useState(400);
   const titleId = useId();
   const { progress } = useChartAnimation(svgRef);
@@ -73,7 +75,23 @@ export default function DualAxisLineChart({
 
   // Touch scrub: snap to the nearest data point on the x axis, mirroring
   // SimpleLineChart's touch handling.
-  const pointsRef = useRef<{ x: number }[]>([]);
+  const pointsRef = useRef<{ x: number; y: number }[]>([]);
+
+  // Keyboard access: the chart itself is focusable; arrow keys walk the data
+  // points (crosshair + tooltip follow) and each point announces both series
+  // through the polite live region below the svg. Same convention as
+  // SimpleLineChart.
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<SVGSVGElement>) => {
+    const next = nextChartIndex(e.key, hover?.idx, data.length);
+    if (next === null) return;
+    e.preventDefault();
+    const rect = svgRef.current?.getBoundingClientRect();
+    const p = pointsRef.current[next];
+    if (!rect || !p) return;
+    setHover({ idx: next, x: rect.left + p.x, y: rect.top + p.y });
+    const d = data[next];
+    setAnnounce(`${d.label}: ${primaryLabel} ${d.primary.toLocaleString()}, ${secondaryLabel} ${d.secondary.toLocaleString()}`);
+  }, [data, hover, primaryLabel, secondaryLabel]);
 
   const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -150,6 +168,10 @@ export default function DualAxisLineChart({
         className="block"
         role="img"
         aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Dual-axis line chart. Use arrow keys to explore data points."}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { setHover(null); setAnnounce(""); }}
         onTouchMove={handleTouchScrub}
         onTouchEnd={() => setHover(null)}
       >
@@ -368,6 +390,8 @@ export default function DualAxisLineChart({
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
+      {/* Announces the keyboard-focused data point to screen readers */}
+      <div className="sr-only" role="status">{announce}</div>
     </div>
   );
 }

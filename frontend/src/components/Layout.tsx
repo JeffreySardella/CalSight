@@ -12,7 +12,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/stats": "Statistics Dashboard — CalSight",
   "/ask": "Ask AI — CalSight",
   "/about": "About — CalSight",
+  "/water": "Water — CalSight",
   "/privacy": "Privacy Policy — CalSight",
+  "/terms": "Terms of Service — CalSight",
   "/admin/etl": "ETL Admin — CalSight",
 };
 

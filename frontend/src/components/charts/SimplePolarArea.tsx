@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { nextChartIndex } from "./chartKeyboardNav";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { useTextScale } from "../../hooks/useTextScale";
 import { CHART_PALETTES, paletteColor } from "../../lib/theme/palettes";
@@ -21,6 +22,7 @@ interface SimplePolarAreaProps {
 export default function SimplePolarArea({ data, height = 220, renderTooltip, title }: SimplePolarAreaProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [announce, setAnnounce] = useState("");
   const titleId = useId();
   const tokens = useDesignTokens();
   const palette = tokens.chart.categorical.length > 0 ? tokens.chart.categorical : CHART_PALETTES.default;
@@ -29,6 +31,23 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGPathElement>, idx: number) => {
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
+
+  // Keyboard access: the chart itself is focusable; arrow keys walk the
+  // slices (tooltip follows) and each slice is announced through the polite
+  // live region below the svg. Same convention as SimpleLineChart.
+  const slicePosRef = useRef<{ x: number; y: number }[]>([]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<SVGSVGElement>) => {
+    const next = nextChartIndex(e.key, hover?.idx, data.length);
+    if (next === null) return;
+    e.preventDefault();
+    const rect = svgRef.current?.getBoundingClientRect();
+    const p = slicePosRef.current[next];
+    if (!rect || !p) return;
+    setHover({ idx: next, x: rect.left + p.x, y: rect.top + p.y });
+    const d = data[next];
+    setAnnounce(`${d.label}: ${d.value.toLocaleString()}`);
+  }, [data, hover]);
 
   // Touch scrub: map the touch point's angle around the center to a slice,
   // mirroring the angular scrub in SimpleRadar.
@@ -57,9 +76,21 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
   const maxR = cx - 12;
   const sliceAngle = (2 * Math.PI) / n;
 
+  // Mid-slice anchor for the keyboard-focus tooltip.
+  slicePosRef.current = data.map((d, i) => {
+    const r = maxVal > 0 ? (d.value / maxVal) * maxR : 0;
+    const midAngle = i * sliceAngle - Math.PI / 2 + sliceAngle / 2;
+    const anchorR = Math.max(r * 0.7, maxR * 0.3);
+    return { x: cx + anchorR * Math.cos(midAngle), y: cy + anchorR * Math.sin(midAngle) };
+  });
+
   return (
     <div className="w-full overflow-visible relative flex justify-center" style={{ height }}>
       <svg ref={svgRef} width={height} height={height} className="block" role="img" aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Polar area chart. Use arrow keys to explore slices."}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { setHover(null); setAnnounce(""); }}
         onTouchStart={handleTouchScrub} onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {data.map((d, i) => {
@@ -117,6 +148,8 @@ export default function SimplePolarArea({ data, height = 220, renderTooltip, tit
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
+      {/* Announces the keyboard-focused slice to screen readers */}
+      <div className="sr-only" role="status">{announce}</div>
     </div>
   );
 }

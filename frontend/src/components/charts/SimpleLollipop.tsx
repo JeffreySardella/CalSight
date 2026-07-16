@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
+import { nextChartIndex } from "./chartKeyboardNav";
 import { useTextScale } from "../../hooks/useTextScale";
 
 interface LollipopItem {
@@ -37,6 +38,7 @@ export default function SimpleLollipop({
 }: SimpleLollipopProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ idx: number; x: number; y: number } | null>(null);
+  const [announce, setAnnounce] = useState("");
   const [svgWidth, setSvgWidth] = useState(300);
   const titleId = useId();
   const ts = useTextScale();
@@ -52,6 +54,29 @@ export default function SimpleLollipop({
   const handleMouseMove = useCallback((e: React.MouseEvent, idx: number) => {
     setHover({ idx, x: e.clientX, y: e.clientY });
   }, []);
+
+  // Keyboard access: the chart itself is focusable; arrow keys walk the rows
+  // (tooltip follows), each announced through the polite live region below
+  // the svg; Enter/Space activates the same handler as click. Same convention
+  // as SimpleLineChart / SimpleBarChart.
+  const dotPosRef = useRef<{ x: number; y: number }[]>([]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<SVGSVGElement>) => {
+    if ((e.key === "Enter" || e.key === " ") && hover !== null && data[hover.idx] && onItemClick) {
+      e.preventDefault();
+      onItemClick(data[hover.idx], hover.idx);
+      return;
+    }
+    const next = nextChartIndex(e.key, hover?.idx, data.length);
+    if (next === null) return;
+    e.preventDefault();
+    const rect = svgRef.current?.getBoundingClientRect();
+    const p = dotPosRef.current[next];
+    if (!rect || !p) return;
+    setHover({ idx: next, x: rect.left + p.x, y: rect.top + p.y });
+    const d = data[next];
+    setAnnounce(`${d.label}: ${d.value.toLocaleString()}`);
+  }, [data, hover, onItemClick]);
 
   const handleTouchScrub = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -72,9 +97,18 @@ export default function SimpleLollipop({
   const rowH = Math.min(28, (height - 8) / data.length);
   const svgH = Math.max(height, data.length * rowH + 8);
 
+  dotPosRef.current = data.map((d, i) => ({
+    x: labelW + (maxVal > 0 ? (d.value / maxVal) * barArea : 0),
+    y: i * rowH + rowH / 2 + 4,
+  }));
+
   return (
     <div className="w-full overflow-visible relative" style={{ height: svgH }}>
       <svg ref={svgRef} width="100%" height={svgH} className="block overflow-visible" role="img" aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Lollipop chart. Use arrow keys to explore rows."}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { setHover(null); setAnnounce(""); }}
         onTouchMove={handleTouchScrub} onTouchEnd={() => setHover(null)}>
         {title && <title id={titleId}>{title}</title>}
         {data.map((d, i) => {
@@ -151,6 +185,8 @@ export default function SimpleLollipop({
       <ChartTooltip x={hover?.x ?? 0} y={hover?.y ?? 0} visible={hover !== null} containerRef={svgRef}>
         {hover !== null && data[hover.idx] != null && renderTooltip?.(data[hover.idx], hover.idx)}
       </ChartTooltip>
+      {/* Announces the keyboard-focused row to screen readers */}
+      <div className="sr-only" role="status">{announce}</div>
     </div>
   );
 }
