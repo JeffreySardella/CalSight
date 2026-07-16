@@ -65,7 +65,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-3 gap-4 md:gap-6">
           {[
             { value: "11.1M", label: "Police-reported crashes" },
-            { value: "17", label: "Data sources" },
+            { value: "19", label: "Data sources" },
             { value: "25.3M", label: "Total rows in database" },
           ].map(({ value, label }) => (
             <div key={label} className="bg-surface-container-lowest rounded-lg ambient-shadow flex flex-col items-center justify-center text-center gap-4 py-6 md:py-8 px-6">
@@ -224,6 +224,34 @@ export default function AboutPage() {
             <div className="flex items-center justify-between mt-6">
               <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">OSM data © contributors</p>
               <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">OSM License</a>
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
+            <div>
+              <h2 className="font-headline text-xl font-bold text-on-surface">DWR / CDEC</h2>
+              <p className="text-sm text-on-surface-variant mt-1">California Data Exchange Center</p>
+              <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
+                Daily reservoir storage for 15 major reservoirs and snow water equivalent from 15 Sierra snow sensors, powering the Water page. Published by the Department of Water Resources.
+              </p>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Daily sensor readings</p>
+              <a href="https://cdec.water.ca.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">cdec.water.ca.gov</a>
+            </div>
+          </div>
+
+          <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
+            <div>
+              <h2 className="font-headline text-xl font-bold text-on-surface">US Drought Monitor</h2>
+              <p className="text-sm text-on-surface-variant mt-1">Weekly county drought severity</p>
+              <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
+                Percent of each county's land area in severity classes D0–D4, updated weekly. Produced by the National Drought Mitigation Center, USDA, and NOAA; map courtesy of NDMC.
+              </p>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">58 counties weekly</p>
+              <a href="https://droughtmonitor.unl.edu/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">droughtmonitor.unl.edu</a>
             </div>
           </div>
         </div>
