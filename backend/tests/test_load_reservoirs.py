@@ -126,6 +126,17 @@ class TestUpsertReservoirs:
 
         assert count == len(MAJOR_RESERVOIRS)
 
+    def test_carries_station_coordinates(self):
+        db = MagicMock()
+        db.query.return_value = [("Shasta", 45)]
+
+        upsert_reservoirs(db)
+
+        values = db.execute.call_args.args[0].compile().params
+        # SHA's staMeta coordinates travel with the upsert row.
+        assert 40.718 in values.values()
+        assert -122.420 in values.values()
+
 
 class TestMetadataIntegrity:
     def test_all_counties_are_real_california_counties(self):
@@ -136,3 +147,12 @@ class TestMetadataIntegrity:
         valid = {row[1] for row in COUNTIES}
         for meta in MAJOR_RESERVOIRS.values():
             assert meta["county"] in valid, f"Unknown county: {meta['county']}"
+
+    def test_every_reservoir_has_california_coordinates(self):
+        # Coordinates come from each station's CDEC staMeta page; a typo'd
+        # or swapped lat/lon would drop a marker into the ocean or Nevada.
+        # California bounding box, generous: lat 32.5–42.0, lon -124.5–-114.1.
+        for station_id, meta in MAJOR_RESERVOIRS.items():
+            lat, lon = meta["lat"], meta["lon"]
+            assert 32.5 <= lat <= 42.0, f"{station_id}: lat {lat} outside CA"
+            assert -124.5 <= lon <= -114.1, f"{station_id}: lon {lon} outside CA"

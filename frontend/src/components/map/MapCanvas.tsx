@@ -21,6 +21,7 @@ import CaliforniaMask from "./CaliforniaMask";
 import OverlayMarkers from "./OverlayMarkers";
 import CrashDotLayer from "./CrashDotLayer";
 import ClusterLayer from "./ClusterLayer";
+import ReservoirLayer from "./ReservoirLayer";
 import type { HeatmapPoint } from "../../hooks/useCrashHeatmap";
 import type { ClusterPoint } from "../../hooks/useClusterHotspots";
 import type { HighwayRow } from "../../hooks/useHighwayRankings";
@@ -209,6 +210,7 @@ function MapInternals({
         onSelectedClusterGone={onSelectedClusterGone}
       />
       <TopIntersectionsLayer county={focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null} />
+      <ReservoirLayer />
       {heatmapActive && (
         <CrashHeatmap
           points={heatmapPoints}

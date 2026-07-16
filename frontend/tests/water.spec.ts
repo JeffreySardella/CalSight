@@ -180,6 +180,19 @@ test("snowpack section shows statewide headline and per-region bars", async ({ p
   ).toBeVisible();
 });
 
+test("hardest-hit county rows deep-link back to the county on the map", async ({ page }) => {
+  await page.goto(`${BASE_URL}/water`);
+
+  // Kern (code 15 in the fixtures) resolves via the shipped topojson and
+  // links with the same ?county= param the Stats page's map link uses.
+  const kern = page.getByRole("link", { name: "Kern", exact: true });
+  await expect(kern).toHaveAttribute("href", "/?county=kern");
+
+  // Clicking is a client-side navigation to the map with the county staged.
+  await kern.click();
+  await expect(page).toHaveURL(/\/\?county=kern/);
+});
+
 test("water page is soft-launched: direct link works, nav does not advertise it", async ({ page }) => {
   // While WATER_PAGE_PUBLIC is false the page must stay reachable by URL…
   await page.goto(`${BASE_URL}/water`);

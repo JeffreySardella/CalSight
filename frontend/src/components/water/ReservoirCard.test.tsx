@@ -14,6 +14,8 @@ const FOLSOM: ReservoirCondition = {
   name: "Folsom Lake",
   capacity_af: 977_000,
   county_code: 34,
+  lat: 38.683,
+  lon: -121.183,
   latest_date: "2026-07-09",
   storage_af: 800_000,
   pct_of_capacity: 81.9,

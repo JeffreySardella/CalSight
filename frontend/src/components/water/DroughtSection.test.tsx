@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import DroughtSection, { SeverityBar } from "./DroughtSection";
@@ -88,7 +89,9 @@ function mockApi(snapshot: DroughtSnapshot | null) {
 function renderSection() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>
   );
   return render(<DroughtSection />, { wrapper });
 }
@@ -131,10 +134,23 @@ describe("DroughtSection", () => {
     mockApi(SNAPSHOT);
     renderSection();
     const list = (await screen.findByText("Kern")).closest("ul")!;
-    const names = Array.from(list.querySelectorAll("li > span:first-child")).map(
+    const names = Array.from(list.querySelectorAll("li > :first-child")).map(
       (el) => el.textContent,
     );
     expect(names).toEqual(["Kern", "Sacramento"]); // Alameda (clear) excluded
+  });
+
+  it("links each hardest-hit county to its spot on the map", async () => {
+    mockApi(SNAPSHOT);
+    renderSection();
+    const kern = await screen.findByRole("link", { name: "Kern" });
+    // Same ?county= deep link the Stats page uses — the map focuses the
+    // county and opens its insight card.
+    expect(kern).toHaveAttribute("href", "/?county=kern");
+    expect(screen.getByRole("link", { name: "Sacramento" })).toHaveAttribute(
+      "href",
+      "/?county=sacramento",
+    );
   });
 
   it("renders the county choropleth map", async () => {

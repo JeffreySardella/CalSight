@@ -1,5 +1,7 @@
+import { Link } from "react-router-dom";
 import Sparkline from "../charts/Sparkline";
 import DroughtMap from "./DroughtMap";
+import { slugify } from "../../hooks/useFilterParams";
 import {
   inDroughtPct,
   severePct,
@@ -149,20 +151,35 @@ export default function DroughtSection() {
             Hardest-hit counties
           </h3>
           <ul className="space-y-3">
-            {hardestHit.map((c) => (
-              <li key={c.county_code} className="grid grid-cols-[9rem_1fr_3.5rem] items-center gap-3">
-                <span className="text-sm text-on-surface truncate">
-                  {countyNames?.get(c.county_code) ?? `County ${c.county_code}`}
-                </span>
-                <SeverityBar
-                  pcts={c}
-                  label={`${countyNames?.get(c.county_code) ?? `County ${c.county_code}`} drought severity`}
-                />
-                <span className="text-xs text-on-surface-variant text-right tabular-nums">
-                  {inDroughtPct(c).toFixed(0)}%
-                </span>
-              </li>
-            ))}
+            {hardestHit.map((c) => {
+              const name = countyNames?.get(c.county_code);
+              return (
+                <li key={c.county_code} className="grid grid-cols-[9rem_1fr_3.5rem] items-center gap-3">
+                  {name ? (
+                    // Same ?county= deep link the Stats page uses — the map
+                    // focuses the county and opens its insight card.
+                    <Link
+                      to={`/?county=${slugify(name)}`}
+                      title={`View ${name} County on the map`}
+                      className="text-sm text-on-surface truncate hover:text-primary hover:underline transition-colors"
+                    >
+                      {name}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-on-surface truncate">
+                      County {c.county_code}
+                    </span>
+                  )}
+                  <SeverityBar
+                    pcts={c}
+                    label={`${name ?? `County ${c.county_code}`} drought severity`}
+                  />
+                  <span className="text-xs text-on-surface-variant text-right tabular-nums">
+                    {inDroughtPct(c).toFixed(0)}%
+                  </span>
+                </li>
+              );
+            })}
           </ul>
           <p className="text-[10px] text-on-surface-variant uppercase tracking-widest mt-3 text-right">
             % of county in drought (D1+)

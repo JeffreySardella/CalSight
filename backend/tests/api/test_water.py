@@ -14,7 +14,12 @@ def water_data(db_session):
     """Two reservoirs: Folsom with 3 years of history on July 1,
     Castaic with a single reading (no meaningful history)."""
     db_session.add_all([
-        Reservoir(station_id="FOL", name="Folsom Lake", capacity_af=977_000, county_code=34),
+        Reservoir(
+            station_id="FOL", name="Folsom Lake", capacity_af=977_000,
+            county_code=34, lat=38.683, lon=-121.183,
+        ),
+        # CAS deliberately has no coordinates — rows loaded before the
+        # lat/lon columns existed look like this until the ETL reruns.
         Reservoir(station_id="CAS", name="Castaic Lake", capacity_af=325_000, county_code=19),
     ])
     db_session.flush()
@@ -73,6 +78,18 @@ def test_reservoirs_no_average_without_history(client, water_data):
     )
     assert cas["avg_storage_af"] is None
     assert cas["pct_of_average"] is None
+
+
+def test_reservoirs_include_coordinates_when_loaded(client, water_data):
+    # The map layer needs lat/lon; a reservoir loaded before the coordinate
+    # columns existed returns None (and the layer skips it) rather than 500ing.
+    body = client.get("/api/water/reservoirs").json()
+    fol = next(r for r in body if r["station_id"] == "FOL")
+    cas = next(r for r in body if r["station_id"] == "CAS")
+    assert fol["lat"] == pytest.approx(38.683)
+    assert fol["lon"] == pytest.approx(-121.183)
+    assert cas["lat"] is None
+    assert cas["lon"] is None
 
 
 def test_reservoirs_sorted_by_capacity(client, water_data):
