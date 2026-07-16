@@ -17,6 +17,11 @@
 /robots.txt
   Cache-Control: public, max-age=86400
 
+# Water page is soft-launched: reachable by direct link, kept out of
+# search indexes until WATER_PAGE_PUBLIC flips (see src/config.ts).
+/water
+  X-Robots-Tag: noindex
+
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff

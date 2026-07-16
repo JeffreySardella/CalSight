@@ -84,6 +84,12 @@ _STALENESS_THRESHOLDS = {
     "vacuum": 72,
     "data_quality": 48,
     "validate_coords": 48,
+    # Water module: all three run on the daily schedule (drought data only
+    # changes weekly upstream, but the JOB runs daily, and freshness tracks
+    # job success — so 48h catches a broken loader within two cycles).
+    "reservoirs": 48,
+    "snowpack": 48,
+    "drought": 48,
 }
 
 

@@ -4,10 +4,14 @@ import { Link, useSearchParams } from "react-router-dom";
 import type { ChoroplethPoint } from "../../hooks/useChoroplethData";
 import { buildFilterQS } from "../../hooks/useFilterParams";
 import { Skeleton } from "../ui/Skeleton";
+import CountyDroughtRow from "../water/CountyDroughtRow";
+import { WATER_PAGE_PUBLIC } from "../../config";
 
 interface AiInsightCardProps {
   onClose: () => void;
   countyName: string;
+  /** Numeric county code, resolved by the map page; enables the drought row. */
+  countyCode?: number;
   data: ChoroplethPoint | undefined;
   measureLabel: string;
   compareMode: boolean;
@@ -166,6 +170,7 @@ const ANGLE_LABELS: Record<string, string> = {
 export default function AiInsightCard({
   onClose,
   countyName,
+  countyCode,
   data,
   measureLabel,
   compareMode,
@@ -257,6 +262,14 @@ export default function AiInsightCard({
                 ) : loading ? (
                   <SkeletonMetricGrid />
                 ) : null}
+
+                {/* Drought status — single-county mode only (like the
+                    narrative below); hidden until USDM data is loaded.
+                    Gated while the Water page is soft-launched: this row
+                    links to /water and would advertise it. */}
+                {WATER_PAGE_PUBLIC && !compareMode && !isStatewide && (
+                  <CountyDroughtRow countyName={countyName} countyCode={countyCode} />
+                )}
 
                 {/* AI narrative blurb — single-county mode only, hidden when null */}
                 {!compareMode && narrative && (
