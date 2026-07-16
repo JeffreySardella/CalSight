@@ -99,8 +99,10 @@ class TestUpsertObservations:
 
     def test_batches_large_inputs(self):
         db = MagicMock()
+        # Values must stay under MAX_PLAUSIBLE_SWE_IN or the ceiling guard
+        # drops them and the batch never fills.
         observations = [
-            Observation("CSL", SENSOR_SNOW_WATER_CONTENT, date(2000, 1, 1) + timedelta(days=i), float(i), "INCHES")
+            Observation("CSL", SENSOR_SNOW_WATER_CONTENT, date(2000, 1, 1) + timedelta(days=i), float(i % 100), "INCHES")
             for i in range(BATCH_SIZE + 1)
         ]
         upsert_observations(db, observations)
