@@ -5,7 +5,24 @@ from datetime import date, timedelta
 from unittest.mock import MagicMock
 
 from etl.cdec_api import MAJOR_SNOW_STATIONS, SENSOR_SNOW_WATER_CONTENT, Observation
-from etl.load_snowpack import BATCH_SIZE, upsert_observations, upsert_stations
+from etl.load_snowpack import (
+    BATCH_SIZE,
+    MAX_PLAUSIBLE_SWE_IN,
+    delete_implausible,
+    upsert_observations,
+    upsert_stations,
+)
+
+
+class TestDeleteImplausible:
+    def test_deletes_stored_spikes_and_commits(self):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.delete.return_value = 3
+        assert delete_implausible(db) == 3
+        db.query.return_value.filter.return_value.delete.assert_called_once_with(
+            synchronize_session=False
+        )
+        db.commit.assert_called_once()
 
 
 def _obs(station="CSL", day=1, value=12.5):
@@ -62,6 +79,18 @@ class TestUpsertObservations:
         values = db.execute.call_args.args[0].compile().params
         assert 0.0 in values.values()
         assert -2.4 not in values.values()
+
+    def test_drops_swe_above_plausibility_ceiling(self):
+        # CDEC's historical feed contains sensor spikes (hundreds of inches);
+        # they are dropped entirely, not clamped — there is no true value.
+        db = MagicMock()
+        count = upsert_observations(
+            db, [_obs(day=1, value=MAX_PLAUSIBLE_SWE_IN + 1), _obs(day=2, value=90.0)]
+        )
+        assert count == 1
+        values = db.execute.call_args.args[0].compile().params
+        assert 90.0 in values.values()
+        assert MAX_PLAUSIBLE_SWE_IN + 1 not in values.values()
 
     def test_no_execute_for_empty_input(self):
         db = MagicMock()
