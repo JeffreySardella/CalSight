@@ -42,6 +42,14 @@ DEFAULT_TRAILING_DAYS = 120
 BACKFILL_START = date(2000, 1, 1)
 BATCH_SIZE = 1000
 
+# Physical plausibility ceiling. California's deepest snow years peak
+# around 90-100 inches of SWE at the snowiest pillows; CDEC's historical
+# feed contains occasional sensor glitches in the hundreds-to-thousands
+# (found during the 2026-07 production backfill: a mid-July "average" of
+# 155.9 inches). Anything above this is telemetry garbage — dropped on
+# load, and previously stored offenders are deleted after each run.
+MAX_PLAUSIBLE_SWE_IN = 150.0
+
 
 def upsert_stations(db) -> int:
     """Sync the snow_stations table from the static MAJOR_SNOW_STATIONS map.
@@ -79,9 +87,15 @@ def upsert_observations(db, observations: list[Observation]) -> int:
     known = set(MAJOR_SNOW_STATIONS)
     rows = []
     skipped = 0
+    implausible = 0
     for obs in observations:
         if obs.station_id not in known:
             skipped += 1
+            continue
+        # Spikes above the physical ceiling are sensor garbage — drop them
+        # so they can't poison the day-of-year averages.
+        if obs.value > MAX_PLAUSIBLE_SWE_IN:
+            implausible += 1
             continue
         rows.append(
             {
@@ -96,6 +110,12 @@ def upsert_observations(db, observations: list[Observation]) -> int:
     if skipped:
         logger.warning(
             "Dropped %d observations for stations not in MAJOR_SNOW_STATIONS", skipped
+        )
+    if implausible:
+        logger.warning(
+            "Dropped %d observations above %.0f in SWE (sensor spikes)",
+            implausible,
+            MAX_PLAUSIBLE_SWE_IN,
         )
 
     # CDEC can return an original plus a revised reading for one station-day;
@@ -115,6 +135,29 @@ def upsert_observations(db, observations: list[Observation]) -> int:
     return len(rows)
 
 
+def delete_implausible(db) -> int:
+    """Self-heal: remove stored SWE rows above the plausibility ceiling.
+
+    The drop-on-load guard only protects new fetches — rows written
+    before the guard existed (the initial 2026-07 backfill) stay in
+    snow_daily until deleted. Running this after every load makes the
+    cleanup automatic and idempotent.
+    """
+    deleted = (
+        db.query(SnowDaily)
+        .filter(SnowDaily.swe_in > MAX_PLAUSIBLE_SWE_IN)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    if deleted:
+        logger.warning(
+            "Deleted %d stored SWE rows above %.0f in (sensor spikes)",
+            deleted,
+            MAX_PLAUSIBLE_SWE_IN,
+        )
+    return deleted
+
+
 @track_etl_run("snowpack")
 def run(start: date, end: date) -> int:
     """Fetch and upsert SWE for [start, end]. Returns rows loaded."""
@@ -132,6 +175,8 @@ def run(start: date, end: date) -> int:
             )
             observations = fetch_snow_water_content(win_start, win_end)
             total += upsert_observations(db, observations)
+
+        delete_implausible(db)
 
         logger.info("Done. %d daily SWE rows upserted.", total)
         return total
