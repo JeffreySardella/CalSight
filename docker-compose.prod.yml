@@ -24,6 +24,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+      # Cold start (imports + DB pool warmup) can exceed one interval;
+      # don't count those probes as failures.
+      start_period: 30s
 
   tunnel:
     image: cloudflare/cloudflared:2026.6.1
