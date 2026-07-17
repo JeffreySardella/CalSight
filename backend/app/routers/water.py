@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models import (
     County,
     DroughtCountyWeekly,
+    PrecipIndexDaily,
     Reservoir,
     ReservoirDaily,
     SnowDaily,
@@ -23,6 +24,7 @@ from app.schemas.drought import (
     DroughtSnapshotOut,
     DroughtWeekPoint,
 )
+from app.schemas.precip import PrecipIndexOut
 from app.schemas.snow import RegionSnowpack, SnowpackOut
 from app.rate_limit import rate_limit_key
 from app.schemas.water import (
@@ -210,6 +212,61 @@ def reservoir_series(
             ReservoirSeriesPoint(date=d, storage_af=s) for d, s in points
         ],
     )
+
+
+# A precip index's latest reading must be within this many days of the newest
+# across the three indices to count as current — same rationale as reservoirs.
+_PRECIP_RECENCY_DAYS = 14
+
+
+@router.get("/water/precip", response_model=list[PrecipIndexOut])
+@_limiter.limit("1000/minute;20000/hour")
+def precip_indices(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """DWR's three regional precipitation indices (8SI/5SI/6SI) with their
+    latest accumulated water-year total and percent of the historical average
+    for that day of year. The 8-Station Index is the headline Northern Sierra
+    wet-season number."""
+    response.headers["Cache-Control"] = _ONE_HOUR
+
+    # Imported here (not at module top) to keep the ETL station map — an ETL
+    # concern — out of the API module's import surface, matching how the
+    # water endpoints already avoid importing loader internals.
+    from etl.cdec_api import PRECIP_INDEX_STATIONS
+
+    conditions = latest_with_doy_average(
+        db, PrecipIndexDaily, PrecipIndexDaily.accum_in
+    )
+    if not conditions:
+        raise HTTPException(status_code=404, detail="No precip-index data loaded")
+
+    newest = max(c.latest_date for c in conditions.values())
+    cutoff = newest - timedelta(days=_PRECIP_RECENCY_DAYS)
+
+    out = []
+    for station_id, meta in PRECIP_INDEX_STATIONS.items():
+        c = conditions.get(station_id)
+        if c is None or c.latest_date < cutoff:
+            continue
+        out.append(
+            PrecipIndexOut(
+                station_id=station_id,
+                name=meta["name"],
+                region=meta["region"],
+                latest_date=c.latest_date,
+                accum_in=round(c.value, 1),
+                avg_accum_in=round(c.avg, 1) if c.has_history else None,
+                pct_of_average=(
+                    round(c.value / c.avg * 100, 1)
+                    if c.has_history and c.avg > 0
+                    else None
+                ),
+            )
+        )
+    return out
 
 
 _PCT_COLS = ("none_pct", "d0_pct", "d1_pct", "d2_pct", "d3_pct", "d4_pct")

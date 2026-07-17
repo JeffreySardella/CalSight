@@ -1087,6 +1087,36 @@ class SnowDaily(Base):
     )
 
 
+class PrecipIndexDaily(Base):
+    """Daily accumulated water-year precipitation for a DWR regional index.
+
+    One row per index station (8SI/5SI/6SI) per day. The value is CDEC
+    sensor 2 (accumulated inches), already cumulative from Oct 1. Station
+    metadata (name, region) is static in etl/cdec_api.PRECIP_INDEX_STATIONS;
+    percent-of-average-for-this-date is derived at query time from
+    same-day-of-year history, exactly like reservoir_daily and snow_daily.
+
+    Source: DWR California Data Exchange Center (cdec.water.ca.gov).
+    """
+
+    __tablename__ = "precip_index_daily"
+
+    id = Column(Integer, primary_key=True)
+    station_id = Column(String(10), nullable=False)  # CDEC index id, e.g. "8SI"
+    date = Column(Date, nullable=False)
+    accum_in = Column(Float, nullable=False)  # accumulated water-year precip, inches
+    created_at = Column(DateTime, server_default=func.now())
+
+    # As with snow_daily/reservoir_daily: the unique constraint's index serves
+    # (station_id, date); the migration adds an expression index on
+    # (station_id, extract(month), extract(day)) for the day-of-year query.
+    __table_args__ = (
+        UniqueConstraint(
+            "station_id", "date", name="uq_precip_index_daily_station_date"
+        ),
+    )
+
+
 class DroughtCountyWeekly(Base):
     """Weekly drought severity per county — US Drought Monitor.
 

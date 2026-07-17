@@ -74,7 +74,7 @@ def test_resolve_detects_missing_dependency():
 
 def test_default_registry_has_all_jobs():
     registry = build_default_registry()
-    assert len(registry.jobs) == 28  # +3: reservoirs + drought + snowpack (water module)
+    assert len(registry.jobs) == 29  # +4: reservoirs + drought + snowpack + precip_indices (water module)
 
 
 def test_default_registry_resolves_without_error():
