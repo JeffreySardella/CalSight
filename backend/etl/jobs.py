@@ -62,8 +62,14 @@ def build_default_registry() -> JobRegistry:
         freshness_table="demographics",
     ))
     registry.register(Job(
+        # nClimGrid-Daily (bulk CSV, no token) supersedes GSOM (etl.noaa_weather,
+        # token API) as the weather source — same weather table + monthly
+        # contract, but immune to the token-API stall that zeroed 2026. See
+        # etl/nclimgrid_weather.py. Backfill history with:
+        #   run-etl job=nclimgrid_weather  (defaults to trailing 2 months;
+        #   for full history: python -m etl.nclimgrid_weather --start 2001-01 --end <YYYY-MM>)
         name="weather",
-        module="etl.noaa_weather",
+        module="etl.nclimgrid_weather",
         schedule="monthly",
         table_name="weather",
         max_drop_pct=5,

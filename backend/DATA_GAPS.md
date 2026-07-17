@@ -68,10 +68,9 @@ Every gap below is labeled with its type. **None of our gaps are MCAR.** That me
 
 ## Weather
 
-**Monthly county averages.** NOAA gives us monthly temperature and precipitation averaged across all weather stations in a county. That means:
-- Can't see daily spikes (like "it rained hard on the day of the crash")
-- Rural counties with fewer weather stations have less reliable averages
-- A big county like San Bernardino has very different weather in the mountains vs the desert, but we just get one number
+**Monthly county averages.** We store monthly temperature and precipitation per county. As of 2026-07 the source is NOAA **nClimGrid-Daily** county area-averages (gridded, interpolated from station data), replacing the older GSOM station-averaging. We aggregate the daily grid to monthly on load. That means:
+- We store monthly figures, so charts can't see daily spikes (like "it rained hard on the day of the crash") — though the daily nClimGrid source is available if we ever add a daily table for first-rain-after-dry-spell analysis
+- A big county like San Bernardino has very different weather in the mountains vs the desert, but we just get one number (gridded averaging smooths this better than the old station-averaging, but it's still one number per county)
 
 Good enough for trend analysis ("rainy months have more crashes") but not for individual crash analysis.
 
