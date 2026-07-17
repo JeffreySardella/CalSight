@@ -67,6 +67,10 @@ describe("preset slot counts", () => {
     expect(PRESETS.comparison.slots.length).toBe(4);
   });
 
+  it("conditions has 4 slots", () => {
+    expect(PRESETS.conditions.slots.length).toBe(4);
+  });
+
   it("each preset key produces the correct number of chart slots from buildPresetCharts", () => {
     for (const key of PRESET_KEYS) {
       const charts = buildPresetCharts(key);
@@ -136,6 +140,19 @@ describe("buildPresetCharts fallback behavior", () => {
     // Then id: `preset-${key}-${i}` — so it uses the key passed in
     const charts = buildPresetCharts("fake_key" as PresetKey);
     expect(charts[0].id).toBe("preset-fake_key-0");
+  });
+});
+
+describe("conditions preset (#293 Crash Conditions)", () => {
+  it("covers the weather, lighting, and collision-type dimensions", () => {
+    const dims = PRESETS.conditions.slots.map((s) => s.dimension);
+    expect(dims).toContain("weather");
+    expect(dims).toContain("lighting");
+    expect(dims).toContain("collision_type");
+  });
+
+  it("applies no filter overrides (first visit stays unfiltered)", () => {
+    expect(PRESETS.conditions.filterOverrides).toBeUndefined();
   });
 });
 

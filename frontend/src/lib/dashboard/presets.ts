@@ -103,6 +103,17 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
       { dimension: "severity", measure: "count", chartType: "donut", order: 3 },
     ],
   },
+  conditions: {
+    label: "Crash Conditions",
+    icon: "rainy",
+    description: "Conditions on the road — weather, lighting, and collision types",
+    slots: [
+      { dimension: "weather", measure: "count", chartType: "hbar", order: 0 },
+      { dimension: "lighting", measure: "count", chartType: "donut", order: 1 },
+      { dimension: "collision_type", measure: "count", chartType: "hbar", order: 2 },
+      { dimension: "month", measure: "count", chartType: "area", order: 3 },
+    ],
+  },
 };
 
 export const PRESET_KEYS = Object.keys(PRESETS) as PresetKey[];

@@ -40,7 +40,7 @@ export type ChartSlot = {
   options?: ChartOptions;
 };
 
-export type PresetKey = "overview" | "time" | "demographics" | "rates" | "dui" | "seasonal" | "equity" | "comparison";
+export type PresetKey = "overview" | "time" | "demographics" | "rates" | "dui" | "seasonal" | "equity" | "comparison" | "conditions";
 
 export type DashboardConfig = {
   mode: "simple" | "advanced";

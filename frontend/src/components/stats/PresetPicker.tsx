@@ -16,6 +16,7 @@ const PRESET_SPARK_DATA: Record<PresetKey, number[]> = {
   seasonal: [5, 8, 12, 15, 14, 16, 18, 17, 13, 10],
   equity: [4, 5, 7, 6, 8, 10, 9, 11, 12, 13],
   comparison: [14, 12, 10, 11, 9, 8, 10, 7, 6, 5],
+  conditions: [16, 13, 9, 6, 4, 3, 4, 6, 10, 15],
 };
 
 interface Props {
