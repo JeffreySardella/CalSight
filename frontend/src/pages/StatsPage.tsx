@@ -823,7 +823,7 @@ function StatsPageInner() {
               System (SWITRS, 2001&ndash;2015) and the California Crash Records
               System (CCRS, 2016&ndash;present), maintained by the California
               Highway Patrol. Demographics from U.S. Census ACS 5-year
-              estimates. Environmental data from CalEnviroScreen 4.0 (OEHHA).
+              estimates. Environmental data from CalEnviroScreen 5.0 (OEHHA).
               Employment from Bureau of Labor Statistics LAUS. Vehicle and
               driver data from California DMV.
             </p>

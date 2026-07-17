@@ -160,7 +160,7 @@ def list_calenviroscreen(
     county: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    """County-level CalEnviroScreen 4.0 scores (population-weighted averages)."""
+    """County-level CalEnviroScreen 5.0 scores (population-weighted averages)."""
     response.headers["Cache-Control"] = _ONE_HOUR
     q = db.query(CalenviroScreen)
     if county:
