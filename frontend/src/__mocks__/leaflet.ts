@@ -99,10 +99,17 @@ export interface CircleMarkerInstance {
 }
 export const circleMarkerInstances: CircleMarkerInstance[] = [];
 
+/** Records every divIcon created, so tests can inspect the SVG html. */
+export const divIconInstances: Array<Record<string, unknown>> = [];
+
 const L = {
   geoJSON: vi.fn(() => geoJSONLayerMock),
   tooltip: vi.fn(() => tooltipMock),
   latLngBounds: vi.fn(() => createBoundsMock()),
+  divIcon: vi.fn((opts: Record<string, unknown>) => {
+    divIconInstances.push(opts);
+    return opts;
+  }),
   circleMarker: vi.fn((latlng: [number, number], opts: Record<string, unknown>) => {
     const inst: CircleMarkerInstance = {
       latlng,

@@ -991,11 +991,13 @@ class StatewideInsight(Base):
 class Reservoir(Base):
     """Major California reservoir metadata — water module (v1: ~15 majors).
 
-    Metadata (name, capacity, county) comes from the static
+    Metadata (name, capacity, county, coordinates) comes from the static
     MAJOR_RESERVOIRS map in etl/cdec_api.py — CDEC has no clean metadata
     API. county_code is nullable because a reservoir's county name may
     not resolve against the counties table; the loader logs a warning
-    rather than dropping the reservoir.
+    rather than dropping the reservoir. lat/lon (the station point from
+    the CDEC staMeta page) are nullable for the same resilience reason;
+    the map layer simply skips a reservoir without coordinates.
 
     Source: DWR California Data Exchange Center (cdec.water.ca.gov).
     """
@@ -1006,6 +1008,8 @@ class Reservoir(Base):
     name = Column(String(100), nullable=False)
     capacity_af = Column(Integer, nullable=False)      # gross pool capacity, acre-feet
     county_code = Column(SmallInteger, ForeignKey("counties.code"))
+    lat = Column(Float)                                # CDEC staMeta station coordinates
+    lon = Column(Float)
     created_at = Column(DateTime, server_default=func.now())
 
 

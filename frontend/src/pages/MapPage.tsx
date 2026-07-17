@@ -55,6 +55,8 @@ import UnifiedSearchBar from "../components/map/UnifiedSearchBar";
 import FilteredUrlPrompt from "../components/map/FilteredUrlPrompt";
 import IntroOverlay from "../components/map/IntroOverlay";
 import MetaTags from "../components/seo/MetaTags";
+import { WATER_PAGE_PUBLIC } from "../config";
+import { useReservoirConditions } from "../hooks/useWaterData";
 
 const PANEL_META: Record<string, { title: string; subtitle: string }> = {
   filters: { title: "Filters", subtitle: "Secondary Parameters" },
@@ -287,6 +289,17 @@ function MapPageInner() {
     if (useCountyDetail) countyHeatmap.retry();
     else void statewideHeatmap.refetch();
   };
+
+  // Reservoir markers layer (water v2, soft-launch-gated): the markers
+  // themselves render inside MapCanvas from the same shared query, but the
+  // fetch-error surface lives here with the other error cards — an opt-in
+  // layer must not silently render nothing on a failed fetch.
+  const reservoirLayerOn = WATER_PAGE_PUBLIC && otherLayers.reservoirs;
+  const reservoirConditions = useReservoirConditions(reservoirLayerOn);
+  const [reservoirErrorDismissed, setReservoirErrorDismissed] = useState(false);
+  useEffect(() => {
+    if (!reservoirConditions.error) setReservoirErrorDismissed(false);
+  }, [reservoirConditions.error]);
 
   const mismatchCountySlug = focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null;
   const mismatchHeatmap = useCrashHeatmap({
@@ -1001,6 +1014,32 @@ function MapPageInner() {
               </button>
               <button
                 onClick={() => setHeatmapErrorDismissed(true)}
+                className="text-on-surface-variant hover:text-on-surface transition-colors -mr-1"
+                aria-label="Dismiss"
+              >
+                <span className="material-symbols-outlined text-[14px]" aria-hidden="true">close</span>
+              </button>
+            </div>
+          </div>
+        )}
+        {reservoirLayerOn && reservoirConditions.isError && !reservoirErrorDismissed && (
+          <div className="absolute top-28 md:top-16 left-1/2 -translate-x-1/2 z-20">
+            <div
+              role="alert"
+              className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2.5 rounded-xl ghost-border shadow-lg min-w-[220px] flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[14px] text-error shrink-0" aria-hidden="true">wifi_off</span>
+              <span className="text-xs font-medium text-on-surface-variant flex-1">
+                Couldn&rsquo;t load reservoir markers
+              </span>
+              <button
+                onClick={() => void reservoirConditions.refetch()}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setReservoirErrorDismissed(true)}
                 className="text-on-surface-variant hover:text-on-surface transition-colors -mr-1"
                 aria-label="Dismiss"
               >

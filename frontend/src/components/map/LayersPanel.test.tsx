@@ -120,6 +120,24 @@ describe("LayersPanel segmented-control accessibility", () => {
   });
 });
 
+// ── Water / reservoirs section (soft-launch gate) ──────────────────────
+// The section is guarded by WATER_PAGE_PUBLIC (false while the Water page
+// is soft-launched); this file runs against the real config, so the panel
+// must not advertise the layer. The flag-up behavior is covered by
+// ReservoirLayer.test.tsx, which mocks the flag on.
+
+describe("LayersPanel — Water section soft-launch gate", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("hides the Reservoirs toggle while WATER_PAGE_PUBLIC is false", () => {
+    render(<Harness />);
+    expect(screen.queryByRole("switch", { name: "Reservoirs" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Water")).not.toBeInTheDocument();
+  });
+});
+
 // ── Top intersections toggle (from #349 street-level work) ─────────────
 
 function TopIntersectionsProbe() {

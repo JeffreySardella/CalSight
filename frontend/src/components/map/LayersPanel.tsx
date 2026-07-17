@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { WATER_PAGE_PUBLIC } from "../../config";
 import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
 import { PALETTES, getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
@@ -321,6 +322,33 @@ export default function LayersPanel() {
           </p>
         </div>
       </div>
+
+      {/* Water — gated while the Water page is soft-launched: the layer's
+          popups link to /water and would advertise it. */}
+      {WATER_PAGE_PUBLIC && (
+        <div className="space-y-4">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+            Water
+          </span>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className={`text-sm font-medium ${otherLayers.reservoirs ? "text-on-surface" : "text-on-surface-variant"}`}>
+                Reservoirs
+              </span>
+              <Toggle
+                enabled={otherLayers.reservoirs}
+                onToggle={() => toggleOtherLayer("reservoirs")}
+                label="Reservoirs"
+              />
+            </div>
+            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+              {otherLayers.reservoirs
+                ? "Markers sized by capacity, filled to today's storage level. Click one for details."
+                : "Major reservoirs with current storage levels"}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Measure */}
       <div className="space-y-4">

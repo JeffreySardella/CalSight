@@ -12,6 +12,10 @@ class ReservoirConditionOut(BaseModel):
     name: str
     capacity_af: int
     county_code: int | None = None
+    # Station coordinates (CDEC staMeta page) — None for rows loaded before
+    # the coordinate columns existed; the map layer skips those.
+    lat: float | None = None
+    lon: float | None = None
     latest_date: date
     storage_af: float
     pct_of_capacity: float           # storage / capacity * 100

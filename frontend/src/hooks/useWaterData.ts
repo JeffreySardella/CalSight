@@ -6,6 +6,10 @@ export interface ReservoirCondition {
   name: string;
   capacity_af: number;
   county_code: number | null;
+  /** Station coordinates (CDEC staMeta). Null for rows loaded before the
+   *  coordinate columns existed — the map layer skips those. */
+  lat: number | null;
+  lon: number | null;
   latest_date: string;
   storage_af: number;
   pct_of_capacity: number;
@@ -57,9 +61,10 @@ export function summarize(reservoirs: ReservoirCondition[]): StatewideSummary | 
   };
 }
 
-export function useReservoirConditions() {
+export function useReservoirConditions(enabled = true) {
   return useQuery<ReservoirCondition[]>({
     queryKey: ["water", "reservoirs"],
+    enabled,
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/water/reservoirs`);
       if (!res.ok) throw new Error(`water/reservoirs ${res.status}`);

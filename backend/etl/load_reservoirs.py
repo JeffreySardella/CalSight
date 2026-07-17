@@ -75,6 +75,11 @@ def upsert_reservoirs(db) -> int:
                 "name": meta["name"],
                 "capacity_af": meta["capacity_af"],
                 "county_code": county_code,
+                # Station coordinates from the CDEC staMeta page; .get() so a
+                # future entry without them loads as NULL instead of crashing
+                # the whole run (the map layer skips coordinate-less rows).
+                "lat": meta.get("lat"),
+                "lon": meta.get("lon"),
             }
         )
 
@@ -85,6 +90,8 @@ def upsert_reservoirs(db) -> int:
             "name": stmt.excluded.name,
             "capacity_af": stmt.excluded.capacity_af,
             "county_code": stmt.excluded.county_code,
+            "lat": stmt.excluded.lat,
+            "lon": stmt.excluded.lon,
         },
     )
     db.execute(stmt)

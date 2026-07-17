@@ -18,7 +18,7 @@ const THEME_TO_MAP_PALETTE: Record<ChartPaletteKey, PaletteKey> = {
   custom: "default",
 };
 
-export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "coordMismatches" | "coordIncludeRivers" | "incidents" | "countyBoundaries" | "roadTypes" | "schools" | "hospitals" | "highwayDanger" | "topIntersections" | "crashClusters";
+export type OtherLayerKey = "heatmapStatewide" | "heatmapCounty" | "coordMismatches" | "coordIncludeRivers" | "incidents" | "countyBoundaries" | "roadTypes" | "schools" | "hospitals" | "highwayDanger" | "topIntersections" | "crashClusters" | "reservoirs";
 export type HeatmapResolution = "raw" | "low" | "medium" | "high";
 
 /** The shareable subset of layer state that round-trips through the URL. See useLayerParams. */
@@ -44,6 +44,7 @@ const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
   highwayDanger: false,
   topIntersections: false,
   crashClusters: false,
+  reservoirs: false,
 };
 
 const STORAGE_KEY = "calsight-layers";

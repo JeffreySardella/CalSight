@@ -5,6 +5,7 @@ import type { ChoroplethPoint } from "../../hooks/useChoroplethData";
 import { buildFilterQS } from "../../hooks/useFilterParams";
 import { Skeleton } from "../ui/Skeleton";
 import CountyDroughtRow from "../water/CountyDroughtRow";
+import CountyReservoirsRow from "../water/CountyReservoirsRow";
 import { WATER_PAGE_PUBLIC } from "../../config";
 
 interface AiInsightCardProps {
@@ -268,7 +269,10 @@ export default function AiInsightCard({
                     Gated while the Water page is soft-launched: this row
                     links to /water and would advertise it. */}
                 {WATER_PAGE_PUBLIC && !compareMode && !isStatewide && (
-                  <CountyDroughtRow countyName={countyName} countyCode={countyCode} />
+                  <>
+                    <CountyDroughtRow countyName={countyName} countyCode={countyCode} />
+                    <CountyReservoirsRow countyName={countyName} countyCode={countyCode} />
+                  </>
                 )}
 
                 {/* AI narrative blurb — single-county mode only, hidden when null */}

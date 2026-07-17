@@ -150,6 +150,8 @@ def list_reservoir_conditions(
                 name=reservoir.name,
                 capacity_af=reservoir.capacity_af,
                 county_code=reservoir.county_code,
+                lat=reservoir.lat,
+                lon=reservoir.lon,
                 latest_date=c.latest_date,
                 storage_af=c.value,
                 pct_of_capacity=round(c.value / reservoir.capacity_af * 100, 1),
