@@ -27,7 +27,11 @@ from sqlalchemy import desc, func, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.freshness_logic import compute_staleness
+from app.freshness_logic import (
+    DEFAULT_STALENESS_THRESHOLD_HOURS,
+    STALENESS_THRESHOLDS,
+    compute_staleness,
+)
 from app.models import EtlRun
 from app.routers.meta import latest_successful_runs
 
@@ -61,36 +65,9 @@ class FreshnessSummary(BaseModel):
     sources_never_loaded: int
 
 
-# How many hours before we consider a source "stale"
-_STALENESS_THRESHOLDS = {
-    "crashes_ccrs": 48,      # CHP updates daily; 48h buffer
-    "parties": 48,
-    "victims": 48,
-    "backfill": 48,
-    "backfill_conditions": 48,
-    "matviews": 48,
-    "demographics": 720,     # Census: monthly (30 days)
-    "weather": 720,
-    "hospitals": 720,
-    "schools": 720,
-    "speed_limits": 720,
-    "aadt": 720,
-    "vehicles": 720,
-    "unemployment": 720,
-    "calenviroscreen": 720,
-    "licensed_drivers": 720,
-    "road_miles": 720,
-    "insights": 48,
-    "vacuum": 72,
-    "data_quality": 48,
-    "validate_coords": 48,
-    # Water module: all three run on the daily schedule (drought data only
-    # changes weekly upstream, but the JOB runs daily, and freshness tracks
-    # job success — so 48h catches a broken loader within two cycles).
-    "reservoirs": 48,
-    "snowpack": 48,
-    "drought": 48,
-}
+# Staleness thresholds moved to app.freshness_logic so the ETL pipeline's
+# stale-source alert sweep and this API read the same numbers (2026-07-17).
+_STALENESS_THRESHOLDS = STALENESS_THRESHOLDS
 
 
 # deprecated (#291): no frontend callers — the UI reads /api/meta/data-freshness.
@@ -127,7 +104,7 @@ def get_freshness(
     results = []
 
     for run in rows:
-        threshold = _STALENESS_THRESHOLDS.get(run.source, 168)  # default 1 week
+        threshold = _STALENESS_THRESHOLDS.get(run.source, DEFAULT_STALENESS_THRESHOLD_HOURS)
         last_check = last_check_by_source.get(run.source, run.finished_at)
         is_stale, hours_since_load, hours_since_check = compute_staleness(
             now=now,

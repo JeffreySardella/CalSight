@@ -142,6 +142,109 @@ class TestDailyPipelineValidationAlerts:
         assert "no details recorded" in body  # None diff_summary handled
 
 
+class TestStaleSourceAlerts:
+    """2026-07-17: every monthly source had been stalled since mid-May and no
+    alert fired — is_stale lived only on the deprecated /api/freshness
+    endpoint. The daily pipeline now sweeps registry jobs against the shared
+    thresholds and sends a WARNING listing stale sources."""
+
+    def _registry(self):
+        return SimpleNamespace(jobs={"crashes_ccrs": object(), "weather": object()})
+
+    def test_stale_source_sends_warning(self, alerts, monkeypatch):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        _patch_run(monkeypatch, [_result(source="crashes_ccrs")])
+        monkeypatch.setattr(pipeline, "build_default_registry", self._registry)
+        monkeypatch.setattr(
+            pipeline,
+            "_fetch_last_sync_times",
+            lambda: {
+                "crashes_ccrs": now - timedelta(hours=5),
+                "weather": now - timedelta(days=59),
+            },
+        )
+
+        pipeline.run_daily_pipeline()
+
+        warnings = [c for c in alerts if c[0] == AlertLevel.WARNING]
+        assert len(warnings) == 1
+        _level, title, body = warnings[0]
+        assert "stale" in title
+        assert "weather" in body
+        assert "crashes_ccrs" not in body
+
+    def test_never_synced_source_alerts(self, alerts, monkeypatch):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        _patch_run(monkeypatch, [_result(source="crashes_ccrs")])
+        monkeypatch.setattr(pipeline, "build_default_registry", self._registry)
+        monkeypatch.setattr(
+            pipeline,
+            "_fetch_last_sync_times",
+            lambda: {"crashes_ccrs": now - timedelta(hours=5)},
+        )
+
+        pipeline.run_daily_pipeline()
+
+        warnings = [c for c in alerts if c[0] == AlertLevel.WARNING]
+        assert len(warnings) == 1
+        assert "weather" in warnings[0][2]
+        assert "never" in warnings[0][2]
+
+    def test_all_fresh_sends_no_warning(self, alerts, monkeypatch):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        _patch_run(monkeypatch, [_result(source="crashes_ccrs")])
+        monkeypatch.setattr(pipeline, "build_default_registry", self._registry)
+        monkeypatch.setattr(
+            pipeline,
+            "_fetch_last_sync_times",
+            lambda: {
+                "crashes_ccrs": now - timedelta(hours=5),
+                "weather": now - timedelta(days=2),
+            },
+        )
+
+        pipeline.run_daily_pipeline()
+
+        assert _levels(alerts) == [AlertLevel.INFO]
+
+    def test_sweep_failure_never_breaks_the_pipeline(self, alerts, monkeypatch):
+        def _boom():
+            raise RuntimeError("db unreachable")
+
+        _patch_run(monkeypatch, [_result(source="crashes_ccrs")])
+        monkeypatch.setattr(pipeline, "build_default_registry", self._registry)
+        monkeypatch.setattr(pipeline, "_fetch_last_sync_times", _boom)
+
+        results = pipeline.run_daily_pipeline()
+
+        assert results  # pipeline still returned its results
+        assert _levels(alerts) == [AlertLevel.INFO]
+
+    def test_weekly_pipeline_also_sweeps(self, alerts, monkeypatch):
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        _patch_run(monkeypatch, [_result(source="crashes_ccrs")])
+        monkeypatch.setattr(pipeline, "build_default_registry", self._registry)
+        monkeypatch.setattr(
+            pipeline,
+            "_fetch_last_sync_times",
+            lambda: {"crashes_ccrs": now, "weather": now - timedelta(days=59)},
+        )
+
+        pipeline.run_weekly_pipeline()
+
+        warnings = [c for c in alerts if c[0] == AlertLevel.WARNING]
+        assert len(warnings) == 1
+        assert "weather" in warnings[0][2]
+
+
 class TestWeeklyPipelineValidationAlerts:
     def test_failed_validation_sends_warning(self, alerts, monkeypatch):
         _patch_run(monkeypatch, [
