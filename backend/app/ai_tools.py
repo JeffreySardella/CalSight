@@ -550,7 +550,7 @@ def get_road_info(db: Session, county: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def get_environmental(db: Session, county: str) -> dict:
-    """CalEnviroScreen 4.0 scores for a county."""
+    """CalEnviroScreen 5.0 scores for a county."""
     code = _county_code(db, county)
     if code is None:
         return {"error": f"County not found: {county}"}

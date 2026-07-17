@@ -149,7 +149,7 @@ def build_default_registry() -> JobRegistry:
         table_name="calenviroscreen",
         max_drop_pct=20,
         source_type="arcgis",
-        freshness_url="https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services/CalEnviroScreen_4_0_Results_/FeatureServer/0/query",
+        freshness_url="https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services/calenviroscreen50results_F_070126_gdb/FeatureServer/0/query",
     ))
     registry.register(Job(
         name="licensed_drivers",

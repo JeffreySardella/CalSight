@@ -139,10 +139,10 @@ export default function AboutPage() {
 
           <div className="bg-surface-container-lowest p-8 rounded-lg ambient-shadow flex flex-col justify-between">
             <div>
-              <h2 className="font-headline text-xl font-bold text-on-surface">CalEnviroScreen 4.0</h2>
+              <h2 className="font-headline text-xl font-bold text-on-surface">CalEnviroScreen 5.0</h2>
               <p className="text-sm text-on-surface-variant mt-1">Environmental Justice Scores — OEHHA</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                Population-weighted county scores aggregated from ~8,000 census tracts. Includes <JargonTerm term="CES">CES</JargonTerm> composite score, pollution burden, PM2.5, ozone, diesel particulate matter, traffic proximity, poverty, unemployment, linguistic isolation, and housing burden.
+                Population-weighted county scores aggregated from ~9,100 census tracts. Includes <JargonTerm term="CES">CES</JargonTerm> composite score, pollution burden, PM2.5, ozone, diesel particulate matter, traffic proximity, poverty, unemployment, linguistic isolation, and housing burden.
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">

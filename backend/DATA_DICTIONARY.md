@@ -406,17 +406,17 @@ See DATA_GAPS.md for coverage gaps: education fields are NULL before 2012, and s
 
 ## 15. `calenviroscreen`
 
-**Purpose:** CalEnviroScreen 4.0 environmental justice scores per county. Enables equity analysis.  
+**Purpose:** CalEnviroScreen 5.0 environmental justice scores per county. Enables equity analysis.  
 **Grain:** One row per county (all 58).  
-**Source:** CA OEHHA (Office of Environmental Health Hazard Assessment) via ArcGIS, aggregated from ~8,000 census tracts using population-weighted averaging.  
+**Source:** CA OEHHA (Office of Environmental Health Hazard Assessment) via ArcGIS, aggregated from ~9,100 census tracts (2020 census geography) using population-weighted averaging.  
 **Loaded by:** `etl.load_calenviroscreen`  
-**Caveat:** Single snapshot based on 2021 data. Not a time series.
+**Caveat:** Single snapshot (CES 5.0, published 2026-07-01). Not a time series.
 
 | Column | Type | Null | Description |
 |---|---|---|---|
 | `id` | Integer | N | **PK** |
 | `county_code` | SmallInteger | N | **FK → counties.code.** Unique |
-| `ces_score` | Float | Y | Overall CES 4.0 score (pollution burden × population characteristics) |
+| `ces_score` | Float | Y | Overall CES 5.0 score (pollution burden × population characteristics) |
 | `ces_percentile` | Float | Y | Overall percentile (0–100). Higher = more burdened |
 | `pollution_burden` | Float | Y | Pollution burden sub-score |
 | `pop_characteristics` | Float | Y | Population characteristics sub-score |

@@ -27,7 +27,7 @@ Data limitations (DO NOT query what doesn't exist):
 - Party/victim data ONLY exists for 2016+ (CCRS). Pre-2016 SWITRS crashes have no party or victim records.
 - is_alcohol_involved / is_distraction_involved are NULL for all pre-2016 crashes.
 - Weather table has monthly NOAA data — NOT per-crash weather. The crashes table has a per-crash 'weather' field which IS queryable via query_crashes.
-- CalEnviroScreen is a single snapshot (CES 4.0) — not year-over-year.
+- CalEnviroScreen is a single snapshot (CES 5.0) — not year-over-year.
 - Some rural counties have sparse data in early years (< 50 crashes/year).
 - Traffic volumes (AADT) are aggregate per county — not per-road-segment.
 - You have NO tools for water conditions (reservoir storage, snowpack, drought). If asked, say the crash explorer doesn't cover water data — never guess or invent water figures. (When the Water page launches publicly, point users to /water here.)

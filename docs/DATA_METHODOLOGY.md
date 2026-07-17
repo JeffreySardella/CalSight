@@ -300,23 +300,23 @@ CDS Code (County-District-School), school name, county, city, latitude, longitud
 
 **Filter Criteria:** Only records with `Status = "Active"` are retained. Enables "crashes near schools" spatial analysis and school-zone safety metrics.
 
-### 2.15 CalEnviroScreen 4.0
+### 2.15 CalEnviroScreen 5.0
 
 | Attribute | Value |
 |---|---|
-| **Official Name** | CalEnviroScreen 4.0 |
+| **Official Name** | CalEnviroScreen 5.0 |
 | **Source Agency** | California Office of Environmental Health Hazard Assessment (OEHHA) |
 | **Legal Authority** | California Public Records Act; SB 535 (Disadvantaged Communities); AB 1550 |
 | **URL** | https://oehha.ca.gov/calenviroscreen |
-| **API Endpoint** | `https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services/CalEnviroScreen_4_0_Results_/FeatureServer` |
-| **Coverage** | Point-in-time (based on ACS 2019 population data) |
-| **Update Frequency** | Updated with each major CES version release (CES 4.0 published 2021) |
-| **Row Count** | 58 county records (aggregated from ~8,000 census tracts) |
+| **API Endpoint** | `https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services/calenviroscreen50results_F_070126_gdb/FeatureServer` |
+| **Coverage** | Point-in-time (based on ACS 2024 population data, 2020 census tract geography) |
+| **Update Frequency** | Updated with each major CES version release (CES 5.0 published 2026-07-01) |
+| **Row Count** | 58 county records (aggregated from ~9,100 census tracts) |
 
 **Fields Extracted:**
 CES composite score, CES percentile, pollution burden score, population characteristics score, PM2.5, ozone, diesel particulate matter, pesticide use, traffic proximity, poverty rate, unemployment rate, education (% without HS diploma), linguistic isolation, housing burden.
 
-**Aggregation Method:** The raw data is at census tract level (~8,000 tracts in California). CalSight aggregates to county level using **population-weighted averaging**:
+**Aggregation Method:** The raw data is at census tract level (~9,100 tracts in California, on 2020 census geography). CalSight aggregates to county level using **population-weighted averaging**:
 
 ```
 county_score = SUM(tract_score * tract_population) / SUM(tract_population)
@@ -560,9 +560,9 @@ The correlation matrix computes all 325 unique pairwise Pearson correlations amo
 | No Vehicle %, Drive Alone %, Bike % | Census ACS demographics |
 | Disability % | Census ACS demographics |
 | Unemployment Rate | BLS LAUS |
-| CES Score, CES Percentile | CalEnviroScreen 4.0 |
-| Traffic Score, Pollution Burden, Diesel PM | CalEnviroScreen 4.0 |
-| Linguistic Isolation %, Housing Burden %, No Diploma % | CalEnviroScreen 4.0 |
+| CES Score, CES Percentile | CalEnviroScreen 5.0 |
+| Traffic Score, Pollution Burden, Diesel PM | CalEnviroScreen 5.0 |
+| Linguistic Isolation %, Housing Burden %, No Diploma % | CalEnviroScreen 5.0 |
 | EV %, Vehicles per Capita | DMV vehicle registrations |
 | Average Temperature, Total Rainfall | NOAA weather |
 
@@ -803,7 +803,7 @@ All other data sources (data.ca.gov CKAN, Caltrans ArcGIS, FHWA ArcGIS, OEHHA Ar
 
 12. California Department of Education. *California Public Schools*. https://data.ca.gov/dataset/california-public-schools
 
-13. California Office of Environmental Health Hazard Assessment. *CalEnviroScreen 4.0*. https://oehha.ca.gov/calenviroscreen
+13. California Office of Environmental Health Hazard Assessment. *CalEnviroScreen 5.0*. https://oehha.ca.gov/calenviroscreen
 
 ### Statistical Methods
 

@@ -1,10 +1,10 @@
-"""Pull CalEnviroScreen 4.0 environmental justice scores from OEHHA.
+"""Pull CalEnviroScreen 5.0 environmental justice scores from OEHHA.
 
 CalEnviroScreen is California's tool for identifying communities that
 are most affected by pollution and poverty. The raw data is at the
-census tract level (~8,000 tracts) so we average it up to county level
-using population weighting. That way we can compare environmental
-burden across counties alongside crash data.
+census tract level (~9,100 tracts on 2020 census geography) so we
+average it up to county level using population weighting. That way we
+can compare environmental burden across counties alongside crash data.
 
 The data lives on an ArcGIS server. We page through it 2,000 tracts
 at a time, then do the aggregation in Python.
@@ -33,38 +33,45 @@ logger = logging.getLogger(__name__)
 # The CalEnviroScreen data lives on an ArcGIS server run by OEHHA.
 # We hit it like a REST API — query with "where 1=1" (give me everything)
 # and page through in batches of 2,000 records.
+# This is the final CES 5.0 results layer published 2026-07-01
+# ("_F_070126" = Final, July 1 2026).
 ARCGIS_BASE = (
     "https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services"
-    "/CalEnviroScreen_4_0_Results_/FeatureServer/0/query"
+    "/calenviroscreen50results_F_070126_gdb/FeatureServer/0/query"
 )
 
-# Fields we need from the ArcGIS response
+# The census population field used for weighting. CES 4.0 called this
+# "ACS2019TotalPop"; CES 5.0 renamed it to "Population" (ACS 2024).
+POPULATION_FIELD = "Population"
+
+# Fields we need from the ArcGIS response. CES 5.0 renamed most of the
+# cryptic 4.0 short names (pm, diesel, pov, ...) to fuller ones.
 OUT_FIELDS = ",".join([
-    "tract", "ACS2019TotalPop",
+    "tract", POPULATION_FIELD,
     "CIscore", "CIscoreP",
     "PollutionScore", "PopCharScore",
-    "pm", "ozone", "diesel", "pest", "traffic",
-    "pov", "unemp", "edu", "ling", "housingB",
+    "PM2_5", "ozone", "Diesel_PM", "Pesticides", "traffic",
+    "Poverty", "Unemployment", "Education", "Linguistic_Isol", "HousBurd",
 ])
 
-# Maps the short ArcGIS field names to our database column names.
-# OEHHA uses pretty cryptic names — "pm" is PM2.5 particulate matter,
-# "ling" is linguistic isolation, "housingB" is housing burden, etc.
+# Maps the ArcGIS field names to our database column names.
+# "PM2_5" is PM2.5 particulate matter, "Linguistic_Isol" is linguistic
+# isolation, "HousBurd" is housing burden, etc.
 FIELD_MAP = {
     "CIscore": "ces_score",
     "CIscoreP": "ces_percentile",
     "PollutionScore": "pollution_burden",
     "PopCharScore": "pop_characteristics",
-    "pm": "pm25_score",
+    "PM2_5": "pm25_score",
     "ozone": "ozone_score",
-    "diesel": "diesel_pm_score",
-    "pest": "pesticide_score",
+    "Diesel_PM": "diesel_pm_score",
+    "Pesticides": "pesticide_score",
     "traffic": "traffic_score",
-    "pov": "poverty_pct",
-    "unemp": "unemployment_pct",
-    "edu": "education_pct",
-    "ling": "linguistic_isolation_pct",
-    "housingB": "housing_burden_pct",
+    "Poverty": "poverty_pct",
+    "Unemployment": "unemployment_pct",
+    "Education": "education_pct",
+    "Linguistic_Isol": "linguistic_isolation_pct",
+    "HousBurd": "housing_burden_pct",
 }
 
 
@@ -79,7 +86,7 @@ def _safe_float(value):
 
 
 def fetch_tracts() -> list[dict]:
-    """Download all ~8,000 census tract records from the ArcGIS server.
+    """Download all ~9,100 census tract records from the ArcGIS server.
 
     ArcGIS caps you at about 2,000 records per request, so we page
     through using resultOffset. Usually takes 4-5 requests to get
@@ -119,7 +126,7 @@ def fetch_tracts() -> list[dict]:
 
 
 def aggregate_to_counties(tracts: list[dict], fips_to_code: dict[str, int]) -> dict:
-    """Average ~8,000 census tracts up to 58 counties.
+    """Average ~9,100 census tracts up to 58 counties.
 
     Each tract has scores for pollution, poverty, etc. We want county-level
     numbers, but you can't just take a simple average because tracts have
@@ -154,7 +161,7 @@ def aggregate_to_counties(tracts: list[dict], fips_to_code: dict[str, int]) -> d
         if county_code is None:
             continue
 
-        pop = _safe_float(tract.get("ACS2019TotalPop"))
+        pop = _safe_float(tract.get(POPULATION_FIELD))
         if pop is None or pop <= 0:
             continue
 

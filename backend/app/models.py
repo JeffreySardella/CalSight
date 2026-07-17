@@ -748,19 +748,20 @@ class UnemploymentRate(Base):
 
 
 class CalenviroScreen(Base):
-    """CalEnviroScreen 4.0 — California's environmental justice scores.
+    """CalEnviroScreen 5.0 — California's environmental justice scores.
 
     OEHHA (Office of Environmental Health Hazard Assessment) scores every
     census tract in California based on pollution exposure and population
     vulnerability. Higher score = more burdened community.
 
-    The raw data is at the census tract level (~8,000 tracts) but we
-    average it up to county level using population weighting. So this
-    table has one row per county with averaged scores.
+    The raw data is at the census tract level (~9,100 tracts on 2020
+    census geography) but we average it up to county level using
+    population weighting. So this table has one row per county with
+    averaged scores.
 
     Good for equity analysis — "do high-pollution, high-poverty counties
-    also have worse crash outcomes?" Merced County has the highest score
-    (lots of agricultural pollution + 46% poverty). Marin has the lowest.
+    also have worse crash outcomes?" Central Valley agricultural counties
+    score highest; wealthy coastal counties like Marin score lowest.
     """
 
     __tablename__ = "calenviroscreen"
@@ -769,7 +770,7 @@ class CalenviroScreen(Base):
     county_code = Column(
         SmallInteger, ForeignKey("counties.code"), nullable=False, unique=True
     )
-    ces_score = Column(Float)              # overall CES 4.0 score
+    ces_score = Column(Float)              # overall CES 5.0 score
     ces_percentile = Column(Float)         # overall percentile (0-100)
     pollution_burden = Column(Float)       # pollution burden score
     pop_characteristics = Column(Float)    # population characteristics score

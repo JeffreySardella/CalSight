@@ -90,7 +90,7 @@ frontend/
 
 - [CCRS](https://data.ca.gov/dataset/ccrs) — California crash records (State of California)
 - [ACS](https://www.census.gov/programs-surveys/acs) — Demographics (Census Bureau)
-- [CalEnviroScreen 4.0](https://oehha.ca.gov/calenviroscreen) — Environmental justice scores
+- [CalEnviroScreen 5.0](https://oehha.ca.gov/calenviroscreen) — Environmental justice scores
 - [NOAA Storm Events](https://www.ncdc.noaa.gov/stormevents/) — Weather data
 - [HPMS](https://www.fhwa.dot.gov/policyinformation/hpms.cfm) — Road miles and traffic volumes
 - [CDEC](https://cdec.water.ca.gov) — Reservoir storage (CA Dept. of Water Resources)

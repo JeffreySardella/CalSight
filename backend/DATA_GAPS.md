@@ -77,9 +77,9 @@ Good enough for trend analysis ("rainy months have more crashes") but not for in
 
 ## CalEnviroScreen
 
-**Single snapshot.** Version 4.0 is based on 2021 data. It's not a time series — we can't show how environmental burden changed over the years. When OEHHA releases version 5.0 we can update it but for now it's one point in time.
+**Single snapshot.** Version 5.0 was published July 2026. It's not a time series — we can't show how environmental burden changed over the years. Each major CES release replaces the previous snapshot, so it's one point in time.
 
-**County averages from tract data.** The raw data is at the census tract level (~8,000 tracts). We averaged up to 58 counties using population weighting. That hides a lot of variation within counties — LA County for example has tracts ranging from very low to very high environmental burden.
+**County averages from tract data.** The raw data is at the census tract level (~9,100 tracts on 2020 census geography). We averaged up to 58 counties using population weighting. That hides a lot of variation within counties — LA County for example has tracts ranging from very low to very high environmental burden.
 
 ## Unemployment
 

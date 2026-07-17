@@ -71,7 +71,7 @@ python -m etl.bls_unemployment
 echo "=== Unemployment done ==="
 
 echo ""
-echo "=== 12/20CalEnviroScreen 4.0 ==="
+echo "=== 12/20CalEnviroScreen 5.0 ==="
 python -m etl.load_calenviroscreen
 echo "=== CalEnviroScreen done ==="
 
