@@ -38,6 +38,10 @@ from etl.alerts import send_alert, send_heartbeat, AlertLevel, check_disk_and_al
 from etl.jobs import build_default_registry
 from etl.orchestrator import run_pipeline
 
+# Statuses that count as "we confirmed sync with upstream" — a successful load
+# OR a verified-unchanged check. Mirrors app.routers.freshness._SYNC_STATUSES.
+_SYNC_STATUSES = ("success", "skipped_unchanged")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
@@ -155,6 +159,72 @@ def _alert_validation_failures(results, pipeline_name: str) -> None:
     )
 
 
+def _fetch_last_sync_times() -> dict[str, object]:
+    """Last confirmed-sync time per source from etl_runs (success OR unchanged).
+
+    Separated out so the stale-source sweep can be tested without a database.
+    """
+    from sqlalchemy import func  # noqa: PLC0415
+
+    from app.database import SessionLocal  # noqa: PLC0415
+    from app.models import EtlRun  # noqa: PLC0415
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(EtlRun.source, func.max(EtlRun.finished_at))
+            .filter(EtlRun.status.in_(_SYNC_STATUSES))
+            .group_by(EtlRun.source)
+            .all()
+        )
+        return {source: finished_at for source, finished_at in rows}
+    finally:
+        db.close()
+
+
+def _alert_stale_sources(registry, pipeline_name: str) -> None:
+    """Alert when a registered source hasn't confirmed sync within its threshold.
+
+    Closes the 2026-07-17 gap: every monthly source (weather, demographics,
+    unemployment, vehicles, calenviroscreen) sat ~2 months stale after the
+    scheduler crash-loop, but is_stale lived only on the deprecated
+    /api/freshness endpoint nobody reads, so no alert ever fired. This sweep
+    runs the same shared thresholds after every pipeline. Best-effort: any
+    failure here must never break the pipeline run.
+    """
+    try:
+        from datetime import datetime, timezone  # noqa: PLC0415
+
+        from app.freshness_logic import stale_sources  # noqa: PLC0415
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        last_sync = _fetch_last_sync_times()
+        sources = set(registry.jobs.keys())
+        stale = stale_sources(now, last_sync, sources)
+        if not stale:
+            return
+
+        def _age(hours):
+            if hours is None:
+                return "never synced"
+            days = hours / 24
+            return f"{days:.0f}d since sync" if days >= 1 else f"{hours:.0f}h since sync"
+
+        details = "\n".join(
+            f"  - {source}: {_age(hours)} (threshold {threshold}h)"
+            for source, hours, threshold in stale
+        )
+        send_alert(
+            AlertLevel.WARNING,
+            f"{pipeline_name}: {len(stale)} data source(s) stale",
+            f"These sources haven't confirmed sync with upstream within their "
+            f"staleness threshold — a loader may be silently failing or the "
+            f"schedule that feeds them isn't running:\n\n{details}",
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Stale-source sweep failed (non-fatal): %s", exc)
+
+
 def run_daily_pipeline():
     """Execute the standard daily ETL pipeline."""
     logger.info("=" * 60)
@@ -204,6 +274,11 @@ def run_daily_pipeline():
     # alert above.
     _alert_validation_failures(results, "Daily ETL")
 
+    # Alert on any source that has drifted past its staleness threshold —
+    # independent of this run's outcome, since the whole point is to catch
+    # sources whose schedule silently stopped feeding them.
+    _alert_stale_sources(registry, "Daily ETL")
+
     return results
 
 
@@ -236,6 +311,7 @@ def run_weekly_pipeline():
         )
 
     _alert_validation_failures(results, "Weekly refresh")
+    _alert_stale_sources(registry, "Weekly refresh")
 
     return results
 
