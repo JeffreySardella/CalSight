@@ -1,5 +1,6 @@
 import MetaTags from "../components/seo/MetaTags";
 import DroughtSection from "../components/water/DroughtSection";
+import PrecipSection from "../components/water/PrecipSection";
 import ReservoirCard from "../components/water/ReservoirCard";
 import SnowpackSection from "../components/water/SnowpackSection";
 import {
@@ -109,6 +110,8 @@ export default function WaterPage() {
       </p>
 
       <SnowpackSection />
+
+      <PrecipSection />
 
       <DroughtSection />
     </main>

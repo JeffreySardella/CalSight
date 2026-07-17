@@ -50,6 +50,10 @@ function renderPage(rows: ReservoirCondition[] | Error) {
       // No snowpack data either — that section hides itself too.
       return new Response("not found", { status: 404 });
     }
+    if (url.includes("/api/water/precip")) {
+      // No precip-index data either — that section hides itself too.
+      return new Response("not found", { status: 404 });
+    }
     throw new Error(`unexpected fetch: ${url}`);
   });
   const client = new QueryClient({
