@@ -1,5 +1,11 @@
 """NOAA Weather ETL — monthly temperature and precipitation per county.
 
+SUPERSEDED (2026-07): the "weather" job now runs etl.nclimgrid_weather, which
+loads the same table from NOAA nClimGrid-Daily bulk CSVs (no API token, gridded
+county averages, immune to the CDO token-API stall that zeroed 2026). This
+module is retained for reference and its aggregation tests; it is no longer
+registered in etl.jobs.
+
 Fetches monthly weather summaries from the NOAA Climate Data Online API
 (GSOM dataset), averages across all stations per county, and upserts
 into the weather table.
