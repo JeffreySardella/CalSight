@@ -65,6 +65,59 @@ def test_snowpack_404_without_data(client):
     assert client.get("/api/water/snowpack").status_code == 404
 
 
+def test_snowpack_april1_uses_last_seasons_april_during_accumulation(
+    client, snow_data, db_session
+):
+    # newest reading is 2026-03-01, before this year's April 1 — so the
+    # apr1 figures refer to 2025-04-01 (last season's April 1).
+    db_session.add_all([
+        SnowDaily(station_id="CSL", date=date(2024, 4, 1), swe_in=8.0),
+        SnowDaily(station_id="CSL", date=date(2025, 4, 1), swe_in=12.0),
+    ])
+    db_session.commit()
+
+    body = client.get("/api/water/snowpack").json()
+    assert body["apr1_date"] == "2025-04-01"
+    # avg over {8, 12} = 10; 2025 reading 12 → 120%.
+    assert body["statewide_apr1_pct_of_average"] == pytest.approx(120.0)
+    central = next(r for r in body["regions"] if r["region"] == "Central Sierra")
+    assert central["apr1_swe_in"] == pytest.approx(12.0)
+    assert central["apr1_avg_swe_in"] == pytest.approx(10.0)
+    assert central["apr1_pct_of_average"] == pytest.approx(120.0)
+    # BSH has no April-1 history at all.
+    south = next(r for r in body["regions"] if r["region"] == "Southern Sierra")
+    assert south["apr1_pct_of_average"] is None
+
+
+def test_snowpack_april1_in_melt_season_uses_this_years_april(client, db_session):
+    # Newest reading is June — the season-defining number is THIS year's
+    # April 1 vs the April-1 average, even though current SWE is ~0.
+    db_session.add(
+        SnowStation(station_id="CSL", name="Central Sierra Snow Lab", elevation_ft=6900, region="Central Sierra")
+    )
+    db_session.flush()
+    db_session.add_all([
+        SnowDaily(station_id="CSL", date=date(2024, 4, 1), swe_in=8.0),
+        SnowDaily(station_id="CSL", date=date(2025, 4, 1), swe_in=12.0),
+        SnowDaily(station_id="CSL", date=date(2026, 4, 1), swe_in=6.0),
+        SnowDaily(station_id="CSL", date=date(2026, 6, 15), swe_in=0.5),  # newest
+    ])
+    db_session.commit()
+
+    body = client.get("/api/water/snowpack").json()
+    assert body["apr1_date"] == "2026-04-01"
+    # avg over {8, 12, 6} = 8.667 (period of record incl. this year);
+    # this year's 6.0 → 69.2%.
+    assert body["statewide_apr1_pct_of_average"] == pytest.approx(69.2, abs=0.1)
+
+
+def test_snowpack_april1_absent_without_april_history(client, snow_data):
+    # The base fixture has no April-1 rows at all — apr1 fields stay null.
+    body = client.get("/api/water/snowpack").json()
+    assert body["apr1_date"] is None
+    assert body["statewide_apr1_pct_of_average"] is None
+
+
 def test_snowpack_excludes_stale_offline_stations(client, db_session):
     """A station offline for years must not contribute its last-ever
     reading to the current snowpack total."""

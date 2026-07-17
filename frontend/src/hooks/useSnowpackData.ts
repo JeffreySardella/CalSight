@@ -8,11 +8,16 @@ export interface RegionSnowpack {
   swe_in: number;
   avg_swe_in: number | null;
   pct_of_average: number | null;
+  apr1_swe_in: number | null;
+  apr1_avg_swe_in: number | null;
+  apr1_pct_of_average: number | null;
 }
 
 export interface Snowpack {
   latest_date: string;
   statewide_pct_of_average: number | null;
+  apr1_date: string | null;
+  statewide_apr1_pct_of_average: number | null;
   regions: RegionSnowpack[];
 }
 

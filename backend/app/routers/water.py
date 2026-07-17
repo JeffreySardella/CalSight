@@ -334,6 +334,39 @@ _MIN_MEANINGFUL_SWE = 0.5
 _SNOW_RECENCY_DAYS = 14
 
 
+def _april1_stats(db, station_ids, newest: date):
+    """This season's April-1 SWE and the historical April-1 average per
+    station — the inputs for DWR's season-defining "% of April 1 average".
+
+    Returns (apr1_date, {sid: swe}, {sid: (avg, years)}). The historical
+    average uses the full period of record (like DWR's), so the current
+    season's own reading contributes ~1/N of its average.
+    """
+    apr1 = date(newest.year, 4, 1)
+    if newest < apr1:
+        apr1 = date(newest.year - 1, 4, 1)
+
+    readings = dict(
+        db.query(SnowDaily.station_id, SnowDaily.swe_in)
+        .filter(SnowDaily.station_id.in_(station_ids), SnowDaily.date == apr1)
+        .all()
+    )
+    averages = {
+        sid: (float(avg), years)
+        for sid, avg, years in (
+            db.query(SnowDaily.station_id, func.avg(SnowDaily.swe_in), func.count())
+            .filter(
+                SnowDaily.station_id.in_(station_ids),
+                func.extract("month", SnowDaily.date) == 4,
+                func.extract("day", SnowDaily.date) == 1,
+            )
+            .group_by(SnowDaily.station_id)
+            .all()
+        )
+    }
+    return apr1, readings, averages
+
+
 @router.get("/water/snowpack", response_model=SnowpackOut)
 @_limiter.limit("1000/minute;20000/hour")
 def snowpack(
@@ -341,8 +374,9 @@ def snowpack(
     response: Response,
     db: Session = Depends(get_db),
 ):
-    """Latest snow water equivalent by DWR region and statewide, each as a
-    percent of the same-day-of-year historical average across stations."""
+    """Latest snow water equivalent by DWR region and statewide, as a
+    percent of the same-day-of-year historical average across stations,
+    plus the season-defining percent of the April-1 average."""
     response.headers["Cache-Control"] = _ONE_HOUR
 
     conditions = latest_with_doy_average(db, SnowDaily, SnowDaily.swe_in)
@@ -366,14 +400,40 @@ def snowpack(
     def mean(values: list[float]) -> float:
         return sum(values) / len(values)
 
+    apr1_date, apr1_readings, apr1_averages = _april1_stats(
+        db, [c.station_id for c in current], newest
+    )
+
+    def apr1_comparable(cs: list[StationCondition]) -> list[str]:
+        # A station counts toward the April-1 percent when it reported that
+        # April 1 AND has a usable multi-year April-1 baseline.
+        return [
+            c.station_id
+            for c in cs
+            if c.station_id in apr1_readings
+            and c.station_id in apr1_averages
+            and apr1_averages[c.station_id][1] > 1
+            and apr1_averages[c.station_id][0] >= _MIN_MEANINGFUL_SWE
+        ]
+
+    def apr1_trio(cs: list[StationCondition]):
+        sids = apr1_comparable(cs)
+        if not sids:
+            return None, None, None
+        swe = mean([apr1_readings[s] for s in sids])
+        avg = mean([apr1_averages[s][0] for s in sids])
+        return round(swe, 1), round(avg, 1), round(swe / avg * 100, 1)
+
     # Every reported figure for a region comes from ONE station set, so
     # swe_in, avg_swe_in and pct_of_average always reconcile: when a percent
-    # is shown, swe_in IS that percent of avg_swe_in.
+    # is shown, swe_in IS that percent of avg_swe_in. (The apr1_* trio uses
+    # its own set and reconciles within itself the same way.)
     def summarize(region: str, cs: list[StationCondition]) -> RegionSnowpack:
         comparable = [c for c in cs if is_comparable(c)]
         used = comparable or cs
         swe = mean([c.value for c in used])
         avg = mean([c.avg for c in comparable]) if comparable else None
+        apr1_swe, apr1_avg, apr1_pct = apr1_trio(cs)
         return RegionSnowpack(
             region=region,
             station_count=len(used),
@@ -381,6 +441,9 @@ def snowpack(
             swe_in=round(swe, 1),
             avg_swe_in=round(avg, 1) if avg is not None else None,
             pct_of_average=round(swe / avg * 100, 1) if avg is not None else None,
+            apr1_swe_in=apr1_swe,
+            apr1_avg_swe_in=apr1_avg,
+            apr1_pct_of_average=apr1_pct,
         )
 
     by_region: dict[str, list[StationCondition]] = defaultdict(list)
@@ -403,8 +466,12 @@ def snowpack(
         else None
     )
 
+    _, _, statewide_apr1_pct = apr1_trio(current)
+
     return SnowpackOut(
         latest_date=newest,
         statewide_pct_of_average=statewide_pct,
+        apr1_date=apr1_date if statewide_apr1_pct is not None else None,
+        statewide_apr1_pct_of_average=statewide_apr1_pct,
         regions=regions,
     )
