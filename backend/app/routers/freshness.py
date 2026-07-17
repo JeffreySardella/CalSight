@@ -90,6 +90,7 @@ _STALENESS_THRESHOLDS = {
     "reservoirs": 48,
     "snowpack": 48,
     "drought": 48,
+    "precip_indices": 48,
 }
 
 

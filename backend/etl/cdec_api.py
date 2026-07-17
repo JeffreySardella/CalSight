@@ -52,8 +52,26 @@ REQUEST_DELAY = 0.5  # courtesy delay between batched requests
 SENSOR_STORAGE = 15  # reservoir storage, acre-feet
 SENSOR_SNOW_WATER_CONTENT = 3  # snow water content (raw daily SWE), inches
 SENSOR_SNOW_WATER_CONTENT_REVISED = 82  # DWR-adjusted daily SWE, inches
+SENSOR_PRECIP_ACCUM = 2  # accumulated precipitation (water-year total), inches
 
 MISSING_VALUE = -9999
+
+# DWR's three regional precipitation indices — the headline California
+# wet-season numbers journalists reproduce every winter. Each is itself a
+# CDEC "station" whose sensor 2 reports the region's accumulated water-year
+# precipitation (inches), so no per-gauge aggregation is needed: one index =
+# one region. Station codes + station counts verified live 2026-07 against the
+# CDEC JSONDataServlet (sensor 2 returns "RAIN"/INCHES cumulative). The
+# 8-Station Index is the canonical Northern Sierra figure.
+PRECIP_REGION_NORTH = "Northern Sierra (8-Station)"
+PRECIP_REGION_SANJOAQUIN = "San Joaquin (5-Station)"
+PRECIP_REGION_TULARE = "Tulare Basin (6-Station)"
+
+PRECIP_INDEX_STATIONS = {
+    "8SI": {"name": "Northern Sierra 8-Station Index", "region": PRECIP_REGION_NORTH},
+    "5SI": {"name": "San Joaquin 5-Station Index", "region": PRECIP_REGION_SANJOAQUIN},
+    "6SI": {"name": "Tulare Basin 6-Station Index", "region": PRECIP_REGION_TULARE},
+}
 
 # DWR groups its ~130 electronic snow sensors into three Sierra regions and
 # reports each as a percent of average. These are five verified snow-pillow
@@ -259,6 +277,18 @@ def fetch_snow_water_content(start: date, end: date) -> list[Observation]:
     raw = fetch_sensor_data(
         stations=sorted(MAJOR_SNOW_STATIONS),
         sensor=SENSOR_SNOW_WATER_CONTENT,
+        start=start,
+        end=end,
+    )
+    return parse_observations(raw)
+
+
+def fetch_precip_indices(start: date, end: date) -> list[Observation]:
+    """Fetch daily accumulated water-year precipitation for the three DWR
+    regional indices (8SI/5SI/6SI). Sensor 2 is the cumulative total."""
+    raw = fetch_sensor_data(
+        stations=sorted(PRECIP_INDEX_STATIONS),
+        sensor=SENSOR_PRECIP_ACCUM,
         start=start,
         end=end,
     )

@@ -237,6 +237,17 @@ def build_default_registry() -> JobRegistry:
         source_type="none",
     ))
     registry.register(Job(
+        name="precip_indices",
+        module="etl.load_precip_indices",
+        # Accumulated water-year precip for the 8SI/5SI/6SI indices; daily
+        # trailing-window pull. Like the other CDEC jobs, no freshness probe.
+        schedule="daily",
+        table_name="precip_index_daily",
+        # Upserts never delete; a shrink means CDEC data vanished — fail loudly.
+        max_drop_pct=1,
+        source_type="none",
+    ))
+    registry.register(Job(
         name="drought",
         module="etl.load_drought",
         # The pipeline runs every non-static job on its daily cadence
