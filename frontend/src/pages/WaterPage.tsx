@@ -80,6 +80,14 @@ export default function WaterPage() {
               of historical average
             </p>
           </div>
+          {/* Stale feeds are dropped from the totals (recency cutoff), so
+              the station count is the honest disclosure of what the
+              numbers above are built from. */}
+          {data && (
+            <p className="sm:col-span-3 text-[10px] text-on-surface-variant uppercase tracking-widest">
+              Based on {data.length} reservoir{data.length === 1 ? "" : "s"} reporting
+            </p>
+          )}
         </section>
       )}
 
