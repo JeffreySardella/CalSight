@@ -18,10 +18,12 @@ No day-to-day attention required:
 
 - **Auto-deploy** from `main` — GitHub Actions → self-hosted runner (LXC 100) +
   VM 101 (API + Cloudflare tunnel); Cloudflare Pages builds the frontend.
-- **Daily ETL** (`etl.pipeline`, APScheduler in the `pipeline` container):
-  crashes/parties/victims + derived transforms + materialized-view refresh at
-  11:00 UTC; weekly full refresh (incl. monthly reference sources) Sundays;
-  VACUUM + `pg_dump` backup nightly.
+- **Daily ETL** — on the *current* deployment this is scheduled by a **host
+  cron on LXC 100** (crashes/parties/victims + derived transforms +
+  materialized-view refresh, weekly full refresh, VACUUM + `pg_dump` backup
+  nightly). The containerized `etl.pipeline` APScheduler service in the repo is
+  the *newer target architecture* and is **not** what's live here yet — see the
+  #370 note below before touching any scheduler.
 - **Nightly backups** with offsite copy to Cloudflare R2 (min-keep-3 rotation,
   `pg_restore --list` verification, quarantine-on-corruption).
 - **Resilience baked in**: transient-failure retries w/ exponential backoff,
@@ -59,26 +61,15 @@ you**. The code is all shipped; these just switch it on.
   key the deploy preserves). Point it at an external cron-monitor so a dead
   pipeline or a dead box actually pages you.
 
-### 2. Retire the legacy host scheduler (#370) — on LXC 100, ORDER MATTERS
+### 2. ~~Retire the legacy host scheduler (#370)~~ — DO NOT DO THIS on the current deployment
 
-The container `pipeline` service is the real scheduler now; an old host-side
-systemd/cron runner may still exist. Disabling it *before* confirming the
-container scheduler is healthy would stop all ETL (this bit us on 2026-07-13).
-
-```bash
-# 1. Verify the compose scheduler is genuinely alive FIRST:
-docker ps --filter name=pipeline                     # expect: Up (not Restarting)
-docker logs --tail 30 calsight-pipeline-1            # expect "Schedules:" banner, no traceback
-
-# 2. See what (if anything) still fires the old nightly:
-systemctl cat calsight-etl-scheduler 2>/dev/null || echo "no such unit"
-crontab -l | grep -i -e etl -e calsight
-
-# 3. ONLY after step 1 is healthy AND a container run has landed in etl_runs:
-systemctl disable --now calsight-etl-scheduler 2>/dev/null || true
-rm -f /etc/systemd/system/calsight-etl-scheduler.service && systemctl daemon-reload
-crontab -l | grep -v etl | crontab -                 # drop any leftover ETL cron line
-```
+**Verified 2026-07-18 at the box: the host cron on LXC 100 IS the live
+scheduler — it is not a legacy leftover. Retiring it would kill the nightly
+ETL and backups.** #370 (moving scheduling into the containerized
+`etl.pipeline` service) only becomes relevant *if and when* the newer
+containerized CalSight version is actually deployed here. Until then, **leave
+the cron alone.** The `backend/deploy/README.md` retirement steps describe that
+future migration, not the current box.
 
 ### 3. Repo tidy (GitHub)
 
