@@ -7,6 +7,8 @@ name: Run ETL Job
 #
 # Trigger from the Actions tab ("Run ETL Job" -> Run workflow) or:
 #   gh workflow run run-etl.yml -f job=extract_route_number
+#   gh workflow run run-etl.yml -f job=load_precip_indices -f args=--backfill
+#   gh workflow run run-etl.yml -f job=nclimgrid_weather -f 'args=--start 2001-01 --end 2026-07'
 
 on:
   workflow_dispatch:
@@ -15,6 +17,10 @@ on:
         description: "ETL module to run (etl.<module>), e.g. extract_route_number"
         required: true
         default: "extract_route_number"
+      args:
+        description: "Extra CLI args for the module, e.g. '--backfill' or '--start 2001-01 --end 2026-07'. Blank = module default (usually a trailing window)."
+        required: false
+        default: ""
       refresh_matviews:
         description: "Refresh materialized views after the job (needed for backfills that feed mv_crashes_wide)"
         type: boolean
@@ -43,13 +49,28 @@ jobs:
       # shell-injection vector. Pass it through the environment instead and
       # validate it below before anything else runs.
       JOB: ${{ inputs.job }}
+      # Same rule for args: passed through the environment, never expanded into
+      # a `run:` line before validation. Word-split unquoted in the run step so
+      # a multi-flag value like "--start 2001-01 --end 2026-07" becomes separate
+      # argv entries — which is only safe because the allowlist below rejects
+      # every shell metacharacter (; | & $ ` ' " > < ( ) glob, newline, /).
+      ARGS: ${{ inputs.args }}
     steps:
-      - name: Validate job input
+      - name: Validate inputs
         run: |
           if ! printf '%s' "$JOB" | grep -Eq '^[a-z0-9_]+$'; then
             echo "Invalid job input (must match ^[a-z0-9_]+\$): $JOB" >&2
             exit 1
           fi
+          # A case glob (not grep) so an embedded newline can't smuggle a second
+          # line past a line-anchored regex. Allowed: letters, digits, space,
+          # dot, underscore, equals, hyphen.
+          case "$ARGS" in
+            *[!A-Za-z0-9\ ._=-]*)
+              echo "Invalid args (allowed chars: letters, digits, space, . _ = -): $ARGS" >&2
+              exit 1
+              ;;
+          esac
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -129,7 +150,10 @@ jobs:
           mv "$TMP_ENV" backend/.env
 
       - name: Run ETL job (${{ inputs.job }})
-        run: docker compose -f docker-compose.prod.yml exec -T backend python -m "etl.$JOB"
+        # $ARGS is intentionally unquoted so it word-splits into separate argv
+        # entries; the validate step above guarantees it holds no shell
+        # metacharacters. Empty ARGS expands to nothing (module default).
+        run: docker compose -f docker-compose.prod.yml exec -T backend python -m "etl.$JOB" $ARGS
         timeout-minutes: 240
 
       - name: Refresh materialized views
