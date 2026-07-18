@@ -56,10 +56,12 @@ you**. The code is all shipped; these just switch it on.
 - [ ] **Frontend Sentry** — set `VITE_SENTRY_DSN` in **Cloudflare Pages →
   Settings → Environment variables**, then **redeploy** Pages (Vite bakes env
   vars in at build time).
-- [ ] **Heartbeat / dead-man's-switch** — add `HEARTBEAT_URL=<uptime-monitor
-  ping URL>` to `/opt/calsight/backend/.env` on **LXC 100** (an *unmanaged*
-  key the deploy preserves). Point it at an external cron-monitor so a dead
-  pipeline or a dead box actually pages you.
+- [x] **Heartbeat / dead-man's-switch — DONE (2026-07-18).** `HEARTBEAT_URL`
+  is set on LXC 100 and tested; the nightly backup pings an external monitor
+  that emails if it ever stops. This is the important safety net for running
+  unattended, and it's live. (The two Sentry items above remain optional — the
+  heartbeat already covers the "did it stop running" case; Sentry only adds the
+  "what errored" detail.)
 
 ### 2. ~~Retire the legacy host scheduler (#370)~~ — DO NOT DO THIS on the current deployment
 
@@ -71,14 +73,23 @@ containerized CalSight version is actually deployed here. Until then, **leave
 the cron alone.** The `backend/deploy/README.md` retirement steps describe that
 future migration, not the current box.
 
-### 3. Repo tidy (GitHub)
+### 3. Repo tidy (GitHub) — cosmetic, zero functional impact
 
-- [ ] Delete merged remote branches (all merged into `main`, safe to remove):
-  `chore/pre-launch-tidy`, `claude/water-data-explorer`, `feat/calenviroscreen-5`,
-  `feat/crash-conditions-preset`, `feat/etl-backfill-args`, `feat/nclimgrid-weather`,
-  `feat/precip-indices`, `feat/precip-indices-frontend`, `feat/snowpack-april1`,
-  `feat/water-module`, `feat/water-v2-integration`, `fix/a11y-pass`,
-  `fix/snow-swe-sanity`, `fix/stale-source-alerts`.
+- [ ] Delete merged remote branches (all merged into `main`, safe to remove).
+  From a local clone, one command does it all:
+
+  ```bash
+  git push origin --delete \
+    chore/pre-launch-tidy claude/water-data-explorer feat/calenviroscreen-5 \
+    feat/crash-conditions-preset feat/etl-backfill-args feat/nclimgrid-weather \
+    feat/precip-indices feat/precip-indices-frontend feat/snowpack-april1 \
+    feat/water-module feat/water-v2-integration fix/a11y-pass \
+    fix/snow-swe-sanity fix/stale-source-alerts \
+    docs/project-state-handoff docs/fix-scheduler-note
+  ```
+
+  (Any branch that's already gone just prints a harmless "remote ref does not
+  exist" — safe to re-run.)
 
 ### 4. Optional / non-blocking
 
