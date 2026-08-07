@@ -108,8 +108,14 @@ def _call(fn, session, overrides):
 
 
 def _comparable(rows):
-    """Rounded tuples — float means must match to a sane precision, not bitwise."""
-    return [
+    """Rounded tuples — float means must match to a sane precision, not bitwise.
+
+    Sorted, because row order among ties is unspecified: both queries end with
+    `ORDER BY <count|score> DESC, fatal_count DESC`, and rows tied on both keys
+    may come back in either order from either plan. Ordering is asserted
+    separately, on the keys that actually are deterministic.
+    """
+    return sorted(
         (
             r.county_code, r.primary_road, r.secondary_road, r.crash_count,
             r.fatal_count, r.injury_count, r.pdo_count, r.severity_score,
@@ -118,7 +124,14 @@ def _comparable(rows):
             None if r.longitude is None else round(r.longitude, 9),
         )
         for r in rows
-    ]
+    )
+
+
+def _sort_keys(rows, sort):
+    """The ordering keys, in returned order — deterministic even across ties."""
+    if sort == "severity":
+        return [(r.severity_score, r.fatal_count) for r in rows]
+    return [(r.crash_count, r.fatal_count) for r in rows]
 
 
 @pytest.mark.parametrize("overrides", CASES)
@@ -130,6 +143,19 @@ def test_matview_matches_raw_query(seeded_and_refreshed, overrides):
     assert _comparable(mv) == _comparable(raw), (
         f"matview and raw query disagree for {overrides}"
     )
+
+
+@pytest.mark.parametrize("overrides", CASES)
+def test_matview_orders_results_the_same_way(seeded_and_refreshed, overrides):
+    """Same ranking, and actually ranked — a top-N list in the wrong order is
+    wrong even when the set of rows is right."""
+    session = seeded_and_refreshed
+    sort = overrides.get("sort", "count")
+    raw_keys = _sort_keys(_call(_aggregate, session, overrides), sort)
+    mv_keys = _sort_keys(_call(_aggregate_from_mv, session, overrides), sort)
+
+    assert mv_keys == raw_keys, f"ranking differs for {overrides}"
+    assert mv_keys == sorted(mv_keys, reverse=True), "results are not ranked descending"
 
 
 def test_matview_actually_returns_data(seeded_and_refreshed):
@@ -159,6 +185,34 @@ def test_corridor_counts_include_rows_without_a_secondary_road(seeded_and_refres
 
     assert next(r for r in corridors if r.primary_road == "MAIN ST").crash_count == 5
     assert next(r for r in intersections if r.primary_road == "MAIN ST").crash_count == 3
+
+
+def test_unknown_involvement_is_excluded_by_both_true_and_false_filters(
+    seeded_and_refreshed,
+):
+    """NULL cyclist_involved is 'unknown', not 'no'.
+
+    Regression: the view first stored COALESCE(cyclist_involved, false), which
+    swept unknown crashes into every ?cyclist=false result. The endpoints
+    filter with IS TRUE / IS FALSE, and NULL satisfies neither, so the view
+    keeps a three-valued sentinel instead.
+
+    PINE RD has 4 crashes: one cyclist=true, two cyclist=false, one NULL.
+    """
+    session = seeded_and_refreshed
+    scope = {"by_secondary": True, "county_code": 19}
+
+    def pine(overrides):
+        rows = _call(_aggregate_from_mv, session, {**scope, **overrides})
+        row = next((r for r in rows if r.primary_road == "PINE RD"), None)
+        return row.crash_count if row else 0
+
+    assert pine({}) == 4
+    assert pine({"cyclist": True}) == 1
+    assert pine({"cyclist": False}) == 2, "the NULL-cyclist crash must not count as false"
+    # And the total across true/false is short of the unfiltered count by
+    # exactly the unknown row — the invariant that makes the point.
+    assert pine({"cyclist": True}) + pine({"cyclist": False}) == pine({}) - 1
 
 
 def test_coordinate_mean_ignores_missing_coordinates(seeded_and_refreshed):

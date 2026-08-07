@@ -30,7 +30,6 @@ from slowapi import Limiter
 from app.rate_limit import rate_limit_key
 from sqlalchemy import (
     BigInteger,
-    Boolean,
     Column,
     Float,
     MetaData,
@@ -201,8 +200,12 @@ mv_street_aggregates = Table(
     Column("secondary_road", String),
     # 0 rather than NULL for "unknown year", same reason.
     Column("crash_year", SmallInteger),
-    Column("pedestrian_involved", Boolean),
-    Column("cyclist_involved", Boolean),
+    # Three-valued, NOT booleans: 0 = false, 1 = true, 2 = unknown (NULL on
+    # crashes). The endpoints filter with IS TRUE / IS FALSE, which both
+    # exclude NULL, so collapsing unknown into false would quietly widen
+    # every `?cyclist=false` result.
+    Column("pedestrian_state", SmallInteger),
+    Column("cyclist_state", SmallInteger),
     Column("crash_count", BigInteger),
     Column("fatal_count", BigInteger),
     Column("injury_count", BigInteger),
@@ -279,10 +282,12 @@ def _aggregate_from_mv(
         preds.append(mv.c.crash_year >= year_start)
     if year_end is not None:
         preds.append(mv.c.crash_year <= year_end)
+    # `IS TRUE` -> state 1, `IS FALSE` -> state 0. State 2 (unknown) matches
+    # neither, exactly as NULL matches neither IS TRUE nor IS FALSE.
     if pedestrian is not None:
-        preds.append(mv.c.pedestrian_involved.is_(pedestrian))
+        preds.append(mv.c.pedestrian_state == (1 if pedestrian else 0))
     if cyclist is not None:
-        preds.append(mv.c.cyclist_involved.is_(cyclist))
+        preds.append(mv.c.cyclist_state == (1 if cyclist else 0))
 
     group_cols = [mv.c.county_code, mv.c.primary_road]
     if by_secondary:

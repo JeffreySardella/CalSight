@@ -16,10 +16,15 @@ Design notes:
     runs during deploy before traffic is served; populating 11.3M rows there
     would stall the deploy. The nightly refresh populates it, and the
     endpoints fall back to the live query until then.
-  - Every unique-index column is COALESCE'd to a non-NULL sentinel because
+  - Every unique-index column is mapped to a non-NULL sentinel because
     REFRESH MATERIALIZED VIEW CONCURRENTLY requires a usable unique index.
     crash_year, secondary_road, pedestrian_involved and cyclist_involved are
     all nullable on crashes.
+  - The involvement flags become a THREE-valued smallint (0 false / 1 true /
+    2 unknown), not a COALESCE to false. The endpoints filter with
+    `pedestrian_involved IS TRUE` / `IS FALSE`, both of which exclude NULL —
+    so folding NULL into false would silently pull "unknown" crashes into
+    every `?cyclist=false` result. The equivalence tests caught exactly this.
   - crash_year unknown is stored as 0, never a real year. With no year filter
     those rows are included; with `crash_year >= year_start` they drop out —
     which is exactly what the live query does, since NULL >= 2020 is NULL.
@@ -53,8 +58,12 @@ SELECT
         ''
     ) AS secondary_road,
     COALESCE(c.crash_year, 0) AS crash_year,
-    COALESCE(c.pedestrian_involved, false) AS pedestrian_involved,
-    COALESCE(c.cyclist_involved, false) AS cyclist_involved,
+    CASE WHEN c.pedestrian_involved IS NULL THEN 2
+         WHEN c.pedestrian_involved THEN 1
+         ELSE 0 END AS pedestrian_state,
+    CASE WHEN c.cyclist_involved IS NULL THEN 2
+         WHEN c.cyclist_involved THEN 1
+         ELSE 0 END AS cyclist_state,
     count(*) AS crash_count,
     count(*) FILTER (WHERE c.severity = 'Fatal') AS fatal_count,
     count(*) FILTER (WHERE c.severity = 'Injury') AS injury_count,
@@ -78,7 +87,7 @@ CREATE_UNIQUE_INDEX = """
 CREATE UNIQUE INDEX ux_mv_street_aggregates_key
     ON mv_street_aggregates (
         county_code, primary_road, secondary_road,
-        crash_year, pedestrian_involved, cyclist_involved
+        crash_year, pedestrian_state, cyclist_state
     )
 """
 
