@@ -180,7 +180,7 @@ def _norm(col):
 
 # ── Materialized-view fast path ────────────────────────────────────────
 #
-# mv_street_aggregates (migration a5b6c7d8e9f0) pre-normalizes road names and
+# mv_street_aggregates (migration c4f1a9b2d3e7) pre-normalizes road names and
 # pre-rolls crashes up to (county, primary, secondary, year, ped, cyc). The
 # endpoints then aggregate that narrow table instead of scanning 11.3M raw
 # crashes with two regexp_replace calls per row.

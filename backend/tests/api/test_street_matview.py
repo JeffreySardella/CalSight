@@ -1,7 +1,7 @@
 """The matview fast path must agree exactly with the raw-crashes query.
 
 /api/intersections and /api/corridors read mv_street_aggregates (migration
-a5b6c7d8e9f0) when it is populated, and fall back to scanning the crashes
+c4f1a9b2d3e7) when it is populated, and fall back to scanning the crashes
 table when it isn't. Two code paths producing "roughly the same" numbers
 would be worse than one slow path, so these tests assert the two agree
 row-for-row across the filter matrix — including the parts most likely to

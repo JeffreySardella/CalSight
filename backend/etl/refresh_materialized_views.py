@@ -8,7 +8,7 @@ Views and the migrations that defined them:
   - mv_at_fault_parties_by_demographics    (f8a1b2c3d4e5) — at-fault party gender / age
   - mv_crashes_by_month                    (g4h5i6j7k8l9) — seasonality
   - mv_crash_rates                         (g4h5i6j7k8l9) — per-capita rates
-  - mv_street_aggregates                   (a5b6c7d8e9f0) — street-level rollup
+  - mv_street_aggregates                   (c4f1a9b2d3e7) — street-level rollup
 
 mv_street_aggregates is "optional": the street endpoints fall back to the
 raw crashes table when it is unpopulated, so unlike the others it does not

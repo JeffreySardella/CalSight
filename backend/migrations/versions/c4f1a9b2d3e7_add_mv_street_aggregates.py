@@ -28,7 +28,7 @@ Design notes:
     averages would silently weight a road-year with 3 crashes the same as one
     with 3,000.
 
-Revision ID: a5b6c7d8e9f0
+Revision ID: c4f1a9b2d3e7
 Revises: 9ded93edd291
 Create Date: 2026-08-07 09:00:00.000000
 """
@@ -37,7 +37,7 @@ from typing import Sequence, Union
 from alembic import op
 
 
-revision: str = "a5b6c7d8e9f0"
+revision: str = "c4f1a9b2d3e7"
 down_revision: Union[str, None] = "9ded93edd291"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
