@@ -8,6 +8,11 @@ Views and the migrations that defined them:
   - mv_at_fault_parties_by_demographics    (f8a1b2c3d4e5) — at-fault party gender / age
   - mv_crashes_by_month                    (g4h5i6j7k8l9) — seasonality
   - mv_crash_rates                         (g4h5i6j7k8l9) — per-capita rates
+  - mv_street_aggregates                   (c4f1a9b2d3e7) — street-level rollup
+
+mv_street_aggregates is "optional": the street endpoints fall back to the
+raw crashes table when it is unpopulated, so unlike the others it does not
+gate the site-wide rebuilding banner. See app/health.py.
 
 They were created WITH NO DATA — the first run of this module populates
 them. Subsequent runs do a CONCURRENTLY refresh (doesn't block reads)
@@ -27,7 +32,7 @@ import logging
 from sqlalchemy import text
 
 from app.database import etl_engine as engine  # write/DDL role
-from app.health import MATERIALIZED_VIEWS
+from app.health import REFRESHABLE_VIEWS
 from etl._utils import track_etl_run
 
 logging.basicConfig(
@@ -37,7 +42,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_VIEWS = list(MATERIALIZED_VIEWS)
+_VIEWS = list(REFRESHABLE_VIEWS)
 
 
 def _has_data(conn, view: str) -> bool:

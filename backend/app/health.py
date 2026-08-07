@@ -15,7 +15,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 # Single source of truth for the MV names the API serves from.
-# etl/refresh_materialized_views.py imports this list.
+# These gate the site-wide "rebuilding" banner: if one is unpopulated, the
+# pages that depend on it have no data to show.
 MATERIALIZED_VIEWS: tuple[str, ...] = (
     "mv_crashes_by_year",
     "mv_crashes_by_cause",
@@ -26,6 +27,19 @@ MATERIALIZED_VIEWS: tuple[str, ...] = (
     "mv_crash_rates",
     "mv_crashes_wide",
 )
+
+# Views that are refreshed nightly but must NOT gate the rebuilding banner,
+# because the API degrades gracefully without them rather than going blank.
+# etl/refresh_materialized_views.py refreshes MATERIALIZED_VIEWS + these.
+#
+# mv_street_aggregates is an optimization: /api/intersections and
+# /api/corridors fall back to querying the raw crashes table when it isn't
+# populated. Slow is not the same as broken, so an unpopulated street view
+# shouldn't put a banner across the whole site.
+OPTIONAL_MATERIALIZED_VIEWS: tuple[str, ...] = ("mv_street_aggregates",)
+
+# Everything the nightly refresh job maintains.
+REFRESHABLE_VIEWS: tuple[str, ...] = MATERIALIZED_VIEWS + OPTIONAL_MATERIALIZED_VIEWS
 
 
 def is_rebuilding(db: Session, views: Iterable[str] | None = None) -> bool:
