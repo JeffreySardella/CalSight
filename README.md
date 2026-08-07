@@ -65,8 +65,8 @@ npm run dev
 ## Tests
 
 ```bash
-cd backend && pytest -m "not integration"  # 364 unit tests
-cd frontend && npm test                     # 173 tests
+cd backend && pytest -m "not integration"  # 827 unit tests (+313 integration, needs a DB)
+cd frontend && npm test                     # 1012 tests
 ```
 
 ## Project layout

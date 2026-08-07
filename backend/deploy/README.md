@@ -40,12 +40,23 @@ docker logs --tail 30 calsight-pipeline-1 # expect the "Schedules:" banner, no t
 systemctl cat calsight-etl-scheduler 2>/dev/null || echo "no such unit"
 crontab -l | grep -i -e etl -e calsight
 
-# 3. ONLY after step 1 shows a stable scheduler AND at least one
+# 3. !!! DO NOT RUN ON THE CURRENT DEPLOYMENT !!!
+#
+#    Verified at the box on 2026-07-18: the HOST CRON IS THE LIVE SCHEDULER.
+#    The containerized pipeline scheduler is NOT deployed here. Running the
+#    commands below today would kill the nightly ETL *and* the nightly
+#    backups, silently, on a system nobody is watching.
+#
+#    See docs/PROJECT_STATE.md and issue #370. These commands are kept only
+#    for the future case where the containerized scheduler is actually
+#    deployed and proven. Re-verify with step 2 before believing otherwise.
+#
+#    ONLY after step 1 shows a stable CONTAINER scheduler AND at least one
 #    container-scheduled run has landed in etl_runs (daily fires 11:00 UTC),
 #    retire the host runner:
-systemctl disable --now calsight-etl-scheduler 2>/dev/null || true
-rm -f /etc/systemd/system/calsight-etl-scheduler.service && systemctl daemon-reload
-crontab -l | grep -v etl | crontab -      # drop any leftover ETL cron line
+# systemctl disable --now calsight-etl-scheduler 2>/dev/null || true
+# rm -f /etc/systemd/system/calsight-etl-scheduler.service && systemctl daemon-reload
+# crontab -l | grep -v etl | crontab -    # drop any leftover ETL cron line
 ```
 
 ## Remaining script
