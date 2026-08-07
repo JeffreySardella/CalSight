@@ -183,9 +183,27 @@ describe("IntersectionsPanel", () => {
   });
 
   it("renders an error state with a retry action on failure", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("boom", { status: 500 }));
+    // 4xx so the assertion isn't racing the retry backoff — the hook's own
+    // `retry` overrides the test client's `retry: false`. See the matching
+    // note in useIntersections.test.tsx.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("boom", { status: 400 }));
     renderPanel();
     const alert = await screen.findByRole("alert");
     expect(within(alert).getByText("Couldn't load results")).toBeInTheDocument();
+  });
+
+  it("shows the server's own explanation when the query was too large", async () => {
+    // The statewide scan can exceed the query timeout; the API answers 503
+    // with actionable advice, which beats a generic "something went wrong".
+    const detail =
+      "This street-level query covers too much data to finish in time. " +
+      "Narrow it with a county or a year range and it will return quickly.";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ detail }), { status: 503 }),
+    );
+    renderPanel();
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Too much data for one query")).toBeInTheDocument();
+    expect(within(alert).getByText(detail)).toBeInTheDocument();
   });
 });

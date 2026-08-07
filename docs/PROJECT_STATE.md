@@ -32,8 +32,10 @@ No day-to-day attention required:
 
 ## Current state (2026-07-18)
 
-- **Live and healthy** — site 200, API ok, **11.3M** crash rows, freshness `fresh`.
-- **Zero open PRs.** `main` @ `e53f0a2`.
+- **Live and healthy** — site 200, API ok, **11.34M** crash rows, freshness
+  `fresh` (re-verified 2026-08-07; the nightly ETL has run unattended
+  throughout).
+- **Zero open PRs.** `main` @ `10ad7aa`.
 - **Water module** is fully built and tested but **deliberately hidden** behind
   `WATER_PAGE_PUBLIC = false` (`frontend/src/config.ts`). Reachable at
   https://calsight.org/water for review; kept out of public nav/sitemap by choice.
@@ -75,21 +77,18 @@ future migration, not the current box.
 
 ### 3. Repo tidy (GitHub) — cosmetic, zero functional impact
 
-- [ ] Delete merged remote branches (all merged into `main`, safe to remove).
-  From a local clone, one command does it all:
+- [x] **Delete merged remote branches — DONE.** Verified 2026-08-07:
+  `git branch -r` shows only `origin/main`.
+
+- [ ] Local clone still holds 18 merged branches and 4 stale agent worktrees.
+  Purely local clutter — nothing on GitHub, no functional impact:
 
   ```bash
-  git push origin --delete \
-    chore/pre-launch-tidy claude/water-data-explorer feat/calenviroscreen-5 \
-    feat/crash-conditions-preset feat/etl-backfill-args feat/nclimgrid-weather \
-    feat/precip-indices feat/precip-indices-frontend feat/snowpack-april1 \
-    feat/water-module feat/water-v2-integration fix/a11y-pass \
-    fix/snow-swe-sanity fix/stale-source-alerts \
-    docs/project-state-handoff docs/fix-scheduler-note
+  git worktree prune          # after `git worktree remove` on any that remain
+  git branch --merged main | grep -v '^\*\| main$' | xargs -r git branch -d
   ```
 
-  (Any branch that's already gone just prints a harmless "remote ref does not
-  exist" — safe to re-run.)
+  (`-d` refuses to delete anything not actually merged, so this is safe.)
 
 ### 4. Optional / non-blocking
 

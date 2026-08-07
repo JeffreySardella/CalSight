@@ -25,6 +25,36 @@ export class PngExportError extends Error {
   }
 }
 
+/**
+ * Decode a `data:` URL into a Blob without going through `fetch()`.
+ *
+ * `fetch(dataUrl)` is a network request as far as CSP is concerned, and our
+ * `connect-src` (see frontend/public/_headers) deliberately allow-lists only
+ * the API and tile hosts — so in production the fetch was blocked and every
+ * PNG export died with "Export failed: Failed to fetch". Decoding in-process
+ * fixes it without punching a `data:` hole in connect-src.
+ */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(",");
+  if (!dataUrl.startsWith("data:") || comma === -1) {
+    throw new PngExportError("Couldn't read the generated image — please try again.");
+  }
+  const header = dataUrl.slice(5, comma);
+  const body = dataUrl.slice(comma + 1);
+  const mime = header.split(";")[0] || "image/png";
+
+  if (!header.includes("base64")) {
+    return new Blob([decodeURIComponent(body)], { type: mime });
+  }
+
+  const binary = atob(body);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
 export async function exportPng(opts: PngExportOptions = {}): Promise<void> {
   const target = document.querySelector(MAP_CONTAINER_SELECTOR) as HTMLElement | null;
   if (!target) {
@@ -50,6 +80,7 @@ export async function exportPng(opts: PngExportOptions = {}): Promise<void> {
   });
 
   // Convert data: URL to Blob so triggerDownload can revoke it cleanly.
-  const blob = await (await fetch(dataUrl)).blob();
+  // Decoded in-process rather than via fetch() — see dataUrlToBlob.
+  const blob = dataUrlToBlob(dataUrl);
   triggerDownload(blob, `calsight-map_${todayStamp()}${opts.filenameSuffix ?? ""}.png`);
 }

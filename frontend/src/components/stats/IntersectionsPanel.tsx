@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  StreetAggError,
   useStreetAggregation,
   useStreetConcentration,
   type StreetScope,
@@ -214,8 +215,16 @@ export default function IntersectionsPanel() {
       ) : error ? (
         <ErrorState
           className="py-10"
-          title="Couldn't load results"
-          description="The server may be temporarily unavailable. Please try again."
+          title={
+            error instanceof StreetAggError && error.isTooExpensive
+              ? "Too much data for one query"
+              : "Couldn't load results"
+          }
+          description={
+            error instanceof StreetAggError && error.detail
+              ? error.detail
+              : "The server may be temporarily unavailable. Please try again."
+          }
           onRetry={() => refetch()}
         />
       ) : rows.length === 0 ? (

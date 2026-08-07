@@ -35,10 +35,17 @@ def test_apply_statement_timeout_coerces_ms_to_int():
 
 def test_heavy_endpoints_call_the_timeout(monkeypatch):
     """Source-level guard: every endpoint that aggregates the raw crashes
-    table statewide applies the timeout before querying."""
+    table statewide applies the timeout before querying.
+
+    `_apply_scan_timeout(...)` counts: it is the intersections router's tiered
+    wrapper (tighter bound for county-scoped queries, more headroom for the
+    unbounded statewide scan) and it calls apply_statement_timeout itself.
+    """
     import inspect
 
     from app.routers import changes, clusters, intersections, stats
+
+    setters = ("apply_statement_timeout(", "_apply_scan_timeout(")
 
     for fn in (
         intersections.get_intersections,
@@ -50,4 +57,19 @@ def test_heavy_endpoints_call_the_timeout(monkeypatch):
         changes.get_yoy_changes,
     ):
         src = inspect.getsource(fn)
-        assert "apply_statement_timeout(" in src, fn.__name__
+        assert any(s in src for s in setters), fn.__name__
+
+
+def test_scan_timeout_wrapper_actually_sets_the_timeout():
+    """Guard the indirection above: the wrapper must really set a timeout,
+    so the source-level check can't be satisfied by a no-op helper."""
+    calls = []
+    db = SimpleNamespace(execute=lambda stmt, *a, **k: calls.append(str(stmt)))
+
+    from app.routers.intersections import _apply_scan_timeout
+
+    applied = _apply_scan_timeout(db, None)
+
+    assert len(calls) == 1
+    assert "set local statement_timeout" in calls[0].lower()
+    assert str(applied) in calls[0]

@@ -19,7 +19,9 @@ the counts and lets the reader draw conclusions.
 
 from __future__ import annotations
 
+import logging
 import time
+from contextlib import contextmanager
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -27,6 +29,7 @@ from pydantic import BaseModel
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
 from sqlalchemy import Float, and_, case, cast, func, null, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_code, get_slug_map
@@ -42,8 +45,65 @@ _MAX_LIMIT = 200
 # Per-query backstop: these endpoints aggregate the full crashes table when no
 # county filter is given (the TTL cache only helps after a first successful
 # scan). Kill runaway queries so they release their pool connection instead of
-# piling up under load. Comfortably above the observed statewide scan time.
+# piling up under load.
+#
+# Two tiers, because the two cases differ by an order of magnitude. A single
+# flat 30s bound was "comfortably above the observed statewide scan time" when
+# written, but the crashes table grows every night: by 2026-08 the statewide
+# scan (11.3M rows) exceeded it, so the request hung 30s and then 500'd — and
+# since the app has no default filters, that was the *default* page state. The
+# scan never finished, so the TTL cache could never warm and rescue it.
+#
+# The ceiling here is bounded by the edge proxy, so it can't grow forever;
+# if the statewide scan approaches it again, precompute the aggregate into a
+# materialized view (see the mv_* migrations) rather than raising this further.
 _STATEMENT_TIMEOUT_MS = 30_000
+_STATEWIDE_STATEMENT_TIMEOUT_MS = 55_000
+
+logger = logging.getLogger(__name__)
+
+
+def _apply_scan_timeout(db: Session, county_code: int | None) -> int:
+    """Set the per-query timeout, giving the unbounded statewide scan more room.
+
+    Returns the timeout applied, for logging on the degrade path.
+    """
+    ms = (
+        _STATEMENT_TIMEOUT_MS
+        if county_code is not None
+        else _STATEWIDE_STATEMENT_TIMEOUT_MS
+    )
+    apply_statement_timeout(db, ms)
+    return ms
+
+
+@contextmanager
+def _degrade_on_timeout(db: Session, timeout_ms: int, scope: str):
+    """Turn a statement timeout into an honest 503 instead of a bare 500.
+
+    A 500 tells the caller nothing and reads as "the site is broken". A 503
+    with Retry-After says the truth: the query was too big to finish, the
+    server is fine, and narrowing the filters will work.
+    """
+    try:
+        yield
+    except OperationalError as exc:
+        db.rollback()
+        logger.warning(
+            "%s aggregation exceeded %dms; returning 503 (%s)",
+            scope,
+            timeout_ms,
+            exc.__class__.__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "This street-level query covers too much data to finish in "
+                "time. Narrow it with a county or a year range and it will "
+                "return quickly."
+            ),
+            headers={"Retry-After": "60"},
+        ) from exc
 
 # Relative severity weights for the optional severity-weighted score
 # (EPDO-style — "equivalent property-damage-only"). These are a presentation
@@ -402,13 +462,14 @@ def get_intersections(
 ):
     """Crashes aggregated by (primary_road x secondary_road), ranked by count or severity-weighted score."""
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
-    apply_statement_timeout(db, _STATEMENT_TIMEOUT_MS)
     code = _resolve_county(db, county)
-    return _cached_aggregate(
-        db, by_secondary=True, county_code=code, year_start=year_start,
-        year_end=year_end, min_crashes=min_crashes, limit=limit,
-        pedestrian=pedestrian, cyclist=cyclist, sort=sort,
-    )
+    timeout_ms = _apply_scan_timeout(db, code)
+    with _degrade_on_timeout(db, timeout_ms, "intersections"):
+        return _cached_aggregate(
+            db, by_secondary=True, county_code=code, year_start=year_start,
+            year_end=year_end, min_crashes=min_crashes, limit=limit,
+            pedestrian=pedestrian, cyclist=cyclist, sort=sort,
+        )
 
 
 @router.get("/corridors", response_model=list[IntersectionOut])
@@ -428,13 +489,14 @@ def get_corridors(
 ):
     """Crashes aggregated by primary_road (corridor), ranked by count or severity-weighted score."""
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
-    apply_statement_timeout(db, _STATEMENT_TIMEOUT_MS)
     code = _resolve_county(db, county)
-    return _cached_aggregate(
-        db, by_secondary=False, county_code=code, year_start=year_start,
-        year_end=year_end, min_crashes=min_crashes, limit=limit,
-        pedestrian=pedestrian, cyclist=cyclist, sort=sort,
-    )
+    timeout_ms = _apply_scan_timeout(db, code)
+    with _degrade_on_timeout(db, timeout_ms, "corridors"):
+        return _cached_aggregate(
+            db, by_secondary=False, county_code=code, year_start=year_start,
+            year_end=year_end, min_crashes=min_crashes, limit=limit,
+            pedestrian=pedestrian, cyclist=cyclist, sort=sort,
+        )
 
 
 @router.get("/street-concentration", response_model=ConcentrationOut)
@@ -456,12 +518,13 @@ def get_street_concentration(
     (see ConcentrationOut). Neutral: the numbers are reported without framing.
     """
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
-    apply_statement_timeout(db, _STATEMENT_TIMEOUT_MS)
     code = _resolve_county(db, county)
     name = None
     if code is not None:
         name = db.query(County.name).filter(County.code == code).scalar()
-    return _concentration(
-        db, by_secondary=(scope == "intersections"), county_code=code,
-        county_name=name, year_start=year_start, year_end=year_end,
-    )
+    timeout_ms = _apply_scan_timeout(db, code)
+    with _degrade_on_timeout(db, timeout_ms, "street-concentration"):
+        return _concentration(
+            db, by_secondary=(scope == "intersections"), county_code=code,
+            county_name=name, year_start=year_start, year_end=year_end,
+        )

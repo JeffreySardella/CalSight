@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useStreetAggregation } from "./useIntersections";
+import { StreetAggError, useStreetAggregation } from "./useIntersections";
+import { isRetryableError } from "../lib/queryClient";
 
 function wrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -121,7 +122,12 @@ describe("useStreetAggregation", () => {
   });
 
   it("propagates fetch errors", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("nope", { status: 500 }));
+    // A 4xx so the assertion isn't racing the retry backoff: this hook sets
+    // its own `retry` (to bail on the deterministic too-expensive 503), which
+    // overrides the test client's `retry: false` default, so a 500 here would
+    // sit through the full ~7s backoff sequence before surfacing. Retry
+    // exhaustion itself is covered by the shared queryClient's own tests.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("nope", { status: 400 }));
     const { result } = renderHook(
       () => useStreetAggregation({ scope: "intersections" }),
       { wrapper: wrapper() },
@@ -138,5 +144,64 @@ describe("useStreetAggregation", () => {
     // Give react-query a tick; no request should fire.
     await new Promise((r) => setTimeout(r, 20));
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("StreetAggError", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("keeps the server's explanation for an over-large query", async () => {
+    const detail =
+      "This street-level query covers too much data to finish in time. " +
+      "Narrow it with a county or a year range and it will return quickly.";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ detail }), { status: 503 }),
+    );
+
+    const { result } = renderHook(
+      () => useStreetAggregation({ scope: "corridors" }),
+      { wrapper: wrapper() },
+    );
+
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    const err = result.current.error as StreetAggError;
+    expect(err).toBeInstanceOf(StreetAggError);
+    expect(err.status).toBe(503);
+    expect(err.detail).toBe(detail);
+    expect(err.isTooExpensive).toBe(true);
+  });
+
+  // These assert the error shape directly rather than through the hook: a
+  // retryable failure would make the hook wait out the full backoff sequence
+  // before surfacing anything.
+  it("does not treat a 500 as a deterministic too-expensive failure", async () => {
+    const err = await StreetAggError.fromResponse(
+      new Response(JSON.stringify({ detail: "Internal server error" }), { status: 500 }),
+      "intersections",
+    );
+    expect(err.isTooExpensive).toBe(false);
+  });
+
+  it("falls back to a generic message when the error body isn't JSON", async () => {
+    const err = await StreetAggError.fromResponse(
+      new Response("<html>502 Bad Gateway</html>", { status: 502 }),
+      "corridors",
+    );
+    expect(err.detail).toBeNull();
+    expect(err.message).toBe("corridors 502");
+    expect(err.isTooExpensive).toBe(false);
+  });
+
+  it("keeps the status in the message so the shared retry policy can read it", async () => {
+    // Regression guard: putting the prose detail in `message` instead would
+    // hide the status from statusFromError and make 4xx look retryable.
+    const err = await StreetAggError.fromResponse(
+      new Response(JSON.stringify({ detail: "Narrow it with a county." }), { status: 422 }),
+      "corridors",
+    );
+    expect(err.message).toBe("corridors 422");
+    expect(isRetryableError(err)).toBe(false);
   });
 });

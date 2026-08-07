@@ -4,9 +4,11 @@ Strategy:
   - Daily custom-format pg_dump (compressed, supports parallel restore)
   - 7-day retention with automatic rotation
   - Stored on the Proxmox host at /opt/calsight/backups (bind-mounted)
-  - VM 109 (docker-dev) is the DB host; LXC 100 runs the backup client
+  - LXC 100 hosts the production DB and runs this backup client
 
 Restore procedure:
+  See docs/RESTORE_RUNBOOK.md for the full, step-by-step recovery procedure
+  (including the fresh-cluster case). The short version:
   pg_restore --clean --if-exists -d calsight /backups/calsight_2026-05-16.dump
   # Dumps are taken with --no-owner --no-acl, so GRANTs are NOT in the dump.
   # After restoring, re-apply the API role's permissions or every API request
@@ -20,8 +22,17 @@ For point-in-time recovery, enable WAL archiving in postgresql.conf:
 Usage:
     python -m etl.backup                    # Run backup now
     python -m etl.backup --list             # Show existing backups
-    python -m etl.backup --restore FILENAME # Restore from a backup
     python -m etl.backup --upload-only      # Upload latest backup to R2
+    python -m etl.backup --rotate-only      # Only rotate old backups
+    # There is deliberately no --restore flag: restoring is a rare, high-stakes
+    # operation that should be driven by hand from docs/RESTORE_RUNBOOK.md,
+    # not by a command that can drop a live database from a typo.
+
+Exit codes:
+    0 = dump written, verified, and (if R2 is configured) uploaded offsite
+    1 = dump failed, failed verification, or offsite upload failed
+    The nightly cron pings the heartbeat only on exit 0, so a green
+    dead-man's switch means the offsite copy landed too.
 
 Offsite sync (Cloudflare R2):
   1. Create R2 bucket in Cloudflare dashboard -> R2 -> Create Bucket
@@ -65,6 +76,23 @@ RETENTION_DAYS = 7
 # so a run of failed pg_dumps can never rotate away every recovery point.
 MIN_KEEP_BACKUPS = 3
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_BACKUP_WEBHOOK")
+
+
+def _r2_configured() -> bool:
+    """True when every R2 env var is present, i.e. offsite upload is expected.
+
+    Distinguishes "offsite intentionally disabled" from "offsite is on and
+    broken" — only the latter should fail the backup run.
+    """
+    return all(
+        os.environ.get(var)
+        for var in (
+            "R2_ACCESS_KEY_ID",
+            "R2_SECRET_ACCESS_KEY",
+            "R2_ENDPOINT_URL",
+            "R2_BUCKET_NAME",
+        )
+    )
 
 
 def _notify_discord(message: str, success: bool = True) -> None:
@@ -463,8 +491,14 @@ def main() -> int:
     lines = [f"**{filepath.name}** — {size_mb:.1f} MB"]
     if r2_ok:
         lines.append("Uploaded to R2")
-    elif DISCORD_WEBHOOK_URL and os.environ.get("R2_BUCKET_NAME"):
-        _notify_discord(f"Backup saved locally but R2 upload failed\n{lines[0]}", success=False)
+    elif _r2_configured():
+        # A local-only dump dies with the box it sits on, so this is a real
+        # failure — exit non-zero so the caller's heartbeat reports DOWN
+        # instead of leaving the dead-man's switch green while the offsite
+        # copies go stale.
+        _notify_discord(f"Backup saved locally but R2 upload FAILED\n{lines[0]}", success=False)
+        logger.error("Offsite upload failed — exiting non-zero so monitoring sees the failure")
+        return 1
     if local_rotated or r2_rotated:
         lines.append(f"Rotated: {local_rotated} local, {r2_rotated} R2")
     _notify_discord("\n".join(lines), success=True)
