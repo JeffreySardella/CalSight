@@ -28,14 +28,21 @@
 3. Set on the **ETL host (LXC 100)** env: `HEARTBEAT_URL=https://hc-ping.com/<uuid>`
 4. After the next backup, the check should go green. If the box dies or the backup stops, healthchecks emails/pings you. Add a notification channel (email/Discord) in healthchecks.
 
-## 3. Cloudflare R2 — offsite backup  *(verify first; code wiring pending)*
+## 3. Cloudflare R2 — offsite backup  *(LIVE since 2026-06-23)*
 
-**First, the cost check you wanted:**
-- Cloudflare dashboard → **R2** → is there a `calsight-backups` bucket? Does it have objects + what's the total size? (R2 free tier = 10 GB; you're almost certainly not being charged, because nothing is uploading yet — see the gap below.)
+**Status: working.** Nightly dumps upload to the `calsight-backups` bucket
+automatically. Restore procedure: **`docs/RESTORE_RUNBOOK.md`**.
 
-**The gap:** the scheduled backup (`etl/pipeline.py` `run_backup`) writes **local only**. The R2 upload code in `etl/backup.py` is never called by the scheduler, so there is likely **no offsite copy** today.
+**Open item:** a Cloudflare-side `delete-after-3-days` lifecycle rule was set on
+the bucket. It *overrides* the script's keep-newest-3 guard (which only limits
+deletions the script itself makes), so a dump outage longer than 3 days leaves
+**zero** offsite recovery points. Recommended: delete that rule and let
+`rotate_r2_backups()` handle retention, or extend it to 14+ days.
 
-**To enable offsite backups:**
+**Cost check:** Cloudflare dashboard → **R2** → `calsight-backups` bucket size.
+Free tier is 10 GB; dumps are ~1 GB each, so retention drives the cost.
+
+**Original setup steps (kept for a rebuild):**
 1. R2 → Create bucket `calsight-backups`.
 2. R2 → Manage API Tokens → Create (Object Read & Write, scoped to that bucket).
 3. Set on the **ETL host (LXC 100)** env:
