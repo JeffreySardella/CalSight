@@ -171,7 +171,7 @@ export async function exportPdf(opts: PdfExportOptions): Promise<void> {
   doc.setFontSize(8);
   doc.setTextColor(140);
   doc.text(
-    "Source: CalSight (calsight.app). Data: CCRS + SWITRS crash records.",
+    "Source: CalSight (calsight.org). Data: CCRS + SWITRS crash records.",
     margin,
     footerY,
   );

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import { shouldRetry } from "../lib/queryClient";
 
 /** One aggregated street-level location returned by /api/intersections or /api/corridors. */
 export interface StreetAggRow {
@@ -22,6 +23,48 @@ export interface StreetAggRow {
 
 export type StreetScope = "intersections" | "corridors";
 export type StreetSort = "count" | "severity";
+
+/**
+ * A failed street-aggregation request, carrying the server's own explanation.
+ *
+ * The statewide scan can be too large to finish inside the query timeout, in
+ * which case the API answers 503 with a message telling the reader to narrow
+ * by county or year. That is far more useful than "something went wrong", so
+ * we keep it and show it.
+ */
+export class StreetAggError extends Error {
+  readonly status: number;
+  /** Server-supplied explanation, when it sent one. */
+  readonly detail: string | null;
+
+  constructor(status: number, scope: StreetScope, detail: string | null) {
+    // The message must keep the numeric status: the shared retry policy
+    // recovers the status code by parsing it back out of the message
+    // (see lib/queryClient statusFromError), so putting the prose detail
+    // here instead would silently make 4xx failures look retryable.
+    super(`${scope} ${status}`);
+    this.name = "StreetAggError";
+    this.status = status;
+    this.detail = detail;
+  }
+
+  /** True when the query was rejected as too expensive — retrying won't help. */
+  get isTooExpensive(): boolean {
+    return this.status === 503 && this.detail !== null;
+  }
+
+  static async fromResponse(res: Response, scope: StreetScope): Promise<StreetAggError> {
+    let detail: string | null = null;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === "string") detail = body.detail;
+    } catch {
+      // Non-JSON error body (proxy error page, empty response) — fall back to
+      // the generic message rather than masking the original status.
+    }
+    return new StreetAggError(res.status, scope, detail);
+  }
+}
 
 export interface StreetAggParams {
   scope: StreetScope;
@@ -90,9 +133,16 @@ export function useStreetAggregation(params: StreetAggParams) {
     ],
     queryFn: async () => {
       const res = await fetch(buildUrl({ scope, county, yearStart, yearEnd, minCrashes, limit, pedestrian, cyclist, sort }));
-      if (!res.ok) throw new Error(`${scope} ${res.status}`);
+      if (!res.ok) throw await StreetAggError.fromResponse(res, scope);
       return res.json();
     },
+    // The statewide scan is the expensive case, and when the server says it
+    // was too big to finish, that verdict is deterministic — retrying just
+    // burns another full timeout before showing the same message. Everything
+    // else defers to the shared policy (4xx bail, backoff, retry cap).
+    retry: (failureCount, error) =>
+      !(error instanceof StreetAggError && error.isTooExpensive) &&
+      shouldRetry(failureCount, error),
     staleTime: 5 * 60 * 1000,
     enabled,
   });
