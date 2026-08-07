@@ -49,8 +49,10 @@ def seeded_and_refreshed(db_session):
         # Corridor-only rows: NULL and blank secondary road.
         _crash(9104, "MAIN ST", None, severity="Injury", injured=1),
         _crash(9105, "MAIN ST", "", severity="Injury", injured=1),
-        # A second county, so county scoping is exercised.
-        _crash(9106, "MAIN ST", "OAK AVE", county=37, severity="Injury", injured=1),
+        # A second county, so county scoping is exercised. Must be one of the
+        # counties conftest seeds (1, 19, 30, 34, 38) — crashes.county_code is
+        # a foreign key into counties.
+        _crash(9106, "MAIN ST", "OAK AVE", county=30, severity="Injury", injured=1),
         # Different years, for the year-bound filters.
         _crash(9107, "1ST ST", "ELM AVE", year=2019, severity="Injury", injured=1),
         _crash(9108, "1ST ST", "ELM AVE", year=2023, severity="Fatal", killed=1),
