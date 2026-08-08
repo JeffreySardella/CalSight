@@ -33,6 +33,7 @@ Cache
 
 from __future__ import annotations
 
+from datetime import date
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -217,12 +218,26 @@ def get_insight(
 
     # Fetch insight row
     q = db.query(CountyInsight).filter(CountyInsight.county_code == county_code)
+    insight: CountyInsight | None
     if year is not None:
-        q = q.filter(CountyInsight.year == year)
+        insight = q.filter(CountyInsight.year == year).first()
     else:
-        q = q.order_by(CountyInsight.year.desc())
-
-    insight: CountyInsight | None = q.first()
+        # "Latest available" must mean the latest COMPLETE year. A partial
+        # current-year row reports a part-year total and a fabricated ~-50%
+        # year-over-year swing (a full year vs. a few months), so exclude the
+        # current calendar year — matching generate_insights, which only
+        # writes cards for years < the current one (_EXCLUDE_CURRENT_YEAR_SQL).
+        current_year = date.today().year
+        insight = (
+            q.filter(CountyInsight.year < current_year)
+            .order_by(CountyInsight.year.desc())
+            .first()
+        )
+        if insight is None:
+            # No complete-year card exists yet — serve whatever is there
+            # rather than 404. Should be rare; the generator produces
+            # complete-year cards only.
+            insight = q.order_by(CountyInsight.year.desc()).first()
     if insight is None:
         raise HTTPException(
             status_code=404,

@@ -356,6 +356,24 @@ def run() -> int:
     """Generate insight cards for all counties. Returns number of rows upserted."""
     db = SessionLocal()
     try:
+        # ---- Step 0: purge stale partial-year cards ----
+        # This generator only ever writes cards for COMPLETE years
+        # (_EXCLUDE_CURRENT_YEAR_SQL), but rows written before that guard
+        # existed can linger for the current/future calendar year. A partial
+        # current-year card reports a few months' crashes and a fabricated
+        # ~-50% YoY swing, and the API's "latest available" default would
+        # serve it. Deleting them here is idempotent self-healing: on a clean
+        # DB it removes nothing.
+        purged = db.execute(
+            text(
+                "DELETE FROM county_insights "
+                "WHERE year >= EXTRACT(year FROM CURRENT_DATE)"
+            )
+        ).rowcount
+        db.commit()
+        if purged:
+            logger.info("Purged %d stale partial/future-year insight row(s)", purged)
+
         counties: list[County] = (
             db.query(County).order_by(County.name).all()
         )
