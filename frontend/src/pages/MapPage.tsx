@@ -344,7 +344,8 @@ function MapPageInner() {
 
   // When exactly one year is selected, pass it to the insight API so the
   // narrative matches the active filter context. Otherwise use the API
-  // default (latest available year).
+  // default, which is the latest COMPLETE year (the API excludes the current,
+  // still-partial calendar year).
   const insightYear = selectedYears.size === 1 ? [...selectedYears][0] : undefined;
   // Gate on focusedCounty so we never fire before a county is actually clicked.
   // insightCounty can lag behind by one render (it's preserved after deselect
