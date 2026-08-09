@@ -232,4 +232,49 @@ describe("useStats", () => {
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.loading).toBe(false);
   });
+
+  it("survives per-group incompatibility objects returned inside a 200", async () => {
+    // Regression: /api/stats/batch reports a filter that doesn't apply to a
+    // group *in band* — `{"rate": {"error": ..., "filter": "pedestrian"}}` —
+    // inside an otherwise-successful response. `?? []` cannot catch a non-null
+    // object, so `.map` threw during render and the whole Stats page fell to
+    // its ErrorBoundary on ANY involvement or weather/lighting/collision
+    // filter, including the promoted "DUI Deep Dive" and "Crash Conditions"
+    // presets. Incompatible groups must degrade to empty, not crash.
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/stats/batch")) {
+        return new Response(JSON.stringify({
+          year: YEAR_ROWS,
+          hour: HOUR_ROWS,
+          cause: CAUSE_ROWS,
+          severity: [],
+          // The groups the backend rejects for an involvement filter:
+          gender: { error: "pedestrian is not supported for gender", filter: "pedestrian" },
+          age_bracket: { error: "not supported", filter: "pedestrian" },
+          at_fault_gender: { error: "not supported", filter: "pedestrian" },
+          at_fault_age_bracket: { error: "not supported", filter: "pedestrian" },
+          month: [],
+          day_of_week: [],
+          rate: { error: "not supported", filter: "pedestrian" },
+        }));
+      }
+      if (url.includes("/api/demographics")) {
+        return new Response(JSON.stringify(DEMO_ROWS));
+      }
+      return new Response(JSON.stringify([]));
+    });
+
+    const { result } = renderHook(() => useStats(FILTERS), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.data).not.toBeNull());
+
+    // Incompatible groups come back empty...
+    expect(result.current.data!.rateData).toEqual([]);
+    expect(result.current.data!.genderData).toEqual([]);
+    expect(result.current.data!.atFaultGenderData).toEqual([]);
+    // ...while the compatible ones still render, and nothing threw.
+    expect(result.current.data!.yearlyData.length).toBeGreaterThan(0);
+    expect(result.current.data!.hourlyData.length).toBeGreaterThan(0);
+    expect(result.current.error).toBeNull();
+  });
 });

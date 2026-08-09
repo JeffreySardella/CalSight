@@ -197,7 +197,13 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, cro
     // applied. Chart-specific display options (cumulative, moving average,
     // log scale) are applied to the primary series only, below.
     const computeItems = (dimension: Dimension, measure: Measure): ChartDataItem[] => {
-      let items = transformRows(dimension, measure, raw[dimension] ?? []);
+      // /api/stats/batch reports a per-group filter incompatibility in band —
+      // `{"rate": {"error": "...", "filter": "pedestrian"}}` inside a 200 — so
+      // `?? []` isn't enough: the value is a non-null object that would reach
+      // transformRows and throw. An incompatible dimension means "no data for
+      // these filters"; render the empty state instead of crashing the board.
+      const groupRows = raw[dimension];
+      let items = transformRows(dimension, measure, Array.isArray(groupRows) ? groupRows : []);
       if (measure === "percentage") {
         const total = items.reduce((s, d) => s + d.value, 0);
         items = total > 0

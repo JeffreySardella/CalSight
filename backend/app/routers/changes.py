@@ -48,11 +48,17 @@ _MIN_BASELINE: dict[str, int] = {
 # treated as not-yet-loaded (upstream ingest lag), not as a real collapse in
 # crashes. Defaulting the comparison to such a year would rank every county
 # at -100% — the exact small-number noise this endpoint exists to avoid.
-_MIN_COVERAGE_RATIO = 0.2
+#
+# Set above the largest genuine single-year decline in the record (2020's
+# COVID drop was ~21.6%, i.e. 78.4% of 2019) so a real safety improvement is
+# never mistaken for missing data, while a half-ingested year is. The old 0.2
+# was far too permissive: a year holding half its neighbour's rows sailed
+# through and got ranked as if complete.
+_MIN_COVERAGE_RATIO = 0.7
 
 
 def _default_year(db: Session) -> int:
-    """Latest crash_year with meaningful coverage relative to the year before.
+    """Latest COMPLETE crash_year with meaningful coverage relative to the prior year.
 
     Sourced from mv_crashes_by_year — a ~6K-row pre-aggregate (county x year x
     severity) refreshed by the same nightly pipeline — rather than a full
@@ -75,10 +81,23 @@ def _default_year(db: Session) -> int:
             )
         ).all()
     }
+    current_year = datetime.now(timezone.utc).year
     if not counts:
-        return datetime.now(timezone.utc).year
-    year = max(counts)
-    while year - 1 in counts and counts[year] < _MIN_COVERAGE_RATIO * counts[year - 1]:
+        return current_year
+
+    # Never default to the current calendar year. It is partial by definition —
+    # comparing a few months against a full prior year manufactures declines of
+    # -50% to -64% for every county, which is exactly what this endpoint used to
+    # publish. Same rule the per-county insight cards apply; an explicit
+    # ?year=<current> is still honoured and flagged partial_year.
+    complete = {y: n for y, n in counts.items() if y < current_year}
+    if not complete:
+        # Only current-year data exists at all (a fresh/empty database). Fall
+        # back rather than fail; partial_year will flag it.
+        return max(counts)
+
+    year = max(complete)
+    while year - 1 in complete and complete[year] < _MIN_COVERAGE_RATIO * complete[year - 1]:
         year -= 1
     return year
 
