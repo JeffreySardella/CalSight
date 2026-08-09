@@ -9,6 +9,10 @@ export function TileLayer() {
   return null;
 }
 
+export function AttributionControl() {
+  return null;
+}
+
 /** Declarative marker mock: renders as a plain div (position + icon html
  *  exposed as data attributes) with its children (e.g. Popup) inside, so
  *  tests can assert markers and popup content with testing-library. */

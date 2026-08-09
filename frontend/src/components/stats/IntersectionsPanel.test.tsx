@@ -152,6 +152,11 @@ describe("IntersectionsPanel", () => {
     await vi.waitFor(() =>
       expect(spy.mock.calls.some((c) => String(c[0]).includes("sort=severity"))).toBe(true),
     );
+
+    // The heading must follow the sort, not stay pinned to "by crash count".
+    expect(
+      await screen.findByRole("heading", { name: /by severity-weighted score/ }),
+    ).toBeInTheDocument();
   });
 
   it("links each row to the map centered on its coordinates", async () => {

@@ -104,13 +104,15 @@ export default function IntersectionsPanel() {
 
   const rows = data ?? [];
   const unit = scope === "intersections" ? "intersections" : "corridors";
+  const scopeLabel = scope === "intersections" ? "Intersections" : "Corridors";
+  const rankLabel = sort === "severity" ? "by severity-weighted score" : "by crash count";
 
   return (
     <section className="space-y-3" aria-label="Street-level crash aggregation">
       <header className="flex items-baseline justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-lg font-bold text-on-surface font-headline">
-            {scope === "intersections" ? "Intersections by crash count" : "Corridors by crash count"}
+            {scopeLabel} {rankLabel}
           </h2>
           <p className="text-[11px] text-on-surface-variant mt-0.5">
             {singleCounty ? `${singleCounty} County` : "Statewide"} ·{" "}
@@ -237,7 +239,7 @@ export default function IntersectionsPanel() {
         <div className="overflow-x-auto rounded-lg bg-surface-container-lowest ghost-border">
           <table className="w-full text-xs">
             <caption className="sr-only">
-              {scope === "intersections" ? "Intersections" : "Corridors"} ranked by crash count
+              {scopeLabel} ranked {rankLabel}
             </caption>
             <thead>
               <tr className="text-[10px] uppercase tracking-widest text-on-surface-variant">
