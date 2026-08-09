@@ -161,6 +161,11 @@ docker-compose.override.yml
 Thumbs.db
 desktop.ini
 *.png
+# ...but frontend/public is served as-is, so assets there are source, not
+# clutter. Without this exception a new public PNG is silently untracked and
+# the deploy ships a reference to a file that isn't in the build — which is
+# how og-default.png nearly went out broken.
+!frontend/public/*.png
 .playwright-mcp/
 .claude/
 lighthouse-stats*.json

@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render as rtlRender, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
 import AboutPage from "./AboutPage";
+
+// AboutPage reads the live crash total via react-query so the transparency
+// page can always be reconciled against the API, so it needs a client. Retry
+// is off: these tests assert copy, and an unmocked fetch must fail fast rather
+// than sit through the backoff.
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 describe("AboutPage — data limitations", () => {
   it("discloses the pedestrian/bicyclist undercount with a source link", () => {
