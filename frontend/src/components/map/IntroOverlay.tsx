@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import FocusTrap from "focus-trap-react";
 import { safeGetItem, safeSetItem } from "../../lib/safeStorage";
+import { DATA_SOURCE_COUNT } from "../../lib/dataSources";
+import { useLiveCrashTotal } from "../../hooks/useLiveCrashTotal";
 import logo from "../../assets/logo.webp";
 
 const STORAGE_KEY = "calsight-intro-seen";
@@ -29,7 +31,7 @@ function useCountUp(target: number, duration = 1500, delay = 400): number {
 
 const DATA_SOURCES = [
   { name: "CCRS", detail: "CHP crash reports 2016–2026" },
-  { name: "SWITRS", detail: "Statewide records 2001–2020" },
+  { name: "SWITRS", detail: "Statewide records 2001–2015" },
   { name: "Census ACS", detail: "Demographics & income" },
   { name: "CalEnviroScreen", detail: "Environmental burden" },
   { name: "Caltrans", detail: "Traffic volumes & roads" },
@@ -41,8 +43,13 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
   const [exiting, setExiting] = useState(false);
   const [entered, setEntered] = useState(false);
 
-  const crashCount = useCountUp(11129647, 1400, 500);
-  const sourceCount = useCountUp(17, 800, 700);
+  // Animate to the LIVE total. This was frozen at 11,129,647 and drifted
+  // ~214,000 crashes behind the database — the first number a visitor sees
+  // was quietly the least accurate one on the site. Falls back to the last
+  // known figure until the request lands, so the animation never stalls at 0.
+  const liveTotal = useLiveCrashTotal();
+  const crashCount = useCountUp(liveTotal, 1400, 500);
+  const sourceCount = useCountUp(DATA_SOURCE_COUNT, 800, 700);
   const rowCount = useCountUp(253, 1000, 900);
 
   useEffect(() => {

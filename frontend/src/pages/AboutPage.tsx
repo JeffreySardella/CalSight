@@ -1,8 +1,17 @@
 import type { ReactNode } from "react";
 import MetaTags from "../components/seo/MetaTags";
 import JargonTerm from "../components/ui/JargonTerm";
+import { DATA_SOURCE_COUNT } from "../lib/dataSources";
+import { useLiveCrashTotal } from "../hooks/useLiveCrashTotal";
+
+function formatMillions(n: number): string {
+  return `${(n / 1_000_000).toFixed(2)}M`;
+}
 
 export default function AboutPage() {
+  // Live, so the transparency page can always be reconciled against the API.
+  const crashesLabel = formatMillions(useLiveCrashTotal());
+
   return (
     <main className="max-w-[900px] mx-auto px-6 md:px-0">
       <MetaTags
@@ -64,9 +73,9 @@ export default function AboutPage() {
         {/* Summary stats */}
         <div className="grid grid-cols-3 gap-4 md:gap-6">
           {[
-            { value: "11.1M", label: "Police-reported crashes" },
-            { value: "19", label: "Data sources" },
-            { value: "25.3M", label: "Total rows in database" },
+            { value: crashesLabel, label: "Police-reported crashes" },
+            { value: String(DATA_SOURCE_COUNT), label: "Data sources" },
+            { value: "25M+", label: "Total rows in database" },
           ].map(({ value, label }) => (
             <div key={label} className="bg-surface-container-lowest rounded-lg ambient-shadow flex flex-col items-center justify-center text-center gap-4 py-6 md:py-8 px-6">
               <p className="font-headline text-3xl md:text-4xl font-bold text-on-surface tracking-tight">
@@ -85,11 +94,11 @@ export default function AboutPage() {
               <h2 className="font-headline text-xl font-bold text-on-surface">CCRS</h2>
               <p className="text-sm text-on-surface-variant mt-1">California Crash Reporting System</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                4.35M crashes from 2016-2026. Includes party-level demographics (age, gender, sobriety) and victim records. Published by CHP via data.ca.gov.
+                Crashes from 2016 to the present, loaded nightly. Includes party-level demographics (age, gender, sobriety) and victim records. Published by CHP via data.ca.gov.
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">4,350,202 rows</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">2016 &ndash; present</p>
               <a href="https://data.ca.gov/dataset/ccrs" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">CCRS on data.ca.gov</a>
             </div>
           </div>
@@ -103,7 +112,7 @@ export default function AboutPage() {
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
-              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">6,779,445 rows</p>
+              <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">2001 &ndash; 2015 (archive)</p>
               <a href="https://www.chp.ca.gov/programs-services/services-information/switrs-statewide-integrated-traffic-records-system" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">SWITRS on CHP.ca.gov</a>
             </div>
           </div>

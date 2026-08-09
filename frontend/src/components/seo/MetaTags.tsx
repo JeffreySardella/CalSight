@@ -23,7 +23,17 @@ const OG_WORKER_URL = "https://og.calsight.org";
 const DEFAULT_TITLE = "CalSight — California Crash Data Explorer";
 const DEFAULT_DESCRIPTION =
   "Explore 11 million California traffic crashes with interactive maps, AI-powered insights, and demographic analysis. Filter by county, cause, severity, and year.";
-const DEFAULT_OG_IMAGE = `${OG_WORKER_URL}/og?title=California+Crash+Data+Explorer&subtitle=11M%2B+crashes+%E2%80%A2+58+counties+%E2%80%A2+2001%E2%80%93present`;
+// Bundled, same-origin social card. og.calsight.org — the dynamic OG worker —
+// has no DNS record, so every og:image/twitter:image pointing at it resolved
+// to nothing and EVERY shared link (Twitter, Slack, iMessage, Discord,
+// LinkedIn) rendered a broken thumbnail. For a site whose growth loop is
+// "screenshot-worthy stat -> paste link -> preview hooks the next click",
+// that was the single most-seen broken asset on the product.
+//
+// Shipping the fallback from /public means it cannot break independently of
+// the site. If the worker is ever deployed, `ogImage` per-page overrides (and
+// buildOgImageUrl below) can point back at it.
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
 export interface MetaTagsProps {
   title?: string;
@@ -132,7 +142,19 @@ export default function MetaTags({
 }
 
 /**
+ * Whether the dynamic OG worker at OG_WORKER_URL is actually deployed.
+ *
+ * It is not: og.calsight.org has no DNS record. While that is true, every
+ * per-page card must fall back to the bundled image — a URL that 404s at the
+ * DNS layer renders as a broken thumbnail in every chat client, which is worse
+ * than a generic-but-correct card. Flip this to true once the worker is live
+ * and the per-page cards resume without any other change.
+ */
+const OG_WORKER_DEPLOYED = false;
+
+/**
  * Builds an OG image URL for the Worker, encoding dashboard state as query params.
+ * Returns the bundled default while the worker is undeployed.
  */
 export function buildOgImageUrl(params: {
   preset?: string;
@@ -143,6 +165,8 @@ export function buildOgImageUrl(params: {
   title?: string;
   subtitle?: string;
 }): string {
+  if (!OG_WORKER_DEPLOYED) return DEFAULT_OG_IMAGE;
+
   const url = new URL(`${OG_WORKER_URL}/og/stats`);
   if (params.preset) url.searchParams.set("preset", params.preset);
   if (params.counties?.length) url.searchParams.set("counties", params.counties.join(","));
