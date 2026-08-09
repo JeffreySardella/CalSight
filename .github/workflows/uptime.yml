@@ -1,0 +1,124 @@
+name: Uptime Monitor
+
+# Watches the LIVE public request path from outside the house.
+#
+# Everything that existed before this watched the ETL box: the backup
+# dead-man's-switch fires if the nightly dump stops, and deploy.yml health-checks
+# 127.0.0.1:8000 at deploy time. None of that notices if the cloudflared tunnel
+# drops, the edge starts 5xx-ing, or an endpoint quietly rots months after its
+# last deploy — which is exactly how the statewide street query 500'd unnoticed
+# for weeks.
+#
+# Runs on GitHub-hosted runners, NOT the self-hosted runner on LXC 100, so the
+# monitor stays up when the box doesn't.
+#
+# Deliberately probes api.calsight.org and NOT calsight.org/api/health: the apex
+# is a static SPA that answers 200 with HTML for unknown paths, so checking it
+# would be a permanent false-green.
+
+on:
+  schedule:
+    # Every 15 minutes. GitHub's shortest supported cron is 5 minutes but
+    # scheduled runs are best-effort and queue under load, so a tighter
+    # interval buys precision the platform can't actually deliver.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A backed-up queue of probes tells you nothing extra — keep only the newest.
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe the public endpoints
+        id: probe
+        run: |
+          set -uo pipefail
+          FAILURES=""
+
+          # check <name> <url> <expected-substring>
+          # Retries once after 10s: a single transient blip at the edge is not
+          # an outage, and a monitor that cries wolf gets muted.
+          check() {
+            local name="$1" url="$2" expect="$3"
+            local attempt out code body
+            for attempt in 1 2; do
+              out=$(curl -sS --max-time 25 -w '\n%{http_code}' "$url" 2>&1) || out="$out"
+              code=$(printf '%s' "$out" | tail -n1)
+              body=$(printf '%s' "$out" | sed '$d')
+              if [ "$code" = "200" ] && printf '%s' "$body" | grep -q "$expect"; then
+                echo "OK   $name ($code)"
+                return 0
+              fi
+              [ "$attempt" = "1" ] && sleep 10
+            done
+            echo "FAIL $name (http=$code, expected substring: $expect)"
+            FAILURES="${FAILURES}- **${name}** — HTTP \`${code}\`, expected \`${expect}\`\n"
+            return 1
+          }
+
+          # Liveness: the API process itself, through the tunnel and the edge.
+          check "API health"  "https://api.calsight.org/api/health" '"status":"ok"' || true
+          # Correctness: a real aggregate query hitting Postgres. Catches a DB
+          # outage or a broken query that a bare health check would miss.
+          check "API stats query" "https://api.calsight.org/api/stats?group_by=year" 'crash_count' || true
+          # The site itself (Cloudflare Pages, separate failure domain).
+          check "Frontend" "https://calsight.org" '<div id="root"' || true
+
+          if [ -n "$FAILURES" ]; then
+            {
+              echo "failures<<EOF"
+              printf '%b' "$FAILURES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Alert Discord
+        # Only on failure — a heartbeat every 15 minutes would train you to
+        # ignore the channel, which is how real alerts get missed.
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          FAILURES: ${{ steps.probe.outputs.failures }}
+          GH_REPO: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, sys, urllib.request
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL", "")
+          if not webhook:
+              print("DISCORD_WEBHOOK_URL is not set — cannot alert", file=sys.stderr)
+              sys.exit(1)
+
+          failures = os.environ.get("FAILURES") or "(probe step failed before reporting detail)"
+          run_url = f"https://github.com/{os.environ.get('GH_REPO','')}/actions/runs/{os.environ.get('GH_RUN_ID','')}"
+
+          payload = {
+              "embeds": [{
+                  "title": ":rotating_light: CalSight is not responding",
+                  "description": (
+                      f"{failures}\n"
+                      "Checked from GitHub-hosted runners, so this is the public "
+                      "path — not the ETL box.\n\n"
+                      f"[View the probe run]({run_url})"
+                  ),
+                  "color": 15158332,
+                  "footer": {"text": "uptime monitor · retried once before alerting"},
+              }]
+          }
+          req = urllib.request.Request(
+              webhook + "?wait=true",
+              data=json.dumps(payload).encode(),
+              headers={"Content-Type": "application/json"},
+          )
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              print("Discord alert sent:", resp.status)
+          PYEOF
