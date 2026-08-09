@@ -205,6 +205,44 @@ async def all_providers_exhausted_handler(request: Request, exc: AllProvidersExh
     )
 
 
+from sqlalchemy.exc import OperationalError  # noqa: E402
+
+# PostgreSQL "canceling statement due to statement timeout".
+_PG_QUERY_CANCELED = "57014"
+
+
+@app.exception_handler(OperationalError)
+async def operational_error_handler(request: Request, exc: OperationalError):
+    """A statement-timeout or transient DB error is 503, not 500.
+
+    The heavy statewide aggregations (clusters, highways, distribution, yoy)
+    bound their queries with a statement timeout. When one fires, the raw
+    OperationalError would otherwise fall through to the generic 500 handler
+    and read as "the site is broken". A 503 + Retry-After tells the truth: the
+    query was too big to finish (or the DB is briefly unavailable), the server
+    is fine, and narrowing the filters or retrying will work. The request's
+    session is rolled back by get_db's finally as this unwinds, so the pooled
+    connection is not left poisoned. Endpoints that degrade in-place
+    (intersections/corridors) raise HTTPException and never reach here.
+    """
+    pgcode = getattr(getattr(exc, "orig", None), "pgcode", None)
+    is_timeout = pgcode == _PG_QUERY_CANCELED or "statement timeout" in str(exc.orig or exc)
+    if is_timeout:
+        logger.warning("Statement timeout on %s — returning 503", request.url.path)
+        message = (
+            "This query covers too much data to finish in time. Narrow it with "
+            "a county or a year range and it will return quickly."
+        )
+    else:
+        logger.exception("Database operational error on %s — returning 503", request.url.path)
+        message = "The database is temporarily unavailable. Please try again shortly."
+    return JSONResponse(
+        status_code=503,
+        content={"detail": message},
+        headers={"Retry-After": "60"},
+    )
+
+
 from app.routers.context import router as context_router  # noqa: E402
 from app.routers.crash_people import router as crash_people_router  # noqa: E402
 from app.routers.crashes import router as crashes_router  # noqa: E402

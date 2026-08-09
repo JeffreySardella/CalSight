@@ -68,6 +68,14 @@ def run() -> None:
     """
     # AUTOCOMMIT — REFRESH MATERIALIZED VIEW CONCURRENTLY needs its
     # own transaction, same as VACUUM.
+    #
+    # Refresh every view independently and only raise at the end. Failing fast
+    # on the first error used to leave every LATER view stale while the earlier
+    # ones were fresh — a bigger, silent cross-view inconsistency than a single
+    # failed view. Isolating failures shrinks the inconsistency to just the
+    # view that errored, and the aggregated raise still fails the "matviews"
+    # etl_run so the freshness API surfaces the problem.
+    failures: list[str] = []
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         for view in _VIEWS:
             populated = _has_data(conn, view)
@@ -82,7 +90,13 @@ def run() -> None:
                 logger.info("  %s refreshed: %s rows", view, f"{row_count:,}")
             except Exception as exc:
                 logger.error("  %s failed: %s", view, exc)
-                raise
+                failures.append(view)
+
+    if failures:
+        raise RuntimeError(
+            f"{len(failures)} materialized view(s) failed to refresh: "
+            + ", ".join(failures)
+        )
 
     logger.info("All materialized views refreshed")
 

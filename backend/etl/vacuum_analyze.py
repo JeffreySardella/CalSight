@@ -55,6 +55,10 @@ _TABLES = [
     "mv_at_fault_parties_by_demographics",
     "mv_crash_rates",
     "mv_crashes_wide",
+    # Street aggregation view (migration c4f1a9b2d3e7). Refreshed nightly with
+    # CONCURRENTLY, which leaves dead tuples behind — without this it never
+    # gets VACUUM'd or fresh planner stats.
+    "mv_street_aggregates",
 ]
 
 

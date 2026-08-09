@@ -139,6 +139,39 @@ class TestSelectYearsToLoad:
         assert 2026 in ccrs and 2027 in ccrs
         assert 2025 in skipped
 
+    def test_batch_boundary_truncation_is_resumed(self):
+        # SWITRS 2001 died between batches at exactly 310,000 (62 x 5,000)
+        # rows — above the absolute floor, so the old heuristic skipped it
+        # forever. It is an exact BATCH_SIZE multiple AND far below its peers,
+        # so it must be treated as partial and resumed.
+        loaded = {2001: 310_000, **{y: 450_000 for y in range(2002, 2016)}}
+        switrs, _, skipped = select_years_to_load(
+            2001, 2015, loaded, source_filter="switrs", today_year=2026,
+        )
+        assert 2001 in switrs
+        assert 2001 not in skipped
+
+    def test_complete_year_on_a_batch_boundary_is_not_reloaded(self):
+        # A genuinely complete year whose count happens to be a multiple of
+        # BATCH_SIZE must NOT be reloaded forever — it's near its peers, so the
+        # below-median guard keeps it classified as loaded.
+        loaded = {2001: 445_000, **{y: 450_000 for y in range(2002, 2016)}}
+        switrs, _, skipped = select_years_to_load(
+            2001, 2015, loaded, source_filter="switrs", today_year=2026,
+        )
+        assert 2001 not in switrs
+        assert 2001 in skipped
+
+    def test_batch_boundary_rule_needs_peers_to_judge(self):
+        # With too few same-source peers to establish a magnitude, the
+        # batch-boundary rule stays silent (conservative — no reference, no
+        # guess), falling back to the absolute floor alone.
+        loaded = {2001: 310_000}
+        switrs, _, skipped = select_years_to_load(
+            2001, 2015, loaded, source_filter="switrs", today_year=2026,
+        )
+        assert 2001 in skipped  # above the floor, no peers to contradict it
+
 
 class TestNoSelfTracking:
     """M-B8: load_crashes must not create its own EtlRun row. The orchestrator's
