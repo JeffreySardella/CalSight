@@ -241,13 +241,52 @@ def select_years_to_load(
     complete, but the common failure mode (dying in the first batches)
     self-heals on the next run.
 
+    Batch-boundary truncation is caught separately: a load that dies between
+    batches leaves a count that is an exact multiple of BATCH_SIZE, whereas a
+    complete year's true row count essentially never is. So a year whose count
+    is an exact BATCH_SIZE multiple AND well below its same-source peers is
+    treated as partial and resumed — this is what silently stranded SWITRS
+    2001 at 310,000 (62 x 5000) rows.
+
     Returns (switrs_years, ccrs_years, skipped_years).
     """
     if today_year is None:
         today_year = datetime.now(timezone.utc).year
 
+    def _same_source_reference(year: int) -> float:
+        """Median row-count of other clearly-complete years of the same source.
+
+        Used as the yardstick for spotting an anomalously short year. Returns
+        0.0 when there aren't enough peers to judge (then the batch-boundary
+        rule below is skipped, falling back to the absolute floor only).
+        """
+        src = determine_source(year)
+        peers = sorted(
+            cnt for y, cnt in loaded.items()
+            if y != year
+            and determine_source(y) == src
+            and cnt >= _MIN_COMPLETE_YEAR_ROWS
+        )
+        if len(peers) < 2:
+            return 0.0
+        mid = len(peers) // 2
+        return peers[mid] if len(peers) % 2 else (peers[mid - 1] + peers[mid]) / 2
+
+    def _looks_batch_truncated(year: int, count: int) -> bool:
+        # A complete load ends on the true row count; a load killed between
+        # batches ends on an exact multiple of BATCH_SIZE. Require the count to
+        # also be well under same-source peers so a coincidental multiple on a
+        # genuinely complete year isn't reloaded forever.
+        if count <= 0 or count % BATCH_SIZE != 0:
+            return False
+        reference = _same_source_reference(year)
+        return reference > 0 and count < 0.7 * reference
+
     def _is_loaded(year: int) -> bool:
-        return loaded.get(year, 0) >= _MIN_COMPLETE_YEAR_ROWS
+        count = loaded.get(year, 0)
+        if count < _MIN_COMPLETE_YEAR_ROWS:
+            return False
+        return not _looks_batch_truncated(year, count)
 
     switrs_years = [
         y for y in range(start_year, end_year + 1)

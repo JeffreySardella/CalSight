@@ -435,50 +435,67 @@ def check_source_freshness(job: Job, db_session) -> FreshnessResult:
     return FreshnessResult(True, None, None, f"unknown source_type {job.source_type!r}")
 
 
-def _resolve_ckan_freshness_resource(job: Job) -> str | None:
-    """The resource id whose last_modified decides whether this job runs.
+# How many of the newest discovered years the freshness probe covers. The
+# incremental loader always re-loads the latest two years (select_years_to_load
+# refresh_years = {today, today-1}), so probing only the single newest year
+# missed a revision published to the prior year — the loader would have picked
+# it up, but freshness reported "unchanged" and skipped the whole run.
+_CKAN_FRESHNESS_YEARS = 2
 
-    Jobs with a freshness_ckan_prefix probe the newest discovered year's
-    resource (see Job.freshness_ckan_prefix); everything else — and any
-    discovery failure — uses the pinned freshness_resource_id.
+
+def _resolve_ckan_freshness_resources(job: Job) -> list[str]:
+    """The resource ids whose last_modified decide whether this job runs.
+
+    Jobs with a freshness_ckan_prefix probe the newest _CKAN_FRESHNESS_YEARS
+    discovered years (matching the loader's reload window); everything else —
+    and any discovery failure — uses the pinned freshness_resource_id.
     """
     prefix = getattr(job, "freshness_ckan_prefix", None)
     if prefix:
         discovered = discover_resource_ids(prefix)
         if discovered:
-            return discovered[max(discovered)]
-    return job.freshness_resource_id
+            newest_years = sorted(discovered, reverse=True)[:_CKAN_FRESHNESS_YEARS]
+            return [discovered[y] for y in newest_years]
+    return [job.freshness_resource_id] if job.freshness_resource_id else []
 
 
 def _check_ckan_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
-    resource_id = _resolve_ckan_freshness_resource(job)
-    if not resource_id:
+    resource_ids = _resolve_ckan_freshness_resources(job)
+    if not resource_ids:
         return FreshnessResult(True, None, None, "ckan type but no resource_id")
 
     try:
-        resp = get_with_retry(
-            CKAN_RESOURCE_SHOW_URL,
-            params={"id": resource_id},
-            timeout=15.0,
-        )
-        resource = resp.json().get("result", {})
-        modified_str = resource.get("last_modified") or resource.get("created")
-        if not modified_str:
+        # Fresh if ANY probed year changed since the last run — take the most
+        # recent last_modified across the covered years.
+        latest_modified: datetime | None = None
+        for resource_id in resource_ids:
+            resp = get_with_retry(
+                CKAN_RESOURCE_SHOW_URL,
+                params={"id": resource_id},
+                timeout=15.0,
+            )
+            resource = resp.json().get("result", {})
+            modified_str = resource.get("last_modified") or resource.get("created")
+            if not modified_str:
+                continue
+            modified = datetime.fromisoformat(
+                modified_str.replace("Z", "+00:00")
+            ).replace(tzinfo=None)
+            if latest_modified is None or modified > latest_modified:
+                latest_modified = modified
+
+        if latest_modified is None:
             return FreshnessResult(True, None, None, "ckan returned no timestamp")
 
-        source_modified = datetime.fromisoformat(
-            modified_str.replace("Z", "+00:00")
-        ).replace(tzinfo=None)
-
-        if source_modified <= last_run.finished_at:
+        if latest_modified <= last_run.finished_at:
             return FreshnessResult(
-                False, source_modified, None,
-                f"source unchanged ({source_modified.isoformat()} <= {last_run.finished_at.isoformat()})",
+                False, latest_modified, None,
+                f"source unchanged ({latest_modified.isoformat()} <= {last_run.finished_at.isoformat()})",
             )
 
         return FreshnessResult(
-            True, source_modified, None,
-            f"source updated ({source_modified.isoformat()} > {last_run.finished_at.isoformat()})",
+            True, latest_modified, None,
+            f"source updated ({latest_modified.isoformat()} > {last_run.finished_at.isoformat()})",
         )
     except Exception as exc:
         logger.warning("CKAN freshness check failed for %s: %s", job.name, exc)

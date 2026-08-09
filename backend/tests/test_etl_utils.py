@@ -485,13 +485,15 @@ class TestCkanFreshnessDynamicResource:
     """When CHP publishes a new calendar year, the pinned prior-year resource
     stops changing and freshness would skip the job forever, masking a whole
     missing year as 'confirmed sync'. Jobs with a freshness_ckan_prefix must
-    probe the NEWEST discovered year's resource instead of the pinned one."""
+    probe the newest discovered years' resources instead of the pinned one —
+    and cover the newest TWO years, matching the loader's reload window so a
+    prior-year revision isn't missed."""
 
-    def test_probes_newest_discovered_resource(self, monkeypatch):
-        probed = {}
+    def test_probes_newest_two_discovered_resources(self, monkeypatch):
+        probed = []
 
         def fake_get(url, params=None, **kw):
-            probed["id"] = params["id"]
+            probed.append(params["id"])
             return _make_response(
                 200, b'{"result": {"last_modified": "2027-06-01T00:00:00"}}'
             )
@@ -499,12 +501,17 @@ class TestCkanFreshnessDynamicResource:
         monkeypatch.setattr(httpx, "get", fake_get)
         monkeypatch.setattr(
             _utils, "discover_resource_ids",
-            lambda prefix: {2026: "crashes-2026-id", 2027: "crashes-2027-id"},
+            lambda prefix: {
+                2025: "crashes-2025-id",
+                2026: "crashes-2026-id",
+                2027: "crashes-2027-id",
+            },
         )
 
         result = _utils._check_ckan_freshness(_ckan_job(prefix="Crashes"), _finished_run())
 
-        assert probed["id"] == "crashes-2027-id"
+        # Newest two years probed; the older 2025 resource is not.
+        assert set(probed) == {"crashes-2027-id", "crashes-2026-id"}
         assert result.is_fresh is True
 
     def test_discovery_failure_falls_back_to_pinned(self, monkeypatch):

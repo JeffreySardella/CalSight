@@ -14,11 +14,12 @@ returns a simple status that monitoring tools can poll.
 
 from __future__ import annotations
 
+import hmac
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Header, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
@@ -28,6 +29,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import EtlRun
 from app.routers.etl import _verify_etl_key
+from app.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +86,7 @@ def pipeline_health(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
+    x_etl_api_key: str = Header(None),
 ):
     """Simple health check for monitoring tools.
 
@@ -146,10 +149,22 @@ def pipeline_health(
 
     failure_rate = (recent_failures / recent_total * 100) if recent_total > 0 else 0
 
-    # DB size
-    db_size = db.execute(text(
-        "SELECT pg_database_size(current_database()) / (1024*1024.0)"
-    )).scalar()
+    # DB size — infrastructure metadata, so it's returned only to callers
+    # holding the ETL key. This endpoint is otherwise public (uptime monitors
+    # poll it), and the coarse status/timing fields are fine to expose, but the
+    # absolute database size isn't something anonymous callers should see. The
+    # detailed, fully-authenticated /pipeline/db-metrics endpoint still reports
+    # it for operators.
+    authed = bool(
+        settings.etl_api_key
+        and x_etl_api_key
+        and hmac.compare_digest(x_etl_api_key, settings.etl_api_key)
+    )
+    db_size = None
+    if authed:
+        db_size = db.execute(text(
+            "SELECT pg_database_size(current_database()) / (1024*1024.0)"
+        )).scalar()
 
     # Matview age (time since last refresh of mv_crashes_by_year)
     matview_age = None

@@ -316,8 +316,11 @@ def run_weekly_pipeline():
     return results
 
 
-def run_backup():
+def run_backup() -> bool:
     """Daily pg_dump + offsite R2 sync with 7-day rotation.
+
+    Returns True only when the dump AND (if R2 is configured) the offsite
+    upload both succeed; False otherwise. The heartbeat is pinged to match.
 
     Delegates to etl.backup — the one implementation of the dump itself.
     That module keeps the password off the pg_dump command line (PGPASSWORD
@@ -347,13 +350,16 @@ def run_backup():
 
         r2_ok = upload_to_r2(backup_file)
         if not r2_ok and os.environ.get("R2_BUCKET_NAME"):
-            # R2 is configured but the upload failed — the local dump exists,
-            # so warn rather than error, but don't stay silent: offsite is
-            # the copy that survives the host dying.
-            send_alert(
-                AlertLevel.WARNING,
-                "Backup offsite upload failed",
-                f"{backup_file.name} ({size_mb:.1f} MB) saved locally but R2 upload failed",
+            # R2 is configured but the upload failed. The local dump exists,
+            # but offsite is the copy that survives the host dying, so this is
+            # a real failure — raise so the heartbeat reports DOWN, matching
+            # etl.backup's exit-code contract (PR #391). Pinging green here
+            # would leave the dead-man's switch satisfied while offsite copies
+            # silently go stale. Raising before rotation also avoids trimming
+            # copies while uploads are broken.
+            raise RuntimeError(
+                f"{backup_file.name} ({size_mb:.1f} MB) saved locally but "
+                "R2 offsite upload failed"
             )
 
         rotate_backups(backup_dir)
@@ -364,14 +370,17 @@ def run_backup():
             backup_file.name, size_mb, " — uploaded to R2" if r2_ok else "",
         )
 
-        # Backup succeeded — ping the dead-man's-switch so the external monitor
-        # knows the box is alive and ran the job on schedule.
+        # Backup succeeded (local dump + offsite upload) — ping the
+        # dead-man's-switch so the external monitor knows the box is alive and
+        # ran the job on schedule.
         send_heartbeat(success=True)
+        return True
 
     except Exception as exc:
         send_alert(AlertLevel.ERROR, "Backup failed", str(exc)[:500])
         logger.exception("Backup failed: %s", exc)
         send_heartbeat(success=False)
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -497,7 +506,9 @@ def main() -> int:
         elif args.run_now == "weekly":
             run_weekly_pipeline()
         elif args.run_now == "backup":
-            run_backup()
+            # Exit non-zero on backup failure so an exit-code-gated caller
+            # (cron `&& curl $HEARTBEAT_URL`) sees it.
+            return 0 if run_backup() else 1
         elif args.run_now == "maintenance":
             registry = build_default_registry()
             run_pipeline(registry, triggered_by="manual", only=["vacuum"])
