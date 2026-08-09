@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useHighwayRankings, type HighwaySort, type HighwayRow } from "../../hooks/useHighwayRankings";
 import type { StatsFilters } from "../../hooks/useStats";
+import { ErrorState } from "../ui/ErrorState";
 
 interface HighwayRankingsTableProps {
   filters: StatsFilters;
@@ -38,7 +39,7 @@ function fmtPerMile(v: number | null): string {
 
 export default function HighwayRankingsTable({ filters }: HighwayRankingsTableProps) {
   const [sort, setSort] = useState<HighwaySort>("crash_count");
-  const { data, isLoading, error } = useHighwayRankings(filters, sort, 20);
+  const { data, isLoading, error, refetch } = useHighwayRankings(filters, sort, 20);
 
   return (
     <section className="space-y-3">
@@ -67,11 +68,16 @@ export default function HighwayRankingsTable({ filters }: HighwayRankingsTablePr
         </div>
       </header>
 
-      {error && (
-        <div className="text-xs text-error" role="alert">Failed to load highway rankings.</div>
-      )}
-
-      {isLoading ? (
+      {error ? (
+        // Only reachable on a real failure — the empty-state ("No highway
+        // crashes match") must not also render here, or an error looks like a
+        // successful zero-result.
+        <ErrorState
+          title="Couldn't load highway rankings"
+          description="The server may be temporarily unavailable. Please try again."
+          onRetry={() => refetch()}
+        />
+      ) : isLoading ? (
         <div className="space-y-1.5" aria-busy="true" aria-label="Loading highway rankings">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-9 rounded-md bg-surface-container animate-pulse" />

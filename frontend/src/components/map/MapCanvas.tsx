@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, AttributionControl, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -313,6 +313,11 @@ export default function MapCanvas({
     >
       <ReducedMotionSync />
       {onViewportChange && <ViewportSync onChange={onViewportChange} />}
+      {/* Required tile-provider credit. The MapContainer disables the default
+          control (to drop the "Leaflet" promo prefix); this renders the one
+          remaining, obligatory OSM + CARTO attribution. PNG export strips
+          leaflet controls, so it doesn't appear in exports. */}
+      <AttributionControl position="bottomright" prefix={false} />
       <TileLayer
         key={baseTileUrl}
         url={baseTileUrl}
