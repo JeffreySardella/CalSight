@@ -174,5 +174,3 @@ Write the elapsed `pg_restore` time here — it is your first real RTO number:
    backups. What survives a host loss: R2 dumps, the GitHub repo + Actions
    secrets, Cloudflare config, healthchecks.io. The real root of trust is
    **Jeff's Cloudflare and GitHub account access** — protect those above all.
-5. **`[LOW]` `docs/OPERATOR_SETUP.md` §3 is stale** — it claims nothing
-   uploads to R2. Offsite upload has been live since 2026-06-23.
