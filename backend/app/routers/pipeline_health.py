@@ -158,7 +158,10 @@ def pipeline_health(
     authed = bool(
         settings.etl_api_key
         and x_etl_api_key
-        and hmac.compare_digest(x_etl_api_key, settings.etl_api_key)
+        # Bytes, not str — compare_digest raises TypeError on non-ASCII strings.
+        and hmac.compare_digest(
+            x_etl_api_key.encode("utf-8"), settings.etl_api_key.encode("utf-8")
+        )
     )
     db_size = None
     if authed:
