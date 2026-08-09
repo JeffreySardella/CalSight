@@ -258,40 +258,56 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     if (!batchQuery.data) return null;
     const b = batchQuery.data;
 
-    const yearlyData: YearlyDataPoint[] = ((b.year ?? []) as YearRow[]).map((r) => ({
+    /**
+     * A batch group is only sometimes an array of rows.
+     *
+     * /api/stats/batch reports a per-group filter incompatibility *in band*,
+     * inside an otherwise-200 response: `{"rate": {"error": "...", "filter":
+     * "pedestrian"}}`. A `?? []` fallback can't catch that — the value is a
+     * non-null object, so it passes through and `.map` throws during render,
+     * taking the whole Stats page down to the ErrorBoundary. That is what any
+     * involvement or condition filter used to do, including the promoted
+     * "DUI Deep Dive" and "Crash Conditions" presets.
+     *
+     * Treat an incompatible group as "no data for these filters", which is
+     * what it means, and let the panel render its normal empty state.
+     */
+    const rows = <T,>(group: unknown): T[] => (Array.isArray(group) ? (group as T[]) : []);
+
+    const yearlyData: YearlyDataPoint[] = rows<YearRow>(b.year).map((r) => ({
       year: r.year, count: r.crash_count, killed: r.total_killed, injured: r.total_injured,
     }));
-    const hourlyData: HourlyDataPoint[] = ((b.hour ?? []) as HourRow[]).map((r) => ({
+    const hourlyData: HourlyDataPoint[] = rows<HourRow>(b.hour).map((r) => ({
       hour: r.hour, count: r.crash_count,
     }));
-    const causesData: CauseDataPoint[] = ((b.cause ?? []) as CauseRow[]).map((r) => ({
+    const causesData: CauseDataPoint[] = rows<CauseRow>(b.cause).map((r) => ({
       label: CAUSE_LABEL[r.canonical_cause] ?? r.canonical_cause, count: r.crash_count,
     }));
-    const severityData: SeverityDataPoint[] = ((b.severity ?? []) as SeverityRow[]).map((r) => ({
+    const severityData: SeverityDataPoint[] = rows<SeverityRow>(b.severity).map((r) => ({
       label: r.severity, count: r.crash_count,
     }));
-    const genderData: GenderDataPoint[] = ((b.gender ?? []) as GenderRow[])
+    const genderData: GenderDataPoint[] = rows<GenderRow>(b.gender)
       .filter((r) => r.gender && r.gender !== "unknown")
       .map((r) => ({ label: r.gender.charAt(0).toUpperCase() + r.gender.slice(1), count: r.victim_count }));
-    const ageBracketData: AgeBracketDataPoint[] = ((b.age_bracket ?? []) as AgeBracketRow[])
+    const ageBracketData: AgeBracketDataPoint[] = rows<AgeBracketRow>(b.age_bracket)
       .sort((a, b2) => AGE_ORDER.indexOf(a.age_bracket) - AGE_ORDER.indexOf(b2.age_bracket))
       .filter((r) => r.age_bracket !== "unknown")
       .map((r) => ({ label: AGE_LABEL[r.age_bracket] ?? r.age_bracket, count: r.victim_count }));
-    const atFaultGenderData: AtFaultGenderDataPoint[] = ((b.at_fault_gender ?? []) as AtFaultGenderRow[])
+    const atFaultGenderData: AtFaultGenderDataPoint[] = rows<AtFaultGenderRow>(b.at_fault_gender)
       .filter((r) => r.gender && r.gender !== "unknown")
       .map((r) => ({ label: r.gender.charAt(0).toUpperCase() + r.gender.slice(1), count: r.party_count }));
-    const atFaultAgeBracketData: AtFaultAgeBracketDataPoint[] = ((b.at_fault_age_bracket ?? []) as AtFaultAgeBracketRow[])
+    const atFaultAgeBracketData: AtFaultAgeBracketDataPoint[] = rows<AtFaultAgeBracketRow>(b.at_fault_age_bracket)
       .sort((a, b2) => AGE_ORDER.indexOf(a.age_bracket) - AGE_ORDER.indexOf(b2.age_bracket))
       .filter((r) => r.age_bracket !== "unknown")
       .map((r) => ({ label: AGE_LABEL[r.age_bracket] ?? r.age_bracket, count: r.party_count }));
-    const monthlyData: MonthlyDataPoint[] = ((b.month ?? []) as MonthRow[]).map((r) => ({
+    const monthlyData: MonthlyDataPoint[] = rows<MonthRow>(b.month).map((r) => ({
       month: r.month, label: MONTH_LABEL[r.month - 1] ?? String(r.month),
       count: r.crash_count, killed: r.total_killed, injured: r.total_injured,
     }));
-    const dayOfWeekData: DayOfWeekDataPoint[] = ((b.day_of_week ?? []) as DayOfWeekRow[]).map((r) => ({
+    const dayOfWeekData: DayOfWeekDataPoint[] = rows<DayOfWeekRow>(b.day_of_week).map((r) => ({
       day: r.day_of_week, label: DOW_LABEL[r.day_of_week] ?? String(r.day_of_week), count: r.crash_count,
     }));
-    const rateData: RateDataPoint[] = ((b.rate ?? []) as RateRow[]).map((r) => ({
+    const rateData: RateDataPoint[] = rows<RateRow>(b.rate).map((r) => ({
       county_code: r.county_code, county_name: r.county_name ?? "Unknown", year: r.year,
       severity: r.severity, total_crashes: r.total_crashes, total_killed: r.total_killed,
       total_injured: r.total_injured, per_100k_population: r.per_100k_population,
@@ -302,7 +318,7 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     const population = demoQuery.data
       ? demoQuery.data.reduce((s, r) => s + (r.population ?? 0), 0)
       : null;
-    const heroMetrics = computeHeroMetrics((b.year ?? []) as YearRow[], population);
+    const heroMetrics = computeHeroMetrics(rows<YearRow>(b.year), population);
 
     return { hourlyData, yearlyData, causesData, severityData, genderData, ageBracketData, atFaultGenderData, atFaultAgeBracketData, monthlyData, dayOfWeekData, rateData, heroMetrics };
   }, [batchQuery.data, demoQuery.data]);

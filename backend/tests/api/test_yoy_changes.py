@@ -6,7 +6,7 @@ we insert controlled rows so the comparison years are deterministic.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import text
@@ -99,7 +99,7 @@ def test_yoy_default_skips_barely_loaded_trailing_year(client, db_session):
     not be the default comparison year — it would rank every county at -100%."""
     rows = []
     cid = 9800
-    for y, n in ((2030, 50), (2031, 2)):
+    for y, n in ((2024, 50), (2025, 2)):
         for _ in range(n):
             rows.append(_crash(cid, 19, y))
             cid += 1
@@ -111,19 +111,49 @@ def test_yoy_default_skips_barely_loaded_trailing_year(client, db_session):
     db_session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_year"))
 
     body = client.get("/api/stats/yoy-changes?metric=crashes").json()
-    assert body["year"] == 2030
+    assert body["year"] == 2024
     assert body["partial_year"] is False
 
     # An explicit request for the sliver year is still honored.
-    body = client.get("/api/stats/yoy-changes?metric=crashes&year=2031").json()
-    assert body["year"] == 2031
+    body = client.get("/api/stats/yoy-changes?metric=crashes&year=2025").json()
+    assert body["year"] == 2025
+
+
+def test_yoy_default_never_selects_the_current_calendar_year(client, db_session):
+    """Regression: the public "biggest year-over-year changes" panel used to
+    default to the in-progress calendar year and rank a few months of data
+    against a full prior year, fabricating -50% to -64% declines for every
+    county. The current year must never be chosen as the default, no matter how
+    many rows it holds — it is partial by definition.
+    """
+    current_year = datetime.now(timezone.utc).year
+    rows = []
+    cid = 9700
+    # Give the current year MORE rows than the prior complete year, so only the
+    # calendar-year rule (not the coverage ratio) can exclude it.
+    for y, n in ((current_year - 1, 40), (current_year, 120)):
+        for _ in range(n):
+            rows.append(_crash(cid, 19, y))
+            cid += 1
+    db_session.add_all(rows)
+    db_session.flush()
+    db_session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_year"))
+
+    body = client.get("/api/stats/yoy-changes?metric=crashes").json()
+    assert body["year"] == current_year - 1, "defaulted to the in-progress year"
+    assert body["partial_year"] is False
+
+    # Explicit opt-in still works, and is honestly flagged.
+    body = client.get(f"/api/stats/yoy-changes?metric=crashes&year={current_year}").json()
+    assert body["year"] == current_year
+    assert body["partial_year"] is True
 
 
 def test_yoy_default_year_reads_from_matview(client, db_session):
     """_default_year routes off mv_crashes_by_year, not a full GROUP BY over the
     11M-row crashes table: a live-table row in a brand-new max year is ignored
     until the MV is refreshed, then honored."""
-    rows = [_crash(9900 + i, 19, 2040) for i in range(200)]
+    rows = [_crash(9900 + i, 19, 2025) for i in range(200)]
     db_session.add_all(rows)
     db_session.flush()
 
@@ -133,8 +163,8 @@ def test_yoy_default_year_reads_from_matview(client, db_session):
 
     db_session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_year"))
     body = client.get("/api/stats/yoy-changes?metric=crashes").json()
-    assert body["year"] == 2040
-    # Per-county numbers still come from the live table: 2040 has the 200 rows.
+    assert body["year"] == 2025
+    # Per-county numbers still come from the live table: 2025 has the 200 rows.
     assert body["rows"][0]["current"] == 200
 
 

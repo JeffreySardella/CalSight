@@ -134,4 +134,35 @@ describe("useDashboardData", () => {
     // …while the secondary series is untouched by the chart's display options.
     expect(result.current.dataBySlot["year:killed"].map((d) => d.value)).toEqual([40, 25]);
   });
+
+  it("degrades to empty when a group returns an in-band incompatibility object", async () => {
+    // Regression: /api/stats/batch reports a filter that doesn't apply to a
+    // dimension as `{"error": ..., "filter": ...}` INSIDE a 200. `?? []` lets
+    // that object through to transformRows, which threw and crashed the whole
+    // Dashboard Builder. It must render an empty chart instead.
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/stats/batch")) {
+        return new Response(JSON.stringify({
+          year: YEAR_ROWS,
+          gender: { error: "pedestrian is not supported for gender", filter: "pedestrian" },
+        }));
+      }
+      return new Response(JSON.stringify({}));
+    });
+
+    const charts: ChartSlot[] = [
+      { id: "a", dimension: "year", measure: "count", chartType: "line", order: 0 },
+      { id: "b", dimension: "gender", measure: "count", chartType: "bar", order: 1 },
+    ];
+
+    const { result } = renderHook(() => useDashboardData(charts, FILTERS), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // The incompatible dimension is empty, the compatible one still renders.
+    expect(result.current.dataBySlot["gender:count"]).toEqual([]);
+    expect(result.current.dataBySlot["year:count"].map((d) => d.value)).toEqual([400, 500]);
+  });
 });
