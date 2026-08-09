@@ -230,11 +230,23 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
               Loading data…
             </div>
           ) : bucketEdges ? (
-            <div className="flex justify-between text-[10px] text-on-surface-variant mt-1 font-mono">
-              {bucketEdges.map((e, i) => (
-                <span key={i}>{activeMeasure.formatLabel(e)}</span>
-              ))}
-            </div>
+            <>
+              <div className="flex justify-between text-[10px] text-on-surface-variant mt-1 font-mono">
+                {bucketEdges.map((e, i) => (
+                  <span key={i}>{activeMeasure.formatLabel(e)}</span>
+                ))}
+              </div>
+              {/* Disclose the binning method. Quantiles put an equal COUNT of
+                  counties in each colour, not an equal value range — so
+                  near-identical counties can land in different colours while
+                  the darkest band lumps together counties an order of
+                  magnitude apart. Saying so costs one line and stops the map
+                  implying differences the data doesn't support. */}
+              <p className="text-[10px] text-on-surface-variant/80 mt-1 leading-snug">
+                Quintiles — each colour holds about a fifth of counties, not an
+                equal value range.
+              </p>
+            </>
           ) : (
             <div className="text-[10px] text-on-surface-variant mt-1 italic">
               Pan or zoom out to compute scale

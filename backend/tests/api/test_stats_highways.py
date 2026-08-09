@@ -67,6 +67,43 @@ def test_highways_county_filter(client):
     assert routes == {"US-101"}
 
 
+def test_highways_per_mile_is_null_under_a_county_filter(client):
+    """crashes_per_mile must not divide a county-scoped count by statewide miles.
+
+    ca_highways carries a route's FULL California centerline length and has no
+    county dimension, so under a county filter the numerator covered one county
+    while the denominator covered the whole state — I-5 scoped to San Diego read
+    roughly 10x too low, and that value fed the map's "Per Mile" colouring.
+    There is no in-county mileage to divide by, so the rate must report as
+    unavailable rather than wrong.
+    """
+    body = client.get("/api/stats/highways?county=orange").json()
+    assert body, "expected at least one route in Orange County"
+    for row in body:
+        assert row["crashes_per_mile"] is None, (
+            f"{row['route_number']} published a per-mile rate under a county filter"
+        )
+        # The route's own length is still a fact about the route, so it stays.
+        assert row["miles"] is not None and row["miles"] > 0
+
+
+def test_highways_per_mile_sort_still_returns_rows_under_county_filter(client):
+    """Ranking by a rate we just declared unavailable must not silently return
+    an empty list — that would read as "no dangerous highways in this county".
+    It falls back to crash-count order instead."""
+    body = client.get("/api/stats/highways?county=orange&sort=crashes_per_mile").json()
+    assert body, "county + per-mile sort returned nothing instead of falling back"
+    counts = [r["crash_count"] for r in body]
+    assert counts == sorted(counts, reverse=True)
+
+
+def test_highways_per_mile_still_computed_statewide(client):
+    """The statewide case is unaffected — numerator and denominator agree."""
+    body = client.get("/api/stats/highways").json()
+    i5 = next(r for r in body if r["route_number"] == "I-5")
+    assert i5["crashes_per_mile"] == pytest.approx(i5["crash_count"] / i5["miles"], rel=1e-6)
+
+
 def test_highways_limit_clamps_to_max(client):
     response = client.get("/api/stats/highways?limit=999")
     # Out-of-range limit should reject with 422 (FastAPI/pydantic le=300).

@@ -55,10 +55,26 @@ Free tier is 10 GB; dumps are ~1 GB each, so retention drives the cost.
 4. Test: `python -m etl.backup --upload-only`
 5. **(Code task — I'll do this)** wire `upload_to_r2()` + `rotate_r2_backups()` into the scheduled `run_backup` so daily backups go offsite automatically.
 
-## 4. Public-URL uptime monitor  *(API/tunnel down detection)*
+## 4. Public-URL uptime monitor  *(DONE — `.github/workflows/uptime.yml`)*
 
-The heartbeat covers the ETL box. Add a separate monitor for the **public site/API** so you're alerted if the tunnel or backend drops:
-- healthchecks.io won't poll; use [UptimeRobot](https://uptimerobot.com) (free) or a healthchecks.io "API check" against `https://<your-domain>/api/health`. Expect HTTP 200 `{"status":"ok"}`; alert on non-200 or timeout.
+The backup heartbeat covers the ETL box; this covers the **public request
+path**. Runs every 15 min on GitHub-hosted runners (deliberately not the
+self-hosted runner on LXC 100, so the monitor survives the box going down) and
+alerts through the existing `DISCORD_WEBHOOK_URL` secret on failure only.
+
+Checks `https://api.calsight.org/api/health`, a real aggregate query
+(`/api/stats?group_by=year`, so a DB outage can't hide behind a health check
+that only proves the process is up), and `https://calsight.org`.
+
+⚠️ **Probe `api.calsight.org`, never `calsight.org/api/health`.** The apex is a
+static SPA that answers **200 with HTML** for unknown paths, so a monitor
+pointed there is a permanent false-green — it would report healthy with the
+entire API down.
+
+Limits, accepted: GitHub cron is best-effort and can lag under load, and
+Actions disables schedules after 60 days of repo inactivity. Good for catching
+multi-hour rot; not a sub-minute pager. [UptimeRobot](https://uptimerobot.com)
+(free) can layer on top if you ever want tighter intervals.
 
 ## 5. Maintenance mode  *(backend code done; see below)*
 

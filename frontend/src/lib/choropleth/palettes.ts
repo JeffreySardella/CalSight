@@ -9,9 +9,17 @@ export type PaletteVariants = {
   dark: readonly string[];
 };
 
-// `colorblind` is an Okabe-Ito-derived diverging scale safe for
-// deuteranopia/protanopia: orange → pale → blue (light) or brightened versions
-// of the same direction for dark mode.
+// `colorblind` is a SEQUENTIAL single-hue blue ramp (ColorBrewer "Blues"),
+// safe for deuteranopia/protanopia and, because luminance rises monotonically
+// across the whole scale, for monochromacy and greyscale printing too.
+//
+// It used to be a diverging orange → pale → purple scale, which was the wrong
+// shape for this data and made the dedicated accessibility option the least
+// honest palette on the map: luminance peaked in the MIDDLE (~0.46, 0.75,
+// 0.96, 0.66, 0.28), so a near-white centre implied the median county was a
+// neutral baseline, and a low-crash county and a high-crash county both
+// rendered dark. Crash counts are sequential — one direction, low to high —
+// so the ramp has to be monotonic or it invents a meaning the data lacks.
 export const PALETTES: Record<PaletteKey, PaletteVariants> = {
   default: {
     light: ["#c7d2fe", "#818cf8", "#6366f1", "#4338ca", "#312e81"],
@@ -26,8 +34,8 @@ export const PALETTES: Record<PaletteKey, PaletteVariants> = {
     dark:  ["#134e4a", "#0f766e", "#14b8a6", "#5eead4", "#ccfbf1"],
   },
   colorblind: {
-    light: ["#e66100", "#f3b678", "#f5f5f5", "#8aaed4", "#5d3a9b"],
-    dark:  ["#ff6b00", "#ffb07a", "#e5e5e5", "#a6c1e2", "#b794f6"],
+    light: ["#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c"],
+    dark:  ["#08306b", "#2171b5", "#4292c6", "#9ecae1", "#deebf7"],
   },
 };
 

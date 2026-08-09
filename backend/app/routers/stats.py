@@ -1071,6 +1071,15 @@ def stats_highways(
 
     raw_rows = db.execute(stmt).all()
 
+    # Crashes-per-mile is only meaningful when the crash count covers the same
+    # geography as the mileage. ca_highways carries a route's FULL California
+    # centerline length and has no county dimension, so under a county filter
+    # the numerator shrinks to one county while the denominator stays statewide
+    # — I-5 scoped to San Diego read roughly 10x too low, and that wrong value
+    # fed the map's "Per Mile" danger colouring. There is no in-county mileage
+    # to divide by, so report the rate as unavailable rather than wrong.
+    county_scoped = bool(county_codes)
+
     # Build the per-mile rate in Python — pulling the over-fetch (all routes,
     # then truncating) is fine because there are ~120 known routes and the
     # group-by output stays small even before filtering.
@@ -1079,7 +1088,10 @@ def stats_highways(
         crash_count = int(r.crash_count)
         killed = int(r.total_killed)
         injured = int(r.total_injured)
+        # `miles` stays populated either way: a route's length is a fact about
+        # the route, independent of which crashes are in scope.
         miles = miles_for(r.route_number)
+        per_mile = None if county_scoped else ((crash_count / miles) if miles else None)
         enriched.append(
             HighwayRow(
                 route_number=r.route_number,
@@ -1088,7 +1100,7 @@ def stats_highways(
                 total_injured=injured,
                 fatality_rate=(killed / crash_count) if crash_count else 0.0,
                 miles=miles,
-                crashes_per_mile=(crash_count / miles) if miles else None,
+                crashes_per_mile=per_mile,
             ),
         )
 
@@ -1096,6 +1108,11 @@ def stats_highways(
         enriched.sort(key=lambda h: h.crash_count, reverse=True)
     elif sort == "fatality_rate":
         enriched.sort(key=lambda h: h.fatality_rate, reverse=True)
+    elif county_scoped:
+        # Ranking by a rate we just declared unavailable would return nothing
+        # and read as "no dangerous highways in this county". Fall back to the
+        # honest ordering instead, so the caller still gets the county's routes.
+        enriched.sort(key=lambda h: h.crash_count, reverse=True)
     else:
         # crashes_per_mile — routes without known mileage can't rank here.
         enriched = [h for h in enriched if h.crashes_per_mile is not None]

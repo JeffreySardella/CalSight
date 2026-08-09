@@ -34,11 +34,19 @@ function radiusFor(zScore: number): number {
 }
 
 /**
- * Plots statistically significant crash hotspots (grid density + z-score > 2σ,
- * see /api/crashes/clusters) as pulsing circle markers. Clicking a marker
- * hands the cluster's stats up to the side panel via onSelectCluster.
- * Renders nothing when the layer is toggled off. Imperative Leaflet layer
- * management mirrors TopIntersectionsLayer / HighwayDangerLayer.
+ * Plots grid cells with unusually high crash COUNTS relative to other cells
+ * (z-score > 2σ over the grid, see /api/crashes/clusters) as pulsing circle
+ * markers. Clicking a marker hands the cluster's stats up to the side panel
+ * via onSelectCluster. Renders nothing when the layer is toggled off.
+ * Imperative Leaflet layer management mirrors TopIntersectionsLayer /
+ * HighwayDangerLayer.
+ *
+ * NOT "statistically significant hotspots", which is what this used to claim.
+ * The z-score is computed against the other grid cells and carries no exposure
+ * denominator — a cell can rank high purely because more people drive through
+ * it. The underlying count distribution is also heavily overdispersed relative
+ * to Poisson, so the σ units don't carry their usual significance meaning.
+ * Treat this as a screening tool that says "look here", not a test result.
  */
 export default memo(function ClusterLayer({ onSelectCluster, selectedCluster, onSelectedClusterGone }: ClusterLayerProps) {
   const map = useMap();

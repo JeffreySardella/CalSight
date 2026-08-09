@@ -120,13 +120,18 @@ def _degrade_on_timeout(db: Session, timeout_ms: int, scope: str):
             headers={"Retry-After": "60"},
         ) from exc
 
-# Relative severity weights for the optional severity-weighted score
-# (EPDO-style — "equivalent property-damage-only"). These are a presentation
-# choice for ranking, not a statement about the value of a life; an order-of-
-# magnitude scale (fatal 100 : injury 10 : pdo 1) kept intentionally modest so
-# a single fatality doesn't wholly dominate the ranking. Documented so the
-# user knows how "severity-weighted" is computed and can weigh it against the
-# plain crash count.
+# Relative severity weights for the optional severity-weighted score. These are
+# a presentation choice for ranking, not a statement about the value of a life;
+# an order-of-magnitude scale (fatal 100 : injury 10 : pdo 1) kept intentionally
+# modest so a single fatality doesn't wholly dominate the ranking. Documented so
+# the user knows how "severity-weighted" is computed and can weigh it against
+# the plain crash count.
+#
+# Deliberately NOT called "EPDO" any more. Real cost-based EPDO weightings (the
+# Highway Safety Manual and state DOT practice) put the fatal weight around
+# 950-1300, not 100, so this flat ratio ranks fatal-heavy rural corridors far
+# lower than a standards-compliant EPDO would. Naming it EPDO implied a
+# compliance this doesn't have; it stays an honestly-labelled opt-in sort.
 _W_FATAL, _W_INJURY, _W_PDO = 100, 10, 1
 
 

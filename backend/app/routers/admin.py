@@ -44,7 +44,10 @@ def verify_admin_key(body: VerifyRequest, request: Request, response: Response):
             detail="Admin key not configured on server",
             headers=_NO_STORE,
         )
-    if not hmac.compare_digest(body.key, admin_key):
+    # Compare bytes, not str: hmac.compare_digest raises TypeError on strings
+    # holding non-ASCII, which would surface as a 500 with a stack trace
+    # instead of a clean 403 the moment someone set a key with an accent in it.
+    if not hmac.compare_digest(body.key.encode("utf-8"), admin_key.encode("utf-8")):
         raise HTTPException(
             status_code=403, detail="Invalid admin key", headers=_NO_STORE
         )

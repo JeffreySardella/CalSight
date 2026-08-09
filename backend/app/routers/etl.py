@@ -91,7 +91,12 @@ def _verify_etl_key(x_etl_api_key: str = Header(None)):
         raise HTTPException(
             status_code=503, detail="ETL API key not configured", headers=no_store
         )
-    if not x_etl_api_key or not hmac.compare_digest(x_etl_api_key, settings.etl_api_key):
+    # Compare bytes, not str: hmac.compare_digest raises TypeError on strings
+    # holding non-ASCII (a latin-1 header can carry them), which would surface
+    # as a 500 with a stack trace instead of a clean 403.
+    if not x_etl_api_key or not hmac.compare_digest(
+        x_etl_api_key.encode("utf-8"), settings.etl_api_key.encode("utf-8")
+    ):
         raise HTTPException(
             status_code=403, detail="Invalid ETL API key", headers=no_store
         )

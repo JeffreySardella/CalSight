@@ -534,7 +534,20 @@ vehicles_per_capita = total_vehicles / population
 
 ## 6. Statistical Methods
 
-CalSight implements a pure-TypeScript statistical hypothesis testing library (`frontend/src/lib/dashboard/hypothesis.ts`) with no external dependencies. All p-values are computed via analytical approximations using the incomplete gamma function, incomplete beta function, and normal CDF -- no lookup tables.
+> **Scope note, added 2026-08-09.** An earlier revision of this section
+> described a hypothesis-testing library at
+> `frontend/src/lib/dashboard/hypothesis.ts` providing t-statistics, p-values,
+> Fisher's-z confidence intervals, Benjamini-Hochberg FDR correction and a
+> chi-squared test. **That module does not exist and never shipped.** The
+> descriptions below now match the code that actually runs. Documenting
+> statistics the product does not perform is a worse failure for a
+> transparency project than not performing them, so the text was corrected
+> rather than the claim quietly dropped.
+
+CalSight computes descriptive statistics only. It reports **effect sizes**
+(correlation coefficients, rates, shares) and does **not** compute p-values,
+confidence intervals, or any multiple-comparison correction. Read every
+correlation below as descriptive, not inferential.
 
 ### 6.1 Pearson Correlation Coefficient
 
@@ -544,9 +557,23 @@ Used in the 26-variable correlation matrix. Computed across all 58 California co
 r = SUM((x_i - x_mean)(y_i - y_mean)) / sqrt(SUM((x_i - x_mean)^2) * SUM((y_i - y_mean)^2))
 ```
 
-Requires a minimum of 5 valid (non-NaN, finite) paired observations per cell. Pairs with fewer than 5 observations report r = 0.
+Requires a minimum of 5 valid (non-NaN, finite) paired observations per cell
+(`frontend/src/hooks/useCorrelationData.ts`). Cells below that threshold are
+reported as no-data rather than as a correlation.
 
-**Significance testing:** Converts r to a t-statistic: `t = r * sqrt(n-2) / sqrt(1 - r^2)`, where n = number of counties. P-value computed from the t-distribution CDF with n-2 degrees of freedom. Confidence intervals use Fisher's z-transformation: `z = arctanh(r)`, `SE(z) = 1/sqrt(n-3)`.
+**No significance testing is performed.** The matrix reports the raw
+coefficient and nothing else — no t-statistic, no p-value, no confidence
+interval. Three consequences worth stating plainly:
+
+- **A 5-observation floor is very permissive.** An r computed from 5 counties
+  is easily produced by chance and should not be read as a finding.
+- **These are ecological correlations.** Every observation is a *county*, not
+  a person. A county-level association does not imply the same association
+  holds for individuals (the ecological fallacy) and never implies causation.
+- **Many cells are examined at once.** Scanning a large matrix and reporting
+  the strongest cells will surface apparently-strong correlations from noise
+  alone. Without a multiple-comparison correction, treat a striking cell as a
+  hypothesis to investigate, not as evidence.
 
 ### 6.2 Correlation Matrix Variables (26 total)
 
@@ -568,94 +595,36 @@ The correlation matrix computes all 325 unique pairwise Pearson correlations amo
 
 ### 6.3 Multiple Testing Correction
 
-When testing significance across the full 325-cell correlation matrix, CalSight applies **Benjamini-Hochberg False Discovery Rate (FDR) correction**:
+**None is applied.** The matrix computes 325 pairwise coefficients and reports
+all of them uncorrected, because no significance testing happens in the first
+place (§6.1).
 
-1. Sort all 325 p-values in ascending order.
-2. For rank k, compute adjusted p-value: `p_adj(k) = min(1, p(k) * m / k)` where m = 325.
-3. Enforce monotonicity from the bottom up.
-4. Mark cells as significant where FDR-adjusted p < 0.05.
+This is the single largest interpretive caveat in the product. When 325 cells
+are computed and the eye is drawn to the strongest, some of those will be
+noise even if no real relationship exists anywhere. Nothing in the UI
+distinguishes a robust association from a spurious one.
 
-**Bonferroni correction** is also available for more conservative analysis: `p_corrected = min(1, p_raw * m)`.
+If inferential claims are ever wanted here, the honest ordering is: implement
+per-cell significance first, then a Benjamini-Hochberg FDR correction across
+the full matrix, then surface both in the UI — and only then describe them in
+this document.
 
-### 6.4 Chi-Squared Test of Independence
+### 6.4 Tests that are documented elsewhere but NOT implemented
 
-Tests whether categorical distributions differ between groups.
+Earlier revisions of this document described a chi-squared test of
+independence, Welch's two-sample t-test, one-way ANOVA, the Mann-Kendall trend
+test, a Kolmogorov-Smirnov two-sample test, and a supporting "mathematical
+engine" of special functions.
 
-```
-X^2 = SUM_ij [(O_ij - E_ij)^2 / E_ij]
-```
+**None of these are implemented in CalSight.** No chi-squared, t-test, ANOVA,
+trend test, or KS test runs anywhere in the product, and no p-value is
+computed or displayed on any surface.
 
-Where `E_ij = (row_i_total * col_j_total) / grand_total`. Degrees of freedom: `(rows - 1) * (cols - 1)`.
-
-**Effect size:** Cramer's V = `sqrt(X^2 / (n * min(rows-1, cols-1)))`. Interpretation: V < 0.1 negligible, 0.1-0.3 small, 0.3-0.5 medium, > 0.5 large.
-
-**Use case:** Testing whether severity distributions differ significantly between counties.
-
-### 6.5 Welch's Two-Sample t-Test
-
-Tests whether two group means differ, without assuming equal variances.
-
-```
-t = (x_bar_1 - x_bar_2) / sqrt(s_1^2/n_1 + s_2^2/n_2)
-```
-
-Degrees of freedom via Welch-Satterthwaite approximation. Effect size: Cohen's d with pooled standard deviation. 95% confidence interval for the mean difference.
-
-**Use case:** Comparing weekday vs. weekend crash counts.
-
-### 6.6 One-Way ANOVA
-
-Tests whether means differ across k groups.
-
-```
-F = MS_between / MS_within
-```
-
-Where `MS_between = SS_between / (k-1)` and `MS_within = SS_within / (N-k)`.
-
-**Effect size:** eta-squared = `SS_between / SS_total`. Interpretation: < 0.01 negligible, 0.01-0.06 small, 0.06-0.14 medium, > 0.14 large.
-
-Includes a homogeneity-of-variance check (max/min group variance ratio; warns if > 4:1).
-
-**Use case:** Testing whether crash rates differ across age groups.
-
-### 6.7 Mann-Kendall Trend Test
-
-Non-parametric test for monotonic trends in time series. Does not assume linearity or normality.
-
-1. For all pairs (i, j) where j > i, compute `sgn(x_j - x_i)`.
-2. `S = SUM(sgn values)`. Positive S suggests increasing trend; negative suggests decreasing.
-3. Variance with tied-group correction: `Var(S) = [n(n-1)(2n+5) - SUM_t t(t-1)(2t+5)] / 18`.
-4. Z-statistic with continuity correction; p-value from normal approximation (valid for n > 10).
-
-**Effect size:** Kendall's tau = `S / [n(n-1)/2]`. Range: -1 to +1.
-
-**Sen's Slope:** Median of all pairwise slopes `(x_j - x_i) / (j - i)`. Robust to outliers, unlike OLS regression.
-
-**Use case:** Testing whether fatality counts show a significant trend over years.
-
-### 6.8 Kolmogorov-Smirnov Two-Sample Test
-
-Tests whether two samples come from the same continuous distribution. Sensitive to differences in shape, spread, and location (not just mean).
-
-```
-D = max |F_1(x) - F_2(x)|
-```
-
-P-value from the Kolmogorov asymptotic distribution using the effective sample size `n_e = (n_1 * n_2) / (n_1 + n_2)`.
-
-**Use case:** Comparing crash severity distributions between two counties.
-
-### 6.9 Mathematical Engine
-
-All distribution CDFs are computed analytically:
-- **Gamma function:** Lanczos approximation (accurate to ~15 digits)
-- **Incomplete gamma (chi-squared CDF):** Series expansion for `x < a+1`, continued fraction (Lentz's method) otherwise
-- **Incomplete beta (t and F CDFs):** Continued fraction with symmetry transform
-- **Normal CDF:** Abramowitz and Stegun approximation 7.1.26 (max error 1.5e-7)
-- **Inverse normal:** Beasley-Springer-Moro rational approximation
-
----
+Those sections have been removed rather than left standing, because a reader
+checking CalSight's rigour would otherwise have credited it with inferential
+statistics it does not perform. What the product genuinely provides is
+descriptive: counts, rates, shares, year-over-year deltas, and the
+uncorrected Pearson coefficients described in §6.1.
 
 ## 7. Data Quality and Limitations
 
