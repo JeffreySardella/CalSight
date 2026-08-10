@@ -2,11 +2,11 @@
 
 **Purpose:** get the production database back after data loss or host failure.
 
-**Status of this document:** the commands below are derived from what
-`backend/etl/backup.py` actually does, but **a full restore has never been
-performed on this project**. Steps marked `[UNVERIFIED]` could not be proven
-without prod access. Run the drill in §5 to turn this from a plan into a
-tested procedure.
+**Status of this document:** the restore path is **PROVEN**. On 2026-08-09 the
+offsite R2 copy was restored end-to-end into a scratch Postgres 17 and
+reconciled exactly against live production — see §5 for the measured RTO and
+full results. Steps still marked `[UNVERIFIED]` are the ones the drill could
+not exercise (they need the real host), and are called out individually.
 
 ---
 
@@ -127,31 +127,69 @@ the box.
 
 ---
 
-## 5. The drill: prove the backup works (30 minutes, zero risk to prod)
+## 5. The drill: prove the backup works (~10 minutes, zero risk to prod)
+
+> ## ✅ PASSED — 2026-08-09
+> **Restore time: 3 minutes 18 seconds** (`pg_restore -j 4`, exit 0, **zero errors**).
+> Source: `calsight_2026-08-09_190001.dump.gz` pulled **from R2** — deliberately
+> the offsite copy, so this also proved the copy that survives losing the box.
+>
+> | Check | Result |
+> |---|---|
+> | Archive TOC (`pg_restore --list`) | OK — 418 entries, 32 tables |
+> | crashes | **11,344,536** — exact match with live |
+> | killed / injured | **92,176 / 6,375,153** — exact match with live |
+> | crash_parties / crash_victims | 9,067,452 / 5,464,114 |
+> | Materialized views | **9 of 9 populated**, incl. `mv_street_aggregates` |
+> | Indexes / FK constraints | 138 / 24 |
+> | Analytical query on restored DB | ran correctly (2022: 405,246 crashes, 4,661 killed) |
+>
+> **The RTO is no longer a guess.** Restoring the data takes ~3.5 minutes on a
+> laptop. Add the R2 download (~1 GB) and step 4c's grant re-apply and a
+> same-host recovery is realistically well under 30 minutes.
 
 Run this on any machine with Docker. It restores into a throwaway container
 and never touches production.
 
 ```bash
+# Dump from R2 arrives gzipped. NOTE: the .gz saves almost nothing —
+# pg_dump custom format is already compressed (948.0MB -> 948.1MB).
+gunzip -k calsight_<DATE>.dump.gz
+
 docker run -d --name drtest -e POSTGRES_PASSWORD=drtest -p 55432:5432 postgres:17
 docker cp calsight_<DATE>.dump drtest:/tmp/
-docker exec drtest createdb -U postgres calsight
-time docker exec drtest pg_restore -U postgres -d calsight -j 4 /tmp/calsight_<DATE>.dump
+
+# Verify the archive BEFORE trusting it.
+docker exec drtest pg_restore --list /tmp/calsight_<DATE>.dump > /dev/null && echo TOC-OK
+
+docker exec drtest psql -U postgres -c "CREATE ROLE calsight LOGIN PASSWORD 'drtest';"
+docker exec drtest createdb -U postgres -O calsight calsight
+time docker exec drtest pg_restore -U postgres -d calsight -j 4 \
+  --no-owner --no-acl /tmp/calsight_<DATE>.dump
+
 docker exec drtest psql -U postgres -d calsight -c \
-  "SELECT (SELECT count(*) FROM crashes) AS crashes,
-          (SELECT count(*) FROM parties) AS parties,
-          (SELECT count(*) FROM victims) AS victims;"
+  "SELECT (SELECT count(*) FROM crashes)       AS crashes,
+          (SELECT count(*) FROM crash_parties) AS parties,
+          (SELECT count(*) FROM crash_victims) AS victims;"
 docker exec drtest psql -U postgres -d calsight -c \
   "SELECT matviewname, ispopulated FROM pg_matviews;"
-docker rm -f drtest
+
+docker rm -f drtest && rm -f calsight_<DATE>.dump*
 ```
 
 **Pass criteria:** ~11.3M crashes and all matviews `ispopulated = t`.
 
-Write the elapsed `pg_restore` time here — it is your first real RTO number:
+Gotchas worth knowing before you repeat this:
+- On **Git Bash / MSYS**, container paths get rewritten into Windows paths and
+  `pg_restore` reports "could not open input file C:/Users/...". Prefix the
+  command with `MSYS_NO_PATHCONV=1`.
+- The table names are `crash_parties` / `crash_victims`, not `parties` /
+  `victims`.
+- `--no-owner --no-acl` avoids noisy role errors in a scratch container. On a
+  **real** recovery, follow §4b/§4c instead — the roles and grants matter there.
 
-> Last drill run: _never_
-> Restore time: _unknown_
+> Last drill run: **2026-08-09 — PASSED**
+> Restore time: **3m 18s** (data only; see the table above)
 
 ---
 
@@ -160,13 +198,13 @@ Write the elapsed `pg_restore` time here — it is your first real RTO number:
 1. **`[HIGH]` The live backup crontab is not in git.** Schedule, env sourcing
    and heartbeat wiring exist only on LXC 100 — the box you would be
    recovering. One `crontab -l` pasted into §4f closes this.
-2. **`[HIGH]` R2 lifecycle rule may delete offsite copies after 3 days.** A
-   Cloudflare-side `delete-after-3-days` rule was set 2026-06-23 and
-   *overrides* the script's keep-newest-3 guard, which only governs deletions
-   the script itself makes. A dump outage longer than 3 days (July's
-   crash-loop lasted weeks) would leave **zero** offsite recovery points.
-   Fix: remove the rule and let `rotate_r2_backups()` handle retention, or
-   extend it to 14+ days.
+2. ~~**`[HIGH]` R2 lifecycle rule may delete offsite copies after 3 days.**~~
+   **RESOLVED 2026-08-09** — the rule was real and biting: the bucket held
+   exactly three objects (08-07/08/09), so a four-day dump outage would have
+   left **zero** offsite recovery points. Changed to `delete-after-14-days`.
+   Kept as a lifecycle rule rather than deleted so a storage backstop remains
+   (R2 free tier is 10 GB, dumps are ~948 MB); the script's own 7-day rotation
+   keeps steady state near 6.6 GB, so the 14-day rule should never fire.
 3. **`[MEDIUM]` Roles and passwords are not backed up.** They live in the box
    `.env` and the `DATABASE_URL` GitHub secret. Losing both means rotating
    passwords during a recovery.
