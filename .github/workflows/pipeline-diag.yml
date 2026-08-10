@@ -78,3 +78,12 @@ jobs:
 
           echo "===== systemd timers (in case any exist) ====="
           systemctl list-timers --all --no-pager 2>/dev/null | grep -iE 'calsight|etl|backup' || echo "(none)"
+
+          # The crontab only names a wrapper script, which itself lives nowhere
+          # but this box — so the schedule alone doesn't close the DR gap. Print
+          # the wrapper (redacted) so it can be committed alongside it.
+          echo "===== cron wrapper scripts ====="
+          for s in $(sudo -n crontab -l -u root 2>/dev/null | grep -oE '/[^ ]+\.sh' | sort -u); do
+            echo "--- $s ---"
+            sudo -n cat "$s" 2>/dev/null | redact || echo "(cannot read $s)"
+          done
