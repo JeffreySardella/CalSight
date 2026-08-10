@@ -113,17 +113,25 @@ curl http://127.0.0.1:8000/api/health
 
 Then load the site and confirm the map renders.
 
-### 4f. `[UNVERIFIED]` Re-create the backup cron
+### 4f. Re-create the schedulers
 
-The live crontab line on LXC 100 is **not in version control** — see the
-warning in §6. Approximately:
+**Captured from the box 2026-08-09** — full detail, including the wrapper
+script and rebuild steps, is in **`backend/deploy/lxc100-crontab.md`**.
+
+There are **two** schedulers, and they split the work:
 
 ```
-0 19 * * * cd /opt/calsight/<path> && . ./.env && python -m etl.backup && curl -fsS $HEARTBEAT_URL
+# ETL — host cron (root) on LXC 100
+0 2 * * * /usr/local/bin/run-etl-with-notify.sh
+
+# BACKUP — the calsight-pipeline-1 container's own APScheduler (0 7 * * *).
+# Restored simply by bringing the stack up:
+docker compose -f docker-compose.pipeline.yml up -d
 ```
 
-Paste the real `crontab -l` output into this document the next time you are on
-the box.
+The earlier guess here (`0 19 * * * … python -m etl.backup && curl $HEARTBEAT_URL`)
+was wrong on every count — wrong time, wrong invoker, and the host cron never
+touches backups at all.
 
 ---
 
@@ -195,9 +203,15 @@ Gotchas worth knowing before you repeat this:
 
 ## 6. Known gaps
 
-1. **`[HIGH]` The live backup crontab is not in git.** Schedule, env sourcing
-   and heartbeat wiring exist only on LXC 100 — the box you would be
-   recovering. One `crontab -l` pasted into §4f closes this.
+1. ~~**`[HIGH]` The live backup crontab is not in git.**~~ **RESOLVED
+   2026-08-09** — captured to `backend/deploy/lxc100-crontab.md`, including the
+   `run-etl-with-notify.sh` wrapper and rebuild steps. It also corrected the
+   record: there are **two** schedulers — the host cron runs the ETL (02:00
+   UTC), and the `calsight-pipeline-1` container runs the **backup** (07:00
+   UTC). One residual unknown is documented there: the R2 objects are named
+   `calsight_<date>_190001.dump.gz`, which `etl/backup.py` does not produce, so
+   the offsite uploader is still unidentified (it works — the drill in §5
+   restored one — but it cannot yet be rebuilt from git).
 2. ~~**`[HIGH]` R2 lifecycle rule may delete offsite copies after 3 days.**~~
    **RESOLVED 2026-08-09** — the rule was real and biting: the bucket held
    exactly three objects (08-07/08/09), so a four-day dump outage would have
