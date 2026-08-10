@@ -99,11 +99,22 @@ jobs:
             [ -n "$out" ] && { echo "--- $u ---"; printf '%s\n' "$out" | redact; }
           done
 
+          # Every probe below is non-fatal: the step runs under `bash -e`, so a
+          # grep with no matches would otherwise abort the whole diagnostic.
           echo "===== backup-related scripts on the box ====="
-          sudo -n ls -la /usr/local/bin/ 2>/dev/null | grep -iE 'backup|etl|calsight' || echo "(none in /usr/local/bin)"
+          { sudo -n ls -la /usr/local/bin/ 2>/dev/null || true; } | grep -iE 'backup|etl|calsight' || echo "(none in /usr/local/bin)"
 
           echo "===== local backup directory ====="
-          sudo -n ls -la /opt/calsight/backups/ 2>/dev/null | tail -6 || echo "(no /opt/calsight/backups)"
+          { sudo -n ls -la /opt/calsight/backups/ 2>/dev/null || true; } | tail -6 || true
+          echo "(end of backup dir listing)"
 
-          echo "===== any script that mentions r2/pg_dump ====="
-          sudo -n grep -rlE 'pg_dump|r2\.cloudflarestorage|calsight-backups' /usr/local/bin /etc/cron.d /root 2>/dev/null | head -5 || echo "(none found)"
+          echo "===== any script mentioning pg_dump / R2 ====="
+          { sudo -n grep -rlE 'pg_dump|r2\.cloudflarestorage|calsight-backups' /usr/local/bin /etc/cron.d /root /opt 2>/dev/null || true; } | head -5 || true
+          echo "(end of grep)"
+
+          echo "===== containers on this box (is the pipeline scheduler live?) ====="
+          { docker ps -a --format '{{.Names}}\t{{.Status}}' 2>/dev/null || true; } | head -10 || true
+
+          echo "===== pipeline container's scheduled jobs, if it is running ====="
+          { docker logs --tail 40 calsight-pipeline-1 2>&1 || true; } | grep -iE 'schedule|backup|next run' | head -10 || echo "(no scheduler banner found)"
+          exit 0
