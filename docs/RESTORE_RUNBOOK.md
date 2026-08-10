@@ -215,10 +215,17 @@ Gotchas worth knowing before you repeat this:
 2. ~~**`[HIGH]` R2 lifecycle rule may delete offsite copies after 3 days.**~~
    **RESOLVED 2026-08-09** — the rule was real and biting: the bucket held
    exactly three objects (08-07/08/09), so a four-day dump outage would have
-   left **zero** offsite recovery points. Changed to `delete-after-14-days`.
-   Kept as a lifecycle rule rather than deleted so a storage backstop remains
-   (R2 free tier is 10 GB, dumps are ~948 MB); the script's own 7-day rotation
-   keeps steady state near 6.6 GB, so the 14-day rule should never fire.
+   left **zero** offsite recovery points. Now `delete-after-7-days`, which
+   deliberately matches `RETENTION_DAYS = 7` in `etl/backup.py` so the rule and
+   the code agree instead of fighting. Kept as a lifecycle rule rather than
+   deleted so a storage ceiling remains.
+
+   Sizing, measured 2026-08-09: each dump is ~948 MB and grows ~0.1 MB/day
+   (947.88 -> 948.02 -> 948.02 MB on consecutive nights), so 7 copies is
+   ~6.6 GB against R2's 10 GB free tier — roughly 3.4 GB of headroom, and it
+   stays that way for years at this growth rate. 14 days would have been
+   ~13.3 GB, i.e. over the free tier for about 5 cents a month.
+
 3. **`[MEDIUM]` Roles and passwords are not backed up.** They live in the box
    `.env` and the `DATABASE_URL` GitHub secret. Losing both means rotating
    passwords during a recovery.
