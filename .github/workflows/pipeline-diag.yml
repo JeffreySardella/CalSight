@@ -43,3 +43,38 @@ jobs:
             echo "===== logs: $c (last $TAIL lines) ====="
             docker logs --tail "$TAIL" "$c" 2>&1 || true
           done
+
+      # The live ETL/backup scheduler on this box is the HOST CRON, not the
+      # containerized pipeline scheduler (verified at the box 2026-07-18, issue
+      # #370). That crontab exists only here — the one machine a disaster
+      # recovery would be rebuilding — so RESTORE_RUNBOOK.md §4f has never been
+      # able to state the real schedule. Print it so it can be committed.
+      #
+      # Read-only, and secrets are redacted below: the line is expected to
+      # source .env and curl a healthchecks.io URL, and a workflow log is not
+      # the place for either.
+      - name: Scheduler visibility (crontab, redacted)
+        run: |
+          echo "===== runner identity ====="
+          echo "user=$(id -un) uid=$(id -u)"
+
+          redact() {
+            sed -E \
+              -e 's#(hc-ping\.com/)[A-Za-z0-9-]+#\1<REDACTED>#g' \
+              -e 's#(https?://)[^ "]*(webhook|token|key)[^ "]*#\1<REDACTED>#gI' \
+              -e 's/([A-Za-z_]*(PASSWORD|SECRET|TOKEN|KEY)[A-Za-z_]*=)[^ ]*/\1<REDACTED>/gI'
+          }
+
+          echo "===== crontab -l (this user) ====="
+          crontab -l 2>&1 | redact || echo "(none for $(id -un))"
+
+          if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
+            echo "===== crontab -l -u root (if permitted) ====="
+            sudo -n crontab -l -u root 2>&1 | redact || echo "(no passwordless sudo — run 'crontab -l' as root by hand)"
+          fi
+
+          echo "===== /etc/cron.d and /etc/crontab ====="
+          grep -RhE 'calsight|etl|backup' /etc/crontab /etc/cron.d/ 2>/dev/null | redact || echo "(nothing matching in /etc/cron.d)"
+
+          echo "===== systemd timers (in case any exist) ====="
+          systemctl list-timers --all --no-pager 2>/dev/null | grep -iE 'calsight|etl|backup' || echo "(none)"
