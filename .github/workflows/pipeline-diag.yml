@@ -95,8 +95,10 @@ jobs:
           # hardened may be producing the backups. Find it.
           echo "===== all crontabs, every user ====="
           for u in $(sudo -n cut -d: -f1 /etc/passwd 2>/dev/null); do
-            out=$(sudo -n crontab -l -u "$u" 2>/dev/null | grep -vE '^\s*#|^\s*$')
-            [ -n "$out" ] && { echo "--- $u ---"; printf '%s\n' "$out" | redact; }
+            out=$(sudo -n crontab -l -u "$u" 2>/dev/null | grep -vE '^\s*#|^\s*$' || true)
+            # `[ -n ... ] && {...}` returns 1 for every user WITHOUT a crontab,
+            # which under `bash -e` killed the whole step on the first such user.
+            if [ -n "$out" ]; then echo "--- $u ---"; printf '%s\n' "$out" | redact; fi
           done
 
           # Every probe below is non-fatal: the step runs under `bash -e`, so a
