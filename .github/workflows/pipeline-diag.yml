@@ -87,3 +87,23 @@ jobs:
             echo "--- $s ---"
             sudo -n cat "$s" 2>/dev/null | redact || echo "(cannot read $s)"
           done
+
+          # Open question the crontab raised: R2 holds dumps named
+          # calsight_<date>_<time>.dump.gz, but etl/backup.py writes
+          # calsight_<date>.dump — no timestamp, no gzip — and "backup" is not
+          # a job in the ETL registry. So something OTHER than the code we
+          # hardened may be producing the backups. Find it.
+          echo "===== all crontabs, every user ====="
+          for u in $(sudo -n cut -d: -f1 /etc/passwd 2>/dev/null); do
+            out=$(sudo -n crontab -l -u "$u" 2>/dev/null | grep -vE '^\s*#|^\s*$')
+            [ -n "$out" ] && { echo "--- $u ---"; printf '%s\n' "$out" | redact; }
+          done
+
+          echo "===== backup-related scripts on the box ====="
+          sudo -n ls -la /usr/local/bin/ 2>/dev/null | grep -iE 'backup|etl|calsight' || echo "(none in /usr/local/bin)"
+
+          echo "===== local backup directory ====="
+          sudo -n ls -la /opt/calsight/backups/ 2>/dev/null | tail -6 || echo "(no /opt/calsight/backups)"
+
+          echo "===== any script that mentions r2/pg_dump ====="
+          sudo -n grep -rlE 'pg_dump|r2\.cloudflarestorage|calsight-backups' /usr/local/bin /etc/cron.d /root 2>/dev/null | head -5 || echo "(none found)"
