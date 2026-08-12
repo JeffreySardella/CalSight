@@ -252,8 +252,19 @@ jobs:
           fi
           mv "$TMP_ENV" backend/.env
 
-      - name: Stop standalone cloudflared (if still running as systemd)
-        run: systemctl disable --now cloudflared 2>/dev/null || true
+      # REMOVED 2026-08-11: "Stop standalone cloudflared (if still running as systemd)",
+      # which ran `systemctl disable --now cloudflared 2>/dev/null || true`.
+      #
+      # That step assumed the CONTAINER tunnel was authoritative and the systemd
+      # unit was a leftover. THE REVERSE IS NOW TRUE: the systemd cloudflared on
+      # this host is what actually serves api.calsight.org, and the container
+      # tunnel was dead (invalid token since the 2026-07-30 rotation) and has
+      # been removed from docker-compose.prod.yml.
+      #
+      # So this step had become a step that kills production on every deploy. It
+      # only ever no-opped because the runner user cannot systemctl and `|| true`
+      # swallowed the failure — the unit shows NRestarts=0 and has been up
+      # continuously since 2026-08-10. That is luck, not design. Removed.
 
       - name: Stage county boundaries for coord validation
         run: |
@@ -289,7 +300,7 @@ jobs:
           chown "${APP_UID}:${APP_GID}" /opt/calsight/backups 2>/dev/null \
             || sudo -n chown "${APP_UID}:${APP_GID}" /opt/calsight/backups
 
-      - name: Start backend + tunnel + ETL pipeline
+      - name: Start backend + ETL pipeline
         env:
           CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
         # Both files, matching how the stack runs in prod (see
@@ -297,7 +308,13 @@ jobs:
         # pipeline container kept running the previous deploy's image forever.
         # `up -d` recreates it on the freshly built image, and also starts it
         # if it isn't running yet (first deploy).
-        run: docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml up -d
+        #
+        # --remove-orphans added 2026-08-11: without it, `up -d` LEAVES RUNNING
+        # any container whose service has since been deleted from the compose
+        # file. That is exactly how the dead calsight-tunnel-1 kept running for
+        # days after its service was removed. Both -f files are passed, so every
+        # real service is known here and only genuine orphans are removed.
+        run: docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml up -d --remove-orphans
 
       - name: Tag images with commit SHA for rollback
         # Both images: rollback restores backend AND pipeline to the previous
@@ -341,7 +358,7 @@ jobs:
         if: needs.check-backfill.outputs.needed == 'true'
         run: docker compose -f docker-compose.prod.yml exec -T -d backend python -m etl.validate_coords
 
-      - name: Verify backend + tunnel are healthy
+      - name: Verify backend is healthy
         env:
           CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
         run: |
@@ -358,8 +375,14 @@ jobs:
             docker compose -f docker-compose.prod.yml logs --tail=50 backend
             exit 1
           fi
-          echo "Checking tunnel..."
-          docker compose -f docker-compose.prod.yml ps tunnel --format '{{.State}}' | grep -q running && echo "Tunnel is running" || { echo "Tunnel not running:"; docker compose -f docker-compose.prod.yml logs --tail=20 tunnel; exit 1; }
+          # The old "Checking tunnel..." probe was removed 2026-08-11 along with
+          # the tunnel service; it failed with `no such service: tunnel` and
+          # broke the deploy even though the backend came up healthy.
+          #
+          # Public reachability is NOT verified here on purpose: ingress is the
+          # systemd cloudflared, which this workflow does not manage. That is
+          # what uptime.yml checks, from outside, through the edge — which is
+          # the only place the check is meaningful.
 
       - name: Verify pipeline container is stable (not crash-looping)
         # A pipeline container that dies at startup restarts forever and is
