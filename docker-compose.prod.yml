@@ -43,3 +43,6 @@ services:
 #
 # Deleting the container by hand did NOT stick: this is a defined service, so
 # CI recreated it on the next deploy. The repo was the only real fix.
+#
+# See also .github/workflows/deploy.yml, which had three references to this
+# service and now has none.
