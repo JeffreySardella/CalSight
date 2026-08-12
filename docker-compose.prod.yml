@@ -28,22 +28,18 @@ services:
       # don't count those probes as failures.
       start_period: 30s
 
-  tunnel:
-    image: cloudflare/cloudflared:2026.6.1
-    command: tunnel run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN}
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
-    logging:
-      driver: json-file
-      options:
-        max-size: "5m"
-        max-file: "3"
-    depends_on:
-      backend:
-        condition: service_healthy
+# NOTE: the `tunnel:` service was REMOVED on 2026-08-11.
+#
+# It ran cloudflared from a TUNNEL_TOKEN that has been invalid since the
+# 2026-07-30 tunnel-token rotation, so every deploy recreated a container that
+# retry-looped `Unauthorized: Invalid tunnel secret` roughly once a minute
+# forever (~62,000 log lines by the time it was first noticed) while carrying
+# no traffic at all — a tunnel that cannot register serves nothing.
+#
+# api.calsight.org is served by the SYSTEMD cloudflared on the prod host
+# (tunnel 351caa6f-ce8e-442a-953d-1ee602dc565c, /etc/cloudflared/config.yml),
+# which is healthy and entirely independent of this compose file. Removing this
+# service therefore changes nothing about what is reachable.
+#
+# Deleting the container by hand did NOT stick: this is a defined service, so
+# CI recreated it on the next deploy. The repo was the only real fix.
