@@ -93,13 +93,14 @@ export default function WaterPage() {
       )}
 
       {data && data.length > 0 && (
-        <section
-          aria-label="Reservoirs"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          {data.map((r) => (
-            <ReservoirCard key={r.station_id} reservoir={r} />
-          ))}
+        <section aria-labelledby="reservoirs-heading">
+          {/* h2 so the ReservoirCard h3s don't skip a level from the page h1. */}
+          <h2 id="reservoirs-heading" className="sr-only">Reservoirs</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {data.map((r) => (
+              <ReservoirCard key={r.station_id} reservoir={r} />
+            ))}
+          </div>
         </section>
       )}
 

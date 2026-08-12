@@ -202,36 +202,37 @@ export default function AiInsightCard({
     <div className="fixed bottom-card-mobile left-0 right-0 z-40 md:absolute md:bottom-2 md:left-16 md:right-auto md:w-[480px] md:z-30">
       <div className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border md:rounded-xl overflow-hidden max-h-[60vh] md:max-h-none flex flex-col">
         {/* Collapsed bar — always visible */}
-        <div
-          role="button"
-          tabIndex={0}
-          className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-          onClick={() => setExpanded((v) => !v)}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded((v) => !v); } }}
-          aria-expanded={expanded}
-          aria-label={expanded ? "Collapse insight card" : "Expand insight card"}
-        >
-          <div className="min-w-0">
-            <h2 className="font-headline text-base font-bold text-on-surface tracking-tight truncate">
-              {isComparing ? `${countyName} vs ${compareCountyName}` : isStatewide ? "California Insight" : `${countyName} County`}
-            </h2>
-            {data && !expanded && (
-              <p className="text-[11px] text-on-surface-variant mt-0.5">
-                {fmt(data.rawCount)} crashes · {fmt(data.totalKilled)} killed
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="material-symbols-outlined text-[20px] text-on-surface-variant transition-transform p-1" style={{ transform: expanded ? "rotate(180deg)" : undefined }}>
+        {/* Toggle and close are siblings — a button inside a role="button" is a
+            nested-interactive violation (WCAG 4.1.2). */}
+        <div className="flex items-center justify-between px-4 py-3 gap-3">
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left cursor-pointer select-none"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-label={expanded ? "Collapse insight card" : "Expand insight card"}
+          >
+            <div className="min-w-0">
+              <h2 className="font-headline text-base font-bold text-on-surface tracking-tight truncate">
+                {isComparing ? `${countyName} vs ${compareCountyName}` : isStatewide ? "California Insight" : `${countyName} County`}
+              </h2>
+              {data && !expanded && (
+                <p className="text-[11px] text-on-surface-variant mt-0.5">
+                  {fmt(data.rawCount)} crashes · {fmt(data.totalKilled)} killed
+                </p>
+              )}
+            </div>
+            <span className="material-symbols-outlined text-[20px] text-on-surface-variant transition-transform p-1" style={{ transform: expanded ? "rotate(180deg)" : undefined }} aria-hidden="true">
               expand_less
             </span>
-            <button
-              onClick={(e) => { e.stopPropagation(); onClose(); }}
-              className="p-2 -mr-1 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px]">close</span>
-            </button>
-          </div>
+          </button>
+          <button
+            onClick={onClose}
+            aria-label="Close insight card"
+            className="shrink-0 p-2 -mr-1 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+          </button>
         </div>
 
         {/* Expanded content */}

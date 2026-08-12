@@ -82,9 +82,10 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
           <div className={`text-center mb-10 transform transition-all duration-700 delay-100 ${entered && !exiting ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}>
             <div className="flex items-center justify-center gap-3 mb-6">
               <img src={logo} alt="" className="h-10 w-auto" />
-              <h1 className="font-headline text-4xl md:text-5xl font-bold text-on-surface tracking-tighter">
+              {/* h2, not h1 — MapPage already owns the page-level h1 underneath. */}
+              <h2 className="font-headline text-4xl md:text-5xl font-bold text-on-surface tracking-tighter">
                 CalSight
-              </h1>
+              </h2>
             </div>
             <p className="text-lg md:text-xl text-on-surface-variant leading-relaxed max-w-md mx-auto">
               Translating California's crash data into actionable insights for safer communities.

@@ -201,7 +201,7 @@ export default function IntersectionsPanel() {
             {conc.total_severe_crashes.toLocaleString()} fatal &amp; injury crashes
             {conc.county_name ? ` in ${conc.county_name} County` : " statewide"}
             {top25 ? `; the top 25% account for ${top25.severe_share_pct}%.` : "."}{" "}
-            <span className="text-on-surface-variant/70">
+            <span className="text-on-surface-variant">
               (Among {unit} with at least one recorded crash, not all roads.)
             </span>
           </p>

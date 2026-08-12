@@ -152,7 +152,7 @@ export default function YoyChangesPanel() {
         </div>
       )}
 
-      <p className="text-[11px] text-on-surface-variant/80 leading-relaxed">
+      <p className="text-[11px] text-on-surface-variant leading-relaxed">
         Counties with a small baseline (below {data?.min_baseline ?? "the metric minimum"} in the
         earlier year) are marked and ranked after the rest — a large percent change on a few crashes
         is statistically unreliable.

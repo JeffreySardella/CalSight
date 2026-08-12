@@ -209,7 +209,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
         <div>
           <h2 className="text-sm font-headline font-bold text-on-surface">Correlation Explorer</h2>
           <p className="text-[11px] text-on-surface-variant">Pearson r across {countyCount} counties — click any cell to explore</p>
-          <p className="text-[10px] text-on-surface-variant/70 mt-0.5">Correlating: {buildFilterSubtitle(activeFilters)}</p>
+          <p className="text-[10px] text-on-surface-variant mt-0.5">Correlating: {buildFilterSubtitle(activeFilters)}</p>
         </div>
         <div className="flex items-center gap-2 text-[9px] text-on-surface-variant" aria-label="Legend: -1 (strong negative, red) to +1 (strong positive, blue)" role="img">
           <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: tokens.correlation.negativeStrong }} aria-hidden="true" /><span>-1</span></div>

@@ -13,7 +13,7 @@ export default function StoryReportView({ title, blocks, filterSummary }: Props)
     <div className="bg-white text-gray-900 p-10 w-[720px] font-body">
       <header className="border-b border-gray-200 pb-4 mb-6">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500">CalSight · Ask AI Story</p>
-        <h1 className="text-2xl font-headline font-bold mt-1">{title.trim() || "Untitled Story"}</h1>
+        <h2 className="text-2xl font-headline font-bold mt-1">{title.trim() || "Untitled Story"}</h2>
         <p className="text-xs text-gray-500 mt-2">
           {filterSummary} · {new Date().toLocaleDateString()}
         </p>
