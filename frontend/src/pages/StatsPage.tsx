@@ -446,13 +446,14 @@ function StatsPageInner() {
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {loading ? "Loading statistics..." : error ? "Error loading statistics." : "Statistics loaded."}
       </div>
-      {/* Stats API error banner */}
+      {/* Stats API error banner. Full-opacity container + its paired on- token:
+          bg-error-container/30 over the page background put text-error at 3.4:1. */}
       {error && !loading && (
-        <div role="alert" className="flex items-center gap-3 bg-error-container/30 rounded-lg px-4 py-3">
-          <span className="material-symbols-outlined text-[20px] text-error" aria-hidden="true">cloud_off</span>
+        <div role="alert" className="flex items-center gap-3 bg-error-container rounded-lg px-4 py-3">
+          <span className="material-symbols-outlined text-[20px] text-on-error-container" aria-hidden="true">cloud_off</span>
           <div className="flex-1">
-            <p className="text-error text-sm font-semibold">Unable to load statistics</p>
-            <p className="text-on-surface-variant text-xs mt-0.5">The server may be temporarily unavailable. Please try again.</p>
+            <p className="text-on-error-container text-sm font-semibold">Unable to load statistics</p>
+            <p className="text-on-error-container text-xs mt-0.5">The server may be temporarily unavailable. Please try again.</p>
           </div>
           <button
             type="button"
@@ -485,7 +486,11 @@ function StatsPageInner() {
             {loading ? (
               <Skeleton className="h-10 w-40" />
             ) : (
-              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`Total incidents: ${totalIncidents != null ? totalIncidents.toLocaleString() : "unavailable"}`}>
+              // No aria-label here: prohibited on a <p> with no role, and
+              // role="img" is not an option because <Explainable> inside is
+              // interactive (nested-interactive). The visible "Total Incidents"
+              // label above already names this value.
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value">
                 {(() => {
                   const totalCtx = buildTotalCrashesContext({ totalIncidents: totalIncidents ?? null, counties, filters: snapshotFilters(filters) });
                   return totalCtx ? (
@@ -521,7 +526,7 @@ function StatsPageInner() {
           {loading ? (
             <Skeleton className="h-10 w-24" />
           ) : (
-            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`KSI rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
+            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`KSI rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
               {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
             </p>
           )}
@@ -544,7 +549,7 @@ function StatsPageInner() {
             {loading ? (
               <Skeleton className="h-10 w-32" />
             ) : (
-              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" aria-label={`Year over year fatality change: ${yoyFatalityChangePct != null ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%` : "unavailable"}`}>
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`Year over year fatality change: ${yoyFatalityChangePct != null ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%` : "unavailable"}`}>
                 {yoyFatalityChangePct != null
                   ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%`
                   : "—"}
@@ -727,11 +732,11 @@ function StatsPageInner() {
               <PresetPicker active={dashboard.config.preset} onSelect={handlePresetSelect} />
             )}
             {dashError && (
-              <div role="alert" className="flex items-center gap-3 bg-error-container/30 rounded-lg px-4 py-3">
-                <span className="material-symbols-outlined text-[20px] text-error" aria-hidden="true">cloud_off</span>
+              <div role="alert" className="flex items-center gap-3 bg-error-container rounded-lg px-4 py-3">
+                <span className="material-symbols-outlined text-[20px] text-on-error-container" aria-hidden="true">cloud_off</span>
                 <div className="flex-1">
-                  <p className="text-error text-sm font-semibold">Unable to load chart data</p>
-                  <p className="text-on-surface-variant text-xs mt-0.5">The server may be temporarily unavailable. You can retry or adjust your filters.</p>
+                  <p className="text-on-error-container text-sm font-semibold">Unable to load chart data</p>
+                  <p className="text-on-error-container text-xs mt-0.5">The server may be temporarily unavailable. You can retry or adjust your filters.</p>
                 </div>
                 <button
                   type="button"

@@ -35,7 +35,6 @@ interface UseDragReorderReturn {
   /** Props to spread on the grid container */
   containerProps: {
     ref: React.RefCallback<HTMLElement>;
-    "aria-dropeffect": "move" | "none";
   };
   /** Get props for a draggable item */
   getItemProps: (id: string, index: number) => DragItemProps;
@@ -335,9 +334,12 @@ export function useDragReorder({
     "aria-roledescription": "drag handle",
   }), [handlePointerDown, handleKeyDown]);
 
+  // No aria-dropeffect: deprecated in ARIA 1.1 and implemented by no screen
+  // reader, so it was pure noise that axe flags. The drag state is already
+  // announced through `announcement` (an aria-live region), which is what
+  // actually reaches assistive tech.
   const containerProps = {
     ref: setContainerRef,
-    "aria-dropeffect": (dragState.isDragging ? "move" : "none") as "move" | "none",
   };
 
   return {
