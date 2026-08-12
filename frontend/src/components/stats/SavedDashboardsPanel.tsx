@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+﻿import { useState, useRef, useEffect, useCallback } from "react";
 import type { DashboardConfig } from "../../lib/dashboard/types";
 import { useSavedDashboards } from "../../hooks/useSavedDashboards";
 
@@ -121,7 +121,7 @@ export default function SavedDashboardsPanel({ currentConfig, onLoad }: Props) {
                   if (e.key === "Enter") handleSave();
                 }}
                 placeholder="Dashboard name..."
-                className="flex-1 rounded-md bg-surface-container-high px-2.5 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-1 focus:ring-primary/50"
+                className="flex-1 rounded-md bg-surface-container-high px-2.5 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-1 focus:ring-primary/50"
                 maxLength={50}
               />
               <button

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
 import { parseNlq, resolveNlq, SUGGESTIONS } from "../../lib/dashboard/nlqParser";
@@ -77,8 +77,8 @@ export default function NlqQueryBar({ onAddChart }: Props) {
           onChange={(e) => { setValue(e.target.value); setShowSuggestions(true); setSelectedIdx(-1); }}
           onFocus={() => setShowSuggestions(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Add a chart… try &quot;crashes by hour&quot; or &quot;fatalities by county as scatter&quot;"
-          className="w-full pl-9 pr-20 py-2.5 min-h-[44px] bg-surface-container rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/50 border border-outline-variant/20 focus:border-primary focus:outline-none transition-colors"
+          placeholder="Add a chartâ€¦ try &quot;crashes by hour&quot; or &quot;fatalities by county as scatter&quot;"
+          className="w-full pl-9 pr-20 py-2.5 min-h-[44px] bg-surface-container rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant border border-outline-variant/20 focus:border-primary focus:outline-none transition-colors"
           aria-label="Natural language chart query"
           aria-autocomplete="list"
           aria-expanded={showSuggestions}

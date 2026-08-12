@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import Sparkline from "../charts/Sparkline";
 
 interface DataRow {
@@ -106,7 +106,7 @@ function ChartDataTable({ data, title, isScatter, valueLabel }: Props) {
             placeholder="Filter rows..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-7 pr-2 py-1 text-[12px] rounded-lg bg-surface-container border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-7 pr-2 py-1 text-[12px] rounded-lg bg-surface-container border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary"
             aria-label="Filter table rows"
           />
         </div>

@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+﻿import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { ChatMessage as ChatMessageType } from "../../hooks/useAskAi";
 import { API_BASE } from "../../config";
@@ -101,7 +101,7 @@ export default memo(function ChatMessage({ message }: Props) {
               <button
                 type="button"
                 onClick={() => handleFeedback("up")}
-                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${feedback === "up" ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${feedback === "up" ? "text-primary" : "text-on-surface-variant hover:text-on-surface"}`}
                 aria-label="Helpful response"
               >
                 <span className="material-symbols-outlined text-sm" style={feedback === "up" ? { fontVariationSettings: "'FILL' 1" } : undefined}>thumb_up</span>
@@ -109,7 +109,7 @@ export default memo(function ChatMessage({ message }: Props) {
               <button
                 type="button"
                 onClick={() => handleFeedback("down")}
-                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${feedback === "down" ? "text-error" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${feedback === "down" ? "text-error" : "text-on-surface-variant hover:text-on-surface"}`}
                 aria-label="Unhelpful response"
               >
                 <span className="material-symbols-outlined text-sm" style={feedback === "down" ? { fontVariationSettings: "'FILL' 1" } : undefined}>thumb_down</span>
@@ -120,7 +120,7 @@ export default memo(function ChatMessage({ message }: Props) {
               onClick={() => pinAnswer(message)}
               aria-label={pinned ? "Pinned to story" : "Pin to story"}
               aria-pressed={pinned}
-              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${pinned ? "text-primary" : "text-on-surface-variant/60 hover:text-on-surface-variant"}`}
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors ${pinned ? "text-primary" : "text-on-surface-variant hover:text-on-surface"}`}
             >
               <span
                 className="material-symbols-outlined text-sm"
@@ -134,11 +134,11 @@ export default memo(function ChatMessage({ message }: Props) {
               onClick={handleCopy}
               aria-label="Copy answer"
               title="Copy answer to clipboard"
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors text-on-surface-variant/60 hover:text-on-surface-variant"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors text-on-surface-variant hover:text-on-surface"
             >
               <span className="material-symbols-outlined text-sm">content_copy</span>
             </button>
-            <p className="text-[10px] text-on-surface-variant/50">
+            <p className="text-[10px] text-on-surface-variant">
               {message.grounded ? (
                 <span className="mr-2 text-primary/70">Sourced from CalSight DB</span>
               ) : (
@@ -146,7 +146,7 @@ export default memo(function ChatMessage({ message }: Props) {
               )}
               Powered by {message.provider}
               {message.cached && (
-                <span className="ml-2 text-on-surface-variant/70" title="Reused from response cache — no LLM call">(cached)</span>
+                <span className="ml-2 text-on-surface-variant" title="Reused from response cache â€” no LLM call">(cached)</span>
               )}
             </p>
           </div>

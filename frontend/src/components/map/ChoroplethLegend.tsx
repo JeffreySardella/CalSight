@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
@@ -203,7 +203,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         </div>
       )}
 
-      {/* Statewide summary — hide when county focused */}
+      {/* Statewide summary â€” hide when county focused */}
       {!mobileExpanded && !isLoading && dataSummary.totalCrashes > 0 && !countyActive && (
         <div className="md:hidden text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
           {formatCount(dataSummary.totalCrashes)} crashes
@@ -215,19 +215,19 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           {heatmapLoading
             ? "Loading heatmap..."
             : countyActive && countyTotalCrashes && heatmapDisplayed != null
-              ? `${formatCount(heatmapDisplayed)} mapped (${Math.round((heatmapDisplayed / countyTotalCrashes) * 100)}%)${mismatchCount ? ` · ${formatCount(mismatchCount)} bad coords` : ""}`
+              ? `${formatCount(heatmapDisplayed)} mapped (${Math.round((heatmapDisplayed / countyTotalCrashes) * 100)}%)${mismatchCount ? ` Â· ${formatCount(mismatchCount)} bad coords` : ""}`
               : heatmapDisplayed != null && heatmapDisplayed < heatmapCrashes!
                 ? `${formatCount(heatmapDisplayed)} of ${formatCount(heatmapCrashes!)} mapped`
                 : `${formatCount(heatmapCrashes!)} mapped`}
         </div>
       )}
 
-      {/* Bucket labels — hide when county heatmap active */}
+      {/* Bucket labels â€” hide when county heatmap active */}
       {!countyActive && (
         <div className={mobileExpanded ? "" : "hidden md:block"}>
           {isLoading ? (
             <div className="text-[10px] text-on-surface-variant mt-1 italic">
-              Loading data…
+              Loading dataâ€¦
             </div>
           ) : bucketEdges ? (
             <>
@@ -237,13 +237,13 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
                 ))}
               </div>
               {/* Disclose the binning method. Quantiles put an equal COUNT of
-                  counties in each colour, not an equal value range — so
+                  counties in each colour, not an equal value range â€” so
                   near-identical counties can land in different colours while
                   the darkest band lumps together counties an order of
                   magnitude apart. Saying so costs one line and stops the map
                   implying differences the data doesn't support. */}
-              <p className="text-[10px] text-on-surface-variant/80 mt-1 leading-snug">
-                Quintiles — each colour holds about a fifth of counties, not an
+              <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
+                Quintiles â€” each colour holds about a fifth of counties, not an
                 equal value range.
               </p>
             </>
@@ -303,7 +303,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
       {is422 && (
         <div role="status" className="text-[10px] text-on-surface-variant mt-2 flex items-center gap-1">
           <span className="material-symbols-outlined text-[12px]">warning</span>
-          <span>A filter value was rejected — showing last good result</span>
+          <span>A filter value was rejected â€” showing last good result</span>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-interface FilterChipProps {
+﻿interface FilterChipProps {
   label: string;
   icon?: string;
   count?: string;
@@ -24,7 +24,7 @@ export default function FilterChip({ label, icon, count, active, disabled, onCli
       )}
       {label}
       {count && (
-        <span className={`text-[9px] ${active ? "text-on-primary/70" : "text-on-surface-variant/50"}`}>
+        <span className={`text-[9px] ${active ? "text-on-primary/70" : "text-on-surface-variant"}`}>
           ({count})
         </span>
       )}

@@ -218,7 +218,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
         </div>
       </div>
 
-      <p className="text-[9px] text-on-surface-variant/50 sm:hidden mb-1">Swipe to scroll</p>
+      <p className="text-[9px] text-on-surface-variant sm:hidden mb-1">Swipe to scroll</p>
       {/* Visual grid is mouse-interactive but decorative to assistive tech —
           role="img" flattened its cells out of the a11y tree, so a screen
           reader got one opaque image. The real accessible representation is the

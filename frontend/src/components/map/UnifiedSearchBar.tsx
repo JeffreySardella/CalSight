@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useId } from "react";
+﻿import { useState, useEffect, useRef, useCallback, useId } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { CA_COUNTIES } from "../../hooks/useFilterParams";
 import { useNominatim } from "../../hooks/useNominatim";
@@ -264,7 +264,7 @@ export default function UnifiedSearchBar({
 
   return (
     <>
-      {/* ── Mobile: top-right buttons (next to filter) ── */}
+      {/* â”€â”€ Mobile: top-right buttons (next to filter) â”€â”€ */}
       {!mobileExpanded && (
         <div className="absolute top-3 right-28 z-20 md:hidden flex items-center gap-2">
           <button
@@ -287,7 +287,7 @@ export default function UnifiedSearchBar({
         </div>
       )}
 
-      {/* ── Mobile: expanded search overlay ── */}
+      {/* â”€â”€ Mobile: expanded search overlay â”€â”€ */}
       {mobileExpanded && (
         <div className="absolute top-3 left-4 right-4 z-[45] md:hidden">
           <div ref={containerRef}>
@@ -308,7 +308,7 @@ export default function UnifiedSearchBar({
                 placeholder="Search counties, places..."
                 aria-label="Search counties and places"
                 maxLength={200}
-                className="flex-1 bg-transparent text-[16px] text-on-surface placeholder:text-on-surface-variant/60 outline-none ring-0 border-none"
+                className="flex-1 bg-transparent text-[16px] text-on-surface placeholder:text-on-surface-variant outline-none ring-0 border-none"
               />
               <button
                 type="button"
@@ -324,7 +324,7 @@ export default function UnifiedSearchBar({
         </div>
       )}
 
-      {/* ── Desktop: top center search bar + bottom controls ── */}
+      {/* â”€â”€ Desktop: top center search bar + bottom controls â”€â”€ */}
       <div
         ref={!mobileExpanded ? containerRef : undefined}
         className={`hidden md:block absolute top-3 z-20 transition-[width] duration-300 left-1/2 -translate-x-1/2 ${expanded ? "w-96" : "w-auto"}`}
@@ -357,7 +357,7 @@ export default function UnifiedSearchBar({
                 placeholder="Search counties, places, addresses..."
                 aria-label="Search counties, places, and addresses"
                 maxLength={200}
-                className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none border-none"
+                className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant outline-none border-none"
               />
               {nominatimLoading && (
                 <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
@@ -380,7 +380,7 @@ export default function UnifiedSearchBar({
         {renderResults(false)}
       </div>
 
-      {/* ── Desktop: bottom controls (location + zoom) ── */}
+      {/* â”€â”€ Desktop: bottom controls (location + zoom) â”€â”€ */}
       <div className="hidden md:flex absolute bottom-6 right-4 z-[35] flex-col items-center gap-1 p-1 bg-surface-container-lowest rounded-full shadow-lg">
         <button
           type="button"

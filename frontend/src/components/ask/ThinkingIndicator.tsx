@@ -1,4 +1,4 @@
-interface Props {
+﻿interface Props {
   status?: string | null;
 }
 
@@ -19,7 +19,7 @@ export default function ThinkingIndicator({ status }: Props) {
             <span className="w-2 h-2 bg-on-surface-variant/40 rounded-full animate-bounce [animation-delay:300ms]" />
           </div>
           {isRetrying && (
-            <span className="text-xs text-on-surface-variant/60">{status}</span>
+            <span className="text-xs text-on-surface-variant">{status}</span>
           )}
         </div>
       </div>
