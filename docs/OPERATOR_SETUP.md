@@ -114,4 +114,24 @@ After any rotation, confirm: `/api/health` 200, a manual run-etl dispatch succee
 |------|------|
 | **Backend API (VM 101)** | `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `MAINTENANCE_MODE` |
 | **ETL (LXC 100)** | `HEARTBEAT_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT_URL`, `R2_BUCKET_NAME`, `ALERT_WEBHOOK_URL` |
-| **Frontend (Cloudflare Pages)** | `VITE_SENTRY_DSN`, `VITE_API_BASE_URL` (+ optional `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT`) |
+| **Frontend (Cloudflare Pages)** | `VITE_SENTRY_DSN`, `VITE_API_BASE_URL` (+ optional `VITE_CARTO_API_KEY`, `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT`) |
+
+### Map basemap (`VITE_CARTO_API_KEY`)
+
+The map's basemap providers are listed in `frontend/src/lib/map/basemaps.ts`,
+and the map falls through them in order whenever tiles keep failing.
+
+CARTO's basemap CDN now wants an API key. Without one it still serves tiles,
+but stamped with a diagonal **"API KEY REQUIRED"** watermark across every view
+— so unkeyed CARTO is left out of the list entirely and the map defaults to
+Esri's grey canvas, which needs no key.
+
+To go back to the CARTO styles the map was designed around, get a key from
+<https://carto.com/basemaps> and set `VITE_CARTO_API_KEY` in the Pages build
+environment. It is inlined at build time, so a rebuild is needed for a change
+to take effect, and the key ships in the client bundle — scope it to basemap
+tiles and restrict it by referrer if CARTO lets you.
+
+Attribution follows whichever provider is live and is rendered by the map's
+attribution control; it is a licence condition for all three, so don't strip
+it.
