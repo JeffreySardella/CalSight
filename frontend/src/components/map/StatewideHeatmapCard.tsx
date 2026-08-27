@@ -32,7 +32,7 @@ export default function StatewideHeatmapCard({ totalCrashes, displayed, isLoadin
   return (
     <div
       data-testid="statewide-heatmap-card"
-      className={`absolute z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl p-2 md:p-3 w-[200px] md:w-[250px] ghost-border transition-all duration-300 top-3 left-2 md:top-2 md:left-auto md:right-4 ${searchOpen ? "hidden md:block" : ""}`}
+      className={`absolute z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl p-2 md:p-3 w-[200px] md:w-[250px] ghost-border transition-all duration-300 top-16 left-2 md:top-2 md:left-auto md:right-4 ${searchOpen ? "hidden md:block" : ""}`}
     >
       <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">
         Statewide Heatmap

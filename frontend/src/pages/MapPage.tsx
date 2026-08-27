@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
@@ -99,7 +99,7 @@ function MapPageInner() {
     clearPanel,
   } = useFilterParams();
 
-  // Viewport â†” URL: initialViewport seeds the camera on mount; writeViewport
+  // Viewport ↔ URL: initialViewport seeds the camera on mount; writeViewport
   // mirrors pan/zoom back into the URL so a copied link reproduces the view.
   const { initialViewport, writeViewport } = useViewportParams();
 
@@ -187,17 +187,17 @@ function MapPageInner() {
     hitRun: selectedHitRun || undefined,
   };
 
-  // â”€â”€ Temporal heatmap timelapse (issue #279) â”€â”€
+  // ── Temporal heatmap timelapse (issue #279) ──
   // The animated year lives in component state (never the URL): while the
   // timelapse is active it overrides the statewide heatmap's date range with
   // a single-year window at "low" resolution; deactivating simply lets the
-  // user's own filters take effect again â€” nothing to restore.
+  // user's own filters take effect again — nothing to restore.
   const queryClient = useQueryClient();
   const { effectiveReducedMotion } = useAccessibility();
   const timelapseMinYear = YEARS[0];
   const timelapseMaxYear = YEARS[YEARS.length - 1];
 
-  // Params for a single animation frame â€” identical shape to the live
+  // Params for a single animation frame — identical shape to the live
   // statewide query below (county-less, resolution locked to "low"), so
   // prefetched frames share the React Query cache entry with the live query.
   const timelapseFrameParams = useCallback((year: number) => ({
@@ -274,6 +274,13 @@ function MapPageInner() {
     resolution: "raw",
   });
 
+  // True while heatmap data is still arriving — a single batch in flight for
+  // the statewide layer, or any batch still outstanding for a county.
+  const heatmapStreaming =
+    heatmapEnabled
+    && (statewideHeatmap.isLoading
+      || (useCountyDetail && (countyHeatmap.isLoading || countyHeatmap.hasMore) && !countyHeatmap.error));
+
   const heatmap = useCountyDetail
     ? { points: countyHeatmap.points, totalCrashes: countyHeatmap.totalCrashes, isLoading: countyHeatmap.isLoading, error: countyHeatmap.error }
     : statewideHeatmap;
@@ -292,7 +299,7 @@ function MapPageInner() {
 
   // Reservoir markers layer (water v2, soft-launch-gated): the markers
   // themselves render inside MapCanvas from the same shared query, but the
-  // fetch-error surface lives here with the other error cards â€” an opt-in
+  // fetch-error surface lives here with the other error cards — an opt-in
   // layer must not silently render nothing on a failed fetch.
   const reservoirLayerOn = WATER_PAGE_PUBLIC && otherLayers.reservoirs;
   const reservoirConditions = useReservoirConditions(reservoirLayerOn);
@@ -392,9 +399,9 @@ function MapPageInner() {
 
   const handleSelectCounty = useCallback((name: string) => {
     // Compare mode: picking the focused county again would compare it with
-    // itself â€” reject the pick and say why instead of silently exiting (#256).
+    // itself — reject the pick and say why instead of silently exiting (#256).
     if (isSelfCompare(compareMode, name, focusedCounty)) {
-      showToast(`${name} is already selected â€” pick a different county to compare`, { variant: "info" });
+      showToast(`${name} is already selected — pick a different county to compare`, { variant: "info" });
       return;
     }
     if (selectingRef.current) return;
@@ -425,14 +432,14 @@ function MapPageInner() {
     setActivePanel("cluster");
   }, []);
 
-  // M-F5: the selected route fell out of the rankings under the new filters â€”
+  // M-F5: the selected route fell out of the rankings under the new filters —
   // close the panel rather than keep showing numbers from the old filters.
   const handleSelectedHighwayGone = useCallback(() => {
     setSelectedHighway(null);
     setActivePanel((p) => (p === "highway" ? null : p));
   }, []);
 
-  // M18: same for clusters â€” the selected hotspot cell is no longer
+  // M18: same for clusters — the selected hotspot cell is no longer
   // significant under the new filters (or the layer was toggled off).
   const handleSelectedClusterGone = useCallback(() => {
     setSelectedCluster(null);
@@ -563,8 +570,8 @@ function MapPageInner() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Deep-link entry: arriving with a single ?county= filter (e.g. from the
-  // Stats page "Show on Map" link) should focus that county â€” zoom to it and
-  // open its insight card â€” not merely tick it in the filter panel.
+  // Stats page "Show on Map" link) should focus that county — zoom to it and
+  // open its insight card — not merely tick it in the filter panel.
   // The guard arms on the first render the county GeoJSON is ready (so
   // CountyBoundaries' fitBounds has a layer to use) and never re-fires, so
   // later filter-panel changes don't trigger an unexpected focus/zoom.
@@ -724,12 +731,12 @@ function MapPageInner() {
   return (
     <>
       <MetaTags
-        title="Map Explorer â€” CalSight"
+        title="Map Explorer — CalSight"
         description="Interactive choropleth map of California traffic crashes. Explore crash density, severity, and trends by county with heatmap overlays and AI-powered insights."
         path="/"
       />
       <h1 className="sr-only">California Crash Map Explorer</h1>
-      {/* Sidebar â€” hidden on mobile */}
+      {/* Sidebar — hidden on mobile */}
       <div className="hidden md:flex h-full z-40">
         <IconRail
           activePanel={activePanel}
@@ -841,7 +848,7 @@ function MapPageInner() {
             <span className="material-symbols-outlined text-[14px] text-primary shrink-0 mt-0.5">info</span>
             <div className="flex-1 text-[11px] text-on-surface leading-snug">
               <span className="font-bold">Heatmap turned off.</span>{" "}
-              <span className="text-on-surface-variant">Too many counties selected â€” re-enable from the Layers panel.</span>
+              <span className="text-on-surface-variant">Too many counties selected — re-enable from the Layers panel.</span>
             </div>
             <button
               onClick={dismissHeatmapAutoDisableNote}
@@ -867,27 +874,27 @@ function MapPageInner() {
               <div className="flex flex-wrap gap-2 justify-center">
                 {selectedSeverities.size > 0 && (
                   <button onClick={clearSeverities} className="text-[11px] font-semibold bg-primary-container text-on-primary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
-                    {[...selectedSeverities].join(", ")} <span className="text-[10px]">Ã—</span>
+                    {[...selectedSeverities].join(", ")} <span className="text-[10px]">×</span>
                   </button>
                 )}
                 {selectedCauses.size > 0 && (
                   <button onClick={() => clearCauses()} className="text-[11px] font-semibold bg-primary-container text-on-primary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
-                    {selectedCauses.size} causes <span className="text-[10px]">Ã—</span>
+                    {selectedCauses.size} causes <span className="text-[10px]">×</span>
                   </button>
                 )}
                 {selectedAlcohol && (
                   <button onClick={toggleAlcohol} className="text-[11px] font-semibold bg-tertiary-container text-on-tertiary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
-                    Alcohol <span className="text-[10px]">Ã—</span>
+                    Alcohol <span className="text-[10px]">×</span>
                   </button>
                 )}
                 {selectedPedestrian && (
                   <button onClick={togglePedestrian} className="text-[11px] font-semibold bg-tertiary-container text-on-tertiary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
-                    Pedestrian <span className="text-[10px]">Ã—</span>
+                    Pedestrian <span className="text-[10px]">×</span>
                   </button>
                 )}
                 {selectedDriverAge && (
                   <button onClick={() => setDriverAge(null)} className="text-[11px] font-semibold bg-tertiary-container text-on-tertiary-container px-2.5 py-1 rounded-full flex items-center gap-1 hover:opacity-80">
-                    Age {selectedDriverAge} <span className="text-[10px]">Ã—</span>
+                    Age {selectedDriverAge} <span className="text-[10px]">×</span>
                   </button>
                 )}
               </div>
@@ -926,6 +933,7 @@ function MapPageInner() {
           heatmapCrashes={heatmapEnabled ? heatmap.totalCrashes : null}
           heatmapDisplayed={heatmapEnabled ? heatmap.points.length : null}
           heatmapLoading={heatmapEnabled && heatmap.isLoading}
+          heatmapStreaming={heatmapStreaming}
           countyActive={!!focusedCounty}
           countyTotalCrashes={inspectedData?.rawCount ?? null}
           searchOpen={mobileSearchOpen}
@@ -970,12 +978,15 @@ function MapPageInner() {
             onRefreshNarrative={refreshRandomCard}
           />
         )}
-        {heatmapEnabled && (heatmap.isLoading || (useCountyDetail && (countyHeatmap.isLoading || countyHeatmap.hasMore) && !countyHeatmap.error)) && (
-          <div className="absolute top-14 md:top-3 left-1/2 -translate-x-1/2 z-20">
+        {/* Desktop-only: at phone widths this centred pill overlaps the legend
+            card and the top button row, so mobile shows the same progress
+            inline in the legend instead (see ChoroplethLegend). */}
+        {heatmapStreaming && (
+          <div className="hidden md:block absolute top-3 left-1/2 -translate-x-1/2 z-20">
             <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2.5 rounded-xl ghost-border shadow-lg min-w-[220px]">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
-                <span className="text-xs font-medium text-on-surface-variant">Loading crash dataâ€¦</span>
+                <span className="text-xs font-medium text-on-surface-variant">Loading crash data…</span>
               </div>
               <div className="w-full h-1.5 bg-outline/15 rounded-full overflow-hidden">
                 {useCountyDetail && countyHeatmap.totalCrashes > 0 ? (
@@ -1004,7 +1015,7 @@ function MapPageInner() {
               <span className="material-symbols-outlined text-[14px] text-error shrink-0" aria-hidden="true">wifi_off</span>
               <span className="text-xs font-medium text-on-surface-variant flex-1">
                 {useCountyDetail && countyHeatmap.points.length > 0
-                  ? `Heatmap interrupted â€” ${countyHeatmap.points.length.toLocaleString()} / ${countyHeatmap.totalCrashes.toLocaleString()} loaded`
+                  ? `Heatmap interrupted — ${countyHeatmap.points.length.toLocaleString()} / ${countyHeatmap.totalCrashes.toLocaleString()} loaded`
                   : "Couldn't load the crash heatmap"}
               </span>
               <button
@@ -1127,7 +1138,7 @@ function MapPageInner() {
       {showFilterPrompt && (
         <FilteredUrlPrompt
           filters={[
-            ...(selectedDateRange ? [`${selectedDateRange.start?.year ?? "earliest"}â€“${selectedDateRange.end?.year ?? "latest"}`] : []),
+            ...(selectedDateRange ? [`${selectedDateRange.start?.year ?? "earliest"}–${selectedDateRange.end?.year ?? "latest"}`] : []),
             ...(selectedSeverities.size > 0 ? [...selectedSeverities] : []),
             ...(selectedCauses.size > 0 ? [`${selectedCauses.size} cause${selectedCauses.size > 1 ? "s" : ""}`] : []),
             ...(selectedAlcohol ? ["Alcohol"] : []),
@@ -1146,10 +1157,10 @@ function MapPageInner() {
 }
 
 export default function MapPage() {
-  // Apply the user's saved default county before any children mount â€” otherwise
+  // Apply the user's saved default county before any children mount — otherwise
   // LayersStateProvider's mount-write would race with (and clobber) the county.
   const defaultRedirect = useApplyDefaultCounty();
-  // Layer state â†” URL: layerSeed decodes the URL on mount; writeLayerParams
+  // Layer state ↔ URL: layerSeed decodes the URL on mount; writeLayerParams
   // mirrors changes back. Kept here (inside <BrowserRouter>) so the provider
   // itself stays Router-agnostic.
   const { layerSeed, writeLayerParams } = useLayerParams();
@@ -1167,6 +1178,7 @@ function ChoroplethLegendContainer({
   heatmapCrashes,
   heatmapDisplayed,
   heatmapLoading,
+  heatmapStreaming,
   countyActive,
   countyTotalCrashes,
   searchOpen,
@@ -1177,6 +1189,7 @@ function ChoroplethLegendContainer({
   heatmapCrashes?: number | null;
   heatmapDisplayed?: number | null;
   heatmapLoading?: boolean;
+  heatmapStreaming?: boolean;
   countyActive?: boolean;
   countyTotalCrashes?: number | null;
   searchOpen?: boolean;
@@ -1196,6 +1209,7 @@ function ChoroplethLegendContainer({
       heatmapCrashes={heatmapCrashes}
       heatmapDisplayed={heatmapDisplayed}
       heatmapLoading={heatmapLoading}
+      heatmapStreaming={heatmapStreaming}
       countyActive={countyActive}
       countyTotalCrashes={countyTotalCrashes}
       mismatchCount={mismatchCount}
@@ -1204,6 +1218,6 @@ function ChoroplethLegendContainer({
 }
 
 // ---------------------------------------------------------------------------
-// Mobile search pill â€” inline at top center, expands to show results below
+// Mobile search pill — inline at top center, expands to show results below
 // ---------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
@@ -29,6 +29,8 @@ type Props = {
   heatmapCrashes?: number | null;
   heatmapDisplayed?: number | null;
   heatmapLoading?: boolean;
+  /** Batches are still streaming in — drives the inline mobile progress bar. */
+  heatmapStreaming?: boolean;
   countyActive?: boolean;
   countyTotalCrashes?: number | null;
   mismatchCount?: number | null;
@@ -51,7 +53,7 @@ function formatCount(n: number): string {
 
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
 
-export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, countyActive, countyTotalCrashes, mismatchCount }: Props) {
+export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, heatmapStreaming, countyActive, countyTotalCrashes, mismatchCount }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
   const coordValidation = useCoordValidation();
   const isDark = useIsDark();
@@ -77,12 +79,16 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
   // Same severity colors CrashDotLayer uses, so the legend matches the dots.
   const severityColors = getMapSeverityColors(palette, isDark, tokens.severity);
   const activeMeasure = MEASURES[measure];
+  const heatmapProgressPct =
+    heatmapDisplayed != null && heatmapCrashes != null && heatmapCrashes > 0
+      ? Math.min(100, Math.round((heatmapDisplayed / heatmapCrashes) * 100))
+      : null;
   const allMeasures = Object.values(MEASURES);
 
   return (
     <div
       data-testid="choropleth-legend"
-      className={`absolute z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl p-2 md:p-3 w-[200px] md:w-[250px] ghost-border transition-all duration-300 top-3 left-2 md:top-2 md:left-auto md:right-4 ${searchOpen ? "hidden md:block" : ""}`}
+      className={`absolute z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl p-2 md:p-3 w-[200px] md:w-[250px] ghost-border transition-all duration-300 top-16 left-2 md:top-2 md:left-auto md:right-4 ${searchOpen ? "hidden md:block" : ""}`}
     >
       {countyActive ? (
         <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant mb-1 block">
@@ -203,31 +209,55 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         </div>
       )}
 
-      {/* Statewide summary â€” hide when county focused */}
+      {/* Statewide summary — hide when county focused */}
       {!mobileExpanded && !isLoading && dataSummary.totalCrashes > 0 && !countyActive && (
         <div className="md:hidden text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
           {formatCount(dataSummary.totalCrashes)} crashes
         </div>
       )}
 
-      {(heatmapLoading || (heatmapCrashes != null && heatmapCrashes > 0)) && (
-        <div className="text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
-          {heatmapLoading
-            ? "Loading heatmap..."
-            : countyActive && countyTotalCrashes && heatmapDisplayed != null
-              ? `${formatCount(heatmapDisplayed)} mapped (${Math.round((heatmapDisplayed / countyTotalCrashes) * 100)}%)${mismatchCount ? ` Â· ${formatCount(mismatchCount)} bad coords` : ""}`
-              : heatmapDisplayed != null && heatmapDisplayed < heatmapCrashes!
-                ? `${formatCount(heatmapDisplayed)} of ${formatCount(heatmapCrashes!)} mapped`
-                : `${formatCount(heatmapCrashes!)} mapped`}
+      {(heatmapLoading || heatmapStreaming || (heatmapCrashes != null && heatmapCrashes > 0)) && (
+        <div className="mt-1">
+          <div className="text-[10px] text-on-surface-variant font-mono font-semibold">
+            {heatmapLoading && !heatmapDisplayed
+              ? "Loading heatmap…"
+              : countyActive && countyTotalCrashes && heatmapDisplayed != null
+                ? `${formatCount(heatmapDisplayed)} mapped (${Math.round((heatmapDisplayed / countyTotalCrashes) * 100)}%)${mismatchCount ? ` · ${formatCount(mismatchCount)} bad coords` : ""}`
+                : heatmapDisplayed != null && heatmapCrashes != null && heatmapDisplayed < heatmapCrashes
+                  ? `${formatCount(heatmapDisplayed)} of ${formatCount(heatmapCrashes)} mapped`
+                  : heatmapCrashes != null
+                    ? `${formatCount(heatmapCrashes)} mapped`
+                    : "Loading heatmap…"}
+          </div>
+          {/* Mobile carries the streaming progress here rather than in a
+              floating pill: at phone widths a centred pill lands on top of
+              this card and the button row above it. Desktop keeps the pill. */}
+          {heatmapStreaming && (
+            <div
+              className="md:hidden mt-1 w-full h-1 bg-outline/15 rounded-full overflow-hidden"
+              role="progressbar"
+              aria-label="Loading crash data"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={heatmapProgressPct ?? undefined}
+            >
+              <div
+                className={heatmapProgressPct == null
+                  ? "h-full w-1/3 bg-primary rounded-full animate-pulse"
+                  : "h-full bg-primary rounded-full transition-all duration-500 ease-out"}
+                style={heatmapProgressPct == null ? undefined : { width: `${heatmapProgressPct}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Bucket labels â€” hide when county heatmap active */}
+      {/* Bucket labels — hide when county heatmap active */}
       {!countyActive && (
         <div className={mobileExpanded ? "" : "hidden md:block"}>
           {isLoading ? (
             <div className="text-[10px] text-on-surface-variant mt-1 italic">
-              Loading dataâ€¦
+              Loading data…
             </div>
           ) : bucketEdges ? (
             <>
@@ -237,13 +267,13 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
                 ))}
               </div>
               {/* Disclose the binning method. Quantiles put an equal COUNT of
-                  counties in each colour, not an equal value range â€” so
+                  counties in each colour, not an equal value range — so
                   near-identical counties can land in different colours while
                   the darkest band lumps together counties an order of
                   magnitude apart. Saying so costs one line and stops the map
                   implying differences the data doesn't support. */}
               <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
-                Quintiles â€” each colour holds about a fifth of counties, not an
+                Quintiles — each colour holds about a fifth of counties, not an
                 equal value range.
               </p>
             </>
@@ -303,7 +333,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
       {is422 && (
         <div role="status" className="text-[10px] text-on-surface-variant mt-2 flex items-center gap-1">
           <span className="material-symbols-outlined text-[12px]">warning</span>
-          <span>A filter value was rejected â€” showing last good result</span>
+          <span>A filter value was rejected — showing last good result</span>
         </div>
       )}
 
