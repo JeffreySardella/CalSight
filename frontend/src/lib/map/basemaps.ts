@@ -37,8 +37,11 @@ const OSM_ATTRIBUTION =
 /** Read at module load; Vite inlines it at build time. */
 export const CARTO_API_KEY: string = import.meta.env.VITE_CARTO_API_KEY ?? "";
 
+/** CARTO authenticates on `?key=` — `api_key=` is ignored and the tile comes
+ *  back watermarked, which looks exactly like having no key at all.
+ *  https://docs.carto.com/faqs/carto-basemaps */
 function cartoUrl(style: string, key: string): string {
-  const suffix = key ? `?api_key=${encodeURIComponent(key)}` : "";
+  const suffix = key ? `?key=${encodeURIComponent(key)}` : "";
   return `https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png${suffix}`;
 }
 

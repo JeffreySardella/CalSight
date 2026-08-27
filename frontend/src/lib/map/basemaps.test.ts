@@ -21,9 +21,9 @@ describe("basemaps", () => {
   it("appends the CARTO key as a query param when one is configured", () => {
     const url = CARTO_BASEMAP.base(true);
     if (CARTO_API_KEY) {
-      expect(url).toContain(`api_key=${encodeURIComponent(CARTO_API_KEY)}`);
+      expect(url).toContain(`key=${encodeURIComponent(CARTO_API_KEY)}`);
     } else {
-      expect(url).not.toContain("api_key");
+      expect(url).not.toContain("key=");
     }
   });
 
@@ -80,10 +80,10 @@ describe("basemaps with a CARTO key configured", () => {
   it("leads with CARTO and keys every style", async () => {
     const mod = await loadWithKey("abc123");
     expect(mod.BASEMAPS[0].id).toBe("carto");
-    expect(mod.BASEMAPS[0].base(true)).toContain("api_key=abc123");
-    expect(mod.BASEMAPS[0].base(false)).toContain("api_key=abc123");
-    expect(mod.BASEMAPS[0].labels!(true)).toContain("api_key=abc123");
-    expect(mod.BASEMAPS[0].labels!(false)).toContain("api_key=abc123");
+    expect(mod.BASEMAPS[0].base(true)).toContain("key=abc123");
+    expect(mod.BASEMAPS[0].base(false)).toContain("key=abc123");
+    expect(mod.BASEMAPS[0].labels!(true)).toContain("key=abc123");
+    expect(mod.BASEMAPS[0].labels!(false)).toContain("key=abc123");
   });
 
   it("keeps the keyless providers behind it as a fallback", async () => {
@@ -93,7 +93,7 @@ describe("basemaps with a CARTO key configured", () => {
 
   it("escapes a key with URL-significant characters", async () => {
     const mod = await loadWithKey("a b&c");
-    expect(mod.BASEMAPS[0].base(true)).toContain("api_key=a%20b%26c");
+    expect(mod.BASEMAPS[0].base(true)).toContain("key=a%20b%26c");
   });
 });
 

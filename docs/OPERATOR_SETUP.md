@@ -126,11 +126,17 @@ but stamped with a diagonal **"API KEY REQUIRED"** watermark across every view
 — so unkeyed CARTO is left out of the list entirely and the map defaults to
 Esri's grey canvas, which needs no key.
 
-To go back to the CARTO styles the map was designed around, get a key from
-<https://carto.com/basemaps> and set `VITE_CARTO_API_KEY` in the Pages build
-environment. It is inlined at build time, so a rebuild is needed for a change
-to take effect, and the key ships in the client bundle — scope it to basemap
-tiles and restrict it by referrer if CARTO lets you.
+To go back to the CARTO styles the map was designed around, request a key at
+<https://carto.com/basemaps/apikey/> — it is free up to 5M tile requests a
+month, needs no CARTO account, and arrives by email — then set
+`VITE_CARTO_API_KEY` in the Pages build environment (Settings → Variables and
+Secrets → Production). It is inlined at build time, so the site has to be
+**redeployed** before the key takes effect, and it ships in the client bundle
+where anyone can read it: it is a basemap-only key, and the fair-use limit is
+the exposure.
+
+The key goes on the tile URL as `?key=` — CARTO ignores `api_key=` and serves
+the watermark, which looks identical to having configured nothing at all.
 
 Attribution follows whichever provider is live and is rendered by the map's
 attribution control; it is a licence condition for all three, so don't strip
