@@ -95,4 +95,31 @@ describe("useLayersState", () => {
     expect(countFor()).toBe(afterMount);
     spy.mockRestore();
   });
+  it("drops pre-v2 heatmap toggles, which the old auto-disable may have written", () => {
+    // Selecting 3+ counties used to switch these off and persist that, so the
+    // heatmap stayed dark across reloads. Anyone still carrying such a blob is
+    // reset to the defaults once; the rest of their prefs survive.
+    vi.spyOn(safeStorage, "safeGetItem").mockReturnValue(
+      JSON.stringify({
+        measure: "fatality_rate",
+        otherLayers: { heatmapCounty: false, heatmapStatewide: false, schools: true },
+      }),
+    );
+    const { result } = renderHook(() => useLayersState(), { wrapper: wrap });
+    expect(result.current.otherLayers.heatmapCounty).toBe(true);
+    expect(result.current.otherLayers.heatmapStatewide).toBe(false);
+    expect(result.current.otherLayers.schools).toBe(true);
+    expect(result.current.measure).toBe("fatality_rate");
+    vi.restoreAllMocks();
+  });
+
+  it("honours heatmap toggles saved at the current version", () => {
+    vi.spyOn(safeStorage, "safeGetItem").mockReturnValue(
+      JSON.stringify({ v: 2, otherLayers: { heatmapCounty: false, heatmapStatewide: true } }),
+    );
+    const { result } = renderHook(() => useLayersState(), { wrapper: wrap });
+    expect(result.current.otherLayers.heatmapCounty).toBe(false);
+    expect(result.current.otherLayers.heatmapStatewide).toBe(true);
+    vi.restoreAllMocks();
+  });
 });

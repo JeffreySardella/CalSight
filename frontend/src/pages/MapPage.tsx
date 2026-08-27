@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import { useFilterParams, CA_COUNTIES, YEARS } from "../hooks/useFilterParams";
 import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
-import { useAutoDisableHeatmap } from "../hooks/useAutoDisableHeatmap";
+import { useHeatmapSuppression } from "../hooks/useHeatmapSuppression";
 import { selectHeatmapDetailSlugs } from "../lib/map/heatmapDetail";
 import { useViewportParams } from "../hooks/useViewportParams";
 import { useLayerParams } from "../hooks/useLayerParams";
@@ -141,7 +141,7 @@ function MapPageInner() {
   usePrefetchFacets();
   const { data: countyGeoJson } = useCountyGeoJson();
 
-  const { measure, otherLayers, heatmapResolution, palette, choroplethOn, setOtherLayer } = useLayersState();
+  const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
 
   const heatmapDetailSlugs = selectHeatmapDetailSlugs({
     compareMode,
@@ -150,28 +150,30 @@ function MapPageInner() {
     selectedCounties,
   });
 
+  // Wide selections hide the heatmap for as long as they stand — a derived
+  // state, so the user's layer toggles survive it (see useHeatmapSuppression).
+  const {
+    suppressed: heatmapSuppressed,
+    noteVisible: showHeatmapAutoDisableNote,
+    dismissNote: dismissHeatmapAutoDisableNote,
+  } = useHeatmapSuppression({
+    selectedCountiesSize: selectedCounties.size,
+    heatmapRequested: otherLayers.heatmapCounty || otherLayers.heatmapStatewide,
+  });
+
   const useCountyDetail =
-    heatmapDetailSlugs.length > 0
+    !heatmapSuppressed
+    && heatmapDetailSlugs.length > 0
     && otherLayers.heatmapCounty
     && (!compareMode || !!compareCounty);
 
   const heatmapCountySlugs = useCountyDetail ? heatmapDetailSlugs.join(",") || null : null;
 
-  const setHeatmapCounty = useCallback((on: boolean) => setOtherLayer("heatmapCounty", on), [setOtherLayer]);
-  const setHeatmapStatewide = useCallback((on: boolean) => setOtherLayer("heatmapStatewide", on), [setOtherLayer]);
-  const { noteVisible: showHeatmapAutoDisableNote, dismissNote: dismissHeatmapAutoDisableNote } = useAutoDisableHeatmap({
-    selectedCountiesSize: selectedCounties.size,
-    heatmapCountyOn: otherLayers.heatmapCounty,
-    heatmapStatewideOn: otherLayers.heatmapStatewide,
-    setHeatmapCounty,
-    setHeatmapStatewide,
-  });
-
   const effectiveResolution = useCountyDetail
     ? "raw" as const
     : (heatmapResolution === "high" || heatmapResolution === "raw" ? "low" : heatmapResolution);
 
-  const heatmapEnabled = useCountyDetail || otherLayers.heatmapStatewide;
+  const heatmapEnabled = useCountyDetail || (otherLayers.heatmapStatewide && !heatmapSuppressed);
 
   const involvementFilters = {
     alcohol: selectedAlcohol || undefined,
@@ -847,8 +849,8 @@ function MapPageInner() {
           >
             <span className="material-symbols-outlined text-[14px] text-primary shrink-0 mt-0.5">info</span>
             <div className="flex-1 text-[11px] text-on-surface leading-snug">
-              <span className="font-bold">Heatmap turned off.</span>{" "}
-              <span className="text-on-surface-variant">Too many counties selected — re-enable from the Layers panel.</span>
+              <span className="font-bold">Heatmap hidden.</span>{" "}
+              <span className="text-on-surface-variant">Too many counties selected — it comes back when you narrow to two or fewer.</span>
             </div>
             <button
               onClick={dismissHeatmapAutoDisableNote}
