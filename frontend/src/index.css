@@ -336,13 +336,33 @@
   line-height: 1;
 }
 
-.leaflet-container {
+/* ── Leaflet third-party overrides ──
+ * Every selector below repeats its class (.x.x) on purpose. leaflet.css is
+ * imported by MapCanvas, so it lands in the lazily-loaded MapPage chunk, whose
+ * stylesheet is appended AFTER this entry stylesheet at runtime. At equal
+ * specificity the later sheet wins, so a plain `.leaflet-container` override
+ * silently loses in the production build — and only there, since dev serves
+ * CSS in a different order. Repeating the class outranks leaflet regardless of
+ * load order. Verified live: without it the container computes to #ddd. */
+
+.leaflet-container.leaflet-container {
   height: 100%;
   width: 100%;
-  /* Override leaflet's hardcoded #ddd so the container background
-   * (visible during zoom animations before tiles load) follows the theme.
-   * Without this, dark mode flashes near-white on county click. */
+  /* Shows through wherever tiles have not painted yet — most visibly for the
+   * length of a zoom, which read as a white flash over a dark basemap. */
   background: rgb(var(--surface-container));
+}
+
+/* Leaflet's default is a white pill with #333 text, which sits on the map as a
+ * bright box in dark mode. Attribution is a licence condition, so it has to
+ * stay readable rather than be hidden. */
+.leaflet-container .leaflet-control-attribution.leaflet-control-attribution {
+  background: rgb(var(--surface-container-lowest) / 0.85);
+  color: rgb(var(--on-surface-variant));
+}
+
+.leaflet-container .leaflet-control-attribution.leaflet-control-attribution a {
+  color: rgb(var(--primary));
 }
 
 .leaflet-overlay-pane canvas {
@@ -352,13 +372,13 @@
 /* Theme Leaflet popups. leaflet.css hardcodes a white wrapper + #333 text,
  * so popup content styled with dark-mode tokens (e.g. on-surface-variant)
  * was unreadable in dark mode. Follow the theme instead. */
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
+.leaflet-popup-content-wrapper.leaflet-popup-content-wrapper,
+.leaflet-popup-tip.leaflet-popup-tip {
   background: rgb(var(--surface-container-lowest));
   color: rgb(var(--on-surface));
 }
 
-.leaflet-container a.leaflet-popup-close-button {
+.leaflet-container a.leaflet-popup-close-button.leaflet-popup-close-button {
   color: rgb(var(--on-surface-variant));
 }
 
