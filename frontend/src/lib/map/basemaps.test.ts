@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { BASEMAPS, CARTO_API_KEY, CARTO_BASEMAP, ESRI_BASEMAP, OSM_BASEMAP } from "./basemaps";
+import headers from "../../../public/_headers?raw";
 
 describe("basemaps", () => {
   it("never leads with unkeyed CARTO", () => {
@@ -93,5 +94,46 @@ describe("basemaps with a CARTO key configured", () => {
   it("escapes a key with URL-significant characters", async () => {
     const mod = await loadWithKey("a b&c");
     expect(mod.BASEMAPS[0].base(true)).toContain("api_key=a%20b%26c");
+  });
+});
+
+/**
+ * The tile hosts are only half the change: Cloudflare Pages serves a CSP from
+ * `public/_headers`, and its `img-src` allowlist named only CARTO. Adding a
+ * provider without adding its host means every tile is blocked before it
+ * leaves the browser — the map falls through the whole list and ends up with
+ * no basemap at all, which is exactly what the first deploy of this list did.
+ * Nothing else in CI loads a tile, so check the allowlist here.
+ */
+describe("basemap hosts are allowed by the CSP", () => {
+  const csp = /Content-Security-Policy:(.*)/.exec(headers)?.[1] ?? "";
+  const imgSrc = /img-src ([^;]*)/.exec(csp)?.[1]?.trim().split(/\s+/) ?? [];
+
+  function allowed(url: string): boolean {
+    // Leaflet's {s} subdomain placeholder isn't a legal hostname character.
+    const host = new URL(url.replace("{s}", "a")).host;
+    return imgSrc.some((source) => {
+      if (!source.startsWith("https://")) return false;
+      const pattern = source.slice("https://".length);
+      return pattern.startsWith("*.") ? host.endsWith(pattern.slice(1)) : host === pattern;
+    });
+  }
+
+  it("parses an img-src directive out of the headers file", () => {
+    expect(imgSrc.length).toBeGreaterThan(1);
+  });
+
+  // CARTO is in the list only when a key is configured, but the CSP has to
+  // allow it either way or setting the key would silently blank the map.
+  it.each([
+    ["carto", CARTO_BASEMAP],
+    ["esri", ESRI_BASEMAP],
+    ["osm", OSM_BASEMAP],
+  ])("allows %s tiles", (_id, basemap) => {
+    for (const dark of [true, false]) {
+      expect(allowed(basemap.base(dark))).toBe(true);
+      const labels = basemap.labels?.(dark);
+      if (labels) expect(allowed(labels)).toBe(true);
+    }
   });
 });

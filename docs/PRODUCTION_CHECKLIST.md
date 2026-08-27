@@ -129,7 +129,7 @@ Audit date: 2026-05-16
   ```
 - Add a CSP header (example for CalSight's needs):
   ```
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.basemaps.cartocdn.com https://og.calsight.org; connect-src 'self' https://api.calsight.org https://fonts.googleapis.com https://fonts.gstatic.com https://*.basemaps.cartocdn.com
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.basemaps.cartocdn.com https://server.arcgisonline.com https://tile.openstreetmap.org https://og.calsight.org; connect-src 'self' https://api.calsight.org https://fonts.googleapis.com https://fonts.gstatic.com https://*.basemaps.cartocdn.com
   ```
   (Test carefully — the inline dark-mode script in `index.html` needs `'unsafe-inline'` or a nonce)
 - Verify Cloudflare dashboard has "Always Use HTTPS" and "Minimum TLS Version: 1.2" enabled
