@@ -99,28 +99,39 @@ describe("basemaps with a CARTO key configured", () => {
 
 /**
  * The tile hosts are only half the change: Cloudflare Pages serves a CSP from
- * `public/_headers`, and its `img-src` allowlist named only CARTO. Adding a
- * provider without adding its host means every tile is blocked before it
- * leaves the browser — the map falls through the whole list and ends up with
- * no basemap at all, which is exactly what the first deploy of this list did.
- * Nothing else in CI loads a tile, so check the allowlist here.
+ * `public/_headers`, and its allowlists named only CARTO. Adding a provider
+ * without adding its host means every tile is blocked before it leaves the
+ * browser — the map falls through the whole list and ends up with no basemap
+ * at all, which is exactly what the first deploy of this list did.
+ *
+ * Both directives matter, and img-src alone is the trap: a `<img>` tile is
+ * governed by `img-src`, but the service worker re-issues that same request as
+ * a `fetch()` inside its CacheFirst route, and *that* is governed by
+ * `connect-src`. So a host in img-src but not connect-src works on a first
+ * visit and fails for every returning visitor, with no network fallback —
+ * which is how the map shipped with no basemap for anyone who had the site
+ * cached. Nothing else in CI loads a tile, so check both allowlists here.
  */
 describe("basemap hosts are allowed by the CSP", () => {
   const csp = /Content-Security-Policy:(.*)/.exec(headers)?.[1] ?? "";
-  const imgSrc = /img-src ([^;]*)/.exec(csp)?.[1]?.trim().split(/\s+/) ?? [];
+  const directive = (name: string) =>
+    new RegExp(`${name} ([^;]*)`).exec(csp)?.[1]?.trim().split(/\s+/) ?? [];
+  const imgSrc = directive("img-src");
+  const connectSrc = directive("connect-src");
 
-  function allowed(url: string): boolean {
+  function allowed(url: string, sources: string[]): boolean {
     // Leaflet's {s} subdomain placeholder isn't a legal hostname character.
     const host = new URL(url.replace("{s}", "a")).host;
-    return imgSrc.some((source) => {
+    return sources.some((source) => {
       if (!source.startsWith("https://")) return false;
       const pattern = source.slice("https://".length);
       return pattern.startsWith("*.") ? host.endsWith(pattern.slice(1)) : host === pattern;
     });
   }
 
-  it("parses an img-src directive out of the headers file", () => {
+  it("parses both directives out of the headers file", () => {
     expect(imgSrc.length).toBeGreaterThan(1);
+    expect(connectSrc.length).toBeGreaterThan(1);
   });
 
   // CARTO is in the list only when a key is configured, but the CSP has to
@@ -131,9 +142,11 @@ describe("basemap hosts are allowed by the CSP", () => {
     ["osm", OSM_BASEMAP],
   ])("allows %s tiles", (_id, basemap) => {
     for (const dark of [true, false]) {
-      expect(allowed(basemap.base(dark))).toBe(true);
-      const labels = basemap.labels?.(dark);
-      if (labels) expect(allowed(labels)).toBe(true);
+      for (const url of [basemap.base(dark), basemap.labels?.(dark)]) {
+        if (!url) continue;
+        expect(allowed(url, imgSrc), `${url} missing from img-src`).toBe(true);
+        expect(allowed(url, connectSrc), `${url} missing from connect-src`).toBe(true);
+      }
     }
   });
 });
