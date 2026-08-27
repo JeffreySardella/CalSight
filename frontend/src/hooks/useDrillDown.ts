@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParamsWriter } from "./useSearchParamsWriter";
 import { deslugify } from "./useFilterParams";
 
 export type DrillLevel = "state" | "county";
@@ -14,7 +14,7 @@ export interface DrillState {
  * When drill_county is set, the dashboard filters to that single county.
  */
 export function useDrillDown() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParamsWriter();
 
   const drillCountySlug = searchParams.get("drill_county");
 

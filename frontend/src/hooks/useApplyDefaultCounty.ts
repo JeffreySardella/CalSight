@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParamsWriter } from "./useSearchParamsWriter";
 import { CA_COUNTIES, slugify } from "./useFilterParams";
 import { useUserPreferences } from "./useUserPreferences";
 
@@ -25,7 +25,7 @@ const CA_COUNTY_SET = new Set<string>(CA_COUNTIES);
  * doesn't fire again.
  */
 export function useApplyDefaultCounty(): string | null {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParamsWriter();
   const { defaultCounty } = useUserPreferences();
   const checked = useRef(false);
   const isFirstEffect = useRef(true);
