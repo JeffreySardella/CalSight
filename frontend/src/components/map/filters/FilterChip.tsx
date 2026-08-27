@@ -1,4 +1,4 @@
-﻿interface FilterChipProps {
+interface FilterChipProps {
   label: string;
   icon?: string;
   count?: string;

@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useCallback, useEffect, useId } from "react";
+import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { linearRegression, mean as calcMean, stddev as calcStddev } from "../../lib/dashboard/stats";
 import { useChartAnimation } from "../../hooks/useChartAnimation";

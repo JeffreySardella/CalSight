@@ -1,4 +1,4 @@
-﻿import { memo, useState } from "react";
+import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { ChatMessage as ChatMessageType } from "../../hooks/useAskAi";
 import { API_BASE } from "../../config";
@@ -146,7 +146,7 @@ export default memo(function ChatMessage({ message }: Props) {
               )}
               Powered by {message.provider}
               {message.cached && (
-                <span className="ml-2 text-on-surface-variant" title="Reused from response cache â€” no LLM call">(cached)</span>
+                <span className="ml-2 text-on-surface-variant" title="Reused from response cache — no LLM call">(cached)</span>
               )}
             </p>
           </div>

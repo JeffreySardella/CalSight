@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback, useId } from "react";
+import { useState, useEffect, useRef, useCallback, useId } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { CA_COUNTIES } from "../../hooks/useFilterParams";
 import { useNominatim } from "../../hooks/useNominatim";
@@ -264,7 +264,7 @@ export default function UnifiedSearchBar({
 
   return (
     <>
-      {/* â”€â”€ Mobile: top-right buttons (next to filter) â”€â”€ */}
+      {/* ── Mobile: top-right buttons (next to filter) ── */}
       {!mobileExpanded && (
         <div className="absolute top-3 right-28 z-20 md:hidden flex items-center gap-2">
           <button
@@ -287,7 +287,7 @@ export default function UnifiedSearchBar({
         </div>
       )}
 
-      {/* â”€â”€ Mobile: expanded search overlay â”€â”€ */}
+      {/* ── Mobile: expanded search overlay ── */}
       {mobileExpanded && (
         <div className="absolute top-3 left-4 right-4 z-[45] md:hidden">
           <div ref={containerRef}>
@@ -324,7 +324,7 @@ export default function UnifiedSearchBar({
         </div>
       )}
 
-      {/* â”€â”€ Desktop: top center search bar + bottom controls â”€â”€ */}
+      {/* ── Desktop: top center search bar + bottom controls ── */}
       <div
         ref={!mobileExpanded ? containerRef : undefined}
         className={`hidden md:block absolute top-3 z-20 transition-[width] duration-300 left-1/2 -translate-x-1/2 ${expanded ? "w-96" : "w-auto"}`}
@@ -380,7 +380,7 @@ export default function UnifiedSearchBar({
         {renderResults(false)}
       </div>
 
-      {/* â”€â”€ Desktop: bottom controls (location + zoom) â”€â”€ */}
+      {/* ── Desktop: bottom controls (location + zoom) ── */}
       <div className="hidden md:flex absolute bottom-6 right-4 z-[35] flex-col items-center gap-1 p-1 bg-surface-container-lowest rounded-full shadow-lg">
         <button
           type="button"

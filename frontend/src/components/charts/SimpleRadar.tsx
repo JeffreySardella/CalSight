@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useCallback, useId } from "react";
+import { useState, useRef, useCallback, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { nextChartIndex } from "./chartKeyboardNav";
 import { useTextScale } from "../../hooks/useTextScale";

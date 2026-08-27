@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState, useMemo, useEffect } from "react";
+import React, { useRef, useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SimpleBarChart from "../charts/SimpleBarChart";
 import SimpleDonutChart from "../charts/SimpleDonutChart";
@@ -80,7 +80,7 @@ function thinLabelFormatter(total: number, dim: Dimension) {
 
   return (label: string, idx: number) => {
     if (step > 1 && idx % step !== 0 && idx !== total - 1) return null;
-    const display = label.length > maxLen ? label.slice(0, maxLen) + "â€¦" : label;
+    const display = label.length > maxLen ? label.slice(0, maxLen) + "…" : label;
     return (
       <text
         textAnchor="middle"
@@ -211,14 +211,14 @@ function OverlayLegend({ data, options, forecastData }: {
       const ssRes = vals.reduce((s, v, i) => s + (v - predicted[i]) ** 2, 0);
       const ssTot = vals.reduce((s, v) => s + (v - yMean) ** 2, 0);
       const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
-      items.push({ color: "rgb(var(--error))", label: `Trend Line (RÂ²=${r2.toFixed(2)})` });
+      items.push({ color: "rgb(var(--error))", label: `Trend Line (R²=${r2.toFixed(2)})` });
     }
   }
   if (options.meanLine) {
     const mean = data.length > 0 ? data.reduce((s, d) => s + d.value, 0) / data.length : 0;
     items.push({ color: "rgb(var(--error))", label: `Mean: ${mean >= 1000 ? `${(mean / 1000).toFixed(1)}K` : Math.round(mean).toLocaleString()}` });
   }
-  if (options.stdBand) items.push({ color: "rgb(var(--on-surface-variant))", label: "Â±1Ïƒ Band" });
+  if (options.stdBand) items.push({ color: "rgb(var(--on-surface-variant))", label: "±1σ Band" });
   if (options.outliers) {
     const vals = data.map(d => d.value);
     const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
@@ -232,7 +232,7 @@ function OverlayLegend({ data, options, forecastData }: {
   if (forecastData?.length) {
     const fmtVal = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : Math.round(v).toLocaleString();
     const parts = forecastData.map(f => `${f.label}: ${fmtVal(f.value)}`);
-    items.push({ color: "var(--color-chart-3, #14b8a6)", label: `Forecast â€” ${parts.join(", ")}` });
+    items.push({ color: "var(--color-chart-3, #14b8a6)", label: `Forecast — ${parts.join(", ")}` });
   }
 
   if (items.length === 0) return null;
@@ -261,7 +261,7 @@ function ChartCard({
   const title = buildTitle(slot);
 
   // Cross-filter: determine if this chart's dimension supports brushing
-  // Disabled on mobile â€” touch users tap to read, not to filter
+  // Disabled on mobile — touch users tap to read, not to filter
   const isMobile = useIsMobile();
   const canCrossFilter = !isMobile && CROSS_FILTER_DIMS.includes(slot.dimension);
   const isSourceChart = crossFilter?.state.sourceChartId === slot.id;
@@ -325,7 +325,7 @@ function ChartCard({
       ? ` in ${[...selectedCounties].join(", ")}`
       : "";
     const question = `Explain the "${title}" chart${countyPart}. What are the key takeaways?`;
-    // Carry the active filters so useAskAi sends them with the question â€”
+    // Carry the active filters so useAskAi sends them with the question —
     // otherwise the AI explains the unfiltered chart.
     const params = new URLSearchParams(buildFilterQS(searchParams));
     params.set("q", question);
@@ -341,7 +341,7 @@ function ChartCard({
     exportChartCsv(data, title, isScatter);
   };
 
-  // Current-year buckets are partial (#293) â€” annotate year breakdowns so an
+  // Current-year buckets are partial (#293) — annotate year breakdowns so an
   // apparent "drop" in the last bucket isn't misread as a real decline.
   const partialNote = slot.dimension === "year"
     ? partialYearNote(data.map((d) => d.label))
