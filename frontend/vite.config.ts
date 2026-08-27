@@ -39,7 +39,11 @@ export default defineConfig({
         // guard must stay first to take precedence over the cacheable routes.
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*/i,
+            // Every basemap host in src/lib/map/basemaps.ts, or a provider
+            // fallback loses tile caching. Cache name kept from when CARTO
+            // was the only provider: renaming it would orphan the tiles
+            // already cached in every existing user's browser.
+            urlPattern: /^https:\/\/(?:[a-d]\.basemaps\.cartocdn\.com|server\.arcgisonline\.com|tile\.openstreetmap\.org)\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'carto-tiles',
