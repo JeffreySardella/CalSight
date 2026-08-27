@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
-import { MemoryRouter, useSearchParams } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useSearchParams, useLocation } from "react-router-dom";
 import { useSearchParamsWriter, resetSearchParamsBuffer, formatSearch } from "./useSearchParamsWriter";
 
 type Writer = ReturnType<typeof useSearchParamsWriter>[1];
@@ -146,5 +146,82 @@ describe("formatSearch", () => {
 
   it("returns an empty string rather than a dangling question mark", () => {
     expect(formatSearch(new URLSearchParams())).toBe("");
+  });
+});
+
+describe("useSearchParamsWriter on a nested route", () => {
+  beforeEach(() => resetSearchParamsBuffer());
+
+  it("writes the query string without moving off the page", async () => {
+    // Every page writes URL state through this hook, not just the map. A write
+    // that dropped the pathname would throw Stats users back to the homepage.
+    let write: Writer | null = null;
+    let path = "";
+    let search = "";
+
+    function StatsProbe() {
+      const [w] = [useSearchParamsWriter()[1]];
+      write = w;
+      const location = useLocation();
+      path = location.pathname;
+      search = location.search;
+      return null;
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/stats?drill_county=kern"]}>
+        <Routes>
+          <Route path="/stats" element={<StatsProbe />} />
+          <Route path="/" element={<div>home</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(path).toBe("/stats");
+
+    await act(async () => {
+      write!((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("severity", "fatal,injury");
+        return next;
+      }, { replace: true, preventScrollReset: true });
+    });
+
+    expect(path).toBe("/stats");
+    expect(search).toContain("drill_county=kern");
+    expect(search).toContain("severity=fatal,injury");
+  });
+
+  it("keeps the pathname when clearing the last param", async () => {
+    let write: Writer | null = null;
+    let path = "";
+    let search = "";
+
+    function Probe2() {
+      write = useSearchParamsWriter()[1];
+      const location = useLocation();
+      path = location.pathname;
+      search = location.search;
+      return null;
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/water?x=1"]}>
+        <Routes>
+          <Route path="/water" element={<Probe2 />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      write!((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("x");
+        return next;
+      }, { replace: true });
+    });
+
+    expect(path).toBe("/water");
+    expect(search).toBe("");
   });
 });
