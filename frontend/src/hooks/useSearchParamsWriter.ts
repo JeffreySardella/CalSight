@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { useSearchParams, type NavigateOptions } from "react-router-dom";
+import { useNavigate, useSearchParams, type NavigateOptions } from "react-router-dom";
 
 /**
  * Safe writer for the URL-as-state this app leans on (filters, county, layers,
@@ -22,10 +22,13 @@ import { useSearchParams, type NavigateOptions } from "react-router-dom";
  *     the filters the first one just removed.
  *
  * Fixes for both:
- *  - route every write through a ref to the *newest* setter, so `prev` reflects
+ *  - read the base params from a ref refreshed every render, so they reflect
  *    the latest render no matter how old the caller's closure is;
  *  - buffer the params we just wrote for the rest of the synchronous tick, so
  *    back-to-back writes chain instead of clobbering each other.
+ *
+ * Writes go through `navigate` rather than `setSearchParams` so the query
+ * string is formatted here — see {@link formatSearch}.
  *
  * The buffer is module-level (not per-hook) so writers living in different
  * hooks — e.g. a filter change and a layer change in one handler — chain too.
@@ -55,20 +58,36 @@ export type SearchParamsWriter = (
   options?: NavigateOptions,
 ) => void;
 
-export function useSearchParamsWriter(): [URLSearchParams, SearchParamsWriter] {
-  const [searchParams, setSearchParams] = useSearchParams();
+/**
+ * Render a query string for the address bar.
+ *
+ * `URLSearchParams.toString()` percent-encodes commas, and every multi-select
+ * filter here is comma-joined — so picking two counties turned a shareable link
+ * into `?county=los-angeles%2Corange&cause=dui%2Cspeeding`. Commas are legal
+ * unencoded in a query (RFC 3986 sub-delims) and both `,` and `%2C` read back
+ * identically, so put them back for something a person can read. An empty set
+ * yields "" rather than a dangling "?".
+ */
+export function formatSearch(params: URLSearchParams): string {
+  const query = params.toString().replace(/%2C/g, ",");
+  return query ? `?${query}` : "";
+}
 
-  // Refreshed on every render so a writer invoked from a stale closure still
-  // reaches the current setter (same pattern the map layers use for callbacks).
-  const setterRef = useRef(setSearchParams);
-  setterRef.current = setSearchParams;
+export function useSearchParamsWriter(): [URLSearchParams, SearchParamsWriter] {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // Both refreshed every render so a writer invoked from a stale closure still
+  // merges into current params (same pattern the map layers use for callbacks).
+  const paramsRef = useRef(searchParams);
+  paramsRef.current = searchParams;
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
 
   const write = useCallback<SearchParamsWriter>((update, options) => {
-    setterRef.current((prev) => {
-      const next = update(new URLSearchParams(pending ?? prev));
-      rememberPending(next);
-      return next;
-    }, options);
+    const next = update(new URLSearchParams(pending ?? paramsRef.current));
+    rememberPending(next);
+    navigateRef.current({ search: formatSearch(next) }, options);
   }, []);
 
   return [searchParams, write];

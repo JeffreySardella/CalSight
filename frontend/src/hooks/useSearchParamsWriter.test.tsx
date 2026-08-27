@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
 import { MemoryRouter, useSearchParams } from "react-router-dom";
-import { useSearchParamsWriter, resetSearchParamsBuffer } from "./useSearchParamsWriter";
+import { useSearchParamsWriter, resetSearchParamsBuffer, formatSearch } from "./useSearchParamsWriter";
 
 type Writer = ReturnType<typeof useSearchParamsWriter>[1];
 
@@ -118,5 +118,33 @@ describe("useSearchParamsWriter", () => {
     const params = new URLSearchParams(search);
     expect(params.get("county")).toBe("kern");
     expect(params.get("zoom")).toBe("7");
+  });
+});
+
+describe("formatSearch", () => {
+  it("leaves comma-joined filters readable", () => {
+    // URLSearchParams would render this as county=los-angeles%2Corange, which
+    // is what turned shared links into a wall of escapes.
+    const params = new URLSearchParams();
+    params.set("county", "los-angeles,orange");
+    params.set("cause", "dui,speeding");
+    expect(formatSearch(params)).toBe("?county=los-angeles,orange&cause=dui,speeding");
+  });
+
+  it("still escapes characters that need it", () => {
+    const params = new URLSearchParams();
+    params.set("q", "a&b=c d");
+    expect(formatSearch(params)).toBe("?q=a%26b%3Dc+d");
+  });
+
+  it("round-trips back to the same values", () => {
+    const params = new URLSearchParams();
+    params.set("county", "los-angeles,orange");
+    const parsed = new URLSearchParams(formatSearch(params));
+    expect(parsed.get("county")).toBe("los-angeles,orange");
+  });
+
+  it("returns an empty string rather than a dangling question mark", () => {
+    expect(formatSearch(new URLSearchParams())).toBe("");
   });
 });
