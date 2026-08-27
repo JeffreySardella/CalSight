@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParamsWriter } from "./useSearchParamsWriter";
 import { MEASURES, DEFAULT_MEASURE, type MeasureKey } from "../lib/choropleth/measures";
 import { PALETTES, type PaletteKey } from "../lib/choropleth/palettes";
 import type { HeatmapResolution, LayerUrlState } from "./useLayersState";
@@ -59,7 +59,7 @@ export function parseLayerParams(searchParams: URLSearchParams): Partial<LayerUr
 }
 
 export function useLayerParams() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParamsWriter();
 
   // Frozen at first render — see module docstring.
   const seedRef = useRef<Partial<LayerUrlState> | null>(null);

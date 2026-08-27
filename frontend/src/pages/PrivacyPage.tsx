@@ -130,9 +130,13 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc pl-5 space-y-2">
             <li>
-              <strong>CARTO</strong> — Provides map tile images (basemaps.cartocdn.com). CARTO sees
-              which map tiles your browser requests (i.e., which area you&apos;re viewing at what zoom level).{" "}
-              <a href="https://carto.com/privacy/" className="text-primary underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+              <strong>Map tiles</strong> — Map images come from Esri (server.arcgisonline.com), falling
+              back to OpenStreetMap (tile.openstreetmap.org) if Esri is unreachable; a build configured with a
+              CARTO key uses CARTO (basemaps.cartocdn.com) instead. Whichever provider serves the tiles sees
+              which ones your browser requests (i.e., which area you&apos;re viewing at what zoom level).{" "}
+              <a href="https://www.esri.com/en-us/privacy/overview" className="text-primary underline" target="_blank" rel="noopener noreferrer">Esri Privacy</a>,{" "}
+              <a href="https://osmfoundation.org/wiki/Privacy_Policy" className="text-primary underline" target="_blank" rel="noopener noreferrer">OSM Privacy Policy</a>,{" "}
+              <a href="https://carto.com/privacy/" className="text-primary underline" target="_blank" rel="noopener noreferrer">CARTO Privacy Policy</a>
             </li>
             <li>
               <strong>Google Fonts</strong> — Serves the Libre Baskerville typeface and Material Symbols

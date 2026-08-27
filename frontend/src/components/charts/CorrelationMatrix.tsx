@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useId } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useIsDark } from "../../context/ThemeContext";

@@ -48,6 +48,11 @@ const OTHER_LAYER_DEFAULTS: Record<OtherLayerKey, boolean> = {
 };
 
 const STORAGE_KEY = "calsight-layers";
+// Bumped when a saved blob holds values the user never chose. v2 drops the
+// heatmap toggles from pre-v2 blobs: an earlier auto-disable wrote them off
+// whenever 3+ counties were selected and that stuck across reloads, leaving
+// the heatmap dark for good. Everything else in the blob is honoured as-is.
+const SAVED_VERSION = 2;
 const VALID_RESOLUTIONS = new Set<HeatmapResolution>(["raw", "low", "medium", "high"]);
 
 type SavedLayers = {
@@ -70,8 +75,12 @@ function loadSaved(): SavedLayers {
       resolution: parsed.resolution && VALID_RESOLUTIONS.has(parsed.resolution) ? parsed.resolution : undefined,
     };
     if (parsed.otherLayers && typeof parsed.otherLayers === "object") {
+      const stale = parsed.v !== SAVED_VERSION;
       const valid: Partial<Record<OtherLayerKey, boolean>> = {};
       for (const key of Object.keys(OTHER_LAYER_DEFAULTS) as OtherLayerKey[]) {
+        // Pre-v2 heatmap toggles may be the auto-disable's doing rather than
+        // the user's — fall back to the defaults for those once.
+        if (stale && (key === "heatmapCounty" || key === "heatmapStatewide")) continue;
         if (typeof parsed.otherLayers[key] === "boolean") {
           valid[key] = parsed.otherLayers[key];
         }
@@ -143,7 +152,7 @@ export function LayersStateProvider({
 
   useEffect(() => {
     safeSetItem(STORAGE_KEY, JSON.stringify({
-      measure, palette, choroplethOn, resolution: heatmapResolution, otherLayers,
+      v: SAVED_VERSION, measure, palette, choroplethOn, resolution: heatmapResolution, otherLayers,
     }));
     onStateChange?.({
       measure, palette, choroplethOn, heatmapResolution,

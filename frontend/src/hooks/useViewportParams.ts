@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParamsWriter } from "./useSearchParamsWriter";
 
 /**
  * Map viewport encoded in the URL so a copied link reproduces the exact
@@ -55,7 +55,7 @@ export function parseViewport(searchParams: URLSearchParams): ViewportSeed {
 }
 
 export function useViewportParams() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParamsWriter();
 
   // Frozen at first render — see module docstring. parseViewport always
   // returns an object, so the ref is populated exactly once.

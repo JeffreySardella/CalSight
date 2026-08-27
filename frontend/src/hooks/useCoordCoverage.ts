@@ -21,7 +21,12 @@ export function useCoordCoverage(dateRange: DateRangeFilter | null): CoordCovera
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/data-quality`);
       if (!res.ok) throw new Error("data-quality fetch failed");
-      return res.json();
+      const body = await res.json();
+      // A non-array body (an error envelope from a proxy, say) used to reach
+      // `.filter` below and throw during render, blanking the whole map behind
+      // the error boundary over a strictly optional coverage figure.
+      if (!Array.isArray(body)) throw new Error("data-quality: expected an array");
+      return body;
     },
     staleTime: 5 * 60 * 1000,
   });

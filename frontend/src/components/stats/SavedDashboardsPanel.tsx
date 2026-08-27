@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { DashboardConfig } from "../../lib/dashboard/types";
 import { useSavedDashboards } from "../../hooks/useSavedDashboards";
 

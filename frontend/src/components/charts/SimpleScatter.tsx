@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useCallback, useEffect, useId } from "react";
+import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { nextChartIndex } from "./chartKeyboardNav";
 import { linearRegressionXY } from "../../lib/dashboard/stats";

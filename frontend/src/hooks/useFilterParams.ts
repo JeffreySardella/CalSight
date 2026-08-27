@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParamsWriter } from "./useSearchParamsWriter";
 
 // ── Constants ──
 
@@ -250,7 +250,7 @@ export function buildFilterQS(searchParams: URLSearchParams): string {
 // and provides functions that update both state AND the URL at once.
 
 export function useFilterParams() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParamsWriter();
 
   // ── Memoize parsed values by their raw URL string ──
   // Without this, every render produces a brand-new Set/object which

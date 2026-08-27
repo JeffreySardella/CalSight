@@ -1,4 +1,4 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 import { WATER_PAGE_PUBLIC } from "../../config";
 import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
@@ -15,7 +15,7 @@ const HIGHWAY_METRICS: { key: HighwaySort; label: string }[] = [
 interface ToggleProps {
   enabled: boolean;
   onToggle: () => void;
-  /** Accessible name â€” mirrors the visible row label next to the toggle. */
+  /** Accessible name — mirrors the visible row label next to the toggle. */
   label: string;
   /** When locked the toggle can't be flipped; announced via aria-disabled. */
   locked?: boolean;
@@ -318,12 +318,12 @@ export default function LayersPanel() {
             />
           </div>
           <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
-            Highlights statistically significant crash hotspots (z-score &gt; 2Ïƒ). Click a cluster for details.
+            Highlights statistically significant crash hotspots (z-score &gt; 2σ). Click a cluster for details.
           </p>
         </div>
       </div>
 
-      {/* Water â€” gated while the Water page is soft-launched: the layer's
+      {/* Water — gated while the Water page is soft-launched: the layer's
           popups link to /water and would advertise it. */}
       {WATER_PAGE_PUBLIC && (
         <div className="space-y-4">

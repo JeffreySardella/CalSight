@@ -3,8 +3,8 @@
  *
  * - In compareMode the explicit focused/compare pair drives the heatmap so the
  *   pair-compare workflow keeps its established behavior.
- * - Otherwise the URL filter wins (capped at 2 — useAutoDisableHeatmap covers
- *   the 3+ case by turning the heatmap layers off).
+ * - Otherwise the URL filter wins (capped at 2 — useHeatmapSuppression covers
+ *   the 3+ case by hiding the heatmap while the selection stands).
  *
  * Returns slugified county names (lowercase, spaces → hyphens). The result
  * is stable: `compareMode` with both null returns []; out-of-range selection

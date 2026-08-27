@@ -30,6 +30,8 @@ import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersSta
 import { useHospitals, useSchools } from "../../hooks/useMapOverlays";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
+import { useToast } from "../ui/toastContext";
+import { BASEMAPS, TILE_ERROR_LIMIT } from "../../lib/map/basemaps";
 import { useAccessibility } from "../../context/AccessibilityContext";
 
 function ReducedMotionSync() {
@@ -260,40 +262,57 @@ export default function MapCanvas({
   onViewportChange,
 }: MapCanvasProps) {
   const isDark = useIsDark();
-  const baseTileUrl = isDark
-    ? "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png";
-  const labelTileUrl = isDark
-    ? "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png";
+  const { showToast } = useToast();
+
+  // Walk the provider list on repeated tile failures rather than leaving a
+  // blank canvas: a provider that goes down or changes its URL scheme costs a
+  // few seconds of grey, not the map. See lib/map/basemaps.ts.
+  const [basemapIndex, setBasemapIndex] = useState(0);
+  const basemapIndexRef = useRef(0);
+  const basemap = BASEMAPS[Math.min(basemapIndex, BASEMAPS.length - 1)];
+  const baseTileUrl = basemap.base(isDark);
+  const labelTileUrl = basemap.labels?.(isDark) ?? null;
 
   const tileErrorCount = useRef(0);
-  const [tileWarning, setTileWarning] = useState(false);
+  const [tilesUnavailable, setTilesUnavailable] = useState(false);
+  // Mirrors tilesUnavailable: tileload fires once per tile, and an unguarded
+  // setState would schedule work on every one of them.
+  const tilesUnavailableRef = useRef(false);
 
   const handleTileError = useCallback(() => {
     tileErrorCount.current += 1;
-    if (tileErrorCount.current >= 5 && !tileWarning) {
-      console.warn(`[MapCanvas] ${tileErrorCount.current} consecutive tile failures`);
-      setTileWarning(true);
-    }
-  }, [tileWarning]);
-
-  const handleTileLoad = useCallback(() => {
-    if (tileErrorCount.current > 0) {
-      tileErrorCount.current = 0;
-      setTileWarning(false);
+    if (tileErrorCount.current < TILE_ERROR_LIMIT) return;
+    tileErrorCount.current = 0;
+    if (basemapIndexRef.current < BASEMAPS.length - 1) {
+      basemapIndexRef.current += 1;
+      console.warn(
+        `[MapCanvas] ${BASEMAPS[basemapIndexRef.current - 1].name} tiles failing; falling back to ${BASEMAPS[basemapIndexRef.current].name}`,
+      );
+      setBasemapIndex(basemapIndexRef.current);
+    } else if (!tilesUnavailableRef.current) {
+      tilesUnavailableRef.current = true;
+      setTilesUnavailable(true);
     }
   }, []);
+
+  const handleTileLoad = useCallback(() => {
+    if (tileErrorCount.current > 0) tileErrorCount.current = 0;
+    if (!tilesUnavailableRef.current) return;
+    tilesUnavailableRef.current = false;
+    setTilesUnavailable(false);
+  }, []);
+
+  // Surfaced as a toast rather than a bar pinned to the top of the map: that
+  // bar sat on top of the mobile search/locate/share/filter row.
+  useEffect(() => {
+    if (!tilesUnavailable) return;
+    showToast("Map tiles failed to load. Check your connection.", { variant: "error" });
+  }, [tilesUnavailable, showToast]);
 
   const tileEvents = { tileerror: handleTileError, tileload: handleTileLoad };
 
   return (
     <>
-    {tileWarning && (
-      <div role="alert" className="absolute top-0 left-0 right-0 z-[1000] bg-error-container text-on-error-container text-xs text-center py-1.5 px-4">
-        Map tiles failed to load. Check your network connection.
-      </div>
-    )}
     <MapContainer
       center={initialView?.center ?? CA_CENTER}
       zoom={initialView?.zoom ?? getInitialZoom()}
@@ -322,7 +341,8 @@ export default function MapCanvas({
         key={baseTileUrl}
         url={baseTileUrl}
         keepBuffer={2}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/">CARTO</a>'
+        maxNativeZoom={basemap.maxNativeZoom}
+        attribution={basemap.attribution}
         eventHandlers={tileEvents}
       />
 
@@ -347,14 +367,15 @@ export default function MapCanvas({
         tempMarker={tempMarker}
       />
 
-      <TileLayer
-        key={labelTileUrl}
-        url={labelTileUrl}
-        keepBuffer={2}
-        attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-        pane="labelPane"
-        eventHandlers={tileEvents}
-      />
+      {labelTileUrl && (
+        <TileLayer
+          key={labelTileUrl}
+          url={labelTileUrl}
+          keepBuffer={2}
+          maxNativeZoom={basemap.maxNativeZoom}
+          pane="labelPane"
+        />
+      )}
     </MapContainer>
     </>
   );
