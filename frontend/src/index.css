@@ -349,8 +349,13 @@
   height: 100%;
   width: 100%;
   /* Shows through wherever tiles have not painted yet — most visibly for the
-   * length of a zoom, which read as a white flash over a dark basemap. */
-  background: rgb(var(--surface-container));
+   * length of a zoom. Match the basemap itself, not the app chrome: sampled
+   * from the tiles, CARTO's base is rgb(9 9 9) dark / rgb(250 250 248) light,
+   * and --surface-container-lowest (14 14 15 / 255 255 255) lands within a few
+   * points of both. --surface-container was 23 points lighter than a dark
+   * tile, which still read as a grey flash on every zoom — dimmer than
+   * leaflet's #ddd, but there. */
+  background: rgb(var(--surface-container-lowest));
 }
 
 /* Leaflet's default is a white pill with #333 text, which sits on the map as a
