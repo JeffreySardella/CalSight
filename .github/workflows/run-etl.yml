@@ -92,7 +92,6 @@ jobs:
           GROQ_KEY_2: ${{ secrets.GROQ_API_KEY_2 }}
           GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          CEREBRAS_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           SENTRY: ${{ secrets.SENTRY_DSN }}
         run: |
           # Non-destructive write (kept in sync with deploy.yml): operators set
@@ -115,8 +114,6 @@ jobs:
           printf 'LLM_FALLBACK_1_KEY=%s\n' "$GEMINI_KEY" >> "$TMP_ENV"
           printf 'LLM_FALLBACK_2_PROVIDER=openrouter\n' >> "$TMP_ENV"
           printf 'LLM_FALLBACK_2_KEY=%s\n' "$OPENROUTER_KEY" >> "$TMP_ENV"
-          printf 'LLM_FALLBACK_3_PROVIDER=cerebras\n' >> "$TMP_ENV"
-          printf 'LLM_FALLBACK_3_KEY=%s\n' "$CEREBRAS_KEY" >> "$TMP_ENV"
           printf 'DEBUG=false\n' >> "$TMP_ENV"
           printf 'SENTRY_DSN=%s\n' "$SENTRY" >> "$TMP_ENV"
           # Keys this workflow owns — must match the printf list above exactly.
