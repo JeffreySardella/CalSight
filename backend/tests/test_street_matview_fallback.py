@@ -60,32 +60,44 @@ def test_cache_reset_forces_a_fresh_probe():
     assert db.execute.call_count == 2
 
 
-def _run_cached_aggregate(populated: bool):
+def _run_cached_aggregate(populated: bool, **overrides):
     """Drive _cached_aggregate and report which implementation it chose."""
+    kwargs = dict(
+        by_secondary=False, county_code=None, year_start=None, year_end=None,
+        min_crashes=1, limit=25, pedestrian=None, cyclist=None, sort="count",
+    )
+    kwargs.update(overrides)
     mod.clear_aggregate_cache()
     with (
         patch.object(mod, "_mv_populated", return_value=populated),
+        patch.object(mod, "_aggregate_from_totals", return_value=["totals"]) as from_totals,
         patch.object(mod, "_aggregate_from_mv", return_value=["mv"]) as from_mv,
         patch.object(mod, "_aggregate", return_value=["raw"]) as from_raw,
     ):
-        result = mod._cached_aggregate(
-            MagicMock(), by_secondary=False, county_code=None, year_start=None,
-            year_end=None, min_crashes=1, limit=25, pedestrian=None,
-            cyclist=None, sort="count",
-        )
+        result = mod._cached_aggregate(MagicMock(), **kwargs)
     mod.clear_aggregate_cache()
-    return result, from_mv, from_raw
+    return result, from_totals, from_mv, from_raw
 
 
-def test_populated_view_serves_the_fast_path():
-    result, from_mv, from_raw = _run_cached_aggregate(True)
+def test_populated_views_serve_the_unfiltered_state_from_the_totals_view():
+    result, from_totals, from_mv, from_raw = _run_cached_aggregate(True)
+    assert result == ["totals"]
+    from_totals.assert_called_once()
+    from_mv.assert_not_called()
+    from_raw.assert_not_called()
+
+
+def test_populated_views_serve_filtered_requests_from_the_fine_view():
+    result, from_totals, from_mv, from_raw = _run_cached_aggregate(True, year_start=2020)
     assert result == ["mv"]
     from_mv.assert_called_once()
+    from_totals.assert_not_called()
     from_raw.assert_not_called()
 
 
 def test_unpopulated_view_falls_back_to_the_live_query():
-    result, from_mv, from_raw = _run_cached_aggregate(False)
+    result, from_totals, from_mv, from_raw = _run_cached_aggregate(False)
     assert result == ["raw"]
     from_raw.assert_called_once()
+    from_totals.assert_not_called()
     from_mv.assert_not_called()

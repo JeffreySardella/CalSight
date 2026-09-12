@@ -13,12 +13,22 @@ averaged twice.
 from __future__ import annotations
 
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import text
 
+import app.routers.intersections as intersections_mod
 from app.models import Crash
-from app.routers.intersections import _aggregate, _aggregate_from_mv
+from app.routers.intersections import (
+    _aggregate,
+    _aggregate_from_mv,
+    _aggregate_from_totals,
+    _concentration,
+    clear_aggregate_cache,
+    clear_concentration_cache,
+    reset_mv_populated_cache,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -69,7 +79,22 @@ def seeded_and_refreshed(db_session):
     # Non-concurrent refresh: CONCURRENTLY is illegal inside a transaction,
     # and the test session is transactional.
     db_session.execute(text("REFRESH MATERIALIZED VIEW mv_street_aggregates"))
+    db_session.execute(text("REFRESH MATERIALIZED VIEW mv_street_totals"))
     return db_session
+
+
+@pytest.fixture(autouse=True)
+def _cold_caches():
+    """Results and the populated-probe are cached in-process; the probe
+    especially must not leak a True from this module (where the views are
+    populated inside a rolled-back transaction) into the next one."""
+    clear_aggregate_cache()
+    clear_concentration_cache()
+    reset_mv_populated_cache()
+    yield
+    clear_aggregate_cache()
+    clear_concentration_cache()
+    reset_mv_populated_cache()
 
 
 # Every combination worth distinguishing between the two paths.
@@ -225,3 +250,113 @@ def test_coordinate_mean_ignores_missing_coordinates(seeded_and_refreshed):
     assert pine.crash_count == 4
     assert pine.latitude == pytest.approx(34.0)
     assert pine.longitude == pytest.approx(-118.0)
+
+
+# ── mv_street_totals (migration 77b8d6739669) ─────────────────────────────
+#
+# The coarse view has no year / involvement axis, so it is only asked the
+# cases without those filters — exactly the ones _cached_aggregate routes to
+# it. Same bar as above: row-for-row agreement with the raw query.
+
+_COARSE_KEYS = {"by_secondary", "county_code", "min_crashes", "limit", "sort"}
+TOTALS_CASES = [c for c in CASES if set(c.values[0]) <= _COARSE_KEYS]
+
+
+def _call_totals(session, overrides):
+    kwargs = {"by_secondary": False, "county_code": None, "min_crashes": 1,
+              "limit": 25, "sort": "count"}
+    kwargs.update(overrides)
+    return _aggregate_from_totals(session, **kwargs)
+
+
+@pytest.mark.parametrize("overrides", TOTALS_CASES)
+def test_totals_view_matches_raw_query(seeded_and_refreshed, overrides):
+    session = seeded_and_refreshed
+    raw = _call(_aggregate, session, overrides)
+    totals = _call_totals(session, overrides)
+
+    assert _comparable(totals) == _comparable(raw), (
+        f"totals view and raw query disagree for {overrides}"
+    )
+    sort = overrides.get("sort", "count")
+    assert _sort_keys(totals, sort) == _sort_keys(raw, sort)
+
+
+def test_totals_cases_cover_both_scopes_and_sorts():
+    """Guard against the filter above silently emptying the matrix."""
+    ids = {c.id for c in TOTALS_CASES}
+    assert {"statewide-corridors-unfiltered", "statewide-intersections",
+            "county-scoped", "severity-sort", "limit"} <= ids
+
+
+def _concentration_via(populated, session, **overrides):
+    kwargs = {"by_secondary": False, "county_code": None, "county_name": None,
+              "year_start": None, "year_end": None}
+    kwargs.update(overrides)
+    clear_concentration_cache()
+    with patch.object(intersections_mod, "_mv_populated", return_value=populated):
+        return _concentration(session, **kwargs).model_dump()
+
+
+@pytest.mark.parametrize("by_secondary", [False, True], ids=["corridors", "intersections"])
+@pytest.mark.parametrize("county_code", [None, 19], ids=["statewide", "county"])
+def test_concentration_from_totals_matches_live(seeded_and_refreshed, by_secondary, county_code):
+    """Statewide, the live query groups by road NAME across counties (MAIN ST
+    in LA and Orange is one unit) — the totals view must reproduce that, not
+    the per-county grain."""
+    session = seeded_and_refreshed
+    live = _concentration_via(False, session, by_secondary=by_secondary, county_code=county_code)
+    totals = _concentration_via(True, session, by_secondary=by_secondary, county_code=county_code)
+    assert totals == live
+    assert totals["total_units"] > 0
+
+
+@pytest.mark.parametrize(
+    "path, fn",
+    [
+        ("/api/intersections?min_crashes=1", "_aggregate_from_totals"),
+        ("/api/corridors?min_crashes=1", "_aggregate_from_totals"),
+        ("/api/street-concentration", "_concentration_units"),
+    ],
+)
+def test_statewide_endpoint_reads_totals_view_and_matches_live(
+    client, seeded_and_refreshed, path, fn,
+):
+    """No county selected: the endpoint reads mv_street_totals when populated,
+    and the JSON matches what the live query returns — same rows, same
+    ranking. Two allowances, both already made by the fine-view tests above:
+    coordinate means are floating-point sums taken in a different scan order
+    (compared to 9 places), and rows tied on both ORDER BY keys may come back
+    in either order (compared as a set, with the ranking keys checked in
+    sequence)."""
+    with (
+        patch.object(intersections_mod, "_mv_populated", return_value=True),
+        patch.object(intersections_mod, fn, wraps=getattr(intersections_mod, fn)) as spy,
+    ):
+        fast = client.get(path)
+        assert fast.status_code == 200
+        assert spy.call_count == 1
+    clear_aggregate_cache()
+    clear_concentration_cache()
+    with patch.object(intersections_mod, "_mv_populated", return_value=False):
+        live = client.get(path)
+
+    fast_body, live_body = fast.json(), live.json()
+    assert fast_body, "expected data in the seeded set"
+    if not isinstance(fast_body, list):  # street-concentration: one object
+        assert fast_body == live_body
+        return
+
+    def _rows(body):
+        return sorted(
+            (
+                {**row, **{k: None if row[k] is None else round(row[k], 9)
+                           for k in ("latitude", "longitude")}}
+                for row in body
+            ),
+            key=lambda r: (r["county_code"], r["primary_road"], r["secondary_road"] or ""),
+        )
+
+    assert _rows(fast_body) == _rows(live_body)
+    assert [(r["crash_count"], r["fatal_count"]) for r in fast_body] == \
+        [(r["crash_count"], r["fatal_count"]) for r in live_body]

@@ -192,6 +192,17 @@ def _norm(col):
 # It is created WITH NO DATA and populated by the nightly refresh, so every
 # read is guarded by _mv_populated() and falls back to the live query. Slow is
 # better than wrong, and much better than 503.
+#
+# mv_street_totals (migration 77b8d6739669) is the second tier. The fine view
+# keeps (year, ped, cyc) so filters can be answered, which leaves it at ~7M
+# rows — and the DEFAULT page state (no filters at all) then has to fold all
+# of that back down statewide on every cache miss (15s intersections, 7s
+# corridors, 9s concentration, measured 2026-09-12). The totals view stores
+# the already-folded grains, one row per street unit, with the two ranking
+# orders indexed, so the default state is an index walk. Whenever a request
+# carries no year / involvement filter it reads the totals view; otherwise it
+# reads the fine view; and either falls back to the live query when
+# unpopulated.
 
 _mv_meta = MetaData()
 
@@ -223,19 +234,49 @@ mv_street_aggregates = Table(
     Column("lon_n", BigInteger),
 )
 
+mv_street_totals = Table(
+    "mv_street_totals",
+    _mv_meta,
+    # Which GROUPING SET the row belongs to — see _GRAIN_* below.
+    Column("grain", SmallInteger),
+    # 0 for the statewide grains (2, 3), where county is not grouped.
+    Column("county_code", SmallInteger),
+    Column("primary_road", String),
+    # '' for "no secondary road" AND for the grains that don't group by it.
+    Column("secondary_road", String),
+    Column("crash_count", BigInteger),
+    Column("fatal_count", BigInteger),
+    Column("injury_count", BigInteger),
+    Column("pdo_count", BigInteger),
+    # fatal*_W_FATAL + injury*_W_INJURY + pdo*_W_PDO, stored so it can be indexed.
+    Column("severity_score", BigInteger),
+    Column("killed", BigInteger),
+    Column("injured", BigInteger),
+    Column("latitude", Float),
+    Column("longitude", Float),
+)
+
+# GROUPING(county_code, secondary_road) bitmask: a set bit means that column
+# was NOT grouped (rolled up). First argument is the most significant bit.
+_GRAIN_COUNTY_PAIR = 0  # (county, primary, secondary)
+_GRAIN_COUNTY_ROAD = 1  # (county, primary)
+_GRAIN_PAIR = 2  # (primary, secondary) — statewide, name-only
+_GRAIN_ROAD = 3  # (primary) — statewide, name-only
+
 _MV_NAME = "mv_street_aggregates"
-# The view only flips to populated once (the first refresh after deploy), so a
+_TOTALS_NAME = "mv_street_totals"
+# A view only flips to populated once (the first refresh after deploy), so a
 # short cache is plenty and keeps a catalog round-trip off every request.
 _MV_POPULATED_TTL_SECONDS = 60
-_mv_populated_cache: tuple[float, bool] | None = None
+_mv_populated_cache: dict[str, tuple[float, bool]] = {}
 
 
-def _mv_populated(db: Session) -> bool:
-    """Whether the street matview exists and has been populated at least once."""
-    global _mv_populated_cache
+def _mv_populated(db: Session, name: str = _MV_NAME) -> bool:
+    """Whether the named street matview exists and has been populated at least once."""
     now = time.monotonic()
-    if _mv_populated_cache is not None and _mv_populated_cache[0] > now:
-        return _mv_populated_cache[1]
+    hit = _mv_populated_cache.get(name)
+    if hit is not None and hit[0] > now:
+        return hit[1]
     try:
         populated = bool(
             db.execute(
@@ -243,20 +284,95 @@ def _mv_populated(db: Session) -> bool:
                     "SELECT relispopulated FROM pg_class "
                     "WHERE relname = :name AND relkind = 'm'"
                 ),
-                {"name": _MV_NAME},
+                {"name": name},
             ).scalar()
         )
     except Exception:  # noqa: BLE001 — never let the probe break the endpoint
-        logger.warning("%s population probe failed; using the live query", _MV_NAME, exc_info=True)
+        logger.warning("%s population probe failed; using the live query", name, exc_info=True)
         populated = False
-    _mv_populated_cache = (now + _MV_POPULATED_TTL_SECONDS, populated)
+    _mv_populated_cache[name] = (now + _MV_POPULATED_TTL_SECONDS, populated)
     return populated
 
 
 def reset_mv_populated_cache() -> None:
-    """Test hook: forget whether the matview was populated."""
-    global _mv_populated_cache
-    _mv_populated_cache = None
+    """Test hook: forget whether the matviews were populated."""
+    _mv_populated_cache.clear()
+
+
+def _to_out(rows, by_secondary: bool) -> list[IntersectionOut]:
+    """Row → IntersectionOut; shared by both matview paths."""
+    return [
+        IntersectionOut(
+            county_code=r.county_code,
+            county_name=r.county_name,
+            primary_road=r.primary_road,
+            secondary_road=r.secondary_road if by_secondary else None,
+            crash_count=int(r.crash_count or 0),
+            fatal_count=int(r.fatal_count or 0),
+            injury_count=int(r.injury_count or 0),
+            pdo_count=int(r.pdo_count or 0),
+            severity_score=int(r.severity_score or 0),
+            killed=int(r.killed or 0),
+            injured=int(r.injured or 0),
+            latitude=r.latitude,
+            longitude=r.longitude,
+        )
+        for r in rows
+    ]
+
+
+def _aggregate_from_totals(
+    db: Session,
+    *,
+    by_secondary: bool,
+    county_code: int | None,
+    min_crashes: int,
+    limit: int,
+    sort: str,
+) -> list[IntersectionOut]:
+    """Same result as _aggregate for the no-year / no-involvement case, read
+    from mv_street_totals — no GROUP BY, so the ORDER BY + LIMIT is served by
+    the (grain, <order>, fatal_count) index."""
+    t = mv_street_totals
+    preds = [
+        t.c.grain == (_GRAIN_COUNTY_PAIR if by_secondary else _GRAIN_COUNTY_ROAD),
+        t.c.crash_count >= min_crashes,
+    ]
+    if by_secondary:
+        preds.append(t.c.secondary_road != "")
+    if county_code is not None:
+        preds.append(t.c.county_code == county_code)
+
+    primary_order = (
+        t.c.severity_score.desc() if sort == "severity" else t.c.crash_count.desc()
+    )
+    stmt = (
+        select(
+            t.c.county_code.label("county_code"),
+            County.name.label("county_name"),
+            t.c.primary_road.label("primary_road"),
+            (
+                t.c.secondary_road.label("secondary_road")
+                if by_secondary
+                else null().label("secondary_road")
+            ),
+            t.c.crash_count.label("crash_count"),
+            t.c.fatal_count.label("fatal_count"),
+            t.c.injury_count.label("injury_count"),
+            t.c.pdo_count.label("pdo_count"),
+            t.c.severity_score.label("severity_score"),
+            t.c.killed.label("killed"),
+            t.c.injured.label("injured"),
+            t.c.latitude.label("latitude"),
+            t.c.longitude.label("longitude"),
+        )
+        .select_from(t)
+        .join(County, County.code == t.c.county_code, isouter=True)
+        .where(and_(*preds))
+        .order_by(primary_order, t.c.fatal_count.desc())
+        .limit(limit)
+    )
+    return _to_out(db.execute(stmt).all(), by_secondary)
 
 
 def _aggregate_from_mv(
@@ -341,25 +457,7 @@ def _aggregate_from_mv(
     if preds:
         stmt = stmt.where(and_(*preds))
 
-    rows = db.execute(stmt).all()
-    return [
-        IntersectionOut(
-            county_code=r.county_code,
-            county_name=r.county_name,
-            primary_road=r.primary_road,
-            secondary_road=r.secondary_road if by_secondary else None,
-            crash_count=int(r.crash_count or 0),
-            fatal_count=int(r.fatal_count or 0),
-            injury_count=int(r.injury_count or 0),
-            pdo_count=int(r.pdo_count or 0),
-            severity_score=int(r.severity_score or 0),
-            killed=int(r.killed or 0),
-            injured=int(r.injured or 0),
-            latitude=r.latitude,
-            longitude=r.longitude,
-        )
-        for r in rows
-    ]
+    return _to_out(db.execute(stmt).all(), by_secondary)
 
 
 def _street_preds_and_groups(by_secondary, county_code, year_start, year_end):
@@ -509,15 +607,26 @@ def _cached_aggregate(
     hit = _aggregate_cache.get(cache_key)
     if hit is not None and hit[0] > time.monotonic():
         return hit[1]
-    # Prefer the pre-rolled-up matview; fall back to scanning raw crashes
-    # while it is still unpopulated (freshly deployed, before the first
-    # nightly refresh).
-    compute = _aggregate_from_mv if _mv_populated(db) else _aggregate
-    result = compute(
-        db, by_secondary=by_secondary, county_code=county_code,
-        year_start=year_start, year_end=year_end, min_crashes=min_crashes,
-        limit=limit, pedestrian=pedestrian, cyclist=cyclist, sort=sort,
+    # Coarsest view that can answer the filters, falling back to scanning raw
+    # crashes while a view is still unpopulated (freshly deployed, before the
+    # first nightly refresh). The totals view has no year / involvement axis,
+    # so any of those filters sends the request to the fine view.
+    coarse_ok = (
+        year_start is None and year_end is None
+        and pedestrian is None and cyclist is None
     )
+    if coarse_ok and _mv_populated(db, _TOTALS_NAME):
+        result = _aggregate_from_totals(
+            db, by_secondary=by_secondary, county_code=county_code,
+            min_crashes=min_crashes, limit=limit, sort=sort,
+        )
+    else:
+        compute = _aggregate_from_mv if _mv_populated(db) else _aggregate
+        result = compute(
+            db, by_secondary=by_secondary, county_code=county_code,
+            year_start=year_start, year_end=year_end, min_crashes=min_crashes,
+            limit=limit, pedestrian=pedestrian, cyclist=cyclist, sort=sort,
+        )
     if len(_aggregate_cache) >= _AGGREGATE_CACHE_MAX:
         _aggregate_cache.clear()
     _aggregate_cache[cache_key] = (time.monotonic() + _AGGREGATE_TTL_SECONDS, result)
@@ -551,6 +660,58 @@ def clear_concentration_cache() -> None:
     _concentration_cache.clear()
 
 
+def _concentration_units(
+    db: Session,
+    *,
+    by_secondary: bool,
+    county_code: int | None,
+    year_start: int | None,
+    year_end: int | None,
+):
+    """One (crash_count, severe) row per street unit, as a subquery.
+
+    Read from mv_street_totals when there is no year bound (the view has no
+    year axis) and it is populated; otherwise group the live crashes table.
+    Statewide, the live query groups by road NAME only — "MAIN ST" is one
+    unit across the state — so it maps to the name-only grains (2, 3), while
+    a county scope maps to the county grains (0, 1).
+    """
+    if year_start is None and year_end is None and _mv_populated(db, _TOTALS_NAME):
+        t = mv_street_totals
+        if county_code is not None:
+            grain = _GRAIN_COUNTY_PAIR if by_secondary else _GRAIN_COUNTY_ROAD
+        else:
+            grain = _GRAIN_PAIR if by_secondary else _GRAIN_ROAD
+        preds = [t.c.grain == grain]
+        if by_secondary:
+            preds.append(t.c.secondary_road != "")
+        if county_code is not None:
+            preds.append(t.c.county_code == county_code)
+        return (
+            select(
+                t.c.crash_count.label("crash_count"),
+                (t.c.fatal_count + t.c.injury_count).label("severe"),
+            )
+            .where(and_(*preds))
+            .subquery()
+        )
+
+    preds, group_cols = _street_preds_and_groups(
+        by_secondary, county_code, year_start, year_end,
+    )
+    severe = func.count(case((Crash.severity.in_(("Fatal", "Injury")), 1)))
+    return (
+        select(
+            func.count(Crash.id).label("crash_count"),
+            severe.label("severe"),
+        )
+        .select_from(Crash)
+        .where(and_(*preds))
+        .group_by(*group_cols)
+        .subquery()
+    )
+
+
 def _concentration(
     db: Session,
     *,
@@ -572,20 +733,9 @@ def _concentration(
     hit = _concentration_cache.get(cache_key)
     if hit is not None and hit[0] > time.monotonic():
         return hit[1]
-    preds, group_cols = _street_preds_and_groups(
-        by_secondary, county_code, year_start, year_end,
-    )
-    severe = func.count(case((Crash.severity.in_(("Fatal", "Injury")), 1)))
-
-    units = (
-        select(
-            func.count(Crash.id).label("crash_count"),
-            severe.label("severe"),
-        )
-        .select_from(Crash)
-        .where(and_(*preds))
-        .group_by(*group_cols)
-        .subquery()
+    units = _concentration_units(
+        db, by_secondary=by_secondary, county_code=county_code,
+        year_start=year_start, year_end=year_end,
     )
     ranked = (
         select(
