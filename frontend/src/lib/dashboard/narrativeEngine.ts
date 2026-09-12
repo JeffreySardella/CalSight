@@ -8,7 +8,16 @@
 
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import type { Anomaly } from "./anomaly";
-import { slotKey, type ChartOptions } from "./types";
+import { slotKey, DIMENSION_LABELS, type ChartOptions, type Dimension } from "./types";
+
+// Only these axes have an order along which "increased/decreased over this
+// period" means anything. Every other dimension (county, cause, severity, …)
+// arrives sorted by value, so first-third vs last-third is always a steep
+// "decrease" — the Stats page shipped "Crash Count has decreased by about 99%"
+// under a severity pie for months. Callers pass either the raw key or its
+// DIMENSION_LABELS text, so accept both.
+const TIME_DIMENSIONS: Dimension[] = ["hour", "day_of_week", "month", "year"];
+const TIME_AXES = new Set<string>(TIME_DIMENSIONS.flatMap(d => [d, DIMENSION_LABELS[d]]));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -132,8 +141,10 @@ export function generateChartNarrative(
   const sentences: string[] = [];
   const facts: StatFact[] = [];
 
-  // Trend sentence
-  if (trend.direction !== "flat") {
+  // Trend sentence — time axes only; a categorical chart has no "period".
+  if (!TIME_AXES.has(dimension)) {
+    // no trend sentence
+  } else if (trend.direction !== "flat") {
     const verb = trend.direction === "up" ? "increased" : "decreased";
     sentences.push(
       tone === "technical"
