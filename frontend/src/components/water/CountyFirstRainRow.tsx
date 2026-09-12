@@ -1,6 +1,11 @@
 import { Link } from "react-router-dom";
 import { formatDay, formatLift, useFirstRain } from "../../hooks/useFirstRain";
 
+/** 306 → "306", 12.5 → "12.5" — one decimal only when there is one. */
+function formatBaseline(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 interface CountyFirstRainRowProps {
   /** Numeric county code, resolved upstream by the map page. */
   countyCode: number | undefined;
@@ -51,7 +56,7 @@ export default function CountyFirstRainRow({ countyCode }: CountyFirstRainRowPro
       {event && (
         <p className="text-xs text-on-surface-variant leading-snug">
           {`First storm of WY${event.water_year} (${formatDay(event.first_rain_date)}): ` +
-            `${event.crashes_on_day} crashes vs ${event.baseline_daily_crashes.toFixed(1)}/day` +
+            `${event.crashes_on_day} crashes vs ${formatBaseline(event.baseline_daily_crashes)}/day` +
             (event.lift_pct != null ? `, ${formatLift(event.lift_pct)}` : "") +
             (event.small_baseline ? " (small numbers)" : "")}
         </p>
