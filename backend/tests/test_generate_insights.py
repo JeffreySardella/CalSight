@@ -8,10 +8,13 @@ counts churn daily → 58 LLM calls/day). The year queries now exclude the
 current calendar year exactly like generate_llm_cards' "latest" mode.
 """
 
+import pytest
+
 from etl.generate_insights import (
     _EXCLUDE_CURRENT_YEAR_SQL,
     _all_years,
     _latest_year,
+    is_junk_narrative,
 )
 
 
@@ -63,3 +66,42 @@ def test_exclusion_matches_generate_llm_cards_pattern():
     """Both card generators must gate on the same current-year exclusion so
     the two insight surfaces never disagree about which year is 'latest'."""
     assert "crash_year < EXTRACT(year FROM CURRENT_DATE)" in _EXCLUDE_CURRENT_YEAR_SQL
+
+
+# ── junk-narrative detection ─────────────────────────────────────────────
+#
+# Older rows hold chatter from the previous model ("Here is a 2-3 sentence
+# narrative...") — non-NULL, so the NULL-only retry never touched them.
+
+_REAL = (
+    "Los Angeles County recorded 52,310 crashes in 2011, a 3% drop from 2010; "
+    "unsafe speed was the leading cause."
+)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        None,
+        "",
+        "Here is a 2-3 sentence narrative for Los Angeles County in 2010: " + _REAL,
+        "Here's the narrative: " + _REAL,
+        "Sure, here's a short summary. " + _REAL,
+        "Certainly! " + _REAL,
+        "Okay. " + _REAL,
+        "Below is the requested text. " + _REAL,
+        "As an AI language model I " + _REAL,
+        "I cannot generate " + _REAL,
+        "I can't generate " + _REAL,
+        "**Los Angeles County, 2010** " + _REAL,
+        _REAL + " (2-3 sentence version)",
+        "Crashes fell 3% in 2011.",
+    ],
+)
+def test_is_junk_narrative_flags_chatter(text):
+    assert is_junk_narrative(text) is True
+
+
+def test_is_junk_narrative_keeps_real_prose():
+    assert is_junk_narrative(_REAL) is False
+    assert is_junk_narrative("  " + _REAL + "\n") is False
