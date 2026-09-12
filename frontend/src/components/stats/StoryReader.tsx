@@ -5,6 +5,7 @@ import type { StatsFilters } from "../../hooks/useStats";
 import { useDashboardData } from "../../hooks/useDashboardData";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import ChartCard from "./ChartCard";
+import FirstRainBlock from "./FirstRainBlock";
 
 function resolveBody(body: string | ((ctx: StoryContext) => string), ctx: StoryContext): string {
   return typeof body === "function" ? body(ctx) : body;
@@ -158,7 +159,7 @@ function StoryBlockRenderer({
           <h3 className="text-lg sm:text-xl font-headline font-semibold text-on-surface">
             {block.heading}
           </h3>
-          <p className="font-serif text-on-surface-variant text-sm sm:text-base leading-[1.8] tracking-[0.01em]">
+          <p className="font-serif text-on-surface-variant text-sm sm:text-base leading-[1.8] tracking-[0.01em] whitespace-pre-line">
             {resolveBody(block.body, storyContext)}
           </p>
         </div>
@@ -212,6 +213,9 @@ function StoryBlockRenderer({
         </div>
       );
     }
+
+    case "first-rain":
+      return <FirstRainBlock countySlug={block.countySlug} />;
 
     default:
       return null;

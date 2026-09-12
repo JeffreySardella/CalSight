@@ -38,7 +38,15 @@ export type StatCalloutBlock = {
   context?: string;
 };
 
-export type StoryBlock = NarrativeBlock | ChartBlock | StatCalloutBlock;
+/** Daily crash counts around a county's most recent first-rain day — a
+ *  live chart off /api/first-rain, outside the /api/stats dimensions. */
+export type FirstRainStoryBlock = {
+  type: "first-rain";
+  id: string;
+  countySlug: string;
+};
+
+export type StoryBlock = NarrativeBlock | ChartBlock | StatCalloutBlock | FirstRainStoryBlock;
 
 export type DataStory = {
   id: string;
@@ -576,6 +584,27 @@ export const DATA_STORIES: DataStory[] = [
         type: "narrative",
         heading: "Enforcement as infrastructure",
         body: "The speed camera debate often focuses on revenue vs. safety. But the data suggests enforcement should be viewed as infrastructure — a sustained, consistent system rather than periodic campaigns. California's AB 645 speed camera pilot in 6 cities will provide the first controlled evidence of automated enforcement's impact. If results match international data, the case for statewide expansion becomes overwhelming.",
+      },
+    ],
+  },
+  {
+    id: "first-storm",
+    title: "The first storm",
+    subtitle: "What happens on the day the rain comes back",
+    icon: "rainy",
+    blocks: [
+      {
+        type: "narrative",
+        heading: "The day the rain comes back",
+        body: "California's water year starts on October 1, usually deep in a dry spell. By then months of oil, rubber and dust have settled into the pavement, and drivers have gone just as long without a wet road. The first storm that breaks the spell lifts that film before it washes it away, and it meets a driving public that is out of practice.\n\nThe headline figure on the Water page — the median lift across every water year on record — is computed live from that data: crashes on the first rainy day of each water year, against the average of the 28 dry days before it. The charts below show what one of those days looks like in two counties.",
+        isThesis: true,
+      },
+      { type: "first-rain", id: "story-first-rain", countySlug: "los-angeles" },
+      { type: "first-rain", id: "story-first-rain-sacramento", countySlug: "sacramento" },
+      {
+        type: "narrative",
+        heading: "What this does and doesn't say",
+        body: "Rain here is a county-average from nClimGrid, so a storm that soaks one edge of a large county counts for all of it, and a light shower can cross the 0.10-inch line without wetting every road. Only the first qualifying storm of each water year is counted — later storms, and the days after the first one, are not. Smaller counties have small baselines, and a handful of crashes either way moves their percentages a lot; those are flagged. Above all, this is an association: crash counts rose on these days and rain is the obvious thing that changed, but the data cannot say it was the cause.",
       },
     ],
   },

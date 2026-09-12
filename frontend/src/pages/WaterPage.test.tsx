@@ -54,6 +54,10 @@ function renderPage(rows: ReservoirCondition[] | Error) {
       // No precip-index data either — that section hides itself too.
       return new Response("not found", { status: 404 });
     }
+    if (url.includes("/api/first-rain")) {
+      // No first-storm data — the tile at the top hides itself.
+      return new Response("not found", { status: 404 });
+    }
     throw new Error(`unexpected fetch: ${url}`);
   });
   const client = new QueryClient({
