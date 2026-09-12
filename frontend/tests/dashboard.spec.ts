@@ -111,6 +111,7 @@ test.describe("Dashboard Builder - Builder Mode", () => {
 
 test.describe("Dashboard Builder - Chart Interactions", () => {
   test("hovering over a bar chart shows a tooltip", async ({ page }) => {
+    test.skip(!process.env.VITE_API_TARGET, "needs chart data from the API (no bars to hover without a backend)");
     await page.goto(`${BASE_URL}/stats`);
     await page.waitForSelector(".chart-card-enter", { timeout: 15000 });
 
@@ -130,16 +131,22 @@ test.describe("Dashboard Builder - Chart Interactions", () => {
 
 test.describe("Dashboard Builder - Data Table Toggle", () => {
   test("clicking table toggle shows data table, clicking again returns to chart", async ({ page }) => {
+    test.skip(!process.env.VITE_API_TARGET, "needs chart data from the API (the table only renders when a card has data)");
     await page.goto(`${BASE_URL}/stats`);
     await page.waitForSelector(".chart-card-enter", { timeout: 15000 });
 
-    // Find the first chart card's table toggle button (aria-label "View data")
-    const tableToggle = page.locator('button[aria-label="View data"]').first();
-    await tableToggle.click();
+    // Scope everything to one chart card (pinned by index, since its toggle's
+    // label flips): the Stats page also renders page-level tables (highway
+    // rankings, county YoY), so a bare page.locator("table") re-resolves to
+    // one of those after toggling back.
+    const card = page.locator(".chart-card-enter").first();
+    await card.getByRole("button", { name: "View data" }).first().click();
 
-    // Assert a table element appears
-    const table = page.locator("table").first();
-    await expect(table).toBeVisible();
+    // Assert a table element appears. The card may still be loading when the
+    // toggle is clicked (the table replaces the skeleton once data lands), so
+    // allow the same budget as the initial page wait.
+    const table = card.getByRole("table");
+    await expect(table).toBeVisible({ timeout: 15000 });
 
     // Assert the table has data rows (tbody tr)
     const rows = table.locator("tbody tr");
@@ -147,8 +154,7 @@ test.describe("Dashboard Builder - Data Table Toggle", () => {
     expect(rowCount).toBeGreaterThan(0);
 
     // Click toggle again to return to chart (now labeled "Show chart")
-    const chartToggle = page.locator('button[aria-label="Show chart"]').first();
-    await chartToggle.click();
+    await card.getByRole("button", { name: "Show chart" }).first().click();
 
     // Table should no longer be visible
     await expect(table).not.toBeVisible();
@@ -188,10 +194,8 @@ test.describe("Dashboard Builder - Mobile Viewport", () => {
     await page.goto(`${BASE_URL}/stats`);
     await page.waitForSelector(".chart-card-enter", { timeout: 15000 });
 
-    // Get the chart grid container (uniquely identified by drag-drop attribute)
-    const grid = page.locator("[aria-dropeffect]");
-    await expect(grid).toBeVisible();
-
+    // (The grid no longer carries aria-dropeffect — deprecated ARIA that axe
+    // flagged — so it is identified by its cards rather than an attribute.)
     // All chart cards should be stacked vertically (single column)
     // Verify multiple chart cards exist
     const chartCards = page.locator(".chart-card-enter");
