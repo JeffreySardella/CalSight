@@ -78,7 +78,7 @@ export default function HighwayRankingsTable({ filters }: HighwayRankingsTablePr
           onRetry={() => refetch()}
         />
       ) : isLoading ? (
-        <div className="space-y-1.5" aria-busy="true" aria-label="Loading highway rankings">
+        <div className="space-y-1.5" role="status" aria-busy="true" aria-label="Loading highway rankings">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-9 rounded-md bg-surface-container animate-pulse" />
           ))}
