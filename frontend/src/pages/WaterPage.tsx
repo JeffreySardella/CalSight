@@ -1,5 +1,6 @@
 import MetaTags from "../components/seo/MetaTags";
 import DroughtSection from "../components/water/DroughtSection";
+import FirstStormTile from "../components/water/FirstStormTile";
 import PrecipSection from "../components/water/PrecipSection";
 import ReservoirCard from "../components/water/ReservoirCard";
 import SnowpackSection from "../components/water/SnowpackSection";
@@ -33,6 +34,8 @@ export default function WaterPage() {
           both total capacity and the historical average for this day of year.
         </p>
       </section>
+
+      <FirstStormTile />
 
       {isLoading && (
         <p role="status" className="text-center text-on-surface-variant py-16">

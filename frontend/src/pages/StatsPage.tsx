@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES, YEARS } from "../hooks/useFilterParams";
 import { Explainable } from "../components/ai/Explainable";
 import { snapshotFilters, buildTotalCrashesContext } from "../lib/ai/contextBuilders";
@@ -65,8 +65,13 @@ function StatsPageInner() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [timelapseActive, setTimelapseActive] = useState(false);
-  const [storiesMode, setStoriesMode] = useState(false);
-  const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
+  // `/stats?story=<id>` deep-links straight into a story (the Water page's
+  // first-storm tile uses it). Read once at mount; not written back after.
+  const [searchParams] = useSearchParams();
+  const linkedStoryId = searchParams.get("story");
+  const linkedStory = linkedStoryId && getStoryById(linkedStoryId) ? linkedStoryId : null;
+  const [storiesMode, setStoriesMode] = useState(linkedStory !== null);
+  const [activeStoryId, setActiveStoryId] = useState<string | null>(linkedStory);
   const filters = useFilterParams();
   const dataQuality = useDataQualityDisclaimer(
     filters.selectedDateRange,
