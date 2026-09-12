@@ -53,7 +53,7 @@
     "jsdom": "^29.0.1",
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19",
-    "terser": "^5.47.1",
+    "terser": "^5.51.2",
     "topojson-server": "^3.0.1",
     "typescript": "~5.7.0",
     "typescript-eslint": "^8.0.0",
