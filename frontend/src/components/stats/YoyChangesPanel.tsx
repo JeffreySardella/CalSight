@@ -83,7 +83,7 @@ export default function YoyChangesPanel() {
       </header>
 
       {isLoading ? (
-        <div className="space-y-1.5" aria-busy="true" aria-label="Loading results">
+        <div className="space-y-1.5" role="status" aria-busy="true" aria-label="Loading results">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-9 w-full" />
           ))}
