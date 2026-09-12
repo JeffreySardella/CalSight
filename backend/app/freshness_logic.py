@@ -54,6 +54,7 @@ STALENESS_THRESHOLDS: dict[str, int] = {
     "snowpack": 48,
     "drought": 48,
     "precip_indices": 48,
+    "first_rain": 48,
 }
 
 
