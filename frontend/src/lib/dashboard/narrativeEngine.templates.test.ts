@@ -70,11 +70,27 @@ describe("generateChartNarrative", () => {
     expect(result.facts.find((f) => f.type === "trend")!.label).toMatch(/^-/);
   });
 
+  it("never narrates a trend across a categorical axis", () => {
+    // A by-value-sorted categorical chart: first third ≫ last third, which the
+    // trend heuristic would read as a 90%+ "decrease over this period".
+    const data = [6_800_000, 4_400_000, 130_000].map((v, i) => ({ label: `cat${i}`, value: v }));
+    for (const dimension of ["Severity", "County", "Primary Cause", "cause", "county"]) {
+      const result = generateChartNarrative(data, dimension, "Crash Count", "plain");
+      expect(result.paragraph).not.toMatch(/over this period|increased|decreased/);
+      expect(result.facts.filter((f) => f.type === "trend")).toEqual([]);
+    }
+    // Time axes keep it, whether passed as the raw key or the label.
+    for (const dimension of ["year", "Year", "hour", "Hour of Day", "month", "Day of Week"]) {
+      const result = generateChartNarrative(data, dimension, "Crash Count", "plain");
+      expect(result.sentences[0]).toContain("decreased by about");
+    }
+  });
+
   it("emits peak, trough and dominance sentences when thresholds are crossed", () => {
     // mean = 180; peak 500 (+178% > 15%), trough 100 (44% below > 30%),
     // top share 500/900 ≈ 56% (> 40%).
     const data = [100, 100, 100, 100, 500].map((v, i) => ({ label: `x${i}`, value: v }));
-    const result = generateChartNarrative(data, "Hour", "Crash Count", "technical");
+    const result = generateChartNarrative(data, "Hour of Day", "Crash Count", "technical");
 
     expect(result.sentences).toContain("Peak of 500 at x4 (178% above mean).");
     expect(result.sentences).toContain("Trough of 100 at x0 (44% below mean).");
@@ -95,7 +111,7 @@ describe("generateChartNarrative", () => {
 
   it("uses the plain-tone peak/dominance wording", () => {
     const data = [100, 100, 100, 100, 500].map((v, i) => ({ label: `x${i}`, value: v }));
-    const result = generateChartNarrative(data, "Hour", "Crash Count", "plain");
+    const result = generateChartNarrative(data, "Hour of Day", "Crash Count", "plain");
     expect(result.sentences).toContain("The highest point was 500 at x4.");
     expect(result.sentences).toContain("The lowest point was 100 at x0.");
     expect(result.sentences).toContain("x4 makes up 56% of the total.");
