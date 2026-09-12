@@ -15,6 +15,10 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # ruff is 0.x: each minor reshuffles the default rule set (0.16 flags
+      # 714 findings here). Bump it by hand together with the lint fixes.
+      - dependency-name: "ruff"
+        update-types: ["version-update:semver-minor"]
 
   - package-ecosystem: npm
     directory: /frontend
