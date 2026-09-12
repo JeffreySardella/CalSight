@@ -266,7 +266,28 @@ def generate_with_fallback(
     max_tokens: int = 500,
     temperature: float = DEFAULT_TEMPERATURE,
 ) -> tuple[Any, str]:
-    chain = _get_provider_chain()
+    return _generate_over_chain(
+        _get_provider_chain(),
+        messages,
+        tools=tools,
+        tool_choice=tool_choice,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        budget=settings.llm_daily_request_budget,
+    )
+
+
+def _generate_over_chain(
+    chain: list[dict[str, str]],
+    messages: list[dict[str, str]],
+    tools: list[dict] | None = None,
+    tool_choice: str | None = None,
+    max_tokens: int = 500,
+    temperature: float = DEFAULT_TEMPERATURE,
+    budget: int = 0,
+) -> tuple[Any, str]:
+    """Walk ``chain`` in order, honouring cooldowns and the daily ``budget``
+    (0 = unlimited), returning the first successful (response, provider name)."""
     last_error = None
     tried = 0
 
@@ -285,13 +306,11 @@ def generate_with_fallback(
         # Spending backstop: consume from the daily budget only for paid
         # providers, and only once we know the call will actually be made
         # (cooldown/tool-support skips above never touch the counter).
-        if ptype not in _FREE_PROVIDER_TYPES and not llm_budget.try_consume(
-            settings.llm_daily_request_budget
-        ):
+        if ptype not in _FREE_PROVIDER_TYPES and not llm_budget.try_consume(budget):
             logger.warning(
                 "Skipping %s (daily LLM request budget of %d spent for this worker)",
                 name,
-                settings.llm_daily_request_budget,
+                budget,
             )
             if last_error is None:
                 last_error = RuntimeError("daily LLM request budget exhausted")
@@ -369,38 +388,27 @@ _narrative_call_counter = itertools.count()
 
 
 def generate_narrative(prompt: str) -> str:
-    """ETL narrative generator with automatic key rotation.
+    """ETL narrative generator: same provider chain as Ask AI, plus key rotation.
 
-    When LLM_API_KEY_2 is set, alternates between the two keys so each
-    key handles half the calls and stays under per-key rate limits.
+    When LLM_API_KEY_2 is set, the primary provider alternates between the two
+    keys so each handles half the calls and stays under per-key rate limits.
+    Fallback providers are tried in order if the primary fails (a primary-only
+    version of this function silently failed for four weeks after Groq retired
+    its Llama model). ETL calls are exempt from LLM_DAILY_REQUEST_BUDGET — that
+    backstop guards the public /api/ask, not a ~1,450-call nightly backfill.
+    Raises AllProvidersExhausted when every provider fails.
     """
-    call_num = next(_narrative_call_counter)
+    chain = _get_provider_chain()
+    keys = [k for k in (settings.llm_api_key, settings.llm_api_key_2) if k]
+    if keys:
+        call_num = next(_narrative_call_counter)
+        chain[0]["api_key"] = keys[call_num % len(keys)]
+        logger.info("generate_narrative using key #%d of %d", call_num % len(keys) + 1, len(keys))
 
-    provider = settings.llm_provider.lower()
-    defaults = _PROVIDER_DEFAULTS.get(provider, {})
-
-    base_url = settings.llm_base_url or defaults.get("base_url")
-    model = settings.llm_model or defaults.get("model")
-
-    keys = [k for k in [settings.llm_api_key, settings.llm_api_key_2] if k]
-    if not keys:
-        keys = ["ollama"] if provider == "ollama" else []
-    if not keys:
-        raise ValueError(f"No API key configured for provider {provider!r}.")
-    api_key = keys[call_num % len(keys)]
-
-    if not base_url:
-        raise ValueError(f"Unknown LLM provider {provider!r} and no LLM_BASE_URL set.")
-    if not model:
-        raise ValueError(f"No model configured for provider {provider!r}.")
-
-    logger.info("generate_narrative using key #%d of %d", call_num % len(keys) + 1, len(keys))
-    client = OpenAI(base_url=base_url, api_key=api_key, max_retries=0, timeout=30)
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
+    resp, _provider = _generate_over_chain(
+        chain,
+        [{"role": "user", "content": prompt}],
         max_tokens=200,
-        temperature=DEFAULT_TEMPERATURE,
-        **_model_kwargs(model),
+        budget=0,
     )
     return (resp.choices[0].message.content or "").strip()
