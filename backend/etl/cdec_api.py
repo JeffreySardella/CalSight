@@ -38,6 +38,7 @@ loader on top of this:
 
 import argparse
 import logging
+import time
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -47,6 +48,9 @@ logger = logging.getLogger(__name__)
 
 CDEC_BASE_URL = "https://cdec.water.ca.gov/dynamicapp/req/JSONDataServlet"
 REQUEST_DELAY = 0.5  # courtesy delay between batched requests
+# 110 snow stations x a 365-day backfill window is too much for one servlet
+# call; the station list goes out in chunks of this size.
+SNOW_STATIONS_PER_REQUEST = 25
 
 # CDEC sensor numbers (https://cdec.water.ca.gov/misc/senslist.html)
 SENSOR_STORAGE = 15  # reservoir storage, acre-feet
@@ -73,33 +77,136 @@ PRECIP_INDEX_STATIONS = {
     "6SI": {"name": "Tulare Basin 6-Station Index", "region": PRECIP_REGION_TULARE},
 }
 
-# DWR groups its ~130 electronic snow sensors into three Sierra regions and
-# reports each as a percent of average. These are five verified snow-pillow
-# stations per region (all carry sensor 3, daily SWE), a representative
-# static sample — station codes/elevations verified July 2026 against CDEC's
-# SnowSensors.html (via the egagli/snotel_ccss_stations machine-readable
-# mirror). Region assignment follows CDEC's snow-chart basin grouping, where
-# Yuba/American sit in the Central region.
+# DWR's official statewide snowpack summary (cdec.water.ca.gov/snowapp/
+# sweq.action) averages a FIXED list of electronic snow sensors per region
+# and reports each as a percent of average. This map is that list verbatim
+# — every station CDEC names under "Stations included" — so our regional
+# and statewide percents reconcile with DWR's headline figures. (The earlier
+# hand-picked 15-station sample skewed high-elevation and read 26.5% of the
+# April-1 average in 2026 when DWR published 18%.)
+#
+# Verified live 2026-09-12: NORTH 32, CENTRAL 54, SOUTH 25 as listed on
+# sweq.action. LVT (Leavitt Lake) appears under both CENTRAL and SOUTH
+# there; it is kept once, in CENTRAL, so the map holds 110 stations. LLP
+# (Lower Lassen Peak) has dropped off CDEC's list ("Not Selected", no
+# data) and is deliberately absent. Names and elevations are CDEC's own,
+# from the PAGE6 snow-sensor report (reportapp/javareports?name=PAGE6).
+# All carry sensor 3 (daily SWE). Sorted by region, then station id.
 SNOW_REGION_NORTH = "Northern Sierra / Trinity"
 SNOW_REGION_CENTRAL = "Central Sierra"
 SNOW_REGION_SOUTH = "Southern Sierra"
 
 MAJOR_SNOW_STATIONS = {
+    "ADM": {"name": "Adin Mountain", "elevation_ft": 6200, "region": SNOW_REGION_NORTH},
+    "BFL": {"name": "Big Flat", "elevation_ft": 5100, "region": SNOW_REGION_NORTH},
+    "BKL": {"name": "Bucks Lake", "elevation_ft": 5873, "region": SNOW_REGION_NORTH},
+    "BLA": {"name": "Blacks Mountain", "elevation_ft": 7050, "region": SNOW_REGION_NORTH},
+    "BMW": {"name": "Big Meadows", "elevation_ft": 8700, "region": SNOW_REGION_NORTH},
+    "BNK": {"name": "Bonanza King", "elevation_ft": 6450, "region": SNOW_REGION_NORTH},
+    "CDP": {"name": "Cedar Pass", "elevation_ft": 7100, "region": SNOW_REGION_NORTH},
+    "DSS": {"name": "Dismal Swamp", "elevation_ft": 7050, "region": SNOW_REGION_NORTH},
+    "FOR": {"name": "Four Trees", "elevation_ft": 5202, "region": SNOW_REGION_NORTH},
+    "GOL": {"name": "Gold Lake", "elevation_ft": 6750, "region": SNOW_REGION_NORTH},
     "GRZ": {"name": "Grizzly Ridge", "elevation_ft": 6760, "region": SNOW_REGION_NORTH},
-    "PLP": {"name": "Pilot Peak", "elevation_ft": 6800, "region": SNOW_REGION_NORTH},
-    "IDC": {"name": "Independence Camp", "elevation_ft": 7000, "region": SNOW_REGION_NORTH},
     "HIG": {"name": "Highland Lakes", "elevation_ft": 5830, "region": SNOW_REGION_NORTH},
+    "HMB": {"name": "Humbug", "elevation_ft": 6500, "region": SNOW_REGION_NORTH},
+    "IDC": {"name": "Independence Camp", "elevation_ft": 7000, "region": SNOW_REGION_NORTH},
+    "IDP": {"name": "Independence Lake", "elevation_ft": 8450, "region": SNOW_REGION_NORTH},
+    "INN": {"name": "Independence Creek", "elevation_ft": 6500, "region": SNOW_REGION_NORTH},
+    "KTL": {"name": "Kettle Rock", "elevation_ft": 7300, "region": SNOW_REGION_NORTH},
+    "MB3": {"name": "Middle Boulder 3", "elevation_ft": 6200, "region": SNOW_REGION_NORTH},
     "MED": {"name": "Medicine Lake", "elevation_ft": 6700, "region": SNOW_REGION_NORTH},
-    "CSL": {"name": "Central Sierra Snow Lab", "elevation_ft": 6900, "region": SNOW_REGION_CENTRAL},
+    "MUM": {"name": "Mumbo Basin", "elevation_ft": 5590, "region": SNOW_REGION_NORTH},
+    "NLS": {"name": "Noel Spring", "elevation_ft": 5100, "region": SNOW_REGION_NORTH},
+    "PET": {"name": "Peterson Flat", "elevation_ft": 7150, "region": SNOW_REGION_NORTH},
+    "PLP": {"name": "Pilot Peak", "elevation_ft": 6800, "region": SNOW_REGION_NORTH},
+    "RRM": {"name": "Red Rock Mountain", "elevation_ft": 6700, "region": SNOW_REGION_NORTH},
+    "SCT": {"name": "Scott Mountain", "elevation_ft": 5900, "region": SNOW_REGION_NORTH},
+    "SDF": {"name": "Sand Flat", "elevation_ft": 6750, "region": SNOW_REGION_NORTH},
+    "SHM": {"name": "Shimmy Lake", "elevation_ft": 6400, "region": SNOW_REGION_NORTH},
+    "SLT": {"name": "Slate Creek", "elevation_ft": 5560, "region": SNOW_REGION_NORTH},
+    "SNM": {"name": "Snow Mountain", "elevation_ft": 5950, "region": SNOW_REGION_NORTH},
+    "SQV": {"name": "Squaw Valley", "elevation_ft": 8200, "region": SNOW_REGION_NORTH},
+    "STM": {"name": "Stouts Meadow", "elevation_ft": 5200, "region": SNOW_REGION_NORTH},
+    "TK2": {"name": "Truckee 2", "elevation_ft": 6400, "region": SNOW_REGION_NORTH},
+    "ALP": {"name": "Alpha", "elevation_ft": 7600, "region": SNOW_REGION_CENTRAL},
+    "BLC": {"name": "Blue Canyon", "elevation_ft": 5280, "region": SNOW_REGION_CENTRAL},
+    "BLD": {"name": "Bloods Creek", "elevation_ft": 7200, "region": SNOW_REGION_CENTRAL},
     "BLK": {"name": "Blue Lakes", "elevation_ft": 7990, "region": SNOW_REGION_CENTRAL},
-    "GNL": {"name": "Gianelli Meadow", "elevation_ft": 8400, "region": SNOW_REGION_CENTRAL},
+    "BLS": {"name": "Black Springs", "elevation_ft": 6500, "region": SNOW_REGION_CENTRAL},
+    "BSK": {"name": "Burnside Lake", "elevation_ft": 8129, "region": SNOW_REGION_CENTRAL},
+    "CAP": {"name": "Caples Lake", "elevation_ft": 7920, "region": SNOW_REGION_CENTRAL},
+    "CSL": {"name": "Central Sierra Snow Lab", "elevation_ft": 6900, "region": SNOW_REGION_CENTRAL},
+    "CXS": {"name": "Carson Pass", "elevation_ft": 8353, "region": SNOW_REGION_CENTRAL},
     "DAN": {"name": "Dana Meadows", "elevation_ft": 9760, "region": SNOW_REGION_CENTRAL},
+    "DDM": {"name": "Deadman Creek", "elevation_ft": 9250, "region": SNOW_REGION_CENTRAL},
+    "EBB": {"name": "Ebbetts Pass", "elevation_ft": 8700, "region": SNOW_REGION_CENTRAL},
+    "EP5": {"name": "Echo Peak 5", "elevation_ft": 7800, "region": SNOW_REGION_CENTRAL},
+    "FDC": {"name": "Forestdale Creek", "elevation_ft": 8017, "region": SNOW_REGION_CENTRAL},
+    "FLL": {"name": "Fallen Leaf Lake", "elevation_ft": 6250, "region": SNOW_REGION_CENTRAL},
+    "FRN": {"name": "Forni Ridge", "elevation_ft": 7600, "region": SNOW_REGION_CENTRAL},
     "GIN": {"name": "Gin Flat", "elevation_ft": 7050, "region": SNOW_REGION_CENTRAL},
-    "VLC": {"name": "Volcanic Knob", "elevation_ft": 10050, "region": SNOW_REGION_SOUTH},
-    "BSH": {"name": "Bishop Pass", "elevation_ft": 11200, "region": SNOW_REGION_SOUTH},
-    "CRL": {"name": "Charlotte Lake", "elevation_ft": 10400, "region": SNOW_REGION_SOUTH},
+    "GKS": {"name": "Greek Store", "elevation_ft": 5600, "region": SNOW_REGION_CENTRAL},
+    "GNL": {"name": "Gianelli Meadow", "elevation_ft": 8400, "region": SNOW_REGION_CENTRAL},
+    "HGM": {"name": "Hagans Meadow", "elevation_ft": 8000, "region": SNOW_REGION_CENTRAL},
+    "HHM": {"name": "Highland Meadow", "elevation_ft": 8700, "region": SNOW_REGION_CENTRAL},
+    "HOR": {"name": "Horse Meadow", "elevation_ft": 8557, "region": SNOW_REGION_CENTRAL},
+    "HRS": {"name": "Horse Meadow", "elevation_ft": 8400, "region": SNOW_REGION_CENTRAL},
+    "HVN": {"name": "Heavenly Valley", "elevation_ft": 8800, "region": SNOW_REGION_CENTRAL},
+    "HYS": {"name": "Huysink", "elevation_ft": 6600, "region": SNOW_REGION_CENTRAL},
+    "KIB": {"name": "Lower Kibbie Ridge", "elevation_ft": 6700, "region": SNOW_REGION_CENTRAL},
+    "LBD": {"name": "Lobdell Lake", "elevation_ft": 9200, "region": SNOW_REGION_CENTRAL},
+    "LOS": {"name": "Lake Lois", "elevation_ft": 8600, "region": SNOW_REGION_CENTRAL},
+    "LVM": {"name": "Leavitt Meadows", "elevation_ft": 7200, "region": SNOW_REGION_CENTRAL},
+    "LVT": {"name": "Leavitt Lake", "elevation_ft": 9600, "region": SNOW_REGION_CENTRAL},
+    "MNT": {"name": "Monitor Pass", "elevation_ft": 8350, "region": SNOW_REGION_CENTRAL},
+    "MRL": {"name": "Marlette Lake", "elevation_ft": 8000, "region": SNOW_REGION_CENTRAL},
+    "MSK": {"name": "Mount Rose Ski Area", "elevation_ft": 8900, "region": SNOW_REGION_CENTRAL},
+    "PDS": {"name": "Paradise Meadow", "elevation_ft": 7650, "region": SNOW_REGION_CENTRAL},
+    "PSN": {"name": "Poison Flat", "elevation_ft": 7900, "region": SNOW_REGION_CENTRAL},
+    "RBB": {"name": "Robbs Saddle", "elevation_ft": 5900, "region": SNOW_REGION_CENTRAL},
+    "RBP": {"name": "Robbs Powerhouse", "elevation_ft": 5150, "region": SNOW_REGION_CENTRAL},
+    "RCC": {"name": "Robinson Cow Camp", "elevation_ft": 6480, "region": SNOW_REGION_CENTRAL},
+    "REL": {"name": "Lower Relief Valley", "elevation_ft": 8100, "region": SNOW_REGION_CENTRAL},
+    "RP2": {"name": "Rubicon Peak 2", "elevation_ft": 7500, "region": SNOW_REGION_CENTRAL},
+    "SCN": {"name": "Schneiders", "elevation_ft": 8750, "region": SNOW_REGION_CENTRAL},
+    "SDW": {"name": "Summit Meadow", "elevation_ft": 9313, "region": SNOW_REGION_CENTRAL},
+    "SIL": {"name": "Silver Lake", "elevation_ft": 7100, "region": SNOW_REGION_CENTRAL},
+    "SLI": {"name": "Slide Canyon", "elevation_ft": 9200, "region": SNOW_REGION_CENTRAL},
+    "SPS": {"name": "Sonora Pass Bridge", "elevation_ft": 8750, "region": SNOW_REGION_CENTRAL},
+    "SPT": {"name": "Spratt Creek", "elevation_ft": 6150, "region": SNOW_REGION_CENTRAL},
+    "STR": {"name": "Ostrander Lake", "elevation_ft": 8200, "region": SNOW_REGION_CENTRAL},
+    "TCC": {"name": "Tahoe City Cross", "elevation_ft": 6750, "region": SNOW_REGION_CENTRAL},
+    "TNY": {"name": "Lake Tenaya", "elevation_ft": 8070, "region": SNOW_REGION_CENTRAL},
+    "TUM": {"name": "Tuolumne Meadows", "elevation_ft": 8500, "region": SNOW_REGION_CENTRAL},
+    "VRG": {"name": "Virginia Lakes", "elevation_ft": 9300, "region": SNOW_REGION_CENTRAL},
+    "VVL": {"name": "Van Vleck", "elevation_ft": 6700, "region": SNOW_REGION_CENTRAL},
+    "WC3": {"name": "Ward Creek 3", "elevation_ft": 6750, "region": SNOW_REGION_CENTRAL},
+    "WHW": {"name": "White Wolf", "elevation_ft": 7900, "region": SNOW_REGION_CENTRAL},
+    "BCB": {"name": "Blackcap Basin", "elevation_ft": 10180, "region": SNOW_REGION_SOUTH},
+    "BCH": {"name": "Beach Meadows", "elevation_ft": 7650, "region": SNOW_REGION_SOUTH},
+    "BIM": {"name": "Big Meadows", "elevation_ft": 7600, "region": SNOW_REGION_SOUTH},
+    "CBT": {"name": "Crabtree Meadow", "elevation_ft": 10600, "region": SNOW_REGION_SOUTH},
+    "CHM": {"name": "Chilkoot Meadow", "elevation_ft": 7120, "region": SNOW_REGION_SOUTH},
+    "CHP": {"name": "Chagoopa Plateau", "elevation_ft": 10300, "region": SNOW_REGION_SOUTH},
+    "CWD": {"name": "Cottonwood Lakes", "elevation_ft": 10150, "region": SNOW_REGION_SOUTH},
+    "GNF": {"name": "Giant Forest", "elevation_ft": 6400, "region": SNOW_REGION_SOUTH},
+    "GRM": {"name": "Green Mountain", "elevation_ft": 7900, "region": SNOW_REGION_SOUTH},
+    "GRV": {"name": "Graveyard Meadow", "elevation_ft": 6900, "region": SNOW_REGION_SOUTH},
+    "HNT": {"name": "Huntington Lake", "elevation_ft": 7000, "region": SNOW_REGION_SOUTH},
+    "KSP": {"name": "Kaiser Point", "elevation_ft": 9200, "region": SNOW_REGION_SOUTH},
+    "MHP": {"name": "Mammoth Pass", "elevation_ft": 9300, "region": SNOW_REGION_SOUTH},
+    "MTM": {"name": "Mitchell Meadow", "elevation_ft": 10026, "region": SNOW_REGION_SOUTH},
+    "PSC": {"name": "Pascoes", "elevation_ft": 9120, "region": SNOW_REGION_SOUTH},
+    "PSR": {"name": "Poison Ridge", "elevation_ft": 6900, "region": SNOW_REGION_SOUTH},
+    "QUA": {"name": "Quaking Aspen", "elevation_ft": 7200, "region": SNOW_REGION_SOUTH},
+    "RCK": {"name": "Rock Creek Lakes", "elevation_ft": 9575, "region": SNOW_REGION_SOUTH},
+    "SLK": {"name": "South Lake", "elevation_ft": 9600, "region": SNOW_REGION_SOUTH},
+    "STL": {"name": "State Lakes", "elevation_ft": 10400, "region": SNOW_REGION_SOUTH},
+    "SWM": {"name": "Sawmill", "elevation_ft": 10200, "region": SNOW_REGION_SOUTH},
+    "TMR": {"name": "Tamarack Summit", "elevation_ft": 7550, "region": SNOW_REGION_SOUTH},
+    "UBC": {"name": "Upper Burnt Corral", "elevation_ft": 9700, "region": SNOW_REGION_SOUTH},
     "UTY": {"name": "Upper Tyndall Creek", "elevation_ft": 11500, "region": SNOW_REGION_SOUTH},
-    "FRW": {"name": "Farewell Gap", "elevation_ft": 9275, "region": SNOW_REGION_SOUTH},
 }
 
 # Major reservoirs tracked in v1, keyed by CDEC station id. Static map by
@@ -273,13 +380,23 @@ def fetch_reservoir_storage(start: date, end: date) -> list[Observation]:
 
 def fetch_snow_water_content(start: date, end: date) -> list[Observation]:
     """Fetch daily snow water content (SWE) for every MAJOR_SNOW_STATIONS
-    station. Sensor 3 is the raw daily SWE, present at all snow pillows."""
-    raw = fetch_sensor_data(
-        stations=sorted(MAJOR_SNOW_STATIONS),
-        sensor=SENSOR_SNOW_WATER_CONTENT,
-        start=start,
-        end=end,
-    )
+    station. Sensor 3 is the raw daily SWE, present at all snow pillows.
+
+    Stations are requested in chunks of SNOW_STATIONS_PER_REQUEST with the
+    courtesy delay between chunks; the rows are concatenated before parsing."""
+    stations = sorted(MAJOR_SNOW_STATIONS)
+    raw: list[dict] = []
+    for i in range(0, len(stations), SNOW_STATIONS_PER_REQUEST):
+        if i:
+            time.sleep(REQUEST_DELAY)
+        raw.extend(
+            fetch_sensor_data(
+                stations=stations[i : i + SNOW_STATIONS_PER_REQUEST],
+                sensor=SENSOR_SNOW_WATER_CONTENT,
+                start=start,
+                end=end,
+            )
+        )
     return parse_observations(raw)
 
 

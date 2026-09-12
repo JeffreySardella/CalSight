@@ -13,10 +13,13 @@ from unittest.mock import patch, MagicMock
 from etl.cdec_api import (
     MAJOR_RESERVOIRS,
     MISSING_VALUE,
+    SENSOR_SNOW_WATER_CONTENT,
     SENSOR_STORAGE,
+    SNOW_STATIONS_PER_REQUEST,
     Observation,
     fetch_reservoir_storage,
     fetch_sensor_data,
+    fetch_snow_water_content,
     parse_observations,
 )
 
@@ -173,3 +176,27 @@ class TestReservoirStorage:
             assert meta["name"]
             assert meta["capacity_af"] > 0
             assert meta["county"]
+
+
+class TestSnowWaterContent:
+    @patch("etl.cdec_api.time.sleep")
+    @patch("etl.cdec_api.fetch_sensor_data")
+    def test_chunks_station_list_per_request(self, mock_fetch, mock_sleep):
+        # 112 stations: one more than 4 full chunks, so 5 requests, each
+        # capped at SNOW_STATIONS_PER_REQUEST, and nothing lost or repeated.
+        fake = {f"S{i:02d}": {"region": "x"} for i in range(112)}
+        mock_fetch.side_effect = lambda stations, **kw: [
+            _row(station=s, sensorNumber=SENSOR_SNOW_WATER_CONTENT, value=10.0, units="INCHES")
+            for s in stations
+        ]
+
+        with patch("etl.cdec_api.MAJOR_SNOW_STATIONS", fake):
+            obs = fetch_snow_water_content(date(2026, 3, 1), date(2026, 3, 1))
+
+        batches = [c.kwargs["stations"] for c in mock_fetch.call_args_list]
+        assert len(batches) == 5
+        assert all(len(b) <= SNOW_STATIONS_PER_REQUEST for b in batches)
+        assert sorted(s for b in batches for s in b) == sorted(fake)
+        assert all(c.kwargs["sensor"] == SENSOR_SNOW_WATER_CONTENT for c in mock_fetch.call_args_list)
+        assert {o.station_id for o in obs} == set(fake)
+        assert mock_sleep.call_count == 4  # between chunks, not before the first
