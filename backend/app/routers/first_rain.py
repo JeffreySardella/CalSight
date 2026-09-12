@@ -53,17 +53,37 @@ _MIN_BASELINE = 5.0  # crashes/day; below this a lift percentage is noise-prone
 _SERIES_HALF_WINDOW = 14  # days either side of the first rain
 
 
-@router.get("/first-rain", response_model=FirstRainOut)
-@_limiter.limit("120/minute;5000/hour")
-def get_first_rain(
-    request: Request,
-    response: Response,
-    db: Session = Depends(get_db),
-):
-    """Statewide + per-county first-rain crash lift, and days since last rain."""
-    apply_statement_timeout(db, 30_000)
-    response.headers["Cache-Control"] = _CACHE
+def county_event(ev: FirstRainEvent, name: str) -> CountyEvent:
+    """One first_rain_events row + its county name -> API shape."""
+    return CountyEvent(
+        county_code=ev.county_code,
+        county_name=name,
+        county_slug=slugify_name(name),
+        water_year=ev.water_year,
+        first_rain_date=ev.first_rain_date,
+        precip_in=ev.precip_in,
+        dry_days_before=ev.dry_days_before,
+        crashes_on_day=ev.crashes_on_day,
+        baseline_daily_crashes=ev.baseline_daily_crashes,
+        lift_pct=ev.lift_pct,
+        small_baseline=ev.baseline_daily_crashes < _MIN_BASELINE,
+    )
 
+
+def lookup_event(db: Session, code: int, water_year: int) -> tuple[FirstRainEvent, str] | None:
+    """The (event, county name) for one county x water year, or None."""
+    return db.execute(
+        select(FirstRainEvent, County.name)
+        .join(County, County.code == FirstRainEvent.county_code)
+        .where(FirstRainEvent.county_code == code, FirstRainEvent.water_year == water_year)
+    ).first()
+
+
+def build_first_rain(db: Session) -> FirstRainOut:
+    """Statewide + per-county first-rain crash lift, and days since last rain.
+
+    Shared by the endpoint and the Ask AI `first_rain` tool so there is one
+    copy of the roll-up SQL."""
     weather_through = db.execute(select(func.max(WeatherDaily.date))).scalar()
 
     events = db.execute(
@@ -93,19 +113,7 @@ def get_first_rain(
     lifts = [e.lift_pct for e in statewide_events if e.lift_pct is not None]
 
     counties = [
-        CountyEvent(
-            county_code=ev.county_code,
-            county_name=name,
-            county_slug=slugify_name(name),
-            water_year=ev.water_year,
-            first_rain_date=ev.first_rain_date,
-            precip_in=ev.precip_in,
-            dry_days_before=ev.dry_days_before,
-            crashes_on_day=ev.crashes_on_day,
-            baseline_daily_crashes=ev.baseline_daily_crashes,
-            lift_pct=ev.lift_pct,
-            small_baseline=ev.baseline_daily_crashes < _MIN_BASELINE,
-        )
+        county_event(ev, name)
         for ev, name in sorted(latest.values(), key=lambda t: t[0].county_code)
     ]
 
@@ -140,6 +148,19 @@ def get_first_rain(
     )
 
 
+@router.get("/first-rain", response_model=FirstRainOut)
+@_limiter.limit("120/minute;5000/hour")
+def get_first_rain(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Statewide + per-county first-rain crash lift, and days since last rain."""
+    apply_statement_timeout(db, 30_000)
+    response.headers["Cache-Control"] = _CACHE
+    return build_first_rain(db)
+
+
 @router.get("/first-rain/series", response_model=FirstRainSeriesOut)
 @_limiter.limit("120/minute;5000/hour")
 def get_first_rain_series(
@@ -154,11 +175,7 @@ def get_first_rain_series(
     response.headers["Cache-Control"] = _CACHE
 
     (code,) = parse_county_codes(county, get_slug_map(db))
-    row = db.execute(
-        select(FirstRainEvent, County.name)
-        .join(County, County.code == FirstRainEvent.county_code)
-        .where(FirstRainEvent.county_code == code, FirstRainEvent.water_year == water_year)
-    ).first()
+    row = lookup_event(db, code, water_year)
     if row is None:
         raise HTTPException(status_code=404, detail="No first-rain event for that county and water year")
     ev, name = row
