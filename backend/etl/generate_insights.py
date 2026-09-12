@@ -325,6 +325,29 @@ def _build_prompt(county_name: str, stats: dict, demo: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
+_JUNK_PREFIXES = (
+    "here is", "here's", "sure", "certainly", "okay", "below is",
+    "as an ai", "i cannot", "i can't", "**",
+)
+
+
+def is_junk_narrative(text: str | None) -> bool:
+    """True when a stored narrative should be regenerated.
+
+    NULL (the LLM failed), model chatter left by the previous model ("Here is
+    a 2-3 sentence narrative...", "Sure, here's...", markdown headers), or
+    anything too short to be a real 2-3 sentence card.
+    """
+    if not text:
+        return True
+    t = text.strip()
+    return (
+        len(t) < 40
+        or "2-3 sentence" in t
+        or t.lower().startswith(_JUNK_PREFIXES)
+    )
+
+
 def _build_update_dict(stats: dict, narrative: str | None, now) -> dict:
     """Build the on_conflict_do_update set_ dict.
 
@@ -379,6 +402,7 @@ def run() -> int:
         )
         upserted = 0
         skipped = 0
+        junk_retried = 0
 
         for county in counties:
             # ---- Step 1: latest year ----
@@ -399,14 +423,17 @@ def run() -> int:
                 )
                 continue
 
-            # ---- Step 2.5: skip if crash count unchanged ----
+            # ---- Step 2.5: skip if crash count unchanged (and narrative is real) ----
             existing = db.execute(
-                text("SELECT total_crashes FROM county_insights WHERE county_code = :cc AND year = :yr"),
+                text("SELECT total_crashes, narrative FROM county_insights WHERE county_code = :cc AND year = :yr"),
                 {"cc": county.code, "yr": year},
             ).fetchone()
             if existing and existing[0] == stats["total_crashes"]:
-                skipped += 1
-                continue
+                if not is_junk_narrative(existing[1]):
+                    skipped += 1
+                    continue
+                if existing[1] is not None:
+                    junk_retried += 1
 
             # ---- Step 3: demographics (prompt context only) ----
             demo = _query_demographics(db, county.code, year)
@@ -456,7 +483,10 @@ def run() -> int:
             # Rate-limit LLM calls — 3 s between counties (~3 min total)
             time.sleep(3)
 
-        logger.info("generate_insights complete: %d upserted, %d skipped (unchanged)", upserted, skipped)
+        logger.info(
+            "generate_insights complete: %d upserted, %d skipped (unchanged), %d junk narratives retried",
+            upserted, skipped, junk_retried,
+        )
         return upserted
 
     finally:
@@ -475,6 +505,7 @@ def run_all_years() -> int:
         )
         upserted = 0
         skipped_existing = 0
+        junk_retried = 0
 
         for county in counties:
             years = _all_years(db, county.code)
@@ -487,17 +518,19 @@ def run_all_years() -> int:
 
             for year in years:
                 existing = (
-                    db.query(CountyInsight)
+                    db.query(CountyInsight.narrative)
                     .filter(
                         CountyInsight.county_code == county.code,
                         CountyInsight.year == year,
-                        CountyInsight.narrative.isnot(None),
                     )
                     .first()
                 )
                 if existing:
-                    skipped_existing += 1
-                    continue
+                    if not is_junk_narrative(existing[0]):
+                        skipped_existing += 1
+                        continue
+                    if existing[0] is not None:
+                        junk_retried += 1
 
                 stats = _query_stats(db, county.code, year)
                 if stats is None:
@@ -547,8 +580,9 @@ def run_all_years() -> int:
                 time.sleep(_ALL_YEARS_DELAY)
 
         logger.info(
-            "generate_insights (all years) complete: %d upserted, %d skipped (existing)",
-            upserted, skipped_existing,
+            "generate_insights (all years) complete: %d upserted, %d skipped (existing), "
+            "%d junk narratives retried",
+            upserted, skipped_existing, junk_retried,
         )
         return upserted
 
