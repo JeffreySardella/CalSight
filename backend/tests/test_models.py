@@ -186,3 +186,30 @@ class TestEtlRunModel:
     def test_source_started_at_index(self):
         indexes = {idx.name for idx in EtlRun.__table__.indexes}
         assert "ix_etl_runs_source_started_at" in indexes
+
+
+def _unique_sets(table):
+    return [
+        tuple(c.name for c in u.columns)
+        for u in table.constraints
+        if u.__class__.__name__ == "UniqueConstraint"
+    ]
+
+
+class TestFirstRainModels:
+    def test_weather_daily_unique_and_date_index(self):
+        from app.models import WeatherDaily
+
+        t = WeatherDaily.__table__
+        assert t.name == "weather_daily"
+        assert ("county_code", "date") in _unique_sets(t)
+        assert any([c.name for c in i.columns] == ["date"] for i in t.indexes)
+
+    def test_first_rain_event_unique_per_county_water_year(self):
+        from app.models import FirstRainEvent
+
+        t = FirstRainEvent.__table__
+        assert t.name == "first_rain_events"
+        assert ("county_code", "water_year") in _unique_sets(t)
+        assert t.c.lift_pct.nullable is True
+        assert t.c.baseline_daily_crashes.nullable is False
