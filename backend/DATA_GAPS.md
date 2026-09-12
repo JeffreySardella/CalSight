@@ -12,7 +12,7 @@ If you just need to know whether to build a feature, start here. Detail follows 
 |---|---|---|
 | County-level crash trends (2001+) | Pin maps of crash locations (63% of crashes have no coords — biased sample) | Individual crash geocoding for the 63% missing lat/long |
 | Per-capita / per-licensed-driver / per-road-mile rates | Driver demographic analysis (2016+ only — pre-2016 has no party data) | Race-of-driver analysis (CA doesn't collect it for crashes) |
-| Severity breakdowns (fatal / injury / PDO) | Rural county trends before 2010 (small counties missing from ACS 1-yr) | Daily-weather-vs-crash correlation (weather is monthly-averaged) |
+| Severity breakdowns (fatal / injury / PDO) | Rural county trends before 2010 (small counties missing from ACS 1-yr) | Weather at the crash location (daily county averages only — see `weather_daily`) |
 | Time-of-day patterns (pre-extracted `crash_hour`) | Education trends before 2012 (Census B15003 not published) | Intra-county weather variation (single number per county) |
 | Alcohol / distraction flags (2016+) | "All crashes in CA" language (we only have police-reported ones) | Local-road traffic volume analysis (state highways only) |
 | County demographic + economic context | State-wide totals (should be weighted by pop or driver count, not raw sums) | "Historical environmental burden" (CES is a single snapshot) |
@@ -68,11 +68,12 @@ Every gap below is labeled with its type. **None of our gaps are MCAR.** That me
 
 ## Weather
 
-**Monthly county averages.** We store monthly temperature and precipitation per county. As of 2026-07 the source is NOAA **nClimGrid-Daily** county area-averages (gridded, interpolated from station data), replacing the older GSOM station-averaging. We aggregate the daily grid to monthly on load. That means:
-- We store monthly figures, so charts can't see daily spikes (like "it rained hard on the day of the crash") — though the daily nClimGrid source is available if we ever add a daily table for first-rain-after-dry-spell analysis
-- A big county like San Bernardino has very different weather in the mountains vs the desert, but we just get one number (gridded averaging smooths this better than the old station-averaging, but it's still one number per county)
+**County averages, monthly and daily.** We store monthly temperature and precipitation per county in `weather`, and since 2026-09 the same NOAA **nClimGrid-Daily** county area-averages (gridded, interpolated from station data) at daily grain in `weather_daily`. The daily table feeds the first-rain analysis (`first_rain_events`, `/api/first-rain`): crashes on the first measurable rain (>= 0.10") of each water year after >= 14 dry days, against the 28 days before it. Remaining limits:
+- Daily rows exist only from the date the daily table was backfilled forward; a missing day is a missing row (it breaks a dry-day run rather than counting as dry).
+- A big county like San Bernardino has very different weather in the mountains vs the desert, but we just get one number (gridded averaging smooths this better than the old station-averaging, but it's still one number per county). "First rain" for such a county is the day the county average crossed the threshold, not the day it rained on any given road.
+- Recent months are NOAA's `prelim` files until the quarterly quality-control pass; the loader re-pulls the trailing two months, so the first-rain event for the current water year can shift slightly when it does.
 
-Good enough for trend analysis ("rainy months have more crashes") but not for individual crash analysis.
+Good enough for county-level day-of-rain analysis; still not weather at the crash location.
 
 ## CalEnviroScreen
 
