@@ -199,7 +199,12 @@ def _alert_stale_sources(registry, pipeline_name: str) -> None:
 
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         last_sync = _fetch_last_sync_times()
-        sources = set(registry.jobs.keys())
+        # Static jobs (the 2001–2015 SWITRS load) run once by hand and never
+        # get a daily sync row, so judging them by a staleness threshold
+        # produced a false "crashes_switrs: never synced" WARNING every run.
+        sources = {
+            name for name, job in registry.jobs.items() if job.schedule != "static"
+        }
         stale = stale_sources(now, last_sync, sources)
         if not stale:
             return

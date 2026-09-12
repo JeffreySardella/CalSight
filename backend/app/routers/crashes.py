@@ -73,7 +73,11 @@ def list_crashes(
     road_type: str | None = Query(None),
     hit_run: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
+    # Postgres walks and discards every skipped row, so offset=999999999 on a
+    # county filter was an 8.5 s scan for an empty page — a handful of those
+    # pin the 10-connection pool. The only deep-paging client is the CSV
+    # export, which stops at 50,000 rows (frontend MAX_EXPORT_ROWS).
+    offset: int = Query(0, ge=0, le=100_000),
     include_total: bool = Query(False),
     db: Session = Depends(get_db),
 ):

@@ -4,8 +4,11 @@ Downloads the SWITRS (Statewide Integrated Traffic Records System) collision
 database from Zenodo, extracts the SQLite archive, and transforms raw rows
 into the Crash model format.
 
-SWITRS data is published as a gzip-compressed SQLite file inside a zip archive
-at: https://zenodo.org/api/records/4284843/files-archive
+SWITRS data is published on Zenodo (record 4284843) as a single 1.3 GB
+gzip-compressed SQLite file, fetched by its direct file link. The record's
+`files-archive` (zip-on-the-fly) endpoint used to be the download path, but
+Zenodo now refuses it for records over 300 MB with a 400 — which is how the
+2026-09-12 SWITRS 2001 reload failed.
 
 The SQLite database has a `collisions` table with one row per collision.
 Column names are ALL_CAPS (e.g. CASE_ID, COLLISION_DATE).
@@ -16,7 +19,6 @@ import logging
 import shutil
 import sqlite3
 import time
-import zipfile
 from datetime import datetime
 from pathlib import Path
 
@@ -24,7 +26,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-ZENODO_URL = "https://zenodo.org/api/records/4284843/files-archive"
+ZENODO_URL = "https://zenodo.org/api/records/4284843/files/switrs.sqlite.gz/content"
 MAX_RETRIES = 3
 BACKOFF_BASE = 2  # seconds
 
@@ -180,15 +182,11 @@ def transform_switrs(row: dict) -> dict:
 
 
 def download_switrs_archive(dest_dir: str) -> str:
-    """Download, extract, and decompress the SWITRS SQLite archive from Zenodo.
+    """Download and decompress the SWITRS SQLite database from Zenodo.
 
-    The Zenodo archive is a zip file containing a gzip-compressed SQLite file
-    (*.sqlite.gz). We:
-    1. Stream-download the zip with retry/backoff
-    2. Extract the zip
-    3. Find the *.sqlite.gz file inside
-    4. Decompress it with gzip
-    5. Return the path to the final .sqlite file
+    1. Stream-download switrs.sqlite.gz with retry/backoff
+    2. Decompress it with gzip
+    3. Return the path to the final .sqlite file
 
     Args:
         dest_dir: Directory where the archive and database will be stored.
@@ -198,13 +196,12 @@ def download_switrs_archive(dest_dir: str) -> str:
 
     Raises:
         httpx.HTTPStatusError / httpx.RequestError: If all download retries fail.
-        FileNotFoundError: If no .sqlite.gz file is found in the archive.
     """
     dest_path = Path(dest_dir)
     dest_path.mkdir(parents=True, exist_ok=True)
-    zip_path = dest_path / "switrs_archive.zip"
+    gz_path = dest_path / "switrs.sqlite.gz"
 
-    logger.info("Downloading SWITRS archive from Zenodo...")
+    logger.info("Downloading SWITRS database from Zenodo...")
 
     # Retry with exponential backoff — Zenodo can be slow on large files.
     last_error = None
@@ -217,10 +214,10 @@ def download_switrs_archive(dest_dir: str) -> str:
                 timeout=600.0,
             ) as resp:
                 resp.raise_for_status()
-                with open(zip_path, "wb") as f:
+                with open(gz_path, "wb") as f:
                     for chunk in resp.iter_bytes():
                         f.write(chunk)
-            logger.info("Download complete: %s", zip_path)
+            logger.info("Download complete: %s", gz_path)
             break
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             last_error = exc
@@ -235,19 +232,6 @@ def download_switrs_archive(dest_dir: str) -> str:
         logger.error("All %d download attempts failed", MAX_RETRIES)
         raise last_error
 
-    # Extract the zip archive
-    logger.info("Extracting zip archive...")
-    with zipfile.ZipFile(zip_path, "r") as zf:
-        zf.extractall(dest_path)
-
-    # Find the .sqlite.gz file inside the extracted contents
-    gz_files = list(dest_path.glob("*.sqlite.gz"))
-    if not gz_files:
-        raise FileNotFoundError(
-            f"No .sqlite.gz file found in {dest_path}. "
-            "The Zenodo archive structure may have changed."
-        )
-    gz_path = gz_files[0]
     sqlite_path = dest_path / gz_path.stem  # removes .gz → keeps .sqlite
 
     # Decompress the gzip file

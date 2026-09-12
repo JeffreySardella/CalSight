@@ -289,8 +289,8 @@ def _compose_quirky(name: str, s: dict) -> str:
     # Crashes per day
     if s["crashes_per_day"] >= 10:
         options.append(
-            f"On average, a crash happens in {name} County every "
-            f"{round(24 * 60 / (s['tc'] / 365))} minutes — that's "
+            f"On average, a crash happens in {name} County "
+            f"{_interval_phrase(24 * 60 / (s['tc'] / 365))} — that's "
             f"roughly {s['crashes_per_day']} collisions per day, or one every time "
             f"you'd finish a coffee break."
         )
@@ -470,20 +470,24 @@ def _query_statewide_stats(db: Session, year: int) -> dict | None:
 # Statewide fun-fact composers
 # ---------------------------------------------------------------------------
 
+def _interval_phrase(minutes: float) -> str:
+    """'every 3 minutes' or 'every 108 seconds' — never 'every 1 minutes'.
+
+    Statewide (~450k crashes/yr) and Los Angeles both land between one and two
+    minutes per crash, and rounding that to whole minutes shipped the
+    ungrammatical "one crash every 1 minutes" on the live /api/fun-facts.
+    """
+    if minutes >= 2:
+        return f"every {round(minutes)} minutes"
+    return f"every {round(minutes * 60)} seconds"
+
+
 def _compose_statewide_fun_fact(s: dict) -> str:
     parts = []
     minutes_between = 365 * 24 * 60 / s["tc"] if s["tc"] > 0 else 0
-    if minutes_between >= 2:
-        interval_str = f"every {round(minutes_between)} minutes"
-    elif minutes_between >= 1:
-        seconds = round(minutes_between * 60)
-        interval_str = f"every {seconds} seconds"
-    else:
-        seconds = round(minutes_between * 60)
-        interval_str = f"every {seconds} seconds"
     if minutes_between > 0:
         parts.append(
-            f"California averaged one crash {interval_str} in "
+            f"California averaged one crash {_interval_phrase(minutes_between)} in "
             f"{s['year']} — {_fmt(s['crashes_per_day'])} collisions per day, "
             f"{_fmt(s['tc'])} for the year."
         )
