@@ -593,7 +593,7 @@ STATEWIDE_ANGLES = {
 }
 
 
-def _generate_county(db: Session) -> int:
+def _generate_county(db: Session, force: bool = False) -> int:
     counties: list[County] = db.query(County).order_by(County.name).all()
     created = 0
     skipped = 0
@@ -620,7 +620,7 @@ def _generate_county(db: Session) -> int:
                 .filter_by(county_code=county.code, year=year, angle=angle)
                 .first()
             )
-            if existing:
+            if existing and not force:
                 skipped += 1
                 continue
 
@@ -652,7 +652,7 @@ def _generate_county(db: Session) -> int:
     return created
 
 
-def _generate_statewide(db: Session) -> int:
+def _generate_statewide(db: Session, force: bool = False) -> int:
     years = [
         r[0] for r in db.execute(text("""
             SELECT crash_year FROM crashes
@@ -675,7 +675,7 @@ def _generate_statewide(db: Session) -> int:
                 .filter_by(year=year, angle=angle)
                 .first()
             )
-            if existing:
+            if existing and not force:
                 skipped += 1
                 continue
 
@@ -700,14 +700,20 @@ def _generate_statewide(db: Session) -> int:
     return created
 
 
-def run(mode: str = "all") -> int:
+def run(mode: str = "all", force: bool = False) -> int:
+    """Generate missing fun facts; with force=True, rewrite existing ones too.
+
+    The composers are deterministic templates (no LLM), so a forced rerun is
+    how a wording fix reaches rows already in the table — the 2026-09-12
+    "one crash every 1 minutes" text would otherwise have lived forever.
+    """
     db = SessionLocal()
     try:
         total = 0
         if mode in ("all", "county"):
-            total += _generate_county(db)
+            total += _generate_county(db, force=force)
         if mode in ("all", "statewide"):
-            total += _generate_statewide(db)
+            total += _generate_statewide(db, force=force)
         return total
     finally:
         db.close()
@@ -720,6 +726,9 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s — %(message)s",
     )
-    mode = sys.argv[1] if len(sys.argv) > 1 else "all"
-    total = run(mode)
+    # usage: python -m etl.generate_fun_facts [all|county|statewide] [--force]
+    force = "--force" in sys.argv
+    positional = [a for a in sys.argv[1:] if not a.startswith("--")]
+    mode = positional[0] if positional else "all"
+    total = run(mode, force=force)
     print(f"\nDone — {total} fun-fact cards generated.")

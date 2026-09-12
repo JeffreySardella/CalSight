@@ -61,6 +61,21 @@ class TestTransformSwitrs:
         assert result["number_injured"] == 1
         assert result["data_source"] == "switrs"
 
+    def test_folds_case_ids_that_overflow_bigint(self):
+        # 2001's last 211,120 rows have 19-digit case IDs above 2**63-1 that
+        # start with '9'; they stranded the year at exactly 310,000 crashes.
+        # The fold drops that leading 9 (reversible: 9e18 + stored).
+        big = transform_switrs({**SAMPLE_SWITRS_ROW, "case_id": "9230010102130005348"})
+        assert big["collision_id"] == 230010102130005348
+        assert big["collision_id"] <= 2**63 - 1
+        assert 9 * 10**18 + big["collision_id"] == 9230010102130005348
+
+        # IDs that already fit are untouched, including 2001's other 19-digit
+        # form and the largest one that still fits.
+        assert transform_switrs({**SAMPLE_SWITRS_ROW, "case_id": "0100010101011401155"})["collision_id"] == 100010101011401155
+        assert transform_switrs({**SAMPLE_SWITRS_ROW, "case_id": "9222011231232213160"})["collision_id"] == 9222011231232213160
+        assert transform_switrs({**SAMPLE_SWITRS_ROW, "case_id": "1218263"})["collision_id"] == 1218263
+
     def test_combines_date_and_time(self):
         """collision_date and collision_time should be merged into one datetime."""
         result = transform_switrs(SAMPLE_SWITRS_ROW)

@@ -68,6 +68,26 @@ def _safe_count(value):
     return max(0, n)
 
 
+_INT64_MAX = 2**63 - 1
+
+
+def _fold_case_id(case_id):
+    """Fit a SWITRS case_id into Postgres bigint.
+
+    2001 is the only year with 19-digit case IDs above 2**63-1: 211,120 rows
+    (the last 40% of the year, contiguous from position 311,442) whose IDs all
+    start with '9' (923…–987…). They overflowed `crashes.collision_id`, every
+    batch from 310,000 on failed, and 2001 sat at exactly 310,000 crashes for
+    the life of the project. Dropping the leading 9 (id % 10**18) is injective
+    across those rows, reversible (original = 9e18 + stored), and lands in
+    2.3e17–8.7e17 — a range no other SWITRS or CCRS ID occupies (checked
+    against all 6.78M SWITRS IDs on 2026-09-12).
+    """
+    if case_id is None or case_id <= _INT64_MAX:
+        return case_id
+    return case_id % 10**18
+
+
 def _safe_float(value):
     """Convert a SWITRS value to float. Returns None for nulls/empty/non-numeric."""
     if value is None or value == "":
@@ -154,7 +174,7 @@ def transform_switrs(row: dict) -> dict:
     pedestrian_involved = ped_action in ("B", "C", "D", "E", "F", "G")
 
     return {
-        "collision_id": _safe_int(row.get("case_id")),
+        "collision_id": _fold_case_id(_safe_int(row.get("case_id"))),
         "crash_datetime": _parse_switrs_datetime(
             row.get("collision_date"), row.get("collision_time")
         ),
