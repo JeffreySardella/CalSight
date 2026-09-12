@@ -108,7 +108,7 @@ export default function AboutPage() {
               <h2 className="font-headline text-xl font-bold text-on-surface">SWITRS</h2>
               <p className="text-sm text-on-surface-variant mt-1">Statewide Integrated Traffic Records System</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                6.78M crashes from 2001-2015. Crash-level records only — no party or driver demographics. Archived by UC Berkeley and published by CHP.
+                6.99M crashes from 2001-2015. Crash-level records only — no party or driver demographics. Archived by UC Berkeley and published by CHP.
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
@@ -225,8 +225,8 @@ export default function AboutPage() {
               <p className="text-sm text-on-surface-variant mt-1">Spatial validation and insight generation</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
                 <li>OSM bridge locations (55K+ segments) for coordinate validation</li>
-                <li>Groq (llama-3.3-70b) — primary AI insight generation</li>
-                <li>Google Gemini 2.5 Flash — fallback</li>
+                <li>Groq (gpt-oss-120b) — primary AI insight generation</li>
+                <li>Google Gemini 3.5 Flash-Lite — fallback</li>
                 <li>OpenRouter + Cerebras — additional fallbacks</li>
               </ul>
             </div>
