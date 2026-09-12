@@ -119,6 +119,7 @@ test.describe("Dashboard - Builder Mode", () => {
 
 test.describe("Dashboard - Chart Rendering", () => {
   test("charts render SVG elements after data loads", async ({ page }) => {
+    test.skip(!process.env.VITE_API_TARGET, "needs chart data from the API (cards show 'No data' without a backend)");
     await page.goto(`${BASE_URL}/stats`);
     await page.waitForSelector(".chart-card-enter", { timeout: 15000 });
 
@@ -272,17 +273,23 @@ test.describe("Dashboard - Keyboard Shortcuts", () => {
 
 test.describe("Dashboard - Data Table Toggle", () => {
   test("clicking table icon on a chart shows data table", async ({ page }) => {
+    test.skip(!process.env.VITE_API_TARGET, "needs chart data from the API (the table only renders when a card has data)");
     await page.goto(`${BASE_URL}/stats`);
     await page.waitForSelector(".chart-card-enter", { timeout: 15000 });
 
-    // Find the first chart card's table toggle button
-    const tableToggle = page.locator('button[aria-label="View data"]').first();
+    // Scope to one chart card (pinned by index, since its toggle's label
+    // flips): the Stats page also renders page-level tables (highway rankings,
+    // county YoY), so page.locator("table").first() re-resolves to one of
+    // those once the card's table is gone.
+    const card = page.locator(".chart-card-enter").first();
+    const tableToggle = card.getByRole("button", { name: "View data" }).first();
     await expect(tableToggle).toBeVisible();
     await tableToggle.click();
 
-    // Verify a data table appears
-    const table = page.locator("table").first();
-    await expect(table).toBeVisible({ timeout: 5000 });
+    // Verify a data table appears (the card may still be loading when the
+    // toggle is clicked; the table replaces the skeleton once data lands).
+    const table = card.getByRole("table");
+    await expect(table).toBeVisible({ timeout: 15000 });
 
     // Verify the table has header row and data rows
     const headerCells = table.locator("thead th");
@@ -294,8 +301,7 @@ test.describe("Dashboard - Data Table Toggle", () => {
     expect(rowCount).toBeGreaterThan(0);
 
     // Click the toggle again to return to chart view
-    const chartToggle = page.locator('button[aria-label="Show chart"]').first();
-    await chartToggle.click();
+    await card.getByRole("button", { name: "Show chart" }).first().click();
 
     // Table should no longer be visible
     await expect(table).not.toBeVisible();
