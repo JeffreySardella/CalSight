@@ -1,4 +1,5 @@
 import { usePrecipIndices, type PrecipIndex } from "../../hooks/usePrecipData";
+import { baselineNote, commonBaseline } from "../../hooks/useWaterData";
 
 /** Percent-of-average → a bar fill fraction, capped at 200% so a huge wet
  * year doesn't blow out the layout (mirrors SnowpackSection). */
@@ -101,8 +102,8 @@ export default function PrecipSection() {
       <p className="text-xs text-on-surface-variant text-center mt-8">
         Source: California Department of Water Resources, California Data
         Exchange Center (CDEC) precipitation indices. Accumulated inches since
-        October 1; averages are computed per calendar day across all loaded
-        years.
+        October 1; averages are{" "}
+        {baselineNote(commonBaseline(data.map((d) => d.baseline_period)))}.
       </p>
     </section>
   );

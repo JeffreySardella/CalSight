@@ -6,9 +6,9 @@ import PrecipSection from "./PrecipSection";
 import type { PrecipIndex } from "../../hooks/usePrecipData";
 
 const PRECIP: PrecipIndex[] = [
-  { station_id: "8SI", name: "Northern Sierra 8-Station Index", region: "Northern Sierra (8-Station)", latest_date: "2026-07-17", accum_in: 50.8, avg_accum_in: 40.0, pct_of_average: 127 },
-  { station_id: "5SI", name: "San Joaquin 5-Station Index", region: "San Joaquin (5-Station)", latest_date: "2026-07-17", accum_in: 35.0, avg_accum_in: 30.0, pct_of_average: 117 },
-  { station_id: "6SI", name: "Tulare Basin 6-Station Index", region: "Tulare Basin (6-Station)", latest_date: "2026-07-17", accum_in: 24.1, avg_accum_in: null, pct_of_average: null },
+  { station_id: "8SI", name: "Northern Sierra 8-Station Index", region: "Northern Sierra (8-Station)", latest_date: "2026-07-17", accum_in: 50.8, avg_accum_in: 40.0, pct_of_average: 127, baseline_period: "1991-2020" },
+  { station_id: "5SI", name: "San Joaquin 5-Station Index", region: "San Joaquin (5-Station)", latest_date: "2026-07-17", accum_in: 35.0, avg_accum_in: 30.0, pct_of_average: 117, baseline_period: "1991-2020" },
+  { station_id: "6SI", name: "Tulare Basin 6-Station Index", region: "Tulare Basin (6-Station)", latest_date: "2026-07-17", accum_in: 24.1, avg_accum_in: null, pct_of_average: null, baseline_period: null },
 ];
 
 function mockApi(precip: PrecipIndex[] | null) {
@@ -70,6 +70,22 @@ describe("PrecipSection", () => {
     ).toBeInTheDocument();
   });
 
+  it("names the 1991–2020 baseline in the footnote when the API reports it", async () => {
+    mockApi(PRECIP);
+    renderSection();
+    expect(
+      await screen.findByText(/averages are the 1991–2020 mean for this calendar day \(DWR.s climatological normal\)/),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the all-years wording when no baseline period is reported", async () => {
+    mockApi(PRECIP.map((p) => ({ ...p, baseline_period: null })));
+    renderSection();
+    expect(
+      await screen.findByText(/averages are the mean for this calendar day across all loaded years/),
+    ).toBeInTheDocument();
+  });
+
   it("renders nothing when no precip data is loaded", async () => {
     mockApi(null);
     const { container } = renderSection();
@@ -86,7 +102,7 @@ describe("PrecipSection", () => {
 
   it("falls back to a neutral heading when the 8-Station Index has no percent", async () => {
     const noHistory = PRECIP.map((p) =>
-      p.station_id === "8SI" ? { ...p, avg_accum_in: null, pct_of_average: null } : p,
+      p.station_id === "8SI" ? { ...p, avg_accum_in: null, pct_of_average: null, baseline_period: null } : p,
     );
     mockApi(noHistory);
     renderSection();

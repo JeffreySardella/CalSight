@@ -11,6 +11,7 @@ export interface RegionSnowpack {
   apr1_swe_in: number | null;
   apr1_avg_swe_in: number | null;
   apr1_pct_of_average: number | null;
+  baseline_period?: string | null;
 }
 
 export interface Snowpack {
@@ -18,6 +19,8 @@ export interface Snowpack {
   statewide_pct_of_average: number | null;
   apr1_date: string | null;
   statewide_apr1_pct_of_average: number | null;
+  /** Normal period behind every percent-of-average, e.g. "1991-2020". */
+  baseline_period?: string | null;
   regions: RegionSnowpack[];
 }
 

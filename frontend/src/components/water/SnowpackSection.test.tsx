@@ -12,6 +12,7 @@ const SNOWPACK: Snowpack = {
   statewide_pct_of_average: 112,
   apr1_date: null,
   statewide_apr1_pct_of_average: null,
+  baseline_period: "1991-2020",
   regions: [
     { region: "Central Sierra", station_count: 5, latest_date: "2026-03-01", swe_in: 24.6, avg_swe_in: 22.0, pct_of_average: 112, ...NO_APR1 },
     { region: "Northern Sierra / Trinity", station_count: 5, latest_date: "2026-03-01", swe_in: 30.1, avg_swe_in: 24.0, pct_of_average: 125, ...NO_APR1 },
@@ -88,6 +89,22 @@ describe("SnowpackSection", () => {
     renderSection();
     expect(
       await screen.findByText(/California Data Exchange Center \(CDEC\) snow sensors/),
+    ).toBeInTheDocument();
+  });
+
+  it("names the 1991–2020 baseline in the footnote when the API reports it", async () => {
+    mockApi(SNOWPACK);
+    renderSection();
+    expect(
+      await screen.findByText(/averages are the 1991–2020 mean for this calendar day \(DWR.s climatological normal\)/),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the all-years wording when no baseline period is reported", async () => {
+    mockApi({ ...SNOWPACK, baseline_period: null });
+    renderSection();
+    expect(
+      await screen.findByText(/averages are the mean for this calendar day across all loaded years/),
     ).toBeInTheDocument();
   });
 
