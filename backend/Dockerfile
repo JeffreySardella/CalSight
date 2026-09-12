@@ -2,7 +2,7 @@
 # already moved bookworm -> trixie, which is what broke the previous PGDG
 # pin (its bookworm libpq5 wants libldap-2.5, absent on trixie). Pinning the
 # codename keeps the base from shifting under us again.
-FROM python:3.12-slim-trixie
+FROM python:3.14-slim-trixie
 
 WORKDIR /app
 
