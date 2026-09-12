@@ -1,3 +1,7 @@
+# Maintenance mode (2026-09-12): minor/patch bumps arrive as ONE grouped PR
+# per ecosystem per week; major bumps (Python/Node base images, openai 3.x,
+# TypeScript 7, wrangler 4, ...) are ignored — take those deliberately, not
+# from a bot. Security updates are unaffected by `ignore`.
 version: 2
 updates:
   - package-ecosystem: pip
@@ -5,21 +9,40 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # The og-image Cloudflare Worker is a separate npm root with its own
   # package.json/lockfile (wrangler etc.); without this entry its deps
   # (e.g. wrangler) go un-updated.
+
   - package-ecosystem: npm
     directory: /workers/og-image
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -35,8 +58,20 @@ updates:
     directory: /backend
     schedule:
       interval: monthly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: /frontend
     schedule:
       interval: monthly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
