@@ -19,6 +19,18 @@ previously said. Both are live:
 |---|---|---|---|
 | **ETL** | host cron (root) on LXC 100 | `0 2 * * *` | `etl.run_all` inside `calsight-backend-1` |
 | **Backup** | `calsight-pipeline-1` container (APScheduler) | `0 7 * * *` | `pipeline.run_backup()` → `etl.backup` |
+| **ETL (daily)** | `calsight-pipeline-1` container (APScheduler) | `0 11 * * mon-sat` | `pipeline.run_daily_pipeline()` — all non-static jobs |
+| **ETL (weekly full)** | `calsight-pipeline-1` container (APScheduler) | `0 9 * * sun` | `pipeline.run_weekly_pipeline()` |
+| **Vacuum** | `calsight-pipeline-1` container (APScheduler) | `0 15 * * *` | `run_pipeline(only=["vacuum"])` |
+
+Correction 2026-09-12 (container logs via Pipeline Diagnostics): the container
+is **not** backup-only — its APScheduler also runs the full ETL, per
+`SCHEDULES` in `backend/etl/pipeline.py`. So the ETL runs twice a day. The
+11:00 container run is the one that actually loads data: upstream CCRS on
+data.ca.gov refreshes at ~02:05 UTC, five minutes *after* the host cron fires,
+so the 02:00 run almost always finds "source unchanged". Neither scheduler is
+retired; a DR rebuild that only restores the crontab still gets a working ETL
+from the container.
 
 Prior belief, now corrected: `docs/PROJECT_STATE.md` and issue #370 stated the
 host cron was the live ETL **and backup** scheduler and that the containerized

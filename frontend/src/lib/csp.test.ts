@@ -47,6 +47,17 @@ describe("CSP & font loading safety", () => {
     expect(headers).toContain(await sriHash(body as string));
   });
 
+  it("CSP allows the Cloudflare Web Analytics beacon (script + its RUM POST)", () => {
+    // Cloudflare Pages auto-injects <script src="https://static.cloudflareinsights.com/beacon.min.js/...">
+    // when Web Analytics is on for the project; the beacon then POSTs to
+    // https://cloudflareinsights.com/cdn-cgi/rum. Blocked by script-src for
+    // months, so the dashboard silently collected nothing.
+    const scriptSrc = /script-src ([^;]+);/.exec(headers)?.[1] ?? "";
+    const connectSrc = /connect-src ([^;]+);/.exec(headers)?.[1] ?? "";
+    expect(scriptSrc).toContain("https://static.cloudflareinsights.com");
+    expect(connectSrc).toContain("https://cloudflareinsights.com");
+  });
+
   it("CSP allows Google Fonts in style-src and font-src", () => {
     expect(headers).toContain("fonts.googleapis.com");
     expect(headers).toContain("fonts.gstatic.com");

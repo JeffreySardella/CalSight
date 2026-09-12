@@ -149,7 +149,33 @@ class TestStaleSourceAlerts:
     thresholds and sends a WARNING listing stale sources."""
 
     def _registry(self):
-        return SimpleNamespace(jobs={"crashes_ccrs": object(), "weather": object()})
+        daily = SimpleNamespace(schedule="daily")
+        return SimpleNamespace(jobs={"crashes_ccrs": daily, "weather": daily})
+
+    def test_static_job_is_never_reported_stale(self, alerts, monkeypatch):
+        # crashes_switrs is a one-shot static load with no daily sync row; it
+        # fired a false "never synced" WARNING to Discord after every pipeline.
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        _patch_run(monkeypatch, [_result(source="crashes_ccrs")])
+        monkeypatch.setattr(
+            pipeline,
+            "build_default_registry",
+            lambda: SimpleNamespace(jobs={
+                "crashes_ccrs": SimpleNamespace(schedule="daily"),
+                "crashes_switrs": SimpleNamespace(schedule="static"),
+            }),
+        )
+        monkeypatch.setattr(
+            pipeline,
+            "_fetch_last_sync_times",
+            lambda: {"crashes_ccrs": now - timedelta(hours=5)},
+        )
+
+        pipeline.run_daily_pipeline()
+
+        assert _levels(alerts) == [AlertLevel.INFO]
 
     def test_stale_source_sends_warning(self, alerts, monkeypatch):
         from datetime import datetime, timedelta, timezone
