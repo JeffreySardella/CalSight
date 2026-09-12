@@ -108,7 +108,7 @@ export default function AboutPage() {
               <h2 className="font-headline text-xl font-bold text-on-surface">SWITRS</h2>
               <p className="text-sm text-on-surface-variant mt-1">Statewide Integrated Traffic Records System</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                6.78M crashes from 2001-2015. Crash-level records only — no party or driver demographics. Archived by UC Berkeley and published by CHP.
+                6.99M crashes from 2001-2015. Crash-level records only — no party or driver demographics. Archived by UC Berkeley and published by CHP.
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">
