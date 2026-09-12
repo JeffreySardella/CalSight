@@ -77,6 +77,15 @@ def build_default_registry() -> JobRegistry:
         freshness_table="weather",
     ))
     registry.register(Job(
+        # First-rain-of-the-water-year crash lift, from weather_daily (filled
+        # by the weather job). Backfill: python -m etl.compute_first_rain --all
+        name="first_rain",
+        module="etl.compute_first_rain",
+        depends_on=["weather"],
+        schedule="daily",
+        table_name="first_rain_events",
+    ))
+    registry.register(Job(
         name="fars",
         module="etl.nhtsa_fars",
         schedule="monthly",

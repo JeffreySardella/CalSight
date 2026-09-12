@@ -517,6 +517,56 @@ class Weather(Base):
     )
 
 
+class WeatherDaily(Base):
+    """Daily county weather from nClimGrid-Daily (same source as `weather`,
+    before the monthly aggregation). Feeds the first-rain analysis.
+    Missing days are absent rows, not NULLs."""
+
+    __tablename__ = "weather_daily"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    date = Column(Date, nullable=False)
+    precip_in = Column(Float)
+    avg_temp_f = Column(Float)
+    max_temp_f = Column(Float)
+    min_temp_f = Column(Float)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("county_code", "date"),
+        Index("ix_weather_daily_date", "date"),
+    )
+
+
+class FirstRainEvent(Base):
+    """First measurable rain of a water year (Oct 1–Sep 30) per county, with
+    that day's crash count against the 28 preceding days. Computed by
+    etl/compute_first_rain.py."""
+
+    __tablename__ = "first_rain_events"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    water_year = Column(SmallInteger, nullable=False)
+    first_rain_date = Column(Date, nullable=False)
+    precip_in = Column(Float, nullable=False)
+    dry_days_before = Column(Integer, nullable=False)
+    crashes_on_day = Column(Integer, nullable=False)
+    baseline_daily_crashes = Column(Float, nullable=False)
+    baseline_days = Column(Integer, nullable=False)
+    lift_pct = Column(Float)  # NULL when the baseline is 0
+    computed_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("county_code", "water_year"),
+    )
+
+
 class FarsCountyYear(Base):
     """NHTSA FARS fatal-crash aggregates per county per year.
 

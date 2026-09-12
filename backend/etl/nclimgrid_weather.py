@@ -13,9 +13,10 @@ Why this replaces GSOM:
     token silently stalled the source).
   - One static-file fetch per variable-month covers every US county, vs GSOM's
     thousands of paginated, rate-limited per-county requests.
-  - Daily granularity is available for future work (first-rain-after-dry-spell
-    crash analysis); this loader aggregates to monthly to preserve the
-    existing table contract, but the daily source is one field away.
+  - Daily granularity: the same rows are also kept at daily grain in
+    `weather_daily` (one row per county-day, one column per variable) for the
+    first-rain-after-dry-spell analysis (etl/compute_first_rain.py). The
+    monthly `weather` contract is unchanged.
 
 County-join landmine: nClimGrid's numeric code column is NOT FIPS — code
 06001 in these files is "CT: Fairfield County", not Alameda CA. The join keys
@@ -45,7 +46,7 @@ import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
-from app.models import County, Weather
+from app.models import County, Weather, WeatherDaily
 from etl._utils import track_etl_run
 
 logging.basicConfig(
@@ -65,6 +66,8 @@ DEFAULT_MONTHS_BACK = 2  # trailing window catches the prelim -> scaled revision
 
 # Map the CSV variable name to the weather-table column + aggregation.
 _TEMP_COLUMN = {"TAVG": "avg_temp_f", "TMAX": "max_temp_f", "TMIN": "min_temp_f"}
+# weather_daily columns share the temperature names; precip differs.
+_DAILY_COLUMN = {**_TEMP_COLUMN, "PRCP": "precip_in"}
 
 
 @dataclass
@@ -74,7 +77,12 @@ class ParsedRow:
     year: int
     month: int
     variable: str
-    daily: list[float]  # present daily values only (sentinel dropped)
+    daily_by_day: dict[int, float]  # day-of-month -> value; sentinel days absent
+
+    @property
+    def daily(self) -> list[float]:
+        """Present daily values only, in day order (what the monthly aggregation uses)."""
+        return [self.daily_by_day[d] for d in sorted(self.daily_by_day)]
 
 
 def celsius_to_fahrenheit(c: float) -> float:
@@ -113,8 +121,8 @@ def parse_row(line: str) -> ParsedRow | None:
         return None
     variable = fields[5].strip()
 
-    daily = []
-    for raw in fields[6:]:
+    daily_by_day: dict[int, float] = {}
+    for day, raw in enumerate(fields[6:], start=1):
         raw = raw.strip()
         if not raw:
             continue
@@ -123,7 +131,7 @@ def parse_row(line: str) -> ParsedRow | None:
         except ValueError:
             continue
         if _is_present(value):
-            daily.append(value)
+            daily_by_day[day] = value
 
     return ParsedRow(
         state=state.strip(),
@@ -131,7 +139,7 @@ def parse_row(line: str) -> ParsedRow | None:
         year=year,
         month=month,
         variable=variable,
-        daily=daily,
+        daily_by_day=daily_by_day,
     )
 
 
@@ -167,6 +175,54 @@ def california_monthly_values(csv_text: str, variable: str) -> dict[str, float]:
         else:
             out[row.county_name] = celsius_to_fahrenheit(native)
     return out
+
+
+def california_daily_values(csv_text: str, variable: str) -> dict[str, dict[date, float]]:
+    """County-name -> {date: value} (weather_daily units) for California.
+
+    Sentinel days are simply absent; a missing day is a missing row, so the
+    first-rain dry-run logic can treat gaps as unknown rather than dry.
+    """
+    convert = mm_to_inches if variable == "PRCP" else celsius_to_fahrenheit
+    out: dict[str, dict[date, float]] = {}
+    for line in csv_text.splitlines():
+        row = parse_row(line)
+        if row is None or row.state != "CA" or not row.daily_by_day:
+            continue
+        out[row.county_name] = {
+            date(row.year, row.month, day): convert(value)
+            for day, value in row.daily_by_day.items()
+        }
+    return out
+
+
+def upsert_daily(
+    db,
+    variable: str,
+    values: dict[str, dict[date, float]],
+    name_to_code: dict[str, int],
+) -> int:
+    """Upsert one variable's daily values into weather_daily; returns rows written.
+
+    Each variable arrives in its own file, so the conflict update touches only
+    that variable's column — four upserts fill one row per county-day.
+    """
+    column = _DAILY_COLUMN[variable]
+    rows = [
+        {"county_code": code, "date": d, column: value}
+        for county_name, by_date in values.items()
+        if (code := name_to_code.get(county_name)) is not None
+        for d, value in by_date.items()
+    ]
+    if not rows:
+        return 0
+    stmt = pg_insert(WeatherDaily).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="weather_daily_county_code_date_key",
+        set_={column: getattr(stmt.excluded, column)},
+    )
+    db.execute(stmt)
+    return len(rows)
 
 
 def build_csv_url(variable: str, year: int, month: int, quality: str = "scaled") -> str:
@@ -251,6 +307,7 @@ def run(year_months: list[tuple[int, int]] | None = None):
             try:
                 # county_name -> {column: value}
                 county_rows: dict[str, dict] = defaultdict(dict)
+                daily_rows = 0
                 for variable in VARIABLES:
                     csv_text = fetch_variable_csv(variable, year, month)
                     time.sleep(REQUEST_DELAY)
@@ -262,6 +319,13 @@ def run(year_months: list[tuple[int, int]] | None = None):
                     )
                     for county_name, value in values.items():
                         county_rows[county_name][column] = value
+                    # Same file, kept at daily grain for the first-rain analysis.
+                    daily_rows += upsert_daily(
+                        db,
+                        variable.upper(),
+                        california_daily_values(csv_text, variable.upper()),
+                        name_to_code,
+                    )
 
                 rows = []
                 for county_name, cols in county_rows.items():
@@ -294,9 +358,12 @@ def run(year_months: list[tuple[int, int]] | None = None):
                         },
                     )
                     db.execute(stmt)
-                    db.commit()
                     total_rows += len(rows)
-                    logger.info("%d-%02d: %d county rows upserted", year, month, len(rows))
+                db.commit()
+                logger.info(
+                    "%d-%02d: %d county rows, %d daily rows upserted",
+                    year, month, len(rows), daily_rows,
+                )
 
             except Exception as exc:
                 logger.warning("Failed for %d-%02d: %s", year, month, exc)

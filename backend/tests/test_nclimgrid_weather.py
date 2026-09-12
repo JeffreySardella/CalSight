@@ -21,6 +21,7 @@ from etl.nclimgrid_weather import (
     MISSING_SENTINEL,
     aggregate_variable,
     build_csv_url,
+    california_daily_values,
     california_monthly_values,
     celsius_to_fahrenheit,
     mm_to_inches,
@@ -76,6 +77,33 @@ class TestParseRow:
     def test_all_missing_daily_yields_empty_list(self):
         row = parse_row("cty,04001,CA: Alameda County,2026,06,PRCP,  -999.99,  -999.99")
         assert row.daily == []
+        assert row.daily_by_day == {}
+
+    def test_missing_day_in_the_middle_keeps_day_positions(self):
+        # Day 2 is a sentinel: the flat list loses its slot, the dict must not.
+        row = parse_row("cty,04001,CA: Alameda County,2026,06,PRCP,  1.0,  -999.99,  3.0,  -999.99")
+        assert row.daily_by_day == {1: 1.0, 3: 3.0}
+        assert row.daily == [1.0, 3.0]
+
+
+class TestCaliforniaDailyValues:
+    def test_precip_keyed_by_date_in_inches(self):
+        from datetime import date
+
+        csv_text = "\n".join([
+            "cty,01001,AL: Autauga County,2026,01,PRCP,    25.4,    25.4",  # not CA
+            "cty,04001,CA: Alameda County,2026,01,PRCP,    25.4,  -999.99,    12.7",
+        ])
+        result = california_daily_values(csv_text, "PRCP")
+        assert result == {"Alameda": {date(2026, 1, 1): 1.0, date(2026, 1, 3): 0.5}}
+
+    def test_temperature_converted_to_fahrenheit(self):
+        from datetime import date
+
+        result = california_daily_values(
+            "cty,04001,CA: Alameda County,2026,06,TAVG,    20.00", "TAVG"
+        )
+        assert result["Alameda"] == {date(2026, 6, 1): 68.0}
 
 
 class TestAggregateVariable:

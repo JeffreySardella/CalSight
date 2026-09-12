@@ -13,6 +13,8 @@ erDiagram
     counties ||--o{ data_quality_stats : "county_code (nullable)"
     counties ||--o{ unemployment_rates : "county_code"
     counties ||--o{ weather : "county_code"
+    counties ||--o{ weather_daily : "county_code"
+    counties ||--o{ first_rain_events : "county_code"
     counties ||--o{ vehicle_registrations : "county_code"
     counties ||--o{ licensed_drivers : "county_code"
     counties ||--o{ road_miles : "county_code"
@@ -137,6 +139,8 @@ erDiagram
 | `crash_parties` | 8,804,729 | CCRS only (party_id unique within `data_source`) |
 | `crash_victims` | 5,297,539 | CCRS only |
 | `weather` | 17,315 | NOAA, monthly per county |
+| `weather_daily` | 0 until backfilled (~530K at 58 counties × 25 yrs) | NOAA nClimGrid-Daily, one row per county-day; added 2026-09 |
+| `first_rain_events` | 0 until computed (≤ 58 per water year) | First rain of each water year vs the 28 days before it; from `etl.compute_first_rain` |
 | `unemployment_rates` | 14,558 | BLS, monthly per county |
 | `school_locations` | 9,932 | CDE, K-12 public schools |
 | `data_quality_stats` | 1,574 | See "scope" below |
