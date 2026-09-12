@@ -19,10 +19,12 @@ class ReservoirConditionOut(BaseModel):
     latest_date: date
     storage_af: float
     pct_of_capacity: float           # storage / capacity * 100
-    # Average storage on this day-of-year across all loaded years, and
+    # Average storage on this day-of-year over baseline_period (the
+    # 1991-2020 normal, or the period of record for short histories), and
     # today's storage relative to it. None until enough history is loaded.
     avg_storage_af: float | None = None
     pct_of_average: float | None = None
+    baseline_period: str | None = None  # "1991-2020" or e.g. "2000-2026"
 
 
 class ReservoirSeriesPoint(BaseModel):
