@@ -114,10 +114,15 @@ jobs:
                   "footer": {"text": "uptime monitor · retried once before alerting"},
               }]
           }
+          # Discord sits behind Cloudflare, which rejects Python's default
+          # "Python-urllib/3.x" User-Agent with a 403 (error code 1010). Every
+          # real outage from 2026-08-10 to 2026-08-24 tripped this, so the
+          # monitor caught the 530s and then failed to tell anyone. deploy.yml
+          # already sends a UA for the same reason.
           req = urllib.request.Request(
               webhook + "?wait=true",
               data=json.dumps(payload).encode(),
-              headers={"Content-Type": "application/json"},
+              headers={"Content-Type": "application/json", "User-Agent": "CalSightBot/1.0"},
           )
           with urllib.request.urlopen(req, timeout=15) as resp:
               print("Discord alert sent:", resp.status)
