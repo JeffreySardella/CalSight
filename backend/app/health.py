@@ -32,11 +32,11 @@ MATERIALIZED_VIEWS: tuple[str, ...] = (
 # because the API degrades gracefully without them rather than going blank.
 # etl/refresh_materialized_views.py refreshes MATERIALIZED_VIEWS + these.
 #
-# mv_street_aggregates is an optimization: /api/intersections and
-# /api/corridors fall back to querying the raw crashes table when it isn't
-# populated. Slow is not the same as broken, so an unpopulated street view
-# shouldn't put a banner across the whole site.
-OPTIONAL_MATERIALIZED_VIEWS: tuple[str, ...] = ("mv_street_aggregates",)
+# The street views are optimizations: /api/intersections, /api/corridors and
+# /api/street-concentration fall back to querying the raw crashes table when
+# they aren't populated. Slow is not the same as broken, so an unpopulated
+# street view shouldn't put a banner across the whole site.
+OPTIONAL_MATERIALIZED_VIEWS: tuple[str, ...] = ("mv_street_aggregates", "mv_street_totals")
 
 # Everything the nightly refresh job maintains.
 REFRESHABLE_VIEWS: tuple[str, ...] = MATERIALIZED_VIEWS + OPTIONAL_MATERIALIZED_VIEWS
