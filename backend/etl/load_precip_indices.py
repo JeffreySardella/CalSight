@@ -15,7 +15,7 @@ Source: DWR California Data Exchange Center (cdec.water.ca.gov).
 Usage:
     python -m etl.load_precip_indices                    # trailing 120 days
     python -m etl.load_precip_indices --start 2025-10-01 --end 2026-07-01
-    python -m etl.load_precip_indices --backfill         # from 2000-01-01
+    python -m etl.load_precip_indices --backfill         # from 1991-01-01
 """
 
 import argparse
@@ -44,7 +44,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 DEFAULT_TRAILING_DAYS = 120
-BACKFILL_START = date(2000, 1, 1)
+# 1991 so the API's 1991-2020 climatological normal (app/routers/water.py
+# NORMAL_PERIOD) is fully covered, matching DWR's published percents.
+BACKFILL_START = date(1991, 1, 1)
 BATCH_SIZE = 1000
 
 
