@@ -25,7 +25,7 @@ export default function NavBar() {
     <header className="bg-surface fixed top-0 z-50 flex w-full items-center justify-between px-4 py-2 h-12 md:px-6 md:py-3 md:h-16">
       <div className="flex items-center gap-8">
         <NavLink to="/" className="flex items-center gap-2">
-          <img src={logo} alt="CalSight" className="h-7 w-auto" width={51} height={28} />
+          <img src={logo} alt="" className="h-7 w-auto" width={51} height={28} />
           <span className="text-xl font-bold tracking-tighter text-on-surface font-headline">
             CalSight
           </span>

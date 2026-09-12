@@ -15,7 +15,7 @@ export default function WaterPage() {
   const summary = data ? summarize(data) : null;
 
   return (
-    <main className="max-w-[1100px] mx-auto px-6 pb-24">
+    <div className="max-w-[1100px] mx-auto px-6 pb-24">
       <MetaTags
         title="Water — CalSight"
         description="Current storage conditions at California's major reservoirs — percent of capacity and of historical average, from DWR's California Data Exchange Center."
@@ -118,6 +118,6 @@ export default function WaterPage() {
       <PrecipSection />
 
       <DroughtSection />
-    </main>
+    </div>
   );
 }

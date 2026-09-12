@@ -80,7 +80,7 @@ export default function AdminEtlPage() {
   const trigger = useTriggerEtl();
 
   return (
-    <main className="max-w-6xl mx-auto px-6 py-12">
+    <div className="max-w-6xl mx-auto px-6 py-12">
       <div className="flex items-center justify-between mb-10">
         <div>
           <h1 className="font-headline text-3xl font-bold text-on-surface">ETL Dashboard</h1>
@@ -160,6 +160,6 @@ export default function AdminEtlPage() {
           <p className="text-sm text-on-surface-variant italic">No runs recorded yet.</p>
         )}
       </section>
-    </main>
+    </div>
   );
 }

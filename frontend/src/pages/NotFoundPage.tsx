@@ -6,7 +6,7 @@ export default function NotFoundPage() {
   const qs = buildFilterQS(searchParams);
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center page-enter">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center page-enter">
       <span className="material-symbols-outlined text-[64px] text-on-surface-variant/40 mb-4">
         explore_off
       </span>
@@ -36,6 +36,6 @@ export default function NotFoundPage() {
           Ask AI
         </NavLink>
       </div>
-    </main>
+    </div>
   );
 }
