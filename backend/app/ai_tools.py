@@ -984,6 +984,58 @@ def get_yoy_changes(
     return data
 
 
+def get_first_rain(
+    db: Session,
+    county: str | None = None,
+    water_year: int | None = None,
+) -> dict:
+    """First measurable rain of the water year and its crash lift.
+
+    Statewide median lift plus one water year's roll-up (the latest unless
+    `water_year` is given); with `county` (slug or display name), that
+    county's event and days since its last measurable rain. Reuses the
+    /api/first-rain builder so the numbers match the Water page exactly.
+    """
+    from app.county_slug_map import slugify_name  # noqa: PLC0415
+    from app.routers.first_rain import build_first_rain, county_event, lookup_event  # noqa: PLC0415 (avoid import cycle)
+
+    data = build_first_rain(db)
+    statewide = data.statewide.events
+    sw_event = next((e for e in statewide if e.water_year == water_year), None) if water_year else None
+    sw_event = sw_event or (statewide[-1] if statewide else None)
+    out: dict[str, Any] = {
+        "definition": (
+            f"First measurable rain = the first day of a water year (starts Oct 1) with "
+            f">= {data.threshold_in} in of precipitation after >= {data.min_dry_days} dry days. "
+            f"lift_pct compares crashes that day with the average over the prior "
+            f"{data.baseline_days} days. Association, not causation; small_baseline=true "
+            f"means the percent is noise-prone."
+        ),
+        "weather_through": data.weather_through.isoformat() if data.weather_through else None,
+        "statewide": {
+            "water_years": data.statewide.water_years,
+            "median_lift_pct": data.statewide.median_lift_pct,
+            "event": sw_event.model_dump(mode="json") if sw_event else None,
+        },
+    }
+    if county:
+        slug = slugify_name(county)
+        strip = next((d for d in data.days_since_rain if d.county_slug == slug), None)
+        if strip is None:
+            return {"error": f"Unknown county: {county}"}
+        event = next((c for c in data.counties if c.county_slug == slug), None)
+        if water_year is not None and (event is None or event.water_year != water_year):
+            row = lookup_event(db, strip.county_code, water_year)
+            event = county_event(*row) if row else None
+        out["county"] = {
+            "county_name": strip.county_name,
+            "days_since_rain": strip.days,
+            "last_rain_date": strip.last_rain_date.isoformat() if strip.last_rain_date else None,
+            "event": event.model_dump(mode="json") if event else None,
+        }
+    return out
+
+
 # Tool registry
 # ---------------------------------------------------------------------------
 
@@ -1004,4 +1056,5 @@ TOOL_REGISTRY: dict[str, Any] = {
     "get_top_intersections": get_top_intersections,
     "get_street_concentration": get_street_concentration,
     "get_yoy_changes": get_yoy_changes,
+    "first_rain": get_first_rain,
 }
