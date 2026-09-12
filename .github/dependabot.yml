@@ -54,24 +54,21 @@ updates:
   # bump image tags pinned in docker-compose*.yml. So the compose-only images
   # (postgres, cloudflared in docker-compose.prod.yml / .pipeline.yml) are not
   # covered here and must be bumped manually.
+  # Docker image tags are not semver: python 3.12 -> 3.14 and node 20 -> 26
+  # register as "minor", so base images are held to PATCH bumps only. Move
+  # to a new Python/Node deliberately (test the ETL container first).
   - package-ecosystem: docker
     directory: /backend
     schedule:
       interval: monthly
-    groups:
-      minor-and-patch:
-        update-types: ["minor", "patch"]
     ignore:
       - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   - package-ecosystem: docker
     directory: /frontend
     schedule:
       interval: monthly
-    groups:
-      minor-and-patch:
-        update-types: ["minor", "patch"]
     ignore:
       - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
