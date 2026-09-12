@@ -15,6 +15,25 @@ export interface ReservoirCondition {
   pct_of_capacity: number;
   avg_storage_af: number | null;
   pct_of_average: number | null;
+  /** Normal period the percent-of-average is measured against, e.g. "1991-2020".
+   *  Null when no percent is shown. */
+  baseline_period?: string | null;
+}
+
+/** Most common non-null baseline_period in a payload, or null. Sections
+ *  footnote the baseline once rather than per card. */
+export function commonBaseline(periods: (string | null | undefined)[]): string | null {
+  const counts = new Map<string, number>();
+  for (const p of periods) if (p) counts.set(p, (counts.get(p) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
+/** Footnote phrase for what "average" means: the reported normal period
+ *  (DWR's climatological normal) or the legacy all-loaded-years mean. */
+export function baselineNote(period: string | null | undefined): string {
+  return period
+    ? `the ${period.replace("-", "–")} mean for this calendar day (DWR’s climatological normal)`
+    : "the mean for this calendar day across all loaded years";
 }
 
 export interface ReservoirSeriesPoint {

@@ -17,6 +17,7 @@ const SHASTA: ReservoirCondition = {
   pct_of_capacity: 74.7,
   avg_storage_af: 3_000_000,
   pct_of_average: 113.3,
+  baseline_period: "1991-2020",
 };
 
 const CASTAIC: ReservoirCondition = {
@@ -31,6 +32,7 @@ const CASTAIC: ReservoirCondition = {
   pct_of_capacity: 80.0,
   avg_storage_af: null,
   pct_of_average: null,
+  baseline_period: null,
 };
 
 function renderPage(rows: ReservoirCondition[] | Error) {
@@ -116,6 +118,21 @@ describe("WaterPage", () => {
     expect(
       await screen.findByText(/California Data Exchange Center/),
     ).toBeInTheDocument();
+  });
+
+  it("names the 1991–2020 baseline in the footnote when the API reports it", async () => {
+    renderPage([SHASTA, CASTAIC]);
+    expect(
+      await screen.findByText(/historical average is the 1991–2020 mean for this calendar day \(DWR.s climatological normal\)/),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the all-years wording when no baseline period is reported", async () => {
+    renderPage([CASTAIC]);
+    expect(
+      await screen.findByText(/historical average is the mean for this calendar day across all loaded years/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/1991–2020/)).not.toBeInTheDocument();
   });
 });
 

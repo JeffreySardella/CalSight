@@ -9,6 +9,7 @@ export interface PrecipIndex {
   accum_in: number; // accumulated water-year precipitation, inches
   avg_accum_in: number | null; // same-day-of-year average (null until history)
   pct_of_average: number | null;
+  baseline_period?: string | null;
 }
 
 export function usePrecipIndices() {

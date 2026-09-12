@@ -21,7 +21,7 @@ const DATA: FirstRain = {
     {
       county_code: 3, county_name: "Alpine", county_slug: "alpine", water_year: 2026,
       first_rain_date: "2025-10-21", precip_in: 0.4, dry_days_before: 20,
-      crashes_on_day: 3, baseline_daily_crashes: 1, lift_pct: 200, small_baseline: true,
+      crashes_on_day: 3, baseline_daily_crashes: 1.0, lift_pct: 200, small_baseline: true,
     },
   ],
   days_since_rain: [
@@ -72,7 +72,16 @@ describe("CountyFirstRainRow", () => {
     mockApi(DATA);
     renderRow(3);
     expect(await screen.findByText("Rain in the last day")).toBeInTheDocument();
-    expect(screen.getByText(/3 crashes vs 1\.0\/day, \+200% \(small numbers\)/)).toBeInTheDocument();
+    expect(screen.getByText(/3 crashes vs 1\/day, \+200% \(small numbers\)/)).toBeInTheDocument();
+  });
+
+  it("drops a trailing .0 from an integer baseline", async () => {
+    mockApi({
+      ...DATA,
+      counties: [{ ...DATA.counties[0], crashes_on_day: 422, baseline_daily_crashes: 306.0, lift_pct: 38 }],
+    });
+    renderRow(19);
+    expect(await screen.findByText(/422 crashes vs 306\/day, \+38%$/)).toBeInTheDocument();
   });
 
   it("renders only the days line when the county has no event", async () => {

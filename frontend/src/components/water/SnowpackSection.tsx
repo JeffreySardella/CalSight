@@ -1,4 +1,5 @@
 import { useSnowpack, type RegionSnowpack } from "../../hooks/useSnowpackData";
+import { baselineNote } from "../../hooks/useWaterData";
 
 /** Percent-of-average → a bar fill fraction, capped at 200% so a huge
  * snow year doesn't blow out the layout. */
@@ -116,7 +117,7 @@ export default function SnowpackSection() {
       <p className="text-xs text-on-surface-variant text-center mt-8">
         Source: California Department of Water Resources, California Data
         Exchange Center (CDEC) snow sensors. Snow water equivalent in inches;
-        averages are computed per calendar day across all loaded years.
+        averages are {baselineNote(data.baseline_period)}.
       </p>
     </section>
   );
