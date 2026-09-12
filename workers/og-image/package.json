@@ -11,7 +11,7 @@
     "@resvg/resvg-wasm": "^2.6.2"
   },
   "devDependencies": {
-    "wrangler": "^3.99.0",
+    "wrangler": "^4.130.0",
     "typescript": "~5.7.0"
   }
 }
