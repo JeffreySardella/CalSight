@@ -156,7 +156,11 @@ average query.
 CDEC snow station codes) was resolved by research: 15 real snow-pillow
 stations across the three DWR regions, code/elevation verified against
 CDEC's SnowSensors.html (via the egagli/snotel_ccss_stations mirror),
-sensor 3 = daily SWE confirmed. Shipped: `snow_stations` + `snow_daily`
+sensor 3 = daily SWE confirmed. (Superseded 2026-09-12: that 15-station
+sample skewed high-elevation and overstated the April-1 percent, so
+`MAJOR_SNOW_STATIONS` now carries DWR's full official regional lists from
+CDEC's sweq.action — 110 stations — to match published figures.)
+Shipped: `snow_stations` + `snow_daily`
 tables + migration, `etl/load_snowpack.py` (daily `snowpack` job),
 `GET /api/water/snowpack` (per-region + statewide SWE as % of same-day-of-
 year average — no external April-1 constants needed, same data-driven

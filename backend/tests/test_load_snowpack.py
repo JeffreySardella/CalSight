@@ -1,10 +1,18 @@
 """Tests for the snowpack ETL — station sync, FK filtering, dedup, batching.
 Mocked session, matching the other loader suites."""
 
+from collections import Counter
 from datetime import date, timedelta
 from unittest.mock import MagicMock
 
-from etl.cdec_api import MAJOR_SNOW_STATIONS, SENSOR_SNOW_WATER_CONTENT, Observation
+from etl.cdec_api import (
+    MAJOR_SNOW_STATIONS,
+    SENSOR_SNOW_WATER_CONTENT,
+    SNOW_REGION_CENTRAL,
+    SNOW_REGION_NORTH,
+    SNOW_REGION_SOUTH,
+    Observation,
+)
 from etl.load_snowpack import (
     BATCH_SIZE,
     MAX_PLAUSIBLE_SWE_IN,
@@ -51,6 +59,17 @@ class TestUpsertStations:
     def test_covers_all_three_regions(self):
         regions = {m["region"] for m in MAJOR_SNOW_STATIONS.values()}
         assert len(regions) == 3
+
+    def test_matches_dwr_official_station_lists(self):
+        # Pinned to CDEC's sweq.action "Stations included" as of 2026-09-12
+        # (LVT counted once, in CENTRAL). If DWR changes its list, update
+        # the map AND this test together — the percents are only comparable
+        # to DWR's published figures while the station sets agree.
+        counts = Counter(m["region"] for m in MAJOR_SNOW_STATIONS.values())
+        assert counts == {SNOW_REGION_NORTH: 32, SNOW_REGION_CENTRAL: 54, SNOW_REGION_SOUTH: 24}
+        for code, meta in MAJOR_SNOW_STATIONS.items():
+            assert len(code) == 3 and code == code.upper()
+            assert meta["name"].strip()
 
 
 class TestUpsertObservations:
