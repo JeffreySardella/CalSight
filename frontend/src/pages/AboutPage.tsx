@@ -225,8 +225,8 @@ export default function AboutPage() {
               <p className="text-sm text-on-surface-variant mt-1">Spatial validation and insight generation</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
                 <li>OSM bridge locations (55K+ segments) for coordinate validation</li>
-                <li>Groq (llama-3.3-70b) — primary AI insight generation</li>
-                <li>Google Gemini 2.5 Flash — fallback</li>
+                <li>Groq (gpt-oss-120b) — primary AI insight generation</li>
+                <li>Google Gemini 3.5 Flash-Lite — fallback</li>
                 <li>OpenRouter + Cerebras — additional fallbacks</li>
               </ul>
             </div>

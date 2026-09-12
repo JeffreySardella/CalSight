@@ -31,16 +31,27 @@ logger = logging.getLogger(__name__)
 # via LLM_TEMPERATURE (settings.llm_temperature).
 DEFAULT_TEMPERATURE = settings.llm_temperature
 
+# Model roster, re-verified against each provider's live /models on 2026-09-12
+# after the summer-2026 Llama shutdowns silently took out the whole chain:
+#   - Groq retired llama-3.3-70b-versatile on 2026-08-16 (free/dev tiers);
+#     the model now 404s, so Ask AI had been running on the Gemini fallback
+#     and the ETL narrative jobs (primary-only) had been failing since then.
+#   - Cerebras retired llama3.1-8b (2026-05-27); gpt-oss-120b is its
+#     replacement but needs billing enabled on the account (402 otherwise).
+#   - OpenRouter moved llama-3.3-70b, qwen3-next and gpt-oss-120b to paid-only.
+#   - Gemini 2.5 Flash still answers but Google has floated an Oct-2026
+#     retirement; 3.5 Flash-Lite is GA, on the free tier, and doesn't spend the
+#     token budget on hidden thinking.
 _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
-        "model": "llama-3.3-70b-versatile",
-        "display_name": "Llama 3.3 70B (Groq)",
+        "model": "openai/gpt-oss-120b",
+        "display_name": "GPT-OSS 120B (Groq)",
     },
     "openrouter": {
         "base_url": "https://openrouter.ai/api/v1",
-        "model": "meta-llama/llama-3.3-70b-instruct:free",
-        "display_name": "Llama 3.3 70B",
+        "model": "nvidia/nemotron-3-super-120b-a12b:free",
+        "display_name": "Nemotron 3 Super 120B",
     },
     "together": {
         "base_url": "https://api.together.xyz/v1",
@@ -49,8 +60,8 @@ _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
     },
     "cerebras": {
         "base_url": "https://api.cerebras.ai/v1",
-        "model": "llama3.1-8b",
-        "display_name": "Llama 3.1 8B (Cerebras)",
+        "model": "gpt-oss-120b",
+        "display_name": "GPT-OSS 120B (Cerebras)",
     },
     "ollama": {
         "base_url": "http://host.docker.internal:11434/v1",
@@ -59,18 +70,28 @@ _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
     },
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "model": "gemini-2.5-flash",
-        "display_name": "Gemini 2.5 Flash",
+        "model": "gemini-3.5-flash-lite",
+        "display_name": "Gemini 3.5 Flash-Lite",
     },
 }
 
+# Extra free OpenRouter models tried after the default one. Only slugs that
+# still resolve as :free on 2026-09-12 — the paid-only ones return 404.
 OPENROUTER_FREE_MODELS: list[tuple[str, str]] = [
-    ("Nemotron 120B", "nvidia/nemotron-3-super-120b-a12b:free"),
     ("Gemma 4 31B", "google/gemma-4-31b-it:free"),
-    ("Qwen3 80B", "qwen/qwen3-next-80b-a3b-instruct:free"),
-    ("GPT-OSS 120B", "openai/gpt-oss-120b:free"),
     ("Gemma 4 26B", "google/gemma-4-26b-a4b-it:free"),
 ]
+
+
+def _model_kwargs(model: str) -> dict[str, Any]:
+    """Per-model request extras.
+
+    gpt-oss is a reasoning model: at its default effort it spends the whole
+    200-token narrative budget thinking and returns EMPTY content (2 of 3
+    calls in testing). Low effort answers in ~60 tokens with the same tool
+    calls, so every gpt-oss call pins it.
+    """
+    return {"reasoning_effort": "low"} if "gpt-oss" in model else {}
 
 SUPPORTS_TOOL_USE = {"groq", "gemini", "openrouter", "ollama"}
 
@@ -170,7 +191,7 @@ def _get_provider_chain() -> list[dict[str, str]]:
 
         if ptype == "openrouter":
             chain.append({
-                "name": defaults.get("display_name", "Llama 3.3 70B"),
+                "name": defaults.get("display_name", "OpenRouter"),
                 "type": "openrouter",
                 "base_url": defaults.get("base_url", ""),
                 "model": defaults.get("model", ""),
@@ -228,6 +249,7 @@ def _call_provider(
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
+        **_model_kwargs(provider["model"]),
     }
     if tools and ptype in SUPPORTS_TOOL_USE:
         kwargs["tools"] = tools
@@ -379,5 +401,6 @@ def generate_narrative(prompt: str) -> str:
         messages=[{"role": "user", "content": prompt}],
         max_tokens=200,
         temperature=DEFAULT_TEMPERATURE,
+        **_model_kwargs(model),
     )
     return (resp.choices[0].message.content or "").strip()
