@@ -6,6 +6,7 @@ import { buildFilterQS } from "../../hooks/useFilterParams";
 import { Skeleton } from "../ui/Skeleton";
 import CountyDroughtRow from "../water/CountyDroughtRow";
 import CountyReservoirsRow from "../water/CountyReservoirsRow";
+import CountyFirstRainRow from "../water/CountyFirstRainRow";
 import { WATER_PAGE_PUBLIC } from "../../config";
 
 interface AiInsightCardProps {
@@ -273,6 +274,7 @@ export default function AiInsightCard({
                   <>
                     <CountyDroughtRow countyName={countyName} countyCode={countyCode} />
                     <CountyReservoirsRow countyName={countyName} countyCode={countyCode} />
+                    <CountyFirstRainRow countyCode={countyCode} />
                   </>
                 )}
 
