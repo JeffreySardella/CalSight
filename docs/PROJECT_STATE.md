@@ -36,10 +36,11 @@ No day-to-day attention required:
   `fresh` (re-verified 2026-08-07; the nightly ETL has run unattended
   throughout).
 - **Zero open PRs.** `main` @ `10ad7aa`.
-- **Water module** is fully built and tested but **deliberately hidden** behind
-  `WATER_PAGE_PUBLIC = false` (`frontend/src/config.ts`). Reachable at
-  https://calsight.org/water for review; kept out of public nav/sitemap by choice.
-  Data is loaded and backfilled (reservoirs, snowpack, drought, precip indices).
+- **Water module** is **public as of 2026-09-12** (`WATER_PAGE_PUBLIC = true` in
+  `frontend/src/config.ts`): in the nav, sitemap and prefetch list at
+  https://calsight.org/water. Data is loaded and backfilled (reservoirs,
+  snowpack, drought, precip indices); the first-storm crash tile at the top
+  reads `/api/first-rain` and hides itself until that endpoint is live.
 
 ## Operator checklist — the only things left
 
@@ -95,13 +96,13 @@ future migration, not the current box.
 - [ ] **Formal accessibility sweep** (axe + Lighthouse in a browser) — every
   code-level a11y defect is fixed; this is the last WCAG gate if you ever want
   to certify it.
-- [ ] **Water page public launch** — left hidden by choice. To ship it: flip
-  `WATER_PAGE_PUBLIC = true` and follow the checklist in `frontend/src/config.ts`
-  (restore sitemap entry + speculationrules prefetch, recompute the CSP hash in
-  `_headers`, drop the `/water` noindex, re-point the Ask AI prompt).
+- [x] **Water page public launch** — public as of 2026-09-12: flag flipped,
+  sitemap entry + speculationrules prefetch restored, CSP hash recomputed in
+  `_headers`, `/water` noindex dropped, Ask AI prompt re-pointed. The rollback
+  recipe lives in the flag's docstring in `frontend/src/config.ts`.
 - [ ] **Roadmap** — issues #293 / #256 / #304 are a post-launch feature backlog,
-  not unfinished work. The next natural feature was the "first-rain-after-a-dry-
-  spell" crash story (needs a daily-weather table on top of the nClimGrid loader).
+  not unfinished work. The "first-rain-after-a-dry-spell" crash story shipped
+  with the Water launch (`/stats?story=first-storm`, fed by `/api/first-rain`).
 
 ## Key references
 

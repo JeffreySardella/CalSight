@@ -193,15 +193,15 @@ test("hardest-hit county rows deep-link back to the county on the map", async ({
   await expect(page).toHaveURL(/\/\?county=kern/);
 });
 
-test("water page is soft-launched: direct link works, nav does not advertise it", async ({ page }) => {
-  // While WATER_PAGE_PUBLIC is false the page must stay reachable by URL…
+test("water page is public: direct link works and the nav advertises it", async ({ page }) => {
   await page.goto(`${BASE_URL}/water`);
   await expect(
     page.getByRole("heading", { name: /California.s Reservoirs/ }),
   ).toBeVisible();
-  // …but no navigation surface may link to it.
+  // Since WATER_PAGE_PUBLIC flipped (2026-09-12) the main nav links to it
+  // from every page.
   await page.goto(`${BASE_URL}/about`);
-  await expect(
-    page.getByRole("link", { name: "Water", exact: true }),
-  ).toHaveCount(0);
+  const water = page.getByRole("link", { name: "Water", exact: true }).first();
+  await expect(water).toBeVisible();
+  await expect(water).toHaveAttribute("href", "/water");
 });

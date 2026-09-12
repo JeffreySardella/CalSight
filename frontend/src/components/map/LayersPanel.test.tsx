@@ -44,6 +44,7 @@ describe("LayersPanel toggle accessibility", () => {
       "Hide River Crashes",
       "Highway Danger",
       "Top intersections",
+      "Reservoirs",
     ]) {
       expect(screen.getByRole("switch", { name })).toBeInTheDocument();
     }
@@ -120,21 +121,21 @@ describe("LayersPanel segmented-control accessibility", () => {
   });
 });
 
-// ── Water / reservoirs section (soft-launch gate) ──────────────────────
-// The section is guarded by WATER_PAGE_PUBLIC (false while the Water page
-// is soft-launched); this file runs against the real config, so the panel
-// must not advertise the layer. The flag-up behavior is covered by
-// ReservoirLayer.test.tsx, which mocks the flag on.
+// ── Water / reservoirs section ─────────────────────────────────────────
+// The section is guarded by WATER_PAGE_PUBLIC (true since the 2026-09-12
+// launch); this file runs against the real config, so the panel must
+// advertise the layer. The flag-down behavior is covered by
+// ReservoirLayer.test.tsx, which mocks the flag off.
 
-describe("LayersPanel — Water section soft-launch gate", () => {
+describe("LayersPanel — Water section", () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it("hides the Reservoirs toggle while WATER_PAGE_PUBLIC is false", () => {
+  it("shows the Reservoirs toggle now that WATER_PAGE_PUBLIC is true", () => {
     render(<Harness />);
-    expect(screen.queryByRole("switch", { name: "Reservoirs" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Water")).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Reservoirs" })).toBeInTheDocument();
+    expect(screen.getByText("Water")).toBeInTheDocument();
   });
 });
 
