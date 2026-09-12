@@ -105,10 +105,6 @@ export default function PrivacyPage() {
               <a href="https://groq.com/privacy-policy/" className="text-primary underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
             </li>
             <li>
-              <strong>Cerebras</strong> — Fallback. Does not use API inputs for model training.{" "}
-              <a href="https://cerebras.ai/privacy-policy" className="text-primary underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
-            </li>
-            <li>
               <strong>Google Gemini</strong> (free tier) — Fallback. Under Google&apos;s terms for
               unpaid API use, Google may use submitted text (your question and conversation
               context) to train and improve its models, and human reviewers may read it. Do not

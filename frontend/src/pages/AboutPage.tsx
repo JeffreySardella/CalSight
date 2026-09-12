@@ -227,7 +227,7 @@ export default function AboutPage() {
                 <li>OSM bridge locations (55K+ segments) for coordinate validation</li>
                 <li>Groq (gpt-oss-120b) — primary AI insight generation</li>
                 <li>Google Gemini 3.5 Flash-Lite — fallback</li>
-                <li>OpenRouter + Cerebras — additional fallbacks</li>
+                <li>OpenRouter — additional fallback</li>
               </ul>
             </div>
             <div className="flex items-center justify-between mt-6">

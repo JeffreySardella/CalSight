@@ -181,7 +181,6 @@ jobs:
           GROQ_KEY_2: ${{ secrets.GROQ_API_KEY_2 }}
           GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          CEREBRAS_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           SENTRY: ${{ secrets.SENTRY_DSN }}
         run: |
           # Non-destructive write: operators set keys the workflow does NOT
@@ -205,8 +204,6 @@ jobs:
           printf 'LLM_FALLBACK_1_KEY=%s\n' "$GEMINI_KEY" >> "$TMP_ENV"
           printf 'LLM_FALLBACK_2_PROVIDER=openrouter\n' >> "$TMP_ENV"
           printf 'LLM_FALLBACK_2_KEY=%s\n' "$OPENROUTER_KEY" >> "$TMP_ENV"
-          printf 'LLM_FALLBACK_3_PROVIDER=cerebras\n' >> "$TMP_ENV"
-          printf 'LLM_FALLBACK_3_KEY=%s\n' "$CEREBRAS_KEY" >> "$TMP_ENV"
           # Activate the daily LLM spend backstop in prod (#293). The setting
           # defaults to 0 = unlimited (fine for local dev), so unless the deploy
           # writes a non-zero value the cap never fires and an IP-rotating
@@ -222,7 +219,9 @@ jobs:
           # SENTRY_DSN repo secret is set (main.py gates on a non-empty DSN),
           # so this is safe to ship before the secret exists.
           printf 'SENTRY_DSN=%s\n' "$SENTRY" >> "$TMP_ENV"
-          # Keys this workflow owns — must match the printf list above exactly.
+          # Keys this workflow owns — must match the printf list above, plus
+          # retired keys that must be scrubbed from an existing .env on the box
+          # (LLM_FALLBACK_3_*: Cerebras dropped 2026-09-12, its free tier ended).
           MANAGED='DATABASE_URL CORS_ORIGINS CENSUS_API_KEY NOAA_API_TOKEN BLS_API_KEY LLM_PROVIDER LLM_API_KEY LLM_API_KEY_2 LLM_FALLBACK_1_PROVIDER LLM_FALLBACK_1_KEY LLM_FALLBACK_2_PROVIDER LLM_FALLBACK_2_KEY LLM_FALLBACK_3_PROVIDER LLM_FALLBACK_3_KEY LLM_DAILY_REQUEST_BUDGET DEBUG SENTRY_DSN'
           if [ -f backend/.env ]; then
             SEEN=" $MANAGED "
