@@ -13,7 +13,7 @@ export default function AboutPage() {
   const crashesLabel = formatMillions(useLiveCrashTotal());
 
   return (
-    <main className="max-w-[900px] mx-auto px-6 md:px-0">
+    <div className="max-w-[900px] mx-auto px-6 md:px-0">
       <MetaTags
         title="About — CalSight"
         description="Learn about CalSight's mission, data sources, team, and methodology for making California traffic crash data accessible to everyone."
@@ -465,6 +465,6 @@ export default function AboutPage() {
           <a href="/privacy" className="underline decoration-on-surface-variant/30 hover:text-on-surface transition-colors font-semibold">Privacy Policy</a>.
         </p>
       </section>
-    </main>
+    </div>
   );
 }
