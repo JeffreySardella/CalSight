@@ -53,6 +53,8 @@ def test_reservoirs_historical_average_same_day_of_year(client, water_data):
     )
     assert fol["avg_storage_af"] == pytest.approx(700_000)
     assert fol["pct_of_average"] == pytest.approx(114.3, abs=0.1)
+    # Three years, none inside 1991-2020 → period-of-record baseline.
+    assert fol["baseline_period"] == "2024-2026"
 
 
 def test_reservoirs_average_shown_for_constant_pool(client, water_data, db_session):
@@ -78,6 +80,7 @@ def test_reservoirs_no_average_without_history(client, water_data):
     )
     assert cas["avg_storage_af"] is None
     assert cas["pct_of_average"] is None
+    assert cas["baseline_period"] is None
 
 
 def test_reservoirs_include_coordinates_when_loaded(client, water_data):

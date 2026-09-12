@@ -39,6 +39,9 @@ def test_snowpack_region_pct_of_same_day_average(client, snow_data):
     assert central["avg_swe_in"] == pytest.approx(10.0)  # (5+10+15)/3
     assert central["pct_of_average"] == pytest.approx(150.0)
     assert central["station_count"] == 1
+    # Three years, none inside 1991-2020 → period-of-record baseline.
+    assert central["baseline_period"] == "2024-2026"
+    assert body["baseline_period"] == "2024-2026"
 
 
 def test_snowpack_region_without_history_has_no_pct(client, snow_data):
@@ -47,6 +50,28 @@ def test_snowpack_region_without_history_has_no_pct(client, snow_data):
     assert south["swe_in"] == 30.0
     assert south["pct_of_average"] is None
     assert south["avg_swe_in"] is None
+    assert south["baseline_period"] is None
+
+
+def test_snowpack_uses_1991_2020_normal_when_enough_years(client, db_session):
+    """With >= 10 March-1 readings inside 1991-2020, the baseline is that
+    window only — the current low year no longer drags its own average down."""
+    db_session.add(
+        SnowStation(station_id="CSL", name="Central Sierra Snow Lab", elevation_ft=6900, region="Central Sierra")
+    )
+    db_session.flush()
+    db_session.add_all(
+        [SnowDaily(station_id="CSL", date=date(y, 3, 1), swe_in=20.0) for y in range(2011, 2021)]
+        + [SnowDaily(station_id="CSL", date=date(2026, 3, 1), swe_in=5.0)]
+    )
+    db_session.commit()
+
+    body = client.get("/api/water/snowpack").json()
+    central = body["regions"][0]
+    assert central["avg_swe_in"] == pytest.approx(20.0)  # not (10*20+5)/11
+    assert central["pct_of_average"] == pytest.approx(25.0)
+    assert central["baseline_period"] == "1991-2020"
+    assert body["baseline_period"] == "1991-2020"
 
 
 def test_snowpack_statewide_only_counts_stations_with_history(client, snow_data):

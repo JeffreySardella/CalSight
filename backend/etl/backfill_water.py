@@ -1,6 +1,7 @@
 """One-shot historical backfill for the water module.
 
-Runs the three water loaders from their BACKFILL_STARTs (2000) through
+Runs the three water loaders from their BACKFILL_STARTs (1991 for CDEC,
+2000 for USDM) through
 today, sequentially. Exists because the run-etl workflow deliberately
 accepts only a bare module name (no CLI flags — shell-injection guard),
 so `python -m etl.load_reservoirs --backfill` can't be dispatched
