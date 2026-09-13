@@ -3,7 +3,7 @@ uvicorn[standard]==0.52.4
 gunicorn==23.0.0
 sqlalchemy==2.0.52
 alembic==1.19.2
-psycopg2-binary==2.9.12
+psycopg2-binary==2.9.13
 httpx==0.28.1
 python-dotenv==1.2.3
 pydantic-settings==2.15.0
