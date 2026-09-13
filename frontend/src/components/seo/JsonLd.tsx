@@ -39,7 +39,7 @@ export function buildWebAppSchema() {
     applicationCategory: "DataVisualization",
     operatingSystem: "Web",
     description:
-      "Explore 11 million California traffic crashes with interactive maps, AI-powered insights, and demographic analysis.",
+      "Explore 11.6 million California traffic crashes with interactive maps, AI-powered insights, and demographic analysis.",
     offers: {
       "@type": "Offer",
       price: "0",
@@ -68,8 +68,8 @@ export function buildDatasetSchema(params?: {
     : [{ "@type": "Place", name: "California, United States" }];
 
   const temporal = params?.dateRange
-    ? `${params.dateRange.start || "2001-01"} / ${params.dateRange.end || "2024-12"}`
-    : "2001-01 / 2024-12";
+    ? `${params.dateRange.start || "2001-01"} / ${params.dateRange.end || "2026-09"}`
+    : "2001-01 / 2026-09";
 
   return {
     "@context": "https://schema.org",

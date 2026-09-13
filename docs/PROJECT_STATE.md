@@ -6,11 +6,11 @@ what's left" reference for anyone (including future-you) picking it back up.*
 
 ## What it is
 
-A self-hosted explorer of **11.3M California traffic-crash records** (SWITRS
+A self-hosted explorer of **11.6M California traffic-crash records** (SWITRS
 2001–2015 + CCRS 2016–present) with interactive maps, configurable dashboards,
 AI-generated insights, county demographic/economic context, and a
 water-conditions module (reservoirs, snowpack, drought, Sierra precipitation
-indices). Live at **https://calsight.org**. ~17 government data sources, 25M+ rows.
+indices). Live at **https://calsight.org**. 12 providers (30 ETL jobs), 26M+ rows.
 
 ## It runs unattended
 
@@ -18,24 +18,26 @@ No day-to-day attention required:
 
 - **Auto-deploy** from `main` — GitHub Actions → self-hosted runner (LXC 100) +
   VM 101 (API + Cloudflare tunnel); Cloudflare Pages builds the frontend.
-- **Daily ETL** — on the *current* deployment this is scheduled by a **host
-  cron on LXC 100** (crashes/parties/victims + derived transforms +
-  materialized-view refresh, weekly full refresh, VACUUM + `pg_dump` backup
-  nightly). The containerized `etl.pipeline` APScheduler service in the repo is
-  the *newer target architecture* and is **not** what's live here yet — see the
-  #370 note below before touching any scheduler.
+- **Daily ETL** — **two live schedulers** on LXC 100, both to stay. A host
+  cron (root, 02:00 UTC) runs `etl.run_all` inside `calsight-backend-1`; the
+  `calsight-pipeline-1` container's APScheduler runs the backup (07:00), the
+  daily ETL (11:00 Mon–Sat), the weekly full refresh (Sun 09:00) and VACUUM
+  (15:00). The 11:00 container run is the one that usually loads data (CCRS
+  refreshes upstream at ~02:05, just after the host cron fires). Captured
+  verbatim in `backend/deploy/lxc100-crontab.md` — read it before touching
+  either scheduler.
 - **Nightly backups** with offsite copy to Cloudflare R2 (min-keep-3 rotation,
   `pg_restore --list` verification, quarantine-on-corruption).
 - **Resilience baked in**: transient-failure retries w/ exponential backoff,
   React error boundaries, loud partial-failure handling in loaders,
   stale-source alerts, single-scheduler advisory lock, ETL run tracking.
 
-## Current state (2026-07-18)
+## Current state (2026-09-12)
 
-- **Live and healthy** — site 200, API ok, **11.34M** crash rows, freshness
-  `fresh` (re-verified 2026-08-07; the nightly ETL has run unattended
-  throughout).
-- **Zero open PRs.** `main` @ `10ad7aa`.
+- **Live and healthy** — site 200, API ok, **11.60M** crash rows (94,804
+  killed / 6.51M injured), freshness `fresh` (re-verified 2026-09-12; the
+  ETL has run unattended throughout).
+- **Zero open PRs.** `main` @ `a735ac9`.
 - **Water module** is **public as of 2026-09-12** (`WATER_PAGE_PUBLIC = true` in
   `frontend/src/config.ts`): in the nav, sitemap and prefetch list at
   https://calsight.org/water. Data is loaded and backfilled (reservoirs,
@@ -66,15 +68,17 @@ you**. The code is all shipped; these just switch it on.
   heartbeat already covers the "did it stop running" case; Sentry only adds the
   "what errored" detail.)
 
-### 2. ~~Retire the legacy host scheduler (#370)~~ — DO NOT DO THIS on the current deployment
+### 2. ~~Retire the legacy host scheduler (#370)~~ — answered; do not retire either
 
-**Verified 2026-07-18 at the box: the host cron on LXC 100 IS the live
-scheduler — it is not a legacy leftover. Retiring it would kill the nightly
-ETL and backups.** #370 (moving scheduling into the containerized
-`etl.pipeline` service) only becomes relevant *if and when* the newer
-containerized CalSight version is actually deployed here. Until then, **leave
-the cron alone.** The `backend/deploy/README.md` retirement steps describe that
-future migration, not the current box.
+**#370 is answered (2026-08-09, corrected 2026-09-12):** there are **two live
+schedulers** and they are both wanted. The host cron on LXC 100 (02:00 UTC)
+runs the ETL; the `calsight-pipeline-1` container's APScheduler runs the
+backup (07:00), the daily ETL (11:00 Mon–Sat), the weekly refresh (Sun 09:00)
+and VACUUM (15:00). The container is what produces the nightly dumps — the
+host cron never touches backups — and a DR rebuild that only restores the
+crontab still gets a working ETL from the container. Retiring either one loses
+something. Details, redacted crontab and the diagnostics workflow that captured
+them: `backend/deploy/lxc100-crontab.md`.
 
 ### 3. Repo tidy (GitHub) — cosmetic, zero functional impact
 
@@ -103,6 +107,26 @@ future migration, not the current box.
 - [ ] **Roadmap** — issues #293 / #256 / #304 are a post-launch feature backlog,
   not unfinished work. The "first-rain-after-a-dry-spell" crash story shipped
   with the Water launch (`/stats?story=first-storm`, fed by `/api/first-rain`).
+
+## Shipped 2026-09-12
+
+- **SWITRS 2001 reloaded** — 211k case IDs overflowed bigint and were dropped;
+  now folded, 2001 = 522,562 crashes (was 310,000), statewide 11.60M. The loader
+  fetches Zenodo's direct file URL (the `files-archive` ZIP endpoint 400s for
+  records > 300 MB).
+- **Water page public** + the first-storm bridge: `weather_daily`,
+  `first_rain_events`, `/api/first-rain`, the FirstStormTile and
+  `/stats?story=first-storm`.
+- **1991–2020 baselines** — percent-of-average for reservoirs, snowpack and
+  precipitation indices uses the DWR calendar-day normal; CDEC history
+  backfilled from 1991. Snowpack now uses DWR's official 110-station lists.
+- **LLM roster** — Groq gpt-oss-120b (low reasoning) → Gemini 3.5 Flash-Lite →
+  OpenRouter; Cerebras removed.
+- **`mv_street_totals`** — coarse default-state matview for intersections,
+  corridors and street concentration (10 matviews total).
+- **CI gates** — Playwright e2e (hermetic) and Lighthouse accessibility ≥ 0.95
+  on `/`, `/water`, `/stats`, `/about`; Dependabot alerts on, grouped
+  minor/patch weekly via `.github/dependabot.yml`.
 
 ## Key references
 

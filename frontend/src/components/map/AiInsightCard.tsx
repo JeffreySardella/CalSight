@@ -268,8 +268,8 @@ export default function AiInsightCard({
 
                 {/* Drought status — single-county mode only (like the
                     narrative below); hidden until USDM data is loaded.
-                    Gated while the Water page is soft-launched: this row
-                    links to /water and would advertise it. */}
+                    Behind WATER_PAGE_PUBLIC (public since 2026-09-12; the
+                    flag is kept as the rollback switch): this row links to /water. */}
                 {WATER_PAGE_PUBLIC && !compareMode && !isStatewide && (
                   <>
                     <CountyDroughtRow countyName={countyName} countyCode={countyCode} />

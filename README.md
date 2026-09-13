@@ -2,7 +2,7 @@
 
 Ever wonder which California intersections are the most dangerous, or whether DUI crashes are actually going down? We did too.
 
-CalSight pulls 11 million crash records from California's public data and lets you explore them on a map, dig into the stats, or just ask a question in plain English. It's a civic tech project built by a small team who wanted to make this data accessible to everyone — not just researchers with SQL skills.
+CalSight pulls 11.6 million crash records from California's public data and lets you explore them on a map, dig into the stats, or just ask a question in plain English. It's a civic tech project built by a small team who wanted to make this data accessible to everyone — not just researchers with SQL skills.
 
 **Check it out at [calsight.org](https://calsight.org)**
 
@@ -10,7 +10,7 @@ CalSight pulls 11 million crash records from California's public data and lets y
 
 **Explore the map** — see crash density by county, zoom into street-level crash dots, or turn on the heatmap. Filter by year, severity, cause, weather, lighting, time of day, and more.
 
-**Dig into stats** — 12 different chart breakdowns across the state or any county. Crashes by hour, cause, age, gender, at-fault driver demographics, per-capita rates — all filterable.
+**Dig into stats** — chart breakdowns across the state or any county. Crashes by hour, cause, age, gender, at-fault driver demographics, per-capita rates — all filterable.
 
 **Ask AI** — type a question like "Which county has the highest DUI fatality rate?" and get an answer with inline charts pulled from the actual data.
 
@@ -26,9 +26,9 @@ Also: dark mode, offline support (PWA), keyboard accessibility, high contrast mo
 |---|---|
 | Frontend | React 19, TypeScript, Vite 6, Tailwind, Leaflet, custom SVG charts |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 |
-| Database | PostgreSQL 17 — 11M crashes, 25M parties, 8 materialized views |
-| AI | Multi-provider fallback: Groq, OpenRouter, Cerebras, Gemini |
-| ETL | 28 jobs pulling from CKAN, Census, NOAA, BLS, CalEnviroScreen, CDEC, USDM |
+| Database | PostgreSQL 17 — 11.6M crashes, ~9M parties, 10 materialized views |
+| AI | Multi-provider fallback: Groq (gpt-oss-120b) → Gemini → OpenRouter |
+| ETL | 30 jobs pulling from 12 providers — CKAN, Census, NOAA, NHTSA, BLS, CalEnviroScreen, CDEC, USDM |
 | Infra | Cloudflare Pages + self-hosted backend on Proxmox LXC |
 
 ## Run it locally
@@ -65,8 +65,8 @@ npm run dev
 ## Tests
 
 ```bash
-cd backend && pytest -m "not integration"  # 827 unit tests (+313 integration, needs a DB)
-cd frontend && npm test                     # 1012 tests
+cd backend && pytest -m "not integration"  # unit tests; drop the -m to include integration tests (needs a DB)
+cd frontend && npm test
 ```
 
 ## Project layout
@@ -74,31 +74,37 @@ cd frontend && npm test                     # 1012 tests
 ```
 backend/
   app/          FastAPI app — routers, models, filters, LLM client
-  etl/          Data pipeline — 28 jobs across 7+ data sources
+  etl/          Data pipeline — 30 jobs across 12 data providers
   migrations/   Alembic schema migrations
   tests/        Backend test suite
 
 frontend/
   src/
     components/   Map layers, charts, filters, UI
-    pages/        Map, Stats, Ask AI, About, 404
+    pages/        Map, Stats, Ask AI, Water, About, Privacy, Terms, 404
     hooks/        Data fetching, filter state, map controls
     context/      Theme, accessibility, lite mode
 ```
 
 ## Data sources
 
-- [CCRS](https://data.ca.gov/dataset/ccrs) — California crash records (State of California)
-- [ACS](https://www.census.gov/programs-surveys/acs) — Demographics (Census Bureau)
+- [CCRS](https://data.ca.gov/dataset/ccrs) — California crash records, 2016–present (CHP via data.ca.gov)
+- [SWITRS](https://zenodo.org/records/4284843) — Historical crash records, 2001–2015 (CHP archive on Zenodo)
+- [NHTSA FARS](https://www.nhtsa.gov/research-data/fatality-analysis-reporting-system-fars) — Fatal-crash aggregates per county-year
+- [ACS](https://www.census.gov/programs-surveys/acs) — Demographics and lived density (Census Bureau)
 - [CalEnviroScreen 5.0](https://oehha.ca.gov/calenviroscreen) — Environmental justice scores
-- [NOAA Storm Events](https://www.ncdc.noaa.gov/stormevents/) — Weather data
+- [NOAA nClimGrid (monthly + daily)](https://www.ncei.noaa.gov/products/land-based-station/nclimgrid-daily) — County weather
 - [HPMS](https://www.fhwa.dot.gov/policyinformation/hpms.cfm) — Road miles and traffic volumes
-- [CDEC](https://cdec.water.ca.gov) — Reservoir storage (CA Dept. of Water Resources)
+- [DMV](https://data.ca.gov/dataset/vehicle-fuel-type-count-by-zip-code) — Vehicle registrations and licensed drivers
+- [CDE](https://www.cde.ca.gov/ds/si/ds/pubschls.asp) — School locations
+- [HCAI](https://data.chhs.ca.gov/) — Hospitals and trauma centers
+- [OpenStreetMap](https://www.openstreetmap.org/copyright) — Bridge segments for coordinate validation
+- [CDEC](https://cdec.water.ca.gov) — Reservoir storage, snowpack and precipitation indices (CA Dept. of Water Resources)
 - [US Drought Monitor](https://droughtmonitor.unl.edu) — Weekly drought severity (NDMC/USDA/NOAA)
 
 ## Contributing
 
-Grab an [open issue](../../issues), branch off `main`, write tests, open a PR. CI runs on every push. One approval to merge.
+Grab an [open issue](../../issues), branch off `main`, write tests, open a PR. CI (unit, Playwright e2e, Lighthouse accessibility gate, CodeQL) runs on every push. One approval to merge.
 
 ## License
 

@@ -106,7 +106,7 @@ docker compose -f docker-compose.prod.yml exec -T backend python -m etl.refresh_
 ### 4e. Sanity check
 
 ```bash
-psql -d calsight -c "SELECT count(*) FROM crashes;"          # expect ~11.3M
+psql -d calsight -c "SELECT count(*) FROM crashes;"          # expect ~11.6M
 psql -d calsight -c "SELECT matviewname, ispopulated FROM pg_matviews;"
 curl http://127.0.0.1:8000/api/health
 ```
@@ -148,7 +148,7 @@ touches backups at all.
 > | crashes | **11,344,536** — exact match with live |
 > | killed / injured | **92,176 / 6,375,153** — exact match with live |
 > | crash_parties / crash_victims | 9,067,452 / 5,464,114 |
-> | Materialized views | **9 of 9 populated**, incl. `mv_street_aggregates` |
+> | Materialized views | **9 of 9 populated**, incl. `mv_street_aggregates` (10 matviews as of 2026-09-12 — `mv_street_totals` added; expect 10 of 10 on the next drill) |
 > | Indexes / FK constraints | 138 / 24 |
 > | Analytical query on restored DB | ran correctly (2022: 405,246 crashes, 4,661 killed) |
 >
@@ -185,7 +185,7 @@ docker exec drtest psql -U postgres -d calsight -c \
 docker rm -f drtest && rm -f calsight_<DATE>.dump*
 ```
 
-**Pass criteria:** ~11.3M crashes and all matviews `ispopulated = t`.
+**Pass criteria:** ~11.6M crashes and all matviews `ispopulated = t`.
 
 Gotchas worth knowing before you repeat this:
 - On **Git Bash / MSYS**, container paths get rewritten into Windows paths and

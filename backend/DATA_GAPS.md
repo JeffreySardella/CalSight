@@ -1,6 +1,6 @@
 # CalSight Data Gaps and Known Limitations
 
-Last updated: 2026-04-16
+Last updated: 2026-09-12
 
 This is the honest list of what's missing, what's incomplete, and what we know doesn't work perfectly. If you're building a frontend feature and wondering "can I do X with the data?" — check here first.
 
@@ -101,7 +101,7 @@ Things that would be useful but we couldn't get:
 
 (**MNAR** — missingness is driven by the severity of the crash itself, which is exactly what we're analyzing. This is the most dangerous kind of gap.)
 
-This is a big one that's easy to miss. Our 11.1 million crashes are only the ones that got a police report. A lot of crashes — probably the majority of minor ones — never get reported. NHTSA estimates that only about 50-60% of injury crashes and maybe 30% of property-damage-only crashes end up in official records. Fatal crashes are close to 100% reported because, well, somebody has to deal with that.
+This is a big one that's easy to miss. Our 11.6 million crashes are only the ones that got a police report. A lot of crashes — probably the majority of minor ones — never get reported. NHTSA estimates that only about 50-60% of injury crashes and maybe 30% of property-damage-only crashes end up in official records. Fatal crashes are close to 100% reported because, well, somebody has to deal with that.
 
 So the real number of crashes in California between 2001-2026 is probably 2-3x higher than what's in our database. And the underreporting rate isn't the same everywhere — it probably varies by county based on things like:
 
@@ -116,7 +116,7 @@ What we CAN do is be upfront about this on the site: "This data shows police-rep
 
 ## The bottom line
 
-We're at maybe 60-70% of what an ideal traffic safety platform would have. The big gaps are the missing crash coordinates (63%), no person data before 2016, and the fact that traffic/road data only covers state highways. Everything else is pretty solid — 17 data sources, 25M+ rows, all from official government sources.
+We're at maybe 60-70% of what an ideal traffic safety platform would have. The big gaps are the missing crash coordinates (63%), no person data before 2016, and the fact that traffic/road data only covers state highways. Everything else is pretty solid — 12 providers / 30 ETL jobs, 26M+ rows, all from official government sources.
 
 For the frontend, the data supports:
 - County-level dashboards with crash trends, demographics, and economic context

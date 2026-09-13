@@ -22,7 +22,7 @@ const SITE_URL = "https://calsight.org";
 const OG_WORKER_URL = "https://og.calsight.org";
 const DEFAULT_TITLE = "CalSight — California Crash Data Explorer";
 const DEFAULT_DESCRIPTION =
-  "Explore 11 million California traffic crashes with interactive maps, AI-powered insights, and demographic analysis. Filter by county, cause, severity, and year.";
+  "Explore 11.6 million California traffic crashes with interactive maps, AI-powered insights, and demographic analysis. Filter by county, cause, severity, and year.";
 // Bundled, same-origin social card. og.calsight.org — the dynamic OG worker —
 // has no DNS record, so every og:image/twitter:image pointing at it resolved
 // to nothing and EVERY shared link (Twitter, Slack, iMessage, Discord,

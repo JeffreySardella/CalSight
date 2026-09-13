@@ -1,6 +1,6 @@
 # Database schema
 
-Reference for the CalSight Postgres schema as it exists in production (self-hosted on Proxmox LXC 100) as of 2026-04-28. This document is descriptive — it reflects what the DB actually contains, not what `backend/app/models.py` on `main` currently describes (the ORM lags the DB; see CLAUDE.md).
+Reference for the CalSight Postgres schema as it exists in production (self-hosted on Proxmox LXC 100) as of 2026-09-12 (row counts below re-dated where re-verified; older counts are marked). This document is descriptive — it reflects what the DB actually contains, not what `backend/app/models.py` on `main` currently describes (the ORM lags the DB; see CLAUDE.md).
 
 Run `python backend/scripts/probe_db.py` (when added) to regenerate the row-count summary.
 
@@ -131,16 +131,22 @@ erDiagram
     }
 ```
 
-## Row counts (2026-04-28)
+## Row counts (2026-09-12 unless noted)
 
 | Table / View | Rows | Notes |
 |---|---:|---|
-| `crashes` | 11,129,647 | SWITRS 6.78M + CCRS 4.35M |
-| `crash_parties` | 8,804,729 | CCRS only (party_id unique within `data_source`) |
-| `crash_victims` | 5,297,539 | CCRS only |
-| `weather` | 17,315 | NOAA, monthly per county |
-| `weather_daily` | 0 until backfilled (~530K at 58 counties × 25 yrs) | NOAA nClimGrid-Daily, one row per county-day; added 2026-09 |
-| `first_rain_events` | 0 until computed (≤ 58 per water year) | First rain of each water year vs the 28 days before it; from `etl.compute_first_rain` |
+| `crashes` | 11,596,920 | SWITRS 6.99M + CCRS ~4.6M |
+| `crash_parties` | ~9.07M | CCRS only (party_id unique within `data_source`) |
+| `crash_victims` | ~5.46M | CCRS only |
+| `weather` | ~17,900 | NOAA nClimGrid, monthly per county |
+| `weather_daily` | ~540K | NOAA nClimGrid-Daily, one row per county-day; populated 2026-09 (2001→present) |
+| `first_rain_events` | ≤ 58 per water year, WY 2002+ | First rain of each water year vs the 28 days before it; from `etl.compute_first_rain`; populated 2026-09 |
+| `fars_county_year` | 58 × years | NHTSA FARS fatalities per county-year (`etl.nhtsa_fars`) |
+| `tract_density_county_year` | 58 × years | Population-weighted lived density (`etl.census_tract_density`) |
+| `reservoirs` / `reservoir_daily` | 15 / ~190K | CDEC daily storage, backfilled from 1991 |
+| `snow_stations` / `snow_daily` | 110 / ~1M | CDEC daily SWE for DWR's official station lists, backfilled from 1991 |
+| `precip_index_daily` | 3 × days since 1991 | CDEC 8SI / 5SI / 6SI accumulated water-year precipitation |
+| `drought_county_weekly` | 58 × USDM weeks | US Drought Monitor county area percentages |
 | `unemployment_rates` | 14,558 | BLS, monthly per county |
 | `school_locations` | 9,932 | CDE, K-12 public schools |
 | `data_quality_stats` | 1,574 | See "scope" below |
@@ -158,6 +164,12 @@ erDiagram
 | `mv_crashes_by_year` | 4,405 | Populated. Years 2001–2026. |
 | `mv_crashes_by_cause` | 19,724 | Populated. Includes `canonical_cause`. |
 | `mv_crashes_by_hour` | 306,929 | Populated. **No killed/injured columns.** |
+| `mv_crashes_by_month` | small | Seasonality (month × day-of-week); migration `g4h5i6j7k8l9` |
+| `mv_crash_rates` | 58 × years × severity | Per-capita / per-driver / per-mile normalization; migration `g4h5i6j7k8l9` |
+| `mv_crashes_wide` | facet rollup | Wide rollup serving the grouped `/api/stats` facets (hour, month, day-of-week, conditions) |
+| `mv_at_fault_parties_by_demographics` | small | At-fault party gender / age; migration `f8a1b2c3d4e5` |
+| `mv_street_aggregates` | street rollup | Intersections / corridors; migration `c4f1a9b2d3e7`. Optional — endpoints fall back to `crashes` |
+| `mv_street_totals` | coarse totals | Default-state street totals; migration `77b8d6739669`, added 2026-09. Optional |
 | `mv_crash_victims_by_demographics` | 26,360 | Populated 2026-04-18. JOINs `crash_victims` to `crashes` on `(collision_id, data_source)`. Aggregates by (county, year, severity, gender, age_bracket). Powers `/api/stats?group_by=gender|age_bracket`. **Counts victims, not crashes.** |
 
 ## Key constraints and gotchas
@@ -226,7 +238,7 @@ API consumers should treat NULLs in returned rows as "this scope" markers, not m
 
 ### Materialized view granularity
 
-The 4 MVs are not interchangeable — pick the smallest one that supports your filters:
+There are 10 materialized views as of 2026-09-12 (see the row-count table). The four original StatsPage views are not interchangeable — pick the smallest one that supports your filters:
 
 - **`mv_crashes_by_year`** (4.4K rows): no `canonical_cause` column. Use when no cause filter is in play.
 - **`mv_crashes_by_cause`** (19.7K rows): adds `canonical_cause`. Use when filtering or grouping by cause.

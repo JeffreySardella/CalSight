@@ -10,8 +10,8 @@ import { markerSizePx, reservoirIconHtml } from "../../lib/map/reservoirMarkers"
 /**
  * Opt-in map layer plotting the major reservoirs as capacity-sized gauge
  * markers (percent of capacity as both fill level and printed number).
- * Gated behind WATER_PAGE_PUBLIC while the Water page is soft-launched —
- * the popup links to /water and would advertise it.
+ * Gated behind WATER_PAGE_PUBLIC (public since 2026-09-12; the flag is kept
+ * as the rollback switch) — the popup links to /water.
  *
  * Data comes from the same /api/water/reservoirs query the Water page and
  * MapPage's error card use, so React Query dedupes the fetch. The explicit

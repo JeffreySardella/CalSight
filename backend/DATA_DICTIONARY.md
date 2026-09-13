@@ -1,6 +1,6 @@
 # CalSight Data Dictionary
 
-Last updated: 2026-04-17
+Last updated: 2026-09-12
 
 Column-by-column reference for every table in the CalSight database.
 
@@ -593,3 +593,27 @@ These are pre-aggregated SELECT results stored physically, refreshed by `etl.ref
 | `created_at` | DateTime | Y | Row insertion timestamp |
 
 **Indexes:** `ix_etl_runs_source_started_at` (source, started_at) — fast lookup of "latest successful run of source X".
+
+---
+
+## 23. Added since this dictionary was written (2026-05 → 2026-09)
+
+Column detail for these lives in `backend/app/models.py` (the ORM is authoritative) and the row-count table in `docs/db-schema.md`; this is the one-line map so nobody assumes the list above is complete.
+
+| Object | Grain | Loaded by | What it is |
+|---|---|---|---|
+| `weather_daily` | county × day | `etl.nclimgrid_weather` | NOAA nClimGrid-Daily county area-averages (precip_in, avg/max/min temp F), 2001→present; missing days are absent rows |
+| `first_rain_events` | county × water year (2002+) | `etl.compute_first_rain` | First day ≥ 0.10 in after ≥ 14 dry days; `crashes_on_day`, 28-day `baseline_daily_crashes`, `lift_pct` |
+| `fars_county_year` | county × year | `etl.nhtsa_fars` | NHTSA FARS fatalities, unrestrained and restraint-known killed |
+| `tract_density_county_year` | county × year | `etl.census_tract_density` | Population-weighted ("lived") density and contributing tract count |
+| `reservoirs` / `reservoir_daily` | station; station × day | `etl.load_reservoirs` | 15 major CDEC reservoirs (capacity_af, county, lat/lon) and daily `storage_af`, backfilled from 1991 |
+| `snow_stations` / `snow_daily` | station; station × day | `etl.load_snowpack` | 110 official DWR snow sensors (region = Northern/Central/Southern Sierra) and daily `swe_in` |
+| `precip_index_daily` | index × day | `etl.load_precip_indices` | Accumulated water-year precipitation for the CDEC 8SI / 5SI / 6SI indices |
+| `drought_county_weekly` | county × USDM week | `etl.load_drought` | Percent of county area in none / D0–D4 (each class excludes the more severe ones) |
+| `mv_crashes_wide` | facet rollup | `etl.refresh_materialized_views` | Wide crash rollup that serves the grouped `/api/stats` facets (hour, month, day-of-week, conditions) |
+| `mv_crash_rates` | county × year × severity | same | Per-capita / per-driver / per-mile normalization (population, licensed drivers, vehicles, road miles, AADT) |
+| `mv_crashes_by_month`, `mv_at_fault_parties_by_demographics` | see migrations `g4h5i6j7k8l9`, `f8a1b2c3d4e5` | same | Seasonality; at-fault party gender / age |
+| `mv_street_aggregates` | street/intersection rollup | same | Street-level aggregates behind the intersections and corridors endpoints |
+| `mv_street_totals` | coarse street totals | same | Default-state (no filters) totals so the street endpoints skip the 11.6M-row scan; added 2026-09 |
+
+That makes **10 materialized views** as of 2026-09-12. The two street views are optional — the street endpoints fall back to `crashes` when they are unpopulated — so they do not gate the site-wide rebuilding banner.

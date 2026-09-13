@@ -4,8 +4,9 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 
 vi.mock("leaflet", () => import("../../__mocks__/leaflet"));
 vi.mock("react-leaflet", () => import("../../__mocks__/react-leaflet"));
-// The layer is soft-launch-gated; tests exercise it with the flag up and
-// verify it stays dark with the flag down. `mockConfig` is mutated per-test.
+// The layer is gated on WATER_PAGE_PUBLIC (public since 2026-09-12; the flag
+// is the rollback switch); tests exercise it with the flag up and verify it
+// stays dark with the flag down. `mockConfig` is mutated per-test.
 const mockConfig = vi.hoisted(() => ({ API_BASE: "", WATER_PAGE_PUBLIC: true }));
 vi.mock("../../config", () => mockConfig);
 

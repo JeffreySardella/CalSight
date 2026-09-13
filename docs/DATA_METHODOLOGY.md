@@ -1,7 +1,7 @@
 # CalSight Data Methodology
 
 **Version:** 1.0
-**Last Updated:** May 2026
+**Last Updated:** September 2026
 **Authors:** Jeffrey Sardella (Sacramento State, CSC 177)
 
 ---
@@ -24,15 +24,15 @@
 
 ## 1. Overview
 
-CalSight is a California traffic safety analytics platform that integrates 15 public data sources into a unified analytical database. The platform enables county-level comparative analysis of crash patterns alongside socioeconomic, environmental, transportation, and weather data across all 58 California counties from 2001 to the present.
+CalSight is a California traffic safety analytics platform that integrates 12 public data providers (30 ETL jobs) into a unified analytical database. The platform enables county-level comparative analysis of crash patterns alongside socioeconomic, environmental, transportation, and weather data across all 58 California counties from 2001 to the present.
 
-The data pipeline ingests approximately 25 million rows from federal and state agencies, transforms them through a multi-stage ETL (Extract, Transform, Load) process, and surfaces the results through a REST API and interactive dashboard. All source data is publicly available under government open-data mandates.
+The data pipeline ingests approximately 26 million rows from federal and state agencies, transforms them through a multi-stage ETL (Extract, Transform, Load) process, and surfaces the results through a REST API and interactive dashboard. All source data is publicly available under government open-data mandates.
 
 ### System Architecture
 
 ```
 Public APIs/Archives --> ETL Pipeline --> PostgreSQL --> FastAPI --> React Dashboard
-(15 sources)           (Python)         (25M+ rows)    (REST)     (TypeScript)
+(12 providers)         (Python)         (26M+ rows)    (REST)     (TypeScript)
 ```
 
 The pipeline is orchestrated by a dependency-aware job scheduler that resolves execution order via topological sort on a directed acyclic graph (DAG) of job dependencies. Tier 1 jobs load external data with no dependencies; Tier 2 jobs compute derived fields and refresh materialized views.
@@ -105,12 +105,14 @@ Victim ID, collision ID, party number, age, gender, injury severity code, person
 | **URL** | https://zenodo.org/records/4284843 |
 | **Coverage** | 2001 -- 2015 |
 | **Update Frequency** | Static (historical archive) |
-| **Row Count** | ~6.78 million crash records |
+| **Row Count** | ~6.99 million crash records |
 
 **Fields Extracted:**
 Case ID, collision date/time, county-city location code, latitude, longitude, type of collision, PCF violation category, motor vehicle involved with, killed/injured counts, weather, road surface, lighting, highway indicator, primary/secondary road, hit-and-run, pedestrian action.
 
-**Data Format:** Gzip-compressed SQLite database inside a ZIP archive hosted on Zenodo (CERN's open-data repository). The ETL downloads the archive once per run, extracts the SQLite file, and queries it by year. Column names use lowercase_with_underscores format. County codes are derived from the first 2 digits of the `county_city_location` field.
+**Data Format:** Gzip-compressed SQLite database hosted on Zenodo (CERN's open-data repository). The ETL fetches the file directly from `https://zenodo.org/api/records/4284843/files/switrs.sqlite.gz/content`, decompresses it, and queries it by year. Zenodo's `files-archive` ZIP endpoint returns HTTP 400 for records larger than 300 MB, so the direct file link is the only reliable download path. Column names use lowercase_with_underscores format. County codes are derived from the first 2 digits of the `county_city_location` field.
+
+**2001 case IDs:** about 211,000 SWITRS 2001 case IDs are wider than a signed 64-bit integer. They were silently dropped until September 2026; the loader now folds them into `bigint` range (uniqueness is preserved within `data_source = 'switrs'`), which raised 2001 from ~310,000 to 522,562 crashes and the SWITRS total to ~6.99 million.
 
 **Notes:** SWITRS is CHP's legacy system. No party or victim detail tables exist for SWITRS years, so demographic flags (alcohol involvement, distraction, cyclist/pedestrian) are set to NULL for pre-2016 crashes. SWITRS and CCRS use overlapping numeric collision ID spaces -- the pair `(collision_id, data_source)` is the true unique key.
 
@@ -143,25 +145,35 @@ Case ID, collision date/time, county-city location code, latitude, longitude, ty
 
 **API Behavior:** The Census API caps requests at 50 variables, so each county-year requires 4 API calls: (1) demographic profile, (2) age distribution (47 sex-by-age cells from B01001), (3) education (B15003, available 2012+), (4) disability (B18101 sex-by-age-by-disability, 13 variables). The ETL selects ACS 5-year estimates for 2010+ and 1-year estimates for 2005-2009. Requires a free Census API key.
 
-### 2.6 NOAA Climate Data Online
+### 2.6 NOAA nClimGrid (monthly and daily county weather)
 
 | Attribute | Value |
 |---|---|
-| **Official Name** | Global Summary of the Month (GSOM) |
+| **Official Name** | NOAA Monthly U.S. Climate Gridded Dataset (nClimGrid) and nClimGrid-Daily |
 | **Source Agency** | NOAA National Centers for Environmental Information (NCEI) |
 | **Legal Authority** | Freedom of Information Act (5 U.S.C. 552); NOAA Open Data Policy |
-| **URL** | https://www.ncei.noaa.gov/cdo-web/ |
-| **API Endpoint** | `https://www.ncei.noaa.gov/cdo-web/api/v2/data` |
-| **Coverage** | 2001 -- 2025, monthly per county |
-| **Update Frequency** | Monthly |
-| **Row Count** | ~17,300 weather records |
+| **URL** | https://www.ncei.noaa.gov/products/land-based-station/nclimgrid-daily |
+| **Access** | Bulk CSV files (county area-averages), no API token |
+| **Coverage** | 2001 -- present; monthly per county (`weather`) and daily per county (`weather_daily`) |
+| **Update Frequency** | Monthly job; the daily file is refreshed in the same run |
+| **Row Count** | ~17,300 monthly rows; ~540,000 daily rows |
 
 **Fields Extracted:**
-Average temperature (TAVG), maximum temperature (TMAX), minimum temperature (TMIN), total precipitation (PRCP). All in standard units (Fahrenheit, inches).
+Average, maximum and minimum temperature and total precipitation, converted to Fahrenheit and inches.
 
-**Aggregation Method:** NOAA provides station-level data. Multiple weather stations report per county per month. The ETL averages temperature readings across all stations within each county for each month and averages precipitation readings, producing one row per county per month.
+**Aggregation Method:** nClimGrid is a gridded product (roughly 5 km cells) that NCEI already area-averages to counties, so CalSight loads NCEI's county values directly rather than averaging stations itself. Missing days are absent rows, not NULLs. nClimGrid replaced the earlier Climate Data Online (GSOM) token API in 2026 after that API stalled and zeroed the current year; the `weather` table and its monthly contract were unchanged by the switch.
 
-**Rate Limits:** 5 requests/second, 10,000 requests/day. The ETL queries one county at a time with a 0.3-second delay between requests. Requires a free NOAA CDO API token.
+#### First rain of the water year
+
+The first-storm analysis (`/api/first-rain`, `/stats?story=first-storm`, Ask AI tool `first_rain`) is derived from `weather_daily` by `etl/compute_first_rain.py` and stored in `first_rain_events`:
+
+- **Water year:** October 1 through September 30, named for the calendar year in which it ends. Water years 2002 onward are computed (crashes start in 2001, so WY 2002 is the first with a full baseline).
+- **Dry day:** total precipitation below 0.01 in.
+- **First rain:** the first day of the water year with at least 0.10 in of precipitation that follows at least 14 consecutive dry days. Counties with no qualifying day in a water year have no row.
+- **Baseline:** the mean daily crash count over the 28 calendar days before the first-rain day.
+- **Lift:** `(crashes_on_day - baseline) / baseline * 100`; NULL when the baseline is zero.
+
+The job runs daily after `weather` and is idempotent per (county, water year).
 
 ### 2.7 Bureau of Labor Statistics (BLS) -- Local Area Unemployment Statistics
 
@@ -324,6 +336,21 @@ county_score = SUM(tract_score * tract_population) / SUM(tract_population)
 
 Census tract FIPS codes are 11 digits; the first 5 identify the county (e.g., `06001` = Alameda County). Some tract codes arrive as 10-digit numbers (missing leading zero) and are zero-padded by the ETL. Only tracts with population > 0 contribute to the weighted average.
 
+### 2.16 Water module (CDEC and US Drought Monitor)
+
+The Water page has no AI component; it is a direct presentation of four public feeds.
+
+| Feed | Source | Table | Scope |
+|---|---|---|---|
+| Reservoir storage | CDEC (DWR), daily storage sensor | `reservoirs`, `reservoir_daily` | 15 major reservoirs with gross-pool capacity in acre-feet |
+| Snowpack | CDEC (DWR), daily snow water equivalent | `snow_stations`, `snow_daily` | 110 stations — DWR's official Northern (32), Central (54) and Southern (24) Sierra lists |
+| Precipitation indices | CDEC 8SI / 5SI / 6SI, accumulated water-year precipitation | `precip_index_daily` | Northern Sierra 8-station, San Joaquin 5-station, Tulare Basin 6-station |
+| Drought | US Drought Monitor county statistics | `drought_county_weekly` | Percent of county area in none / D0–D4, weekly |
+
+**Percent of average.** Every "percent of normal" figure divides today's value by the 1991–2020 calendar-day mean for that station or index — the same 30-year period DWR uses for its published normals. CDEC history was backfilled from 1991-01-01 so that mean is computed from CalSight's own rows rather than quoted. Snowpack regional figures average the stations in each DWR list; a station with no reading on a given day is skipped, not zero-filled.
+
+**Cadence.** CDEC has no freshness probe, so the three CDEC jobs pull a trailing window every day. USDM publishes on Thursdays; the `drought` job re-pulls the trailing eight weeks daily to absorb revisions. Upserts never delete, so a shrinking row count is treated as a failure.
+
 ---
 
 ## 3. ETL Pipeline Architecture
@@ -339,7 +366,7 @@ The pipeline uses a custom Python-based orchestrator (`etl/orchestrator.py`) tha
 - **max_drop_pct:** Maximum acceptable row count decrease between runs (safety guardrail)
 - **source_type:** `"ckan"`, `"arcgis"`, `"federal"`, or `"none"` (for freshness checking)
 
-Execution order is resolved via topological sort. The pipeline runs daily at 3 AM Pacific (10 AM UTC) via APScheduler cron trigger.
+Execution order is resolved via topological sort. Two schedulers on LXC 100 run it, and both are live: a host cron fires `etl.run_all` at 02:00 UTC, and the `calsight-pipeline-1` container's APScheduler runs the daily pipeline at 11:00 UTC Mon–Sat and the weekly full refresh at 09:00 UTC Sunday (plus the backup at 07:00 and VACUUM at 15:00). See `backend/deploy/lxc100-crontab.md`.
 
 ### 3.2 Two-Tier Architecture
 
@@ -352,7 +379,13 @@ Execution order is resolved via topological sort. The pipeline runs daily at 3 A
 | `parties` | data.ca.gov CKAN | `crash_parties` | Daily |
 | `victims` | data.ca.gov CKAN | `crash_victims` | Daily |
 | `demographics` | Census API | `demographics` | Monthly |
-| `weather` | NOAA CDO API | `weather` | Monthly |
+| `weather` | NOAA nClimGrid bulk CSV | `weather`, `weather_daily` | Monthly |
+| `fars` | NHTSA FARS | `fars_county_year` | Monthly |
+| `tract_density` | Census API (tracts) | `tract_density_county_year` | Monthly |
+| `reservoirs` | CDEC | `reservoir_daily` | Daily |
+| `snowpack` | CDEC | `snow_daily` | Daily |
+| `precip_indices` | CDEC | `precip_index_daily` | Daily |
+| `drought` | US Drought Monitor | `drought_county_weekly` | Daily (USDM publishes weekly) |
 | `hospitals` | data.ca.gov CKAN | `hospitals` | Monthly |
 | `schools` | data.ca.gov CKAN | `school_locations` | Monthly |
 | `speed_limits` | FHWA ArcGIS | `speed_limits` | Monthly |
@@ -371,7 +404,9 @@ Execution order is resolved via topological sort. The pipeline runs daily at 3 A
 | `backfill_conditions` | backfill | Canonicalize weather, lighting, road_condition, collision_type |
 | `data_quality` | backfill, backfill_conditions | Compute fill-rate statistics per county per year |
 | `validate_coords` | crashes_ccrs | Flag lat/lng outside county boundaries |
-| `matviews` | backfill, data_quality, demographics, licensed_drivers, vehicles, road_miles, aadt | Refresh 8 materialized views |
+| `route_number` | crashes_ccrs | Extract the highway route number from the primary-road text for the dangerous-highways layer |
+| `first_rain` | weather | Compute first-rain-of-the-water-year crash lift from `weather_daily` |
+| `matviews` | backfill, data_quality, demographics, licensed_drivers, vehicles, road_miles, aadt, victims | Refresh 10 materialized views |
 | `insights` | matviews | Generate per-county AI narrative insight cards |
 | `vacuum` | matviews, insights | PostgreSQL VACUUM ANALYZE for query planner |
 
@@ -683,8 +718,8 @@ County-level correlations (e.g., poverty rate vs. crash rate) describe associati
 
 | Schedule | Data Sources | Trigger |
 |---|---|---|
-| **Daily** (3 AM Pacific) | CCRS crashes, parties, victims; derived fields; materialized views; coordinate validation; data quality; AI insights | Automated cron via APScheduler |
-| **Monthly** | Demographics, weather, unemployment, hospitals, schools, speed limits, AADT, vehicles, CalEnviroScreen, licensed drivers, road miles | Automated cron (monthly check) |
+| **Daily** (host cron 02:00 UTC; container 11:00 UTC Mon–Sat, weekly full refresh Sun 09:00 UTC) | CCRS crashes, parties, victims; derived fields; route numbers; first rain; materialized views; coordinate validation; data quality; AI insights; reservoirs, snowpack, precipitation indices, drought | Host cron + APScheduler in `calsight-pipeline-1` (see `backend/deploy/lxc100-crontab.md`) |
+| **Monthly** | Demographics, weather, FARS, tract density, unemployment, hospitals, schools, speed limits, AADT, vehicles, CalEnviroScreen, licensed drivers, road miles | Same schedulers (monthly check) |
 | **Static** | SWITRS (2001-2015 historical archive) | Manual trigger only (data is fixed) |
 
 The orchestrator supports freshness checking: before re-fetching a source, it queries the CKAN/ArcGIS metadata to determine if the upstream data has changed since the last successful load. If unchanged, the job is skipped (`skipped_unchanged` status).
@@ -737,10 +772,9 @@ The ETL pipeline is fully deterministic given the same source data. All transfor
 
 Reproducing the full pipeline requires free API keys from:
 - U.S. Census Bureau: https://api.census.gov/data/key_signup.html
-- NOAA CDO: https://www.ncdc.noaa.gov/cdo-web/token
 - Bureau of Labor Statistics: https://www.bls.gov/developers/
 
-All other data sources (data.ca.gov CKAN, Caltrans ArcGIS, FHWA ArcGIS, OEHHA ArcGIS, Zenodo) are accessible without authentication.
+All other data sources (data.ca.gov CKAN, Caltrans ArcGIS, FHWA ArcGIS, OEHHA ArcGIS, Zenodo, NOAA nClimGrid, NHTSA FARS, CDEC, US Drought Monitor) are accessible without authentication.
 
 ---
 
