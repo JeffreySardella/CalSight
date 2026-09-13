@@ -3,21 +3,34 @@
 Uses generate_narrative() which auto-rotates between API keys. Runs slowly
 (5s between calls) to avoid rate limits and stay separate from Ask AI traffic.
 
-Skips cards that already have an LLM-generated narrative (narrative starting
-with a non-template pattern). Safe to interrupt and resume — picks up where
-it left off.
+Skips cards that already have an LLM-generated narrative unless --force.
+Safe to interrupt and resume — picks up where it left off.
+
+Every generated card passes a numeric gate: any number it states between 10
+and 10,000,000 must be within 2% of a figure that was in the prompt (or a
+rounded / per-day derivation of one). A failing card is retried once with
+"Use only the exact figures provided."; if it still fails, nothing is stored
+and the previous card stays.
 
 Usage:
     python -m etl.generate_llm_cards                    # all counties, latest year
     python -m etl.generate_llm_cards all                # all counties, all years
-    python -m etl.generate_llm_cards --county "Los Angeles"  # single county
+    python -m etl.generate_llm_cards --counties alpine los_angeles --force
+    python -m etl.generate_llm_cards --years 2001 2002 --force
+    python -m etl.generate_llm_cards --statewide --years 2001 2002 --force
     python -m etl.generate_llm_cards --delay 10         # slower (10s between calls)
+
+--statewide writes the LLM angles of ``statewide_insights`` (overview,
+data_quality, historical_context, county_spotlight). Those rows were
+hand-seeded in May 2026 with no generator in git; this is the generator.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import math
+import re
 import time
 
 from sqlalchemy import text
@@ -26,9 +39,18 @@ from sqlalchemy.orm import Session
 
 from app.database import EtlSessionLocal as SessionLocal
 from app.llm import generate_narrative
-from app.models import County, CountyInsightCard
+from app.models import County, CountyInsightCard, StatewideInsight
+from etl.generate_fun_facts import _query_statewide_stats
 
 logger = logging.getLogger(__name__)
+
+# Appended to every prompt. Short on purpose — the numeric gate below is the
+# real backstop; this just stops the model reaching for figures it wasn't given.
+_GUARDRAILS = (
+    " Use only the figures provided: no comparison to a national average or any "
+    "figure not supplied; do not call the fatality rate low or high unless a "
+    "statewide rate is supplied; do not invent explanations for the peak hour."
+)
 
 ANGLE_PROMPTS: dict[str, str] = {
     "overview": (
@@ -143,6 +165,80 @@ ANGLE_PROMPTS: dict[str, str] = {
         "How did 2020 compare to before and after? Data: {stats}"
     ),
 }
+
+STATEWIDE_ANGLE_PROMPTS: dict[str, str] = {
+    "overview": (
+        "Write a 2-3 sentence overview insight about California's statewide crash data for {year}. "
+        "Lead with the most notable pattern. Data: {stats}"
+    ),
+    "data_quality": (
+        "Write a 2-3 sentence insight about how complete California's {year} crash records are "
+        "(share of records missing a cause, hour or coordinates) and what that means for reading "
+        "the numbers. Data: {stats}"
+    ),
+    "historical_context": (
+        "Write a 2-3 sentence insight placing California's {year} crash totals in the context of "
+        "the surrounding years (yearly_totals). Data: {stats}"
+    ),
+    "county_spotlight": (
+        "Write a 2-3 sentence insight spotlighting the county with the most crashes in California "
+        "in {year} and its share of the statewide total. Data: {stats}"
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
+# Numeric verification gate
+# ---------------------------------------------------------------------------
+
+_NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def _numbers(s: str) -> list[float]:
+    return [float(m.replace(",", "")) for m in _NUM_RE.findall(s)]
+
+
+def allowed_numbers(stats_str: str, year: int) -> set[float]:
+    """Every figure the prompt supplied, plus cheap derivations a card may state.
+
+    Derivations: per-day / per-week / per-month / minutes-between for the three
+    totals, and floor/ceil of everything so "13%" passes for 12.6%.
+    """
+    nums = set(_numbers(stats_str)) | {float(year), 58.0}
+    for key in ("total_crashes", "killed", "injured"):
+        m = re.search(rf"\b{key}=([\d,]+)", stats_str)
+        if m and (n := float(m.group(1).replace(",", ""))):
+            nums |= {n / 365, n / 52, n / 12, n / 7, 525_600 / n, 8_760 / n}
+    for n in list(nums):
+        nums |= {float(math.floor(n)), float(math.floor(n) + 1)}
+    return nums
+
+
+def unsupported_numbers(narrative: str, stats_str: str, year: int) -> list[float]:
+    """Numbers in ``narrative`` (10..10M, not a year) with no supplied figure within 2%."""
+    allowed = allowed_numbers(stats_str, year)
+    return [
+        n for n in _numbers(narrative)
+        if 10 <= n <= 10_000_000
+        and not (n.is_integer() and 1990 <= n <= 2100)
+        and not any(abs(n - a) <= 0.02 * a for a in allowed)
+    ]
+
+
+def _generate_verified(prompt: str, stats_str: str, year: int, label: str) -> str | None:
+    """generate_narrative + numeric gate; one retry, then None (keep old card)."""
+    narrative = generate_narrative(prompt)
+    bad = unsupported_numbers(narrative, stats_str, year)
+    if bad:
+        logger.warning("%s — figures not in stats %s; retrying", label, bad)
+        narrative = generate_narrative(prompt + " Use only the exact figures provided.")
+        bad = unsupported_numbers(narrative, stats_str, year)
+        if bad:
+            logger.warning("%s — still unsupported %s; keeping previous card", label, bad)
+            return None
+    if not narrative or len(narrative) < 30:
+        return None
+    return narrative
 
 
 def _build_stats_string(db: Session, county_code: int, year: int) -> str | None:
@@ -266,28 +362,150 @@ def _build_stats_string(db: Session, county_code: int, year: int) -> str | None:
     return ", ".join(parts)
 
 
+def _build_statewide_stats_string(db: Session, year: int) -> tuple[str, dict] | None:
+    """Compact statewide stats for the prompt, plus the totals stored on the row."""
+    s = _query_statewide_stats(db, year)
+    if not s:
+        return None
+    tc = s["tc"]
+    parts = [
+        f"total_crashes={tc:,}", f"killed={s['tk']:,}", f"injured={s['ti']:,}",
+        f"fatality_rate={s['fatality_rate']}%", f"crashes_per_day={s['crashes_per_day']}",
+        f"dui_pct={s['dui_pct']}%",
+    ]
+    if s["yoy"] is not None:
+        parts.append(f"yoy_change={s['yoy']:+.1f}%")
+    if s["top_cause"]:
+        parts.append(f"top_cause={s['top_cause'][0]}({round(s['top_cause'][1] / tc * 100, 1)}%)")
+    if s["peak_hour"]:
+        parts.append(f"peak_hour={s['peak_hour'][0]}:00")
+    if s["top_county"]:
+        name, cnt = s["top_county"]
+        parts.append(f"top_county={name}({cnt:,} crashes, {round(cnt / tc * 100, 1)}% of state)")
+    if s["high_fat"]:
+        parts.append(f"highest_fatality_rate_county={s['high_fat'][0]}({s['high_fat'][1]}%)")
+    if s["low_fat"]:
+        parts.append(f"lowest_fatality_rate_county={s['low_fat'][0]}({s['low_fat'][1]}%)")
+    if s["high_dui"]:
+        parts.append(f"highest_dui_county={s['high_dui'][0]}({s['high_dui'][1]}%)")
+
+    dq = db.execute(text("""
+        SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE canonical_cause IS NULL) / COUNT(*), 1) AS no_cause,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE crash_hour IS NULL) / COUNT(*), 1) AS no_hour,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE latitude IS NULL) / COUNT(*), 1) AS no_coords
+        FROM crashes WHERE crash_year = :y
+    """), {"y": year}).one()
+    parts.append(
+        f"missing_cause={dq.no_cause}%, missing_hour={dq.no_hour}%, missing_coords={dq.no_coords}%"
+    )
+
+    hist = db.execute(text("""
+        SELECT crash_year, COUNT(*) AS cnt FROM crashes
+        WHERE crash_year BETWEEN :y - 5 AND :y + 1
+          AND crash_year < EXTRACT(year FROM CURRENT_DATE)
+        GROUP BY crash_year ORDER BY crash_year
+    """), {"y": year}).all()
+    parts.append("yearly_totals=" + ",".join(f"{r.crash_year}:{r.cnt}" for r in hist))
+
+    totals = {"total_crashes": tc, "total_killed": s["tk"], "total_injured": s["ti"]}
+    return ", ".join(parts), totals
+
+
+def _run_statewide(db: Session, mode: str, years: list[int] | None, force: bool, delay: int) -> int:
+    if not years:
+        rows = db.execute(text("""
+            SELECT crash_year FROM crashes
+            WHERE crash_year < EXTRACT(year FROM CURRENT_DATE)
+            GROUP BY crash_year HAVING COUNT(*) >= 1000
+            ORDER BY crash_year DESC
+        """)).all()
+        years = [r[0] for r in rows]
+        if mode != "all":
+            years = years[:1]
+
+    created = skipped = 0
+    for year in years:
+        built = _build_statewide_stats_string(db, year)
+        if not built:
+            continue
+        stats_str, totals = built
+        for angle, tpl in STATEWIDE_ANGLE_PROMPTS.items():
+            existing = db.query(StatewideInsight).filter_by(year=year, angle=angle).first()
+            if existing and not force and existing.narrative and len(existing.narrative) > 50:
+                skipped += 1
+                continue
+            label = f"statewide/{year}/{angle}"
+            try:
+                narrative = _generate_verified(
+                    tpl.format(year=year, stats=stats_str) + _GUARDRAILS, stats_str, year, label,
+                )
+                if narrative is None:
+                    continue
+                stmt = (
+                    pg_insert(StatewideInsight)
+                    .values(
+                        year=year, angle=angle, narrative=narrative,
+                        data_source="switrs" if year <= 2015 else "ccrs", **totals,
+                    )
+                    .on_conflict_do_update(
+                        index_elements=["year", "angle"],
+                        set_=dict(narrative=narrative, **totals),
+                    )
+                )
+                db.execute(stmt)
+                db.commit()
+                created += 1
+                logger.info("%s — generated", label)
+            except Exception as exc:
+                logger.warning("%s — LLM error: %s", label, exc)
+                db.rollback()
+            finally:
+                time.sleep(delay)
+
+    logger.info("Statewide LLM cards: %d created, %d skipped", created, skipped)
+    return created
+
+
+def _norm(name: str) -> str:
+    return name.lower().replace("-", "_").replace(" ", "_")
+
+
 def run(
     mode: str = "latest",
-    county_filter: str | None = None,
     delay: int = 5,
+    years: list[int] | None = None,
+    counties: list[str] | None = None,
+    force: bool = False,
+    statewide: bool = False,
 ) -> int:
-    """Generate LLM insight cards."""
+    """Generate LLM insight cards.
+
+    ``years`` overrides the mode's year selection; ``force`` rewrites cards
+    that already have a narrative; ``counties`` are names with spaces as
+    underscores (``los_angeles``) so they pass the ETL workflow's arg allowlist.
+    """
     db = SessionLocal()
     try:
-        counties = db.query(County).order_by(County.name).all()
-        if county_filter:
-            counties = [c for c in counties if c.name.lower() == county_filter.lower()]
-            if not counties:
-                logger.error("County not found: %s", county_filter)
+        if statewide:
+            return _run_statewide(db, mode, years, force, delay)
+
+        county_rows = db.query(County).order_by(County.name).all()
+        if counties:
+            wanted = {_norm(c) for c in counties}
+            county_rows = [c for c in county_rows if _norm(c.name) in wanted]
+            if not county_rows:
+                logger.error("No county matched: %s", counties)
                 return 0
 
         created = 0
         skipped = 0
         errors = 0
 
-        for county in counties:
-            if mode == "all":
-                years = [r[0] for r in db.execute(text("""
+        for county in county_rows:
+            if years:
+                county_years = list(years)
+            elif mode == "all":
+                county_years = [r[0] for r in db.execute(text("""
                     SELECT crash_year FROM crashes WHERE county_code = :c
                     GROUP BY crash_year HAVING COUNT(*) >= 50
                     ORDER BY crash_year DESC
@@ -299,9 +517,9 @@ def run(
                     GROUP BY crash_year HAVING COUNT(*) >= 50
                     ORDER BY crash_year DESC LIMIT 1
                 """), {"c": county.code}).scalar()
-                years = [yr] if yr else []
+                county_years = [yr] if yr else []
 
-            for year in years:
+            for year in county_years:
                 stats_str = _build_stats_string(db, county.code, year)
                 if not stats_str:
                     continue
@@ -312,17 +530,18 @@ def run(
                         .filter_by(county_code=county.code, year=year, angle=angle)
                         .first()
                     )
-                    if existing and existing.narrative and len(existing.narrative) > 50:
+                    if existing and not force and existing.narrative and len(existing.narrative) > 50:
                         skipped += 1
                         continue
 
                     prompt = prompt_tpl.format(
                         county=county.name, year=year, stats=stats_str,
-                    )
+                    ) + _GUARDRAILS
+                    label = f"{county.name}/{year}/{angle}"
 
                     try:
-                        narrative = generate_narrative(prompt)
-                        if not narrative or len(narrative) < 30:
+                        narrative = _generate_verified(prompt, stats_str, year, label)
+                        if narrative is None:
                             continue
 
                         stmt = (
@@ -342,14 +561,14 @@ def run(
                         db.execute(stmt)
                         db.commit()
                         created += 1
-                        logger.info("%s/%d/%s — generated (%d total)", county.name, year, angle, created)
+                        logger.info("%s — generated (%d total)", label, created)
 
                     except Exception as exc:
                         errors += 1
-                        logger.warning("%s/%d/%s — LLM error: %s", county.name, year, angle, exc)
+                        logger.warning("%s — LLM error: %s", label, exc)
                         db.rollback()
-
-                    time.sleep(delay)
+                    finally:
+                        time.sleep(delay)
 
             logger.info("%s complete — %d created so far", county.name, created)
 
@@ -366,7 +585,15 @@ if __name__ == "__main__":
     )
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", nargs="?", default="latest", choices=["latest", "all"])
-    parser.add_argument("--county", type=str, default=None)
+    parser.add_argument("--counties", nargs="+", default=None,
+                        help="county names, spaces as underscores (alpine los_angeles)")
+    parser.add_argument("--years", nargs="+", type=int, default=None)
+    parser.add_argument("--force", action="store_true", help="rewrite cards that already have a narrative")
+    parser.add_argument("--statewide", action="store_true",
+                        help="write the LLM angles of statewide_insights instead of county cards")
     parser.add_argument("--delay", type=int, default=5)
     args = parser.parse_args()
-    run(mode=args.mode, county_filter=args.county, delay=args.delay)
+    run(
+        mode=args.mode, delay=args.delay, years=args.years,
+        counties=args.counties, force=args.force, statewide=args.statewide,
+    )

@@ -65,7 +65,10 @@ _PROMPT_TEMPLATE = (
     "recommendations, do NOT assert causes (say 'associated with', never 'because "
     "of'), and avoid loaded adjectives (no 'alarming', 'shocking', 'deadly', "
     "'worst'). Data: {stats}. Don't restate every raw number — the UI already shows "
-    "those; describe the patterns a reader would notice and how they compare."
+    "those; describe the patterns a reader would notice and how they compare. "
+    "Use only the figures provided: no comparison to a national average or any "
+    "figure not supplied; do not call the fatality rate low or high unless a "
+    "statewide rate is supplied; do not invent explanations for the peak hour."
 )
 
 
@@ -348,6 +351,36 @@ def is_junk_narrative(text: str | None) -> bool:
     )
 
 
+_EXISTING_SQL = text(
+    "SELECT total_crashes, total_killed, total_injured, yoy_change_pct, narrative "
+    "FROM county_insights WHERE county_code = :cc AND year = :yr"
+)
+_YOY_TOLERANCE = 0.05
+
+
+def _existing_row(db: Session, county_code: int, year: int):
+    return db.execute(_EXISTING_SQL, {"cc": county_code, "yr": year}).fetchone()
+
+
+def stats_changed(existing, stats: dict) -> bool:
+    """True when a stored card's numbers no longer match freshly computed stats.
+
+    ``existing`` is a (total_crashes, total_killed, total_injured,
+    yoy_change_pct, narrative) row. A reload that reshapes a year (SWITRS
+    2001 grew 310k -> 522k on 2026-09-12) changes that year's totals AND the
+    next year's YoY, so both must force a regen; a narrative that merely
+    isn't junk is not enough to keep.
+    """
+    if (existing[0], existing[1], existing[2]) != (
+        stats["total_crashes"], stats["total_killed"], stats["total_injured"]
+    ):
+        return True
+    old, new = existing[3], stats["yoy_change_pct"]
+    if old is None or new is None:
+        return (old is None) != (new is None)
+    return abs(float(old) - float(new)) > _YOY_TOLERANCE
+
+
 def _fresh_narrative(prompt: str, label: str) -> str | None:
     """LLM narrative, or None when the model returned junk — None makes
     _build_update_dict keep the previously stored text instead of replacing it
@@ -414,6 +447,7 @@ def run() -> int:
         upserted = 0
         skipped = 0
         junk_retried = 0
+        stats_regen = 0
 
         for county in counties:
             # ---- Step 1: latest year ----
@@ -434,16 +468,15 @@ def run() -> int:
                 )
                 continue
 
-            # ---- Step 2.5: skip if crash count unchanged (and narrative is real) ----
-            existing = db.execute(
-                text("SELECT total_crashes, narrative FROM county_insights WHERE county_code = :cc AND year = :yr"),
-                {"cc": county.code, "yr": year},
-            ).fetchone()
-            if existing and existing[0] == stats["total_crashes"]:
-                if not is_junk_narrative(existing[1]):
+            # ---- Step 2.5: skip if stats unchanged (and narrative is real) ----
+            existing = _existing_row(db, county.code, year)
+            if existing:
+                if stats_changed(existing, stats):
+                    stats_regen += 1
+                elif not is_junk_narrative(existing[4]):
                     skipped += 1
                     continue
-                if existing[1] is not None:
+                elif existing[4] is not None:
                     junk_retried += 1
 
             # ---- Step 3: demographics (prompt context only) ----
@@ -495,8 +528,9 @@ def run() -> int:
             time.sleep(3)
 
         logger.info(
-            "generate_insights complete: %d upserted, %d skipped (unchanged), %d junk narratives retried",
-            upserted, skipped, junk_retried,
+            "generate_insights complete: %d upserted, %d skipped (unchanged), "
+            "%d junk narratives retried, %d stats-changed regenerations",
+            upserted, skipped, junk_retried, stats_regen,
         )
         return upserted
 
@@ -517,6 +551,7 @@ def run_all_years() -> int:
         upserted = 0
         skipped_existing = 0
         junk_retried = 0
+        stats_regen = 0
 
         for county in counties:
             years = _all_years(db, county.code)
@@ -528,24 +563,22 @@ def run_all_years() -> int:
                 continue
 
             for year in years:
-                existing = (
-                    db.query(CountyInsight.narrative)
-                    .filter(
-                        CountyInsight.county_code == county.code,
-                        CountyInsight.year == year,
-                    )
-                    .first()
-                )
-                if existing:
-                    if not is_junk_narrative(existing[0]):
-                        skipped_existing += 1
-                        continue
-                    if existing[0] is not None:
-                        junk_retried += 1
-
                 stats = _query_stats(db, county.code, year)
                 if stats is None:
                     continue
+
+                # Skip only when the row exists, its narrative is real AND its
+                # stored numbers still match — a reload that reshapes a year
+                # (or the year before it, via YoY) must regenerate.
+                existing = _existing_row(db, county.code, year)
+                if existing:
+                    if stats_changed(existing, stats):
+                        stats_regen += 1
+                    elif not is_junk_narrative(existing[4]):
+                        skipped_existing += 1
+                        continue
+                    elif existing[4] is not None:
+                        junk_retried += 1
 
                 demo = _query_demographics(db, county.code, year)
 
@@ -592,8 +625,8 @@ def run_all_years() -> int:
 
         logger.info(
             "generate_insights (all years) complete: %d upserted, %d skipped (existing), "
-            "%d junk narratives retried",
-            upserted, skipped_existing, junk_retried,
+            "%d junk narratives retried, %d stats-changed regenerations",
+            upserted, skipped_existing, junk_retried, stats_regen,
         )
         return upserted
 
