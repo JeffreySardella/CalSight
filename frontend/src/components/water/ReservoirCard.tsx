@@ -87,7 +87,7 @@ export default function ReservoirCard({ reservoir }: ReservoirCardProps) {
 
       <button
         type="button"
-        className="mt-3 text-xs font-medium text-primary hover:opacity-80 transition-opacity"
+        className="mt-1 min-h-[44px] inline-flex items-center text-xs font-medium text-primary hover:opacity-80 transition-opacity"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
       >

@@ -133,7 +133,7 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
         onMouseLeave={resumeAll}
         onFocus={pauseAll}
         onBlur={resumeAll}
-        className="fixed left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none w-[calc(100%-2rem)] max-w-sm bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:bottom-6"
+        className="fixed left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none w-[calc(100%-2rem)] max-w-sm bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:bottom-6"
       >
         {toasts.map((t) => (
           <div

@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import Markdown from "../ui/Markdown";
 import type { ChatMessage as ChatMessageType } from "../../hooks/useAskAi";
 import { API_BASE } from "../../config";
 import InlineChart from "./InlineChart";
@@ -90,7 +90,7 @@ export default memo(function ChatMessage({ message }: Props) {
         ) : (
           <>
             <div className="prose prose-sm dark:prose-invert max-w-none text-on-surface">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <Markdown>{message.content}</Markdown>
             </div>
             {message.chart && <InlineChart chart={message.chart} />}
           </>

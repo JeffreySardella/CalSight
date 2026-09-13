@@ -1,6 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import JargonTerm from "./JargonTerm";
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("JargonTerm", () => {
   it("renders the term as a keyboard-focusable button with no tooltip initially", () => {
@@ -66,5 +71,33 @@ describe("JargonTerm", () => {
       expect(screen.getByRole("tooltip").textContent?.length ?? 0).toBeGreaterThan(20);
       unmount();
     }
+  });
+});
+
+describe("JargonTerm viewport clamping", () => {
+  const rect = (left: number, right: number) =>
+    ({ left, right, top: 0, bottom: 0, width: right - left, height: 0, x: left, y: 0, toJSON() {} }) as DOMRect;
+
+  it("stays centred when the tooltip fits", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect(100, 356));
+    render(<JargonTerm term="ACS" />);
+    fireEvent.click(screen.getByRole("button", { name: "ACS" }));
+    expect(screen.getByRole("tooltip").className).toContain("left-1/2");
+  });
+
+  it("snaps to the trigger's left edge when it would clip off the left of the screen", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect(-40, 216));
+    render(<JargonTerm term="ACS" />);
+    fireEvent.click(screen.getByRole("button", { name: "ACS" }));
+    const tip = screen.getByRole("tooltip");
+    expect(tip.className).toContain("left-0");
+    expect(tip.className).not.toContain("-translate-x-1/2");
+  });
+
+  it("snaps to the right edge when it would clip off the right of the screen", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(rect(900, 1156));
+    render(<JargonTerm term="ACS" />);
+    fireEvent.click(screen.getByRole("button", { name: "ACS" }));
+    expect(screen.getByRole("tooltip").className).toContain("right-0");
   });
 });

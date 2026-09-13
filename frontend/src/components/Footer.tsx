@@ -10,7 +10,7 @@ const footerLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-surface-container pb-24 md:pb-12 pt-12 flex flex-col md:flex-row justify-between items-center px-8 w-full">
+    <footer className="bg-surface-container pb-24 lg:pb-12 pt-12 flex flex-col md:flex-row justify-between items-center px-8 w-full">
       <div className="flex flex-col items-center md:items-start gap-2 mb-6 md:mb-0">
         <span className="text-sm font-bold text-on-surface font-headline">
           CalSight

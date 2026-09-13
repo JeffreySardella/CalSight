@@ -52,17 +52,17 @@ export default function Layout() {
       <OfflineIndicator />
       <ErrorBoundary resetKey={location.pathname}>
       {isMapPage ? (
-        <main id="main-content" className="pt-12 pb-14 md:pt-16 md:pb-0 flex h-dvh overflow-hidden">
+        <main id="main-content" className="pt-12 pb-14 md:pt-16 lg:pb-0 flex h-dvh overflow-hidden">
           <Outlet />
         </main>
       ) : isAskPage ? (
-        <div key={location.pathname} className="page-enter pt-12 pb-14 md:pt-16 md:pb-0 h-dvh flex flex-col overflow-hidden">
+        <div key={location.pathname} className="page-enter pt-12 pb-14 md:pt-16 lg:pb-0 h-dvh flex flex-col overflow-hidden">
           <main id="main-content" className="flex-1 flex flex-col overflow-hidden">
             <Outlet />
           </main>
         </div>
       ) : (
-        <div key={location.pathname} className="page-enter pt-12 md:pt-16 min-h-screen flex flex-col pb-20 md:pb-0">
+        <div key={location.pathname} className="page-enter pt-12 md:pt-16 min-h-screen flex flex-col pb-20 lg:pb-0">
           <main id="main-content" className="flex-1">
             <Outlet />
           </main>

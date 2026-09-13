@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import ReactMarkdown from "react-markdown";
+import Markdown from "../ui/Markdown";
 import { useStoryCanvas } from "../../hooks/useStoryCanvas";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import InlineChart from "./InlineChart";
@@ -67,7 +67,7 @@ export default function StoryCanvasPanel({ open, onClose, onExportPng, onExportP
                     {block.kind === "answer" ? (
                       <>
                         <div className="prose prose-sm dark:prose-invert max-w-none text-on-surface">
-                          <ReactMarkdown>{block.content}</ReactMarkdown>
+                          <Markdown>{block.content}</Markdown>
                         </div>
                         {block.chart && <InlineChart chart={block.chart} />}
                       </>

@@ -103,7 +103,7 @@ export default function InsightBanner({ heroMetrics, loading, funFacts = [] }: I
             type="button"
             onClick={goPrev}
             aria-label="Previous insight"
-            className="p-1 rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant"
+            className="min-w-[44px] min-h-[44px] -my-3 inline-flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant"
           >
             <span className="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_left</span>
           </button>
@@ -114,7 +114,7 @@ export default function InsightBanner({ heroMetrics, loading, funFacts = [] }: I
             type="button"
             onClick={goNext}
             aria-label="Next insight"
-            className="p-1 rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant"
+            className="min-w-[44px] min-h-[44px] -my-3 inline-flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant"
           >
             <span className="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_right</span>
           </button>

@@ -22,7 +22,7 @@ export default function DataFreshnessBanner() {
       <button
         type="button"
         onClick={invalidate}
-        className="ml-1 hover:text-primary transition-colors flex-shrink-0"
+        className="ml-1 min-w-[44px] min-h-[44px] -my-3 inline-flex items-center justify-center hover:text-primary transition-colors flex-shrink-0"
         aria-label="Refresh dashboard data"
         title="Refresh data"
       >

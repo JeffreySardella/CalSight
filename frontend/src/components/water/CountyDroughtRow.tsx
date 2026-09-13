@@ -44,7 +44,7 @@ export default function CountyDroughtRow({ countyName, countyCode }: CountyDroug
         </div>
         <Link
           to="/water"
-          className="text-[10px] text-primary font-semibold shrink-0 hover:opacity-80 transition-opacity"
+          className="text-[10px] text-primary font-semibold shrink-0 hover:opacity-80 transition-opacity inline-flex items-center justify-end min-h-[44px] min-w-[44px] -my-3 px-2 -mx-2"
         >
           Water →
         </Link>

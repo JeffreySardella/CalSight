@@ -117,7 +117,7 @@ test("water page renders reservoir conditions and statewide summary", async ({ p
   await page.goto(`${BASE_URL}/water`);
 
   await expect(
-    page.getByRole("heading", { name: /California.s Reservoirs/ }),
+    page.getByRole("heading", { name: /California.s Water Year/ }),
   ).toBeVisible();
 
   // Statewide summary derived from the fixtures: 3.9M AF of 5.53M (71%).
@@ -196,7 +196,7 @@ test("hardest-hit county rows deep-link back to the county on the map", async ({
 test("water page is public: direct link works and the nav advertises it", async ({ page }) => {
   await page.goto(`${BASE_URL}/water`);
   await expect(
-    page.getByRole("heading", { name: /California.s Reservoirs/ }),
+    page.getByRole("heading", { name: /California.s Water Year/ }),
   ).toBeVisible();
   // Since WATER_PAGE_PUBLIC flipped (2026-09-12) the main nav links to it
   // from every page.

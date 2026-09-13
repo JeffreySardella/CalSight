@@ -1062,8 +1062,10 @@ function MapPageInner() {
             </div>
           </div>
         )}
+        {/* Desktop-only like the streaming pill above: on phones the legend already
+            shows "N mapped (x%)". top-28 clears the breadcrumb + legend row at md. */}
         {heatmapEnabled && useCountyDetail && countyHeatmap.capped && !countyHeatmap.error && (
-          <div className="absolute top-14 md:top-3 left-1/2 -translate-x-1/2 z-20">
+          <div className="hidden md:block absolute top-28 left-1/2 -translate-x-1/2 z-20">
             <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-xl ghost-border shadow-lg min-w-[220px]">
               <p className="text-[10px] text-on-surface-variant text-center">
                 Showing a {countyHeatmap.points.length.toLocaleString()}-point sample
