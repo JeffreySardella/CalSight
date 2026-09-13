@@ -92,7 +92,7 @@
 
 - [ ] **Spanish (i18n)** — verified no i18n library; 39% of CA residents. ~150–200 strings. *(in #293/#256)*
 - [ ] **Privacy-respecting usage analytics** (Plausible/Umami — no cookies/PII). *(in #304)*
-- [ ] **Delete dead `etl/scheduler.py`** — superseded by `pipeline.py` (verified still present). *(in #292)*
+- [x] ~~**Delete dead `etl/scheduler.py`**~~ DONE July 2026 — removed with the legacy systemd unit and cron script (`backend/deploy/README.md`). *(in #292)*
 - [ ] Toast/notification system + confirmation dialogs ("Clear All Filters", "New Chat"). *(in #256/#293)*
 - [ ] Copy buttons (AI messages, share link), chart PNG export. *(in #256)*
 - [ ] Quick-win backlog: county deep-link auto-zoom, sticky mobile filter bar, data freshness indicator. *(in #256)*

@@ -299,7 +299,8 @@ function MapPageInner() {
     else void statewideHeatmap.refetch();
   };
 
-  // Reservoir markers layer (water v2, soft-launch-gated): the markers
+  // Reservoir markers layer (water v2, behind WATER_PAGE_PUBLIC — public
+  // since 2026-09-12, flag kept as the rollback switch): the markers
   // themselves render inside MapCanvas from the same shared query, but the
   // fetch-error surface lives here with the other error cards — an opt-in
   // layer must not silently render nothing on a failed fetch.

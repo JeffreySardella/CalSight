@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <h1 className="font-headline text-3xl font-extrabold tracking-tighter text-on-surface mb-2">
         Privacy Policy
       </h1>
-      <p className="text-xs text-on-surface-variant mb-8">Last updated: July 10, 2026</p>
+      <p className="text-xs text-on-surface-variant mb-8">Last updated: September 12, 2026</p>
 
       <div className="space-y-8 text-on-surface-variant text-sm leading-relaxed">
         <section>
@@ -105,7 +105,7 @@ export default function PrivacyPage() {
               <a href="https://groq.com/privacy-policy/" className="text-primary underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
             </li>
             <li>
-              <strong>Google Gemini</strong> (free tier) — Fallback. Under Google&apos;s terms for
+              <strong>Google Gemini 3.5 Flash-Lite</strong> (free tier) — Fallback. Under Google&apos;s terms for
               unpaid API use, Google may use submitted text (your question and conversation
               context) to train and improve its models, and human reviewers may read it. Do not
               include personal information in questions.{" "}

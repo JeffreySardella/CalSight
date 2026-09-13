@@ -14,7 +14,7 @@ import { API_BASE } from "../config";
  * resolves (and if the API is unreachable), so the figure is never zero and
  * never higher than reality.
  */
-const FALLBACK_TOTAL = 11_300_000;
+const FALLBACK_TOTAL = 11_500_000;
 
 export function useLiveCrashTotal(): number {
   const { data } = useQuery({

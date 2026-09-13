@@ -75,7 +75,7 @@ export default function AboutPage() {
           {[
             { value: crashesLabel, label: "Police-reported crashes" },
             { value: String(DATA_SOURCE_COUNT), label: "Data sources" },
-            { value: "25M+", label: "Total rows in database" },
+            { value: "26M+", label: "Total rows in database" },
           ].map(({ value, label }) => (
             <div key={label} className="bg-surface-container-lowest rounded-lg ambient-shadow flex flex-col items-center justify-center text-center gap-4 py-6 md:py-8 px-6">
               <p className="font-headline text-3xl md:text-4xl font-bold text-on-surface tracking-tight">
@@ -208,7 +208,7 @@ export default function AboutPage() {
               <h2 className="font-headline text-xl font-bold text-on-surface">Federal Agencies</h2>
               <p className="text-sm text-on-surface-variant mt-1">NOAA, BLS, FHWA</p>
               <ul className="text-xs text-on-surface-variant mt-3 leading-relaxed space-y-1">
-                <li>NOAA monthly county weather data (2001-2025)</li>
+                <li>NOAA nClimGrid county weather, monthly and daily (2001–present)</li>
                 <li>BLS monthly unemployment rates (2005-2025)</li>
                 <li>FHWA HPMS road miles and speed limits</li>
               </ul>
@@ -241,7 +241,7 @@ export default function AboutPage() {
               <h2 className="font-headline text-xl font-bold text-on-surface">DWR / CDEC</h2>
               <p className="text-sm text-on-surface-variant mt-1">California Data Exchange Center</p>
               <p className="text-xs text-on-surface-variant mt-3 leading-relaxed">
-                Daily reservoir storage for 15 major reservoirs and snow water equivalent from 15 Sierra snow sensors. Published by the Department of Water Resources.
+                Daily reservoir storage for 15 major reservoirs and snow water equivalent from 110 DWR snow sensors (the official Northern, Central and Southern Sierra station lists). Published by the Department of Water Resources.
               </p>
             </div>
             <div className="flex items-center justify-between mt-6">

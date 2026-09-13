@@ -1,7 +1,8 @@
 # CalSight deploy notes — ETL scheduling
 
-**The `pipeline` compose service is the scheduler.** Production runs
-`python -m etl.pipeline` (APScheduler inside the container) via:
+**Two schedulers are live on LXC 100 and both stay** — the full picture,
+captured from the box, is in `lxc100-crontab.md`. The `pipeline` compose
+service runs `python -m etl.pipeline` (APScheduler inside the container) via:
 
 ```bash
 docker compose -f docker-compose.prod.yml -f docker-compose.pipeline.yml up -d
@@ -11,24 +12,20 @@ See `docker-compose.pipeline.yml` at the repo root for the service
 definition and `backend/etl/pipeline.py` for the cron schedules
 (daily crashes, weekly full refresh, maintenance, backup).
 
-## Removed legacy schedulers (issue #370)
+## Legacy scheduler files (issue #370)
 
-These files were deleted in July 2026 because they targeted a
-`calsight-backend` container name that does not exist under Compose v2
-naming, duplicated the pipeline service's job, and ran a divergent
-schedule:
+The *repo copies* of the older schedulers were removed in July 2026:
+`calsight-etl-scheduler.service` (systemd unit wrapping the deleted
+`etl/scheduler.py`) and `setup-etl-cron.sh`. The **host cron on LXC 100
+itself remains live** and is wanted: root's `0 2 * * *` runs
+`run-etl-with-notify.sh` → `etl.run_all` inside `calsight-backend-1`, while
+the `calsight-pipeline-1` container runs the backup (07:00 UTC), the daily
+ETL (11:00 Mon–Sat), the weekly refresh (Sun 09:00) and VACUUM (15:00).
+#370 is answered by `lxc100-crontab.md`; neither scheduler is to be retired.
 
-- `calsight-etl-scheduler.service` — systemd unit wrapping the deleted
-  `etl/scheduler.py` (also removed).
-- `setup-etl-cron.sh` — host crontab entry invoking the removed
-  `etl.run_all` path.
-
-**Operator action still required on LXC 100** (cannot be verified from
-this repo) — **ORDER MATTERS**. The 2026-07-13 incident showed the compose
-pipeline container had been crash-looping for weeks while a host-side
-runner (systemd/cron, firing 02:00 UTC) was the ONLY thing actually
-loading data. Disabling the host runner before the container is verified
-healthy would stop all ETL.
+The 2026-07-13 incident (pipeline container crash-looping for weeks while
+the host cron was the only thing loading data) is why the checks below
+exist — **ORDER MATTERS** if anyone ever does revisit this.
 
 ```bash
 # 1. FIRST verify the compose scheduler is genuinely alive:
@@ -42,14 +39,13 @@ crontab -l | grep -i -e etl -e calsight
 
 # 3. !!! DO NOT RUN ON THE CURRENT DEPLOYMENT !!!
 #
-#    Verified at the box on 2026-07-18: the HOST CRON IS THE LIVE SCHEDULER.
-#    The containerized pipeline scheduler is NOT deployed here. Running the
-#    commands below today would kill the nightly ETL *and* the nightly
-#    backups, silently, on a system nobody is watching.
+#    Both schedulers are live and both are wanted (lxc100-crontab.md,
+#    2026-08-09, corrected 2026-09-12). The host cron runs the ETL; the
+#    container runs the ETL *and* the backups. Running the commands below
+#    would silently drop one of the two runs on a system nobody is watching.
 #
-#    See docs/PROJECT_STATE.md and issue #370. These commands are kept only
-#    for the future case where the containerized scheduler is actually
-#    deployed and proven. Re-verify with step 2 before believing otherwise.
+#    Kept only for the future case where a single scheduler is deliberately
+#    chosen. Re-verify with step 2 before believing otherwise.
 #
 #    ONLY after step 1 shows a stable CONTAINER scheduler AND at least one
 #    container-scheduled run has landed in etl_runs (daily fires 11:00 UTC),

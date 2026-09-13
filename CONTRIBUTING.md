@@ -57,7 +57,7 @@ cd backend && ruff check .
 
 1. Create a branch from `main`
 2. Make your changes with clear, atomic commits
-3. Ensure CI passes (frontend lint + tests, backend lint + tests)
+3. Ensure CI passes (frontend lint + tests, backend lint + tests, plus Playwright e2e and the Lighthouse accessibility gate)
 4. Open a PR with:
    - Summary of changes (what and why)
    - `Closes #<issue>` to auto-close the issue
@@ -95,7 +95,7 @@ CalSight/
 
 - **Frontend**: Cloudflare Pages (auto-deploys from `main`)
 - **Backend**: Self-hosted on Proxmox LXC 100 via Docker Compose
-- **Database**: PostgreSQL on Proxmox VM 109, connected via Tailscale
+- **Database**: PostgreSQL 17 on Proxmox LXC 100 (10.27.27.88); VM 109 is the stopped dev DB
 - Merging to `main` triggers auto-deploy via GitHub Actions
 
 ## Data Sources
@@ -105,13 +105,20 @@ CalSight/
 | CHP CCRS (2016-present) | crashes, crash_parties, crash_victims | Daily | data.ca.gov CKAN |
 | SWITRS (2001-2015) | crashes | Static (one-time) | Zenodo archive |
 | Census ACS | demographics | Monthly | Census API |
-| NOAA | county_weather | Monthly | NOAA API |
-| Caltrans | traffic_volumes | Monthly | ArcGIS FeatureServer |
-| DMV | vehicle_registrations | Monthly | data.ca.gov CKAN |
+| Census ACS (tracts) | tract_density_county_year | Monthly | Census API |
+| NHTSA FARS | fars_county_year | Monthly | FARS bulk files |
+| NOAA nClimGrid | weather, weather_daily | Monthly | Bulk CSV (no token) |
+| Derived (first rain) | first_rain_events | Daily | from weather_daily |
+| Caltrans | traffic_volumes, road_miles | Monthly | ArcGIS FeatureServer / CKAN |
+| DMV | vehicle_registrations, licensed_drivers | Monthly | data.ca.gov CKAN |
 | CalEnviroScreen | calenviroscreen | Monthly | ArcGIS FeatureServer |
-| BLS | bls_unemployment | Monthly | BLS API |
-| CDE | schools | Monthly | data.ca.gov CKAN |
-| OSHPD | hospitals | Monthly | data.ca.gov CKAN |
+| BLS | unemployment_rates | Monthly | BLS API |
+| CDE | school_locations | Monthly | data.ca.gov CKAN |
+| HCAI (formerly OSHPD) | hospitals | Monthly | data.ca.gov CKAN |
+| CDEC reservoirs | reservoirs, reservoir_daily | Daily | CDEC |
+| CDEC snowpack | snow_stations, snow_daily | Daily | CDEC |
+| CDEC precip indices | precip_index_daily | Daily | CDEC |
+| US Drought Monitor | drought_county_weekly | Daily (weekly publication) | USDM |
 
 ## Design System
 

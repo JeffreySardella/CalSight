@@ -323,8 +323,8 @@ export default function LayersPanel() {
         </div>
       </div>
 
-      {/* Water — gated while the Water page is soft-launched: the layer's
-          popups link to /water and would advertise it. */}
+      {/* Water — behind WATER_PAGE_PUBLIC (public since 2026-09-12; the flag
+          is kept as the rollback switch): the layer's popups link to /water. */}
       {WATER_PAGE_PUBLIC && (
         <div className="space-y-4">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
