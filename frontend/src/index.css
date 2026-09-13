@@ -286,11 +286,12 @@
 }
 
 /* Bottom padding that accounts for the tab bar + iPhone safe area */
+/* Resets at lg to match BottomTabBar (lg:hidden). */
 .pb-safe-bottom {
   padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)) !important;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .pb-safe-bottom {
     padding-bottom: 0 !important;
   }

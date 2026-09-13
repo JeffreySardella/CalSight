@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 /**
  * Built-in glossary of transportation-data jargon (#304).
@@ -31,6 +31,12 @@ const GLOSSARY = {
 
 export type JargonKey = keyof typeof GLOSSARY;
 
+const ALIGN = {
+  center: "left-1/2 -translate-x-1/2",
+  left: "left-0",
+  right: "right-0",
+} as const;
+
 interface JargonTermProps {
   /** Glossary key, e.g. "SWITRS". */
   term: JargonKey;
@@ -50,6 +56,20 @@ export default function JargonTerm({ term, children }: JargonTermProps) {
   const tooltipId = useId();
   const [open, setOpen] = useState(false);
   const definition = GLOSSARY[term];
+  const tipRef = useRef<HTMLSpanElement>(null);
+  const [align, setAlign] = useState<"center" | "left" | "right">("center");
+
+  // Clamp inside the viewport: near a screen edge the centred tooltip clips
+  // (phones especially), so snap it to the trigger's left or right edge.
+  useLayoutEffect(() => {
+    if (!open || !tipRef.current) {
+      setAlign("center");
+      return;
+    }
+    const r = tipRef.current.getBoundingClientRect();
+    if (r.left < 0) setAlign("left");
+    else if (r.right > window.innerWidth) setAlign("right");
+  }, [open]);
 
   return (
     <span
@@ -72,9 +92,10 @@ export default function JargonTerm({ term, children }: JargonTermProps) {
       </button>
       {open && (
         <span
+          ref={tipRef}
           role="tooltip"
           id={tooltipId}
-          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 max-w-[80vw] rounded-md bg-surface-container-highest text-on-surface border border-outline-variant shadow-lg px-3 py-2 text-xs leading-relaxed text-left normal-case tracking-normal font-body font-normal"
+          className={`absolute z-50 bottom-full ${ALIGN[align]} mb-2 w-64 max-w-[80vw] rounded-md bg-surface-container-highest text-on-surface border border-outline-variant shadow-lg px-3 py-2 text-xs leading-relaxed text-left normal-case tracking-normal font-body font-normal`}
         >
           {definition}
         </span>

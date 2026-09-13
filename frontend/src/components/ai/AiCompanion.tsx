@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import ReactMarkdown from "react-markdown";
+import Markdown from "../ui/Markdown";
 import type { DataContext } from "../../lib/ai/dataContext";
 import { explainContext } from "../../lib/ai/explainContext";
 import { useAskAi } from "../../hooks/useAskAi";
@@ -162,7 +162,7 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
               )}
               {!isLoading && !error && lastAnswer && (
                 <div className="prose prose-sm dark:prose-invert max-w-none text-on-surface">
-                  <ReactMarkdown>{lastAnswer.content}</ReactMarkdown>
+                  <Markdown>{lastAnswer.content}</Markdown>
                   {lastAnswer.chart && <InlineChart chart={lastAnswer.chart} />}
                 </div>
               )}

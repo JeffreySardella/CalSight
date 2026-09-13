@@ -185,7 +185,7 @@ export default function AboutPage() {
             </div>
             <div className="flex items-center justify-between mt-6">
               <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">9,932 active schools</p>
-              <a href="https://data.ca.gov/dataset/california-public-schools" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">CDE schools on data.ca.gov</a>
+              <a href="https://data.ca.gov/dataset/california-public-schools-2024-25" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">CDE schools on data.ca.gov</a>
             </div>
           </div>
 
@@ -215,7 +215,7 @@ export default function AboutPage() {
             </div>
             <div className="flex items-center justify-between mt-6">
               <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">~18,000 rows combined</p>
-              <a href="https://www.ncdc.noaa.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">NOAA Climate Data Center</a>
+              <a href="https://www.ncei.noaa.gov/" target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-medium hover:underline">NOAA NCEI</a>
             </div>
           </div>
 

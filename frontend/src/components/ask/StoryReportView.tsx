@@ -1,4 +1,4 @@
-import ReactMarkdown from "react-markdown";
+import Markdown from "../ui/Markdown";
 import type { CanvasBlock } from "../../hooks/useStoryCanvas";
 import InlineChart from "./InlineChart";
 
@@ -27,7 +27,7 @@ export default function StoryReportView({ title, blocks, filterSummary }: Props)
                 <p className="text-sm font-semibold text-gray-700">{block.question}</p>
               )}
               <div className="prose prose-sm max-w-none text-gray-900">
-                <ReactMarkdown>{block.content}</ReactMarkdown>
+                <Markdown>{block.content}</Markdown>
               </div>
               {block.chart && <InlineChart chart={block.chart} forceLight />}
             </article>

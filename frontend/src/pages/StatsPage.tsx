@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { scrollBehavior } from "../lib/a11y/motion";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES, YEARS } from "../hooks/useFilterParams";
 import { Explainable } from "../components/ai/Explainable";
@@ -72,6 +73,16 @@ function StatsPageInner() {
   const linkedStory = linkedStoryId && getStoryById(linkedStoryId) ? linkedStoryId : null;
   const [storiesMode, setStoriesMode] = useState(linkedStory !== null);
   const [activeStoryId, setActiveStoryId] = useState<string | null>(linkedStory);
+  // A deep-linked story mounts below the header/filter bar; on phones that is
+  // below the fold, so bring it into view once (reduced motion => instant).
+  const storyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = storyRef.current;
+    if (!linkedStory || !el) return;
+    if (el.getBoundingClientRect().top > window.innerHeight / 2) {
+      el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const filters = useFilterParams();
   const dataQuality = useDataQualityDisclaimer(
     filters.selectedDateRange,
@@ -685,10 +696,12 @@ function StatsPageInner() {
         </div>
         {storiesMode ? (
           activeStory ? (
+            <div ref={storyRef}>
             <StoryReader
               story={activeStory}
               onBack={() => setActiveStoryId(null)}
             />
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {DATA_STORIES.map((story) => (

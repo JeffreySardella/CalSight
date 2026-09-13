@@ -19,7 +19,7 @@ export default function WaterPage() {
     <div className="max-w-[1100px] mx-auto px-6 pb-24">
       <MetaTags
         title="Water — CalSight"
-        description="Current storage conditions at California's major reservoirs — percent of capacity and of historical average, from DWR's California Data Exchange Center."
+        description="California water conditions — reservoir storage, snowpack, precipitation and drought from DWR and the U.S. Drought Monitor, plus how the season's first storm shows up in crash data."
         path="/water"
       />
 
@@ -28,11 +28,11 @@ export default function WaterPage() {
           Water conditions
         </span>
         <h1 className="font-headline text-4xl md:text-6xl font-bold tracking-tighter text-on-surface mb-6">
-          California&rsquo;s Reservoirs
+          California&rsquo;s Water Year
         </h1>
         <p className="font-body text-lg text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
-          Daily storage at the state&rsquo;s major reservoirs, measured against
-          both total capacity and the historical average for this day of year.
+          Reservoir storage, Sierra snowpack, rain and drought across the state
+          &mdash; and how the first storm of each season shows up in crash data.
         </p>
       </section>
 
