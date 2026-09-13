@@ -105,3 +105,51 @@ def test_is_junk_narrative_flags_chatter(text):
 def test_is_junk_narrative_keeps_real_prose():
     assert is_junk_narrative(_REAL) is False
     assert is_junk_narrative("  " + _REAL + "\n") is False
+
+
+# ── stale-stats detection ────────────────────────────────────────────────
+#
+# 2026-09-12: SWITRS 2001 grew from 310k to 522k crashes, but run_all_years
+# skipped every existing row whose narrative wasn't junk — LA 2001 kept
+# showing 98,838 crashes and every 2002 card's YoY stayed wrong.
+
+from etl.generate_insights import _PROMPT_TEMPLATE, stats_changed  # noqa: E402
+
+_LA_2001 = {
+    "total_crashes": 150_421, "total_killed": 768,
+    "total_injured": 60_000, "yoy_change_pct": None,
+}
+
+
+def _row(tc, tk, ti, yoy, narrative=_REAL):
+    return (tc, tk, ti, yoy, narrative)
+
+
+def test_stats_changed_false_when_numbers_match():
+    assert stats_changed(_row(150_421, 768, 60_000, None), _LA_2001) is False
+
+
+def test_stats_changed_true_when_total_crashes_grew():
+    assert stats_changed(_row(98_838, 504, 40_000, None), _LA_2001) is True
+
+
+def test_stats_changed_true_when_yoy_moved():
+    stats = {**_LA_2001, "yoy_change_pct": 3.1}
+    assert stats_changed(_row(150_421, 768, 60_000, 56.85), stats) is True
+
+
+def test_stats_changed_tolerates_float_noise_in_yoy():
+    stats = {**_LA_2001, "yoy_change_pct": 3.1}
+    # Numeric(...) round-trips never trigger a 58-call regen.
+    assert stats_changed(_row(150_421, 768, 60_000, 3.12), stats) is False
+
+
+def test_stats_changed_when_yoy_appears_or_disappears():
+    stats = {**_LA_2001, "yoy_change_pct": 3.1}
+    assert stats_changed(_row(150_421, 768, 60_000, None), stats) is True
+    assert stats_changed(_row(150_421, 768, 60_000, 3.1), _LA_2001) is True
+
+
+def test_prompt_forbids_unsupplied_comparisons():
+    assert "national average" in _PROMPT_TEMPLATE
+    assert "peak hour" in _PROMPT_TEMPLATE
