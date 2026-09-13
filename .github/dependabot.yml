@@ -32,21 +32,6 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # The og-image Cloudflare Worker is a separate npm root with its own
-  # package.json/lockfile (wrangler etc.); without this entry its deps
-  # (e.g. wrangler) go un-updated.
-
-  - package-ecosystem: npm
-    directory: /workers/og-image
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    groups:
-      minor-and-patch:
-        update-types: ["minor", "patch"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

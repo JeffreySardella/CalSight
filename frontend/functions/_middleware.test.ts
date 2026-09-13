@@ -65,14 +65,14 @@ describe("rewriteHtml injection hardening", () => {
     expect(out.match(/<meta name="description"/g)).toHaveLength(1);
   });
 
-  it("URL-encodes user values placed into the og:image query string", () => {
+  it("never lets user values reach the og:image URL", () => {
     const url = new URL(
       `https://calsight.org/stats?counties=${encodeURIComponent(`kern&evil="><img>`)}`,
     );
     const ctx = buildContext(url);
-    // URLSearchParams percent-encodes the raw value in the OG worker URL...
-    expect(ctx.ogImage).toContain("counties=kern%26evil%3D%22%3E%3Cimg%3E");
-    // ...so the interpolated attribute contains no raw markup.
+    // The dynamic OG worker is retired: every card uses the bundled image, so
+    // query params cannot appear in the og:image attribute at all.
+    expect(ctx.ogImage).toBe("https://calsight.org/og-default.png");
     const out = rewriteHtml(SAMPLE_HTML, ctx);
     expect(out).not.toContain("<img>");
   });
