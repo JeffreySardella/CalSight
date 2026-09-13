@@ -24,7 +24,7 @@ from sqlalchemy.types import Date
 
 from app.county_slug_map import get_slug_map, slugify_name
 from app.database import apply_statement_timeout, get_db
-from app.filters import parse_county_codes
+from app.filters import FilterError, parse_county_codes
 from app.models import County, Crash, FirstRainEvent, WeatherDaily
 from app.rate_limit import rate_limit_key
 from app.schemas.first_rain import (
@@ -38,7 +38,6 @@ from app.schemas.first_rain import (
 )
 from etl.compute_first_rain import (
     BASELINE_DAYS,
-    DRY_MAX_IN,
     MIN_DRY_DAYS,
     THRESHOLD_IN,
     compute_lift,
@@ -51,6 +50,14 @@ _limiter = Limiter(key_func=rate_limit_key)
 _CACHE = "public, max-age=3600, stale-while-revalidate=86400"
 _MIN_BASELINE = 5.0  # crashes/day; below this a lift percentage is noise-prone
 _SERIES_HALF_WINDOW = 14  # days either side of the first rain
+
+
+def one_county_code(raw: str | None, slug_map: dict[str, int]) -> int:
+    """?county= for the series endpoint: exactly one slug, or 422."""
+    codes = parse_county_codes(raw, slug_map)
+    if codes is None or len(codes) != 1:
+        raise FilterError("county", "county must be exactly one county slug, e.g. los-angeles")
+    return next(iter(codes))
 
 
 def county_event(ev: FirstRainEvent, name: str) -> CountyEvent:
@@ -119,7 +126,7 @@ def build_first_rain(db: Session) -> FirstRainOut:
 
     last_rain = dict(db.execute(
         select(WeatherDaily.county_code, func.max(WeatherDaily.date))
-        .where(WeatherDaily.precip_in >= DRY_MAX_IN)
+        .where(WeatherDaily.precip_in >= THRESHOLD_IN)
         .group_by(WeatherDaily.county_code)
     ).all())
     days_since_rain = [
@@ -174,7 +181,7 @@ def get_first_rain_series(
     apply_statement_timeout(db, 30_000)
     response.headers["Cache-Control"] = _CACHE
 
-    (code,) = parse_county_codes(county, get_slug_map(db))
+    code = one_county_code(county, get_slug_map(db))
     row = lookup_event(db, code, water_year)
     if row is None:
         raise HTTPException(status_code=404, detail="No first-rain event for that county and water year")
