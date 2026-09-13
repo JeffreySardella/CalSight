@@ -5,8 +5,7 @@ import PrecipSection from "../components/water/PrecipSection";
 import ReservoirCard from "../components/water/ReservoirCard";
 import SnowpackSection from "../components/water/SnowpackSection";
 import {
-  baselineNote,
-  commonBaseline,
+  baselineFootnote,
   formatAcreFeet,
   summarize,
   useReservoirConditions,
@@ -112,7 +111,7 @@ export default function WaterPage() {
       <p className="text-xs text-on-surface-variant text-center mt-16">
         Source: California Department of Water Resources, California Data
         Exchange Center (CDEC). Storage in acre-feet; historical average is{" "}
-        {baselineNote(commonBaseline((data ?? []).map((r) => r.baseline_period)))}.
+        {baselineFootnote((data ?? []).map((r) => r.baseline_period))}.
       </p>
 
       <SnowpackSection />

@@ -200,3 +200,39 @@ def test_snowpack_region_figures_reconcile(client, db_session):
     assert central["swe_in"] == pytest.approx(
         central["avg_swe_in"] * central["pct_of_average"] / 100, abs=0.1
     )
+
+
+def test_snowpack_april1_counts_stations_no_longer_reporting(client, db_session):
+    """The April-1 percent is over every station that reported that April 1,
+    not just the ones still reporting today: a seasonal pillow that melted
+    out or went offline after April 1 still defines the season."""
+    db_session.add_all([
+        SnowStation(station_id="CSL", name="Central Sierra Snow Lab", elevation_ft=6900, region="Central Sierra"),
+        SnowStation(station_id="BLK", name="Blue Lakes", elevation_ft=8000, region="Central Sierra"),
+    ])
+    db_session.flush()
+    db_session.add_all([
+        # CSL: still reporting in September. April-1 avg (8+16+6)/3 = 10; 2026 = 6.
+        SnowDaily(station_id="CSL", date=date(2024, 4, 1), swe_in=8.0),
+        SnowDaily(station_id="CSL", date=date(2025, 4, 1), swe_in=16.0),
+        SnowDaily(station_id="CSL", date=date(2026, 4, 1), swe_in=6.0),
+        SnowDaily(station_id="CSL", date=date(2026, 9, 1), swe_in=0.0),  # newest
+        # BLK: last reading IS April 1 (offline since). Avg (8+4+18)/3 = 10; 2026 = 18.
+        SnowDaily(station_id="BLK", date=date(2024, 4, 1), swe_in=8.0),
+        SnowDaily(station_id="BLK", date=date(2025, 4, 1), swe_in=4.0),
+        SnowDaily(station_id="BLK", date=date(2026, 4, 1), swe_in=18.0),
+    ])
+    db_session.commit()
+
+    body = client.get("/api/water/snowpack").json()
+    central = next(r for r in body["regions"] if r["region"] == "Central Sierra")
+    # Current snowpack: CSL alone (BLK is stale) ...
+    assert central["station_count"] == 1
+    # ... but April 1 is both: mean(6, 18) / mean(10, 10) = 120%, not CSL's 60%.
+    assert central["apr1_station_count"] == 2
+    assert central["apr1_swe_in"] == pytest.approx(12.0)
+    assert central["apr1_avg_swe_in"] == pytest.approx(10.0)
+    assert central["apr1_pct_of_average"] == pytest.approx(120.0)
+    assert body["apr1_date"] == "2026-04-01"
+    assert body["statewide_apr1_pct_of_average"] == pytest.approx(120.0)
+    assert body["apr1_station_count"] == 2

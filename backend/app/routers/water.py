@@ -449,6 +449,10 @@ def _april1_stats(db, station_ids, newest: date):
     Returns (apr1_date, {sid: swe}, {sid: Baseline}). The baseline follows
     pick_baseline: DWR's 1991-2020 normal where the station has enough
     April-1 readings inside it, else its period of record.
+
+    Pass EVERY known station, not just the current reporters: a seasonal
+    sensor that reported on April 1 but has since melted out or gone offline
+    still counts toward the season-defining percent.
     """
     apr1 = date(newest.year, 4, 1)
     if newest < apr1:
@@ -492,48 +496,54 @@ def snowpack(
         # year of history AND a non-trivial average (not deep-summer noise).
         return c.has_history and c.avg >= _MIN_MEANINGFUL_SWE
 
-    apr1_date, apr1_readings, apr1_averages = _april1_stats(
-        db, [c.station_id for c in current], newest
-    )
+    # The April-1 set is independent of who is reporting NOW: by September
+    # most seasonal pillows are melted out (below the SWE floor) or offline,
+    # and restricting April 1 to the survivors skewed the regional split.
+    apr1_date, apr1_readings, apr1_averages = _april1_stats(db, list(region_of), newest)
 
-    def apr1_comparable(cs: list[StationCondition]) -> list[str]:
+    def apr1_comparable(sids: list[str]) -> list[str]:
         # A station counts toward the April-1 percent when it reported that
         # April 1 AND has a usable multi-year April-1 baseline.
         return [
-            c.station_id
-            for c in cs
-            if c.station_id in apr1_readings
-            and c.station_id in apr1_averages
-            and apr1_averages[c.station_id].years > 1
-            and apr1_averages[c.station_id].avg >= _MIN_MEANINGFUL_SWE
+            s
+            for s in sids
+            if s in apr1_readings
+            and s in apr1_averages
+            and apr1_averages[s].years > 1
+            and apr1_averages[s].avg >= _MIN_MEANINGFUL_SWE
         ]
 
-    def apr1_trio(cs: list[StationCondition]):
-        sids = apr1_comparable(cs)
+    def apr1_trio(sids: list[str]):
+        sids = apr1_comparable(sids)
         if not sids:
-            return None, None, None
+            return None, None, None, 0
         swe = fmean(apr1_readings[s] for s in sids)
         avg = fmean(apr1_averages[s].avg for s in sids)
-        return round(swe, 1), round(avg, 1), round(swe / avg * 100, 1)
+        return round(swe, 1), round(avg, 1), round(swe / avg * 100, 1), len(sids)
 
-    def baseline_period(cs: list[StationCondition]) -> str | None:
+    def baseline_period(cs: list[StationCondition], sids: list[str]) -> str | None:
         # One footnote per set: the period most of its comparable stations
         # (day-of-year and April-1 alike) are measured against.
         return _common_period(
             [c.baseline_period for c in cs if is_comparable(c)]
-            + [apr1_averages[s].period for s in apr1_comparable(cs)]
+            + [apr1_averages[s].period for s in apr1_comparable(sids)]
         )
+
+    stations_by_region: dict[str, list[str]] = defaultdict(list)
+    for sid, region in region_of.items():
+        stations_by_region[region].append(sid)
 
     # Every reported figure for a region comes from ONE station set, so
     # swe_in, avg_swe_in and pct_of_average always reconcile: when a percent
     # is shown, swe_in IS that percent of avg_swe_in. (The apr1_* trio uses
-    # its own set and reconciles within itself the same way.)
+    # its own set — every station in the region with an April-1 reading —
+    # and reconciles within itself the same way.)
     def summarize(region: str, cs: list[StationCondition]) -> RegionSnowpack:
         comparable = [c for c in cs if is_comparable(c)]
         used = comparable or cs
         swe = fmean(c.value for c in used)
         avg = fmean(c.avg for c in comparable) if comparable else None
-        apr1_swe, apr1_avg, apr1_pct = apr1_trio(cs)
+        apr1_swe, apr1_avg, apr1_pct, apr1_n = apr1_trio(stations_by_region[region])
         return RegionSnowpack(
             region=region,
             station_count=len(used),
@@ -544,7 +554,8 @@ def snowpack(
             apr1_swe_in=apr1_swe,
             apr1_avg_swe_in=apr1_avg,
             apr1_pct_of_average=apr1_pct,
-            baseline_period=baseline_period(cs),
+            apr1_station_count=apr1_n or None,
+            baseline_period=baseline_period(cs, stations_by_region[region]),
         )
 
     by_region: dict[str, list[StationCondition]] = defaultdict(list)
@@ -567,13 +578,14 @@ def snowpack(
         else None
     )
 
-    _, _, statewide_apr1_pct = apr1_trio(current)
+    _, _, statewide_apr1_pct, statewide_apr1_n = apr1_trio(list(region_of))
 
     return SnowpackOut(
         latest_date=newest,
         statewide_pct_of_average=statewide_pct,
         apr1_date=apr1_date if statewide_apr1_pct is not None else None,
         statewide_apr1_pct_of_average=statewide_apr1_pct,
-        baseline_period=baseline_period(current),
+        apr1_station_count=statewide_apr1_n or None,
+        baseline_period=baseline_period(current, list(region_of)),
         regions=regions,
     )

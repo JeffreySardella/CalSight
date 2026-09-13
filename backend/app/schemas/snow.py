@@ -27,6 +27,10 @@ class RegionSnowpack(BaseModel):
     apr1_swe_in: float | None = None
     apr1_avg_swe_in: float | None = None
     apr1_pct_of_average: float | None = None
+    # Stations behind the apr1_* trio: every station in the region with a
+    # reading that April 1 and a usable April-1 baseline, whether or not it
+    # is still reporting today (unlike station_count). None when no trio.
+    apr1_station_count: int | None = None
     # Years the averages are measured against — "1991-2020" (DWR's normal)
     # or a period of record like "2012-2026" for short-record stations. For
     # a region it is the period most of its counted stations use; None when
@@ -43,5 +47,6 @@ class SnowpackOut(BaseModel):
     # or before latest_date — during Oct-Mar that is LAST season's April 1).
     apr1_date: date | None = None
     statewide_apr1_pct_of_average: float | None = None
+    apr1_station_count: int | None = None  # as RegionSnowpack.apr1_station_count, statewide
     baseline_period: str | None = None  # as RegionSnowpack.baseline_period, statewide
     regions: list[RegionSnowpack]
