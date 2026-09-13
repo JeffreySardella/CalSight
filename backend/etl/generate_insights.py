@@ -381,6 +381,17 @@ def stats_changed(existing, stats: dict) -> bool:
     return abs(float(old) - float(new)) > _YOY_TOLERANCE
 
 
+def _fresh_narrative(prompt: str, label: str) -> str | None:
+    """LLM narrative, or None when the model returned junk — None makes
+    _build_update_dict keep the previously stored text instead of replacing it
+    with "" or a "Here is a 2-3 sentence..." preamble."""
+    narrative = generate_narrative(prompt)
+    if is_junk_narrative(narrative):
+        logger.warning("Junk narrative for %s — keeping stored text: %r", label, (narrative or "")[:80])
+        return None
+    return narrative
+
+
 def _build_update_dict(stats: dict, narrative: str | None, now) -> dict:
     """Build the on_conflict_do_update set_ dict.
 
@@ -475,7 +486,7 @@ def run() -> int:
             narrative: str | None = None
             try:
                 prompt = _build_prompt(county.name, stats, demo)
-                narrative = generate_narrative(prompt)
+                narrative = _fresh_narrative(prompt, f"{county.name} ({year})")
                 logger.info(
                     "Generated narrative for %s (%d)", county.name, year
                 )
@@ -574,7 +585,7 @@ def run_all_years() -> int:
                 narrative: str | None = None
                 try:
                     prompt = _build_prompt(county.name, stats, demo)
-                    narrative = generate_narrative(prompt)
+                    narrative = _fresh_narrative(prompt, f"{county.name} ({year})")
                     logger.info(
                         "Generated narrative for %s (%d)", county.name, year
                     )

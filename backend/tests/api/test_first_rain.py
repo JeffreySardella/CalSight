@@ -14,9 +14,14 @@ pytestmark = pytest.mark.integration
 FIRST_RAIN = date(2025, 10, 21)  # WY 2026, after 20 dry days from Oct 1
 
 
-def _seed_first_rain(db_session, county_code=19, crashes_on_day=3, crashes_before=28):
+def _seed_first_rain(db_session, county_code=19, crashes_on_day=3, crashes_before=28, newest_crash_days_after=60):
     """20 dry days, then 0.4" on Oct 21; `crashes_before` spread one per day
-    over the 28-day baseline window (baseline = crashes_before / 28)."""
+    over the 28-day baseline window (baseline = crashes_before / 28). One
+    sentinel crash `newest_crash_days_after` the event (in another county, so
+    it never lands in a baseline) sets how mature the crash record is."""
+    db_session.add(Crash(id=899_999, collision_id=899_999, data_source="ccrs", county_code=1,
+                         crash_datetime=datetime.combine(FIRST_RAIN + timedelta(days=newest_crash_days_after),
+                                                         datetime.min.time())))
     db_session.add_all(
         [WeatherDaily(county_code=county_code, date=date(2025, 10, 1) + timedelta(days=i), precip_in=0.0)
          for i in range(20)]
@@ -36,8 +41,8 @@ def _seed_first_rain(db_session, county_code=19, crashes_on_day=3, crashes_befor
 
 def test_compute_events_counts_day_and_baseline(db_session):
     _seed_first_rain(db_session)
-    events, counties, skipped = compute_events(db_session, [2025, 2026])
-    assert (events, counties, skipped) == (1, 1, 4)  # 5 seeded counties, 1 with weather
+    events, counties, skipped, deferred = compute_events(db_session, [2025, 2026])
+    assert (events, counties, skipped, deferred) == (1, 1, 4, 0)  # 5 seeded counties, 1 with weather
 
     ev = db_session.query(FirstRainEvent).one()
     assert (ev.county_code, ev.water_year, ev.first_rain_date) == (19, 2026, FIRST_RAIN)
@@ -48,6 +53,15 @@ def test_compute_events_counts_day_and_baseline(db_session):
     # Re-running upserts in place rather than duplicating.
     compute_events(db_session, [2026])
     assert db_session.query(FirstRainEvent).count() == 1
+
+
+def test_compute_events_defers_event_until_crash_record_is_mature(db_session):
+    """Newest crash only 10 days after the first rain: CCRS is still filling
+    that day in, so the event is deferred rather than stored with a biased lift."""
+    _seed_first_rain(db_session, newest_crash_days_after=10)
+    events, counties, skipped, deferred = compute_events(db_session, [2025, 2026])
+    assert (events, deferred) == (0, 1)
+    assert db_session.query(FirstRainEvent).count() == 0
 
 
 def _seed_api(db_session):
@@ -128,6 +142,14 @@ def test_first_rain_series_404_without_event(client, db_session):
     assert client.get("/api/first-rain/series?county=los-angeles&water_year=2025").status_code == 404
     assert client.get("/api/first-rain/series?county=orange&water_year=2026").status_code == 404
     assert client.get("/api/first-rain/series?county=atlantis&water_year=2026").status_code == 422
+
+
+def test_first_rain_series_422_unless_exactly_one_county(client, db_session):
+    _seed_api(db_session)
+    r = client.get("/api/first-rain/series?county=los-angeles,orange&water_year=2026")
+    assert r.status_code == 422
+    assert "exactly one county" in r.json()["detail"]
+    assert client.get("/api/first-rain/series?county=&water_year=2026").status_code == 422
 
 
 def test_upsert_daily_fills_one_row_from_two_variables(db_session):

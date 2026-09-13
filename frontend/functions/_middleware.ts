@@ -29,7 +29,9 @@ interface CrawlerContext {
 }
 
 const SITE_URL = "https://calsight.org";
-const OG_WORKER_URL = "https://og.calsight.org";
+// The dynamic OG-image worker (og.calsight.org) was never given a DNS record and
+// was retired 2026-09-12; every crawler-facing card uses the bundled image.
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
 const CRAWLER_USER_AGENTS = [
   "Twitterbot",
@@ -74,14 +76,13 @@ export function buildContext(url: URL): CrawlerContext {
   const base: CrawlerContext = {
     title: "CalSight — California Crash Data Explorer",
     description: "Explore 11 million California traffic crashes with interactive maps, AI-powered insights, and demographic analysis.",
-    ogImage: `${OG_WORKER_URL}/og?title=California+Crash+Data+Explorer`,
+    ogImage: DEFAULT_OG_IMAGE,
     ogType: "website",
     canonicalUrl: `${SITE_URL}${pathname}`,
   };
 
   if (pathname === "/stats") {
     const preset = params.get("preset") || "";
-    const dashboard = params.get("dashboard") || "";
     const counties = params.get("counties") || "";
 
     const presetLabels: Record<string, string> = {
@@ -104,29 +105,20 @@ export function buildContext(url: URL): CrawlerContext {
       ? `California crash statistics for ${counties.replace(/,/g, ", ").replace(/-/g, " ")}. Explore trends, demographics, and safety metrics.`
       : "Interactive California crash statistics dashboard with customizable charts, trends, and AI-powered insights.";
 
-    const ogParams = new URLSearchParams();
-    if (preset) ogParams.set("preset", preset);
-    if (counties) ogParams.set("counties", counties);
-    if (dashboard) ogParams.set("dashboard", "1"); // signal that it's a custom dashboard
-    base.ogImage = `${OG_WORKER_URL}/og/stats?${ogParams.toString()}`;
-    base.ogType = "article";
+        base.ogType = "article";
   } else if (pathname === "/ask") {
     base.title = "Ask AI — CalSight";
     base.description = "Ask questions about California traffic crash data using AI. Get instant insights about trends, causes, and safety statistics.";
-    base.ogImage = `${OG_WORKER_URL}/og?title=Ask+AI+About+Crash+Data&subtitle=Natural+language+queries+for+11M%2B+records`;
-  } else if (pathname === "/water") {
+      } else if (pathname === "/water") {
     base.title = "Water — California Reservoir Conditions — CalSight";
     base.description = "Current storage at California's major reservoirs — percent of capacity and of historical average, from DWR's California Data Exchange Center.";
-    base.ogImage = `${OG_WORKER_URL}/og?title=California+Reservoir+Conditions&subtitle=Daily+storage+vs+capacity+and+historical+average`;
-  } else if (pathname === "/about") {
+      } else if (pathname === "/about") {
     base.title = "About CalSight — Data Sources & Methodology";
     base.description = "Learn about CalSight's data sources (SWITRS, CCRS, Census ACS, CalEnviroScreen), methodology, and the team behind the platform.";
-    base.ogImage = `${OG_WORKER_URL}/og?title=About+CalSight&subtitle=Data+Sources+%26+Methodology`;
-  } else if (pathname === "/") {
+      } else if (pathname === "/") {
     base.title = "CalSight — California Crash Data Explorer";
     base.description = "Interactive map of 11 million California traffic crashes. Filter by county, severity, cause, and year. AI-powered safety insights.";
-    base.ogImage = `${OG_WORKER_URL}/og?title=California+Crash+Data+Explorer&subtitle=11M%2B+crashes+%E2%80%A2+58+counties+%E2%80%A2+2001%E2%80%93present`;
-  }
+      }
 
   return base;
 }
