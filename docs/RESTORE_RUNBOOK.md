@@ -115,23 +115,28 @@ Then load the site and confirm the map renders.
 
 ### 4f. Re-create the schedulers
 
-**Captured from the box 2026-08-09** — full detail, including the wrapper
-script and rebuild steps, is in **`backend/deploy/lxc100-crontab.md`**.
+**Captured from the boxes 2026-08-09, corrected by SSH 2026-09-13** — full
+detail, host map, the verbatim backup script and rebuild steps are in
+**`backend/deploy/lxc100-crontab.md`** (+ `lxc100-backup.py`).
 
-There are **two** schedulers, and they split the work:
+Two hosts, three schedulers:
 
 ```
-# ETL — host cron (root) on LXC 100
+# OFFSITE BACKUP -> R2 — host cron (root) on LXC 100 (the DB box, 10.27.27.88).
+# This is the ONLY thing that writes to R2. Script = backend/deploy/lxc100-backup.py
+0 19 * * * cd /opt/calsight/backend && set -a && . ./.env && set +a && /usr/bin/python3 -m etl.backup >> /var/log/calsight-backup.log 2>&1 && curl -fsS https://hc-ping.com/<uuid> >/dev/null 2>&1
+
+# ETL — host cron (root) on VM 101 (runner + app containers)
 0 2 * * * /usr/local/bin/run-etl-with-notify.sh
 
-# BACKUP — the calsight-pipeline-1 container's own APScheduler (0 7 * * *).
+# LOCAL BACKUP + daily ETL + vacuum — the calsight-pipeline-1 container's APScheduler on VM 101.
 # Restored simply by bringing the stack up:
 docker compose -f docker-compose.pipeline.yml up -d
 ```
 
-The earlier guess here (`0 19 * * * … python -m etl.backup && curl $HEARTBEAT_URL`)
-was wrong on every count — wrong time, wrong invoker, and the host cron never
-touches backups at all.
+The 2026-08-09 note here said the `0 19 * * *` guess was "wrong on every
+count". It was right; it just lives on LXC 100, which Pipeline Diagnostics
+(runs on VM 101) cannot see.
 
 ---
 

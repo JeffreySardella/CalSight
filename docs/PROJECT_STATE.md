@@ -16,18 +16,23 @@ indices). Live at **https://calsight.org**. 12 providers (30 ETL jobs), 26M+ row
 
 No day-to-day attention required:
 
-- **Auto-deploy** from `main` — GitHub Actions → self-hosted runner (LXC 100) +
-  VM 101 (API + Cloudflare tunnel); Cloudflare Pages builds the frontend.
-- **Daily ETL** — **two live schedulers** on LXC 100, both to stay. A host
-  cron (root, 02:00 UTC) runs `etl.run_all` inside `calsight-backend-1`; the
-  `calsight-pipeline-1` container's APScheduler runs the backup (07:00), the
-  daily ETL (11:00 Mon–Sat), the weekly full refresh (Sun 09:00) and VACUUM
-  (15:00). The 11:00 container run is the one that usually loads data (CCRS
-  refreshes upstream at ~02:05, just after the host cron fires). Captured
-  verbatim in `backend/deploy/lxc100-crontab.md` — read it before touching
-  either scheduler.
-- **Nightly backups** with offsite copy to Cloudflare R2 (min-keep-3 rotation,
-  `pg_restore --list` verification, quarantine-on-corruption).
+- **Auto-deploy** from `main` — GitHub Actions → self-hosted runner
+  `calsight-prod` on **VM 101** (hostname `docker-vm`: API, pipeline
+  container, Cloudflare tunnel); Cloudflare Pages builds the frontend. The
+  database is on **LXC 100** (`calsight-prod-db`, 10.27.27.88).
+- **Daily ETL** — **two live schedulers**, both on VM 101, both to stay. A
+  host cron (root, 02:00 UTC) runs `etl.run_all` inside `calsight-backend-1`;
+  the `calsight-pipeline-1` container's APScheduler runs a local backup
+  (07:00), the daily ETL (11:00 Mon–Sat), the weekly full refresh (Sun 09:00)
+  and VACUUM (15:00). The 11:00 container run is the one that usually loads
+  data (CCRS refreshes upstream at ~02:05, just after the host cron fires).
+- **Nightly offsite backup → Cloudflare R2** — a root cron on **LXC 100**
+  (19:00 UTC) runs the standalone script saved as
+  `backend/deploy/lxc100-backup.py` (gzipped `pg_dump -Fc`, 3 local copies,
+  Cloudflare 7-day retention, Discord + healthchecks.io ping). It is the
+  **only** writer to R2; the container's 07:00 dump stays on VM 101. All of
+  this is captured in `backend/deploy/lxc100-crontab.md` — read it before
+  touching any scheduler.
 - **Resilience baked in**: transient-failure retries w/ exponential backoff,
   React error boundaries, loud partial-failure handling in loaders,
   stale-source alerts, single-scheduler advisory lock, ETL run tracking.
@@ -62,7 +67,7 @@ you**. The code is all shipped; these just switch it on.
   Settings → Environment variables**, then **redeploy** Pages (Vite bakes env
   vars in at build time).
 - [x] **Heartbeat / dead-man's-switch — DONE (2026-07-18).** `HEARTBEAT_URL`
-  is set on LXC 100 and tested; the nightly backup pings an external monitor
+  is set on VM 101, and the LXC 100 backup cron pings healthchecks.io — a monitor
   that emails if it ever stops. This is the important safety net for running
   unattended, and it's live. (The two Sentry items above remain optional — the
   heartbeat already covers the "did it stop running" case; Sentry only adds the
@@ -70,15 +75,14 @@ you**. The code is all shipped; these just switch it on.
 
 ### 2. ~~Retire the legacy host scheduler (#370)~~ — answered; do not retire either
 
-**#370 is answered (2026-08-09, corrected 2026-09-12):** there are **two live
-schedulers** and they are both wanted. The host cron on LXC 100 (02:00 UTC)
-runs the ETL; the `calsight-pipeline-1` container's APScheduler runs the
-backup (07:00), the daily ETL (11:00 Mon–Sat), the weekly refresh (Sun 09:00)
-and VACUUM (15:00). The container is what produces the nightly dumps — the
-host cron never touches backups — and a DR rebuild that only restores the
-crontab still gets a working ETL from the container. Retiring either one loses
-something. Details, redacted crontab and the diagnostics workflow that captured
-them: `backend/deploy/lxc100-crontab.md`.
+**#370 is answered (2026-08-09, corrected 2026-09-13):** there are **three
+live schedulers** on two hosts and all are wanted. VM 101: host cron (02:00
+UTC, ETL) and the `calsight-pipeline-1` container (07:00 local backup, 11:00
+daily ETL, Sun 09:00 weekly refresh, 15:00 VACUUM). LXC 100: root cron (19:00
+UTC) running the standalone R2 backup script, the only path to offsite. The
+earlier "unidentified R2 uploader" thread is closed — it was this cron, invisible
+to Pipeline Diagnostics because that workflow runs on VM 101. Details,
+redacted crontabs and the verbatim script: `backend/deploy/lxc100-crontab.md`.
 
 ### 3. Repo tidy (GitHub) — cosmetic, zero functional impact
 
