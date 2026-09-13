@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 from app.ai_prompt import TOOL_DEFINITIONS
 from app.ai_tools import TOOL_REGISTRY, get_first_rain
+from etl.compute_first_rain import MATURITY_DAYS
 
 
 class FakeResult:
@@ -67,6 +68,7 @@ def test_statewide_summary_uses_latest_water_year():
     out = TOOL_REGISTRY["first_rain"](_db())
     assert "county" not in out
     assert "Association, not causation" in out["definition"]
+    assert f"{MATURITY_DAYS} days (~6 weeks)" in out["definition"]
     assert out["weather_through"] == "2025-11-02"
     assert out["statewide"]["water_years"] == 2
     assert out["statewide"]["event"]["water_year"] == 2026

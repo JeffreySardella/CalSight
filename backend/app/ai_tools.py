@@ -998,6 +998,7 @@ def get_first_rain(
     """
     from app.county_slug_map import slugify_name  # noqa: PLC0415
     from app.routers.first_rain import build_first_rain, county_event, lookup_event  # noqa: PLC0415 (avoid import cycle)
+    from etl.compute_first_rain import MATURITY_DAYS  # noqa: PLC0415
 
     data = build_first_rain(db)
     statewide = data.statewide.events
@@ -1006,10 +1007,13 @@ def get_first_rain(
     out: dict[str, Any] = {
         "definition": (
             f"First measurable rain = the first day of a water year (starts Oct 1) with "
-            f">= {data.threshold_in} in of precipitation after >= {data.min_dry_days} dry days. "
+            f">= {data.threshold_in} in of precipitation after >= {data.min_dry_days} days "
+            f"without such rain (lighter drizzle does not count as rain). "
             f"lift_pct compares crashes that day with the average over the prior "
             f"{data.baseline_days} days. Association, not causation; small_baseline=true "
-            f"means the percent is noise-prone."
+            f"means the percent is noise-prone. An event is scored only once crash reports "
+            f"extend {MATURITY_DAYS} days (~6 weeks) past it, so early in a season the latest "
+            f"event is still the previous water year's."
         ),
         "weather_through": data.weather_through.isoformat() if data.weather_through else None,
         "statewide": {
