@@ -36,6 +36,16 @@ export function baselineNote(period: string | null | undefined): string {
     : "the mean for this calendar day across all loaded years";
 }
 
+/** Footnote for a whole station set: the common period's note, and — when
+ *  the set is not uniform — how many stations fall back to their shorter
+ *  period of record, so one footnote never misdescribes those cards. */
+export function baselineFootnote(periods: (string | null | undefined)[]): string {
+  const common = commonBaseline(periods);
+  const n = periods.filter((p) => p && p !== common).length;
+  if (n === 0) return baselineNote(common);
+  return `${baselineNote(common)}; ${n === 1 ? "1 station uses its" : `${n} stations use their`} shorter full record`;
+}
+
 export interface ReservoirSeriesPoint {
   date: string;
   storage_af: number;

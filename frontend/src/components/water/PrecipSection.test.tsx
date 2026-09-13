@@ -78,6 +78,29 @@ describe("PrecipSection", () => {
     ).toBeInTheDocument();
   });
 
+  it("labels each index's period inline when the baselines differ", async () => {
+    // 6SI only exists in CDEC from 2013, so its percent is vs its own record.
+    mockApi(PRECIP.map((p) =>
+      p.station_id === "6SI"
+        ? { ...p, avg_accum_in: 20.0, pct_of_average: 120, baseline_period: "2013-2026" }
+        : p,
+    ));
+    renderSection();
+    expect(await screen.findByText("vs 2013–2026 avg")).toBeInTheDocument();
+    expect(screen.getAllByText("vs 1991–2020 avg")).toHaveLength(2);
+    expect(
+      screen.getByText(/averages are the 1991–2020 mean .* where available \(6SI: 2013–2026, its full record\)\./),
+    ).toBeInTheDocument();
+  });
+
+  it("omits the inline period labels when every index shares one baseline", async () => {
+    mockApi(PRECIP);
+    renderSection();
+    await screen.findByRole("heading", { name: /8-Station Index/ });
+    expect(screen.queryByText(/vs 1991–2020 avg/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/where available/)).not.toBeInTheDocument();
+  });
+
   it("keeps the all-years wording when no baseline period is reported", async () => {
     mockApi(PRECIP.map((p) => ({ ...p, baseline_period: null })));
     renderSection();

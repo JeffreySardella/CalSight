@@ -127,6 +127,13 @@ describe("WaterPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("says so when some reservoirs use a shorter period of record", async () => {
+    renderPage([SHASTA, { ...CASTAIC, pct_of_average: 90, baseline_period: "2012-2026" }]);
+    expect(
+      await screen.findByText(/1991–2020 mean .*; 1 station uses its shorter full record/),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the all-years wording when no baseline period is reported", async () => {
     renderPage([CASTAIC]);
     expect(

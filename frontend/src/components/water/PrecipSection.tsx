@@ -11,10 +11,13 @@ function barFraction(pct: number): number {
  * wet-season number, so it drives the section headline. */
 const HEADLINE_INDEX = "8SI";
 
-function IndexRow({ index }: { index: PrecipIndex }) {
+/** "1991-2020" → "1991–2020" (en dash, matching baselineNote). */
+const dash = (period: string) => period.replace("-", "–");
+
+function IndexRow({ index, showPeriod }: { index: PrecipIndex; showPeriod: boolean }) {
   const pct = index.pct_of_average;
   return (
-    <div className="grid grid-cols-[10rem_1fr_4rem] items-center gap-3">
+    <div className="grid grid-cols-[10rem_1fr_5.5rem] items-center gap-3">
       <div className="min-w-0">
         <p className="text-sm text-on-surface truncate">{index.region}</p>
         <p className="text-[10px] text-on-surface-variant">
@@ -45,6 +48,11 @@ function IndexRow({ index }: { index: PrecipIndex }) {
       </div>
       <span className="text-xs text-on-surface-variant text-right tabular-nums">
         {pct != null ? `${pct.toFixed(0)}%` : "—"}
+        {showPeriod && pct != null && index.baseline_period && (
+          <span className="block text-[10px] whitespace-nowrap">
+            vs {dash(index.baseline_period)} avg
+          </span>
+        )}
       </span>
     </div>
   );
@@ -77,6 +85,12 @@ export default function PrecipSection() {
   const headlinePct =
     headline != null ? headline.pct_of_average : null;
   const latestDate = data[0].latest_date;
+  // CDEC only carries 6SI from 2013, so its percent rests on a shorter
+  // period of record than 8SI/5SI. When the periods differ, say so per
+  // index instead of footnoting the majority period as if it were universal.
+  const common = commonBaseline(data.map((d) => d.baseline_period));
+  const oddOnes = data.filter((d) => d.baseline_period && d.baseline_period !== common);
+  const mixed = oddOnes.length > 0;
 
   return (
     <section aria-label="Precipitation indices" className="mt-20 max-w-2xl mx-auto">
@@ -95,15 +109,19 @@ export default function PrecipSection() {
 
       <div className="mt-8 space-y-4">
         {data.map((index) => (
-          <IndexRow key={index.station_id} index={index} />
+          <IndexRow key={index.station_id} index={index} showPeriod={mixed} />
         ))}
       </div>
 
       <p className="text-xs text-on-surface-variant text-center mt-8">
         Source: California Department of Water Resources, California Data
         Exchange Center (CDEC) precipitation indices. Accumulated inches since
-        October 1; averages are{" "}
-        {baselineNote(commonBaseline(data.map((d) => d.baseline_period)))}.
+        October 1; averages are {baselineNote(common)}
+        {mixed &&
+          ` where available (${oddOnes
+            .map((d) => `${d.station_id}: ${dash(d.baseline_period!)}`)
+            .join("; ")}, ${oddOnes.length === 1 ? "its" : "their"} full record)`}
+        .
       </p>
     </section>
   );
