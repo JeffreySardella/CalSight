@@ -1,0 +1,2 @@
+# The captured LXC 100 backup script is kept byte-identical to the box; do not lint it.
+extend-exclude = ["deploy/lxc100-backup.py"]
