@@ -2,6 +2,7 @@ import { memo, useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import { useLayersState } from "../../hooks/useLayersState";
+import { useToast } from "../ui/toastContext";
 import { useStreetAggregation, type StreetAggRow } from "../../hooks/useIntersections";
 
 // How many top intersections to request / plot.
@@ -65,13 +66,17 @@ export default memo(function TopIntersectionsLayer({ county }: TopIntersectionsL
   const { otherLayers } = useLayersState();
   const enabled = otherLayers.topIntersections;
 
-  const { data: rows } = useStreetAggregation({
+  const { data: rows, isError } = useStreetAggregation({
     scope: "intersections",
     sort: "severity",
     county,
     limit: TOP_LIMIT,
     enabled,
   });
+  const { showToast } = useToast();
+  useEffect(() => {
+    if (enabled && isError) showToast("Couldn't load top intersections.", { variant: "error" });
+  }, [enabled, isError, showToast]);
 
   const layerRef = useRef<L.LayerGroup | null>(null);
 

@@ -1,8 +1,20 @@
 """Integration tests for /api/crashes/heatmap."""
 
+from unittest.mock import patch
+
 import pytest
 
+import app.routers.heatmap as heatmap_mod
+from app.routers.heatmap import clear_heatmap_cache
+
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _fresh_heatmap_cache():
+    clear_heatmap_cache()
+    yield
+    clear_heatmap_cache()
 
 
 def test_heatmap_returns_points_and_total(client):
@@ -98,3 +110,15 @@ def test_heatmap_total_equals_sum_of_weights(client):
     body = response.json()
     weight_sum = sum(p["weight"] for p in body["points"])
     assert weight_sum == body["total_crashes"]
+
+
+def test_heatmap_grid_cached_within_ttl(client):
+    """A repeat grid request with identical filters is served from the TTL
+    cache; a different filter tuple misses and recomputes."""
+    with patch.object(heatmap_mod, "_compute_grid", wraps=heatmap_mod._compute_grid) as spy:
+        first = client.get("/api/crashes/heatmap").json()
+        assert spy.call_count == 1
+        assert client.get("/api/crashes/heatmap").json() == first
+        assert spy.call_count == 1
+        client.get("/api/crashes/heatmap?severity=fatal")
+        assert spy.call_count == 2

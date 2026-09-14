@@ -1,6 +1,7 @@
 """Grid-aggregated crash heatmap endpoint."""
 
 import logging
+import time
 from enum import Enum
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -57,6 +58,46 @@ _DECIMALS = {
 
 
 _limiter = Limiter(key_func=rate_limit_key)
+
+
+# The grid branch GROUP BYs the whole filtered crash table on an unindexed
+# round() expression and is hit on every map load. Same in-process TTL cache as
+# clusters.py / intersections.py, keyed on the full filter tuple + resolution.
+# The raw branch stays uncached (per-county 150K-point batches).
+_HEATMAP_CACHE_TTL_SECONDS = 6 * 3600
+_HEATMAP_CACHE_MAX = 256
+_heatmap_cache: dict[tuple, tuple[float, HeatmapResponse]] = {}
+
+
+def clear_heatmap_cache() -> None:
+    """Drop all cached grid results (tests / manual invalidation)."""
+    _heatmap_cache.clear()
+
+
+def _compute_grid(db: Session, preds: list, resolution: Resolution) -> HeatmapResponse:
+    """Grid-aggregate crashes under *preds*. Factored out so the cache is observable."""
+    step = _STEP[resolution]
+    lat_bucket = (func.round(Crash.latitude / step) * step).label("lat")
+    lng_bucket = (func.round(Crash.longitude / step) * step).label("lng")
+    weight = func.count().label("weight")
+
+    rows = (
+        db.query(lat_bucket, lng_bucket, weight)
+        .filter(*preds)
+        .group_by(literal_column("lat"), literal_column("lng"))
+        .all()
+    )
+
+    total = sum(r.weight for r in rows)
+    decimals = _DECIMALS[resolution]
+
+    return HeatmapResponse(
+        points=[
+            HeatmapPoint(lat=round(float(r.lat), decimals), lng=round(float(r.lng), decimals), weight=r.weight)
+            for r in rows
+        ],
+        total_crashes=total,
+    )
 
 
 @router.get("/crashes/heatmap", response_model=HeatmapResponse)
@@ -204,25 +245,19 @@ def crash_heatmap(
             total_batches=total_batches,
         )
 
-    step = _STEP[resolution]
-    lat_bucket = (func.round(Crash.latitude / step) * step).label("lat")
-    lng_bucket = (func.round(Crash.longitude / step) * step).label("lng")
-    weight = func.count().label("weight")
-
-    rows = (
-        db.query(lat_bucket, lng_bucket, weight)
-        .filter(*preds)
-        .group_by(literal_column("lat"), literal_column("lng"))
-        .all()
+    cache_key = (
+        year, start, end, county, severity, cause, alcohol, distracted,
+        pedestrian, cyclist, drug, driver_age, weather, lighting,
+        collision_type, road_type, hit_run, mismatch_only, include_rivers,
+        resolution,
     )
+    cached = _heatmap_cache.get(cache_key)
+    if cached is not None and cached[0] > time.monotonic():
+        return cached[1]
 
-    total = sum(r.weight for r in rows)
-    decimals = _DECIMALS[resolution]
+    result = _compute_grid(db, preds, resolution)
 
-    return HeatmapResponse(
-        points=[
-            HeatmapPoint(lat=round(float(r.lat), decimals), lng=round(float(r.lng), decimals), weight=r.weight)
-            for r in rows
-        ],
-        total_crashes=total,
-    )
+    if len(_heatmap_cache) >= _HEATMAP_CACHE_MAX:
+        _heatmap_cache.clear()
+    _heatmap_cache[cache_key] = (time.monotonic() + _HEATMAP_CACHE_TTL_SECONDS, result)
+    return result
