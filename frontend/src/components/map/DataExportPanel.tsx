@@ -10,6 +10,7 @@ import {
 } from "../../lib/export/csv";
 import { exportPdf } from "../../lib/export/pdf";
 import { exportPng, PngExportError } from "../../lib/export/png";
+import DataFreshnessBanner from "../stats/DataFreshnessBanner";
 import CopyLinkButton from "../ui/CopyLinkButton";
 import {
   type FormatKey,
@@ -237,6 +238,7 @@ export default function DataExportPanel() {
           Share
         </h3>
         <CopyLinkButton />
+        <DataFreshnessBanner />
         <p className="text-[10px] text-on-surface-variant leading-snug">
           The link reproduces your current filters, layers, and map view.
         </p>

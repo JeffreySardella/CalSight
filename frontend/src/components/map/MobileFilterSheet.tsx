@@ -96,7 +96,8 @@ export default function MobileFilterSheet({
           </button>
         </div>
 
-        {/* Tab bar */}
+        {/* Tab bar — a single tab would only repeat the header */}
+        {tabs.length > 1 && (
         <div className="flex px-6 pt-2 pb-0 gap-1">
           {tabs.map((tab) => (
             <button
@@ -115,6 +116,7 @@ export default function MobileFilterSheet({
             </button>
           ))}
         </div>
+        )}
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto px-6 py-4">

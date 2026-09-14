@@ -163,8 +163,13 @@ function MapInternals({
   const map = useMap();
   const { otherLayers } = useLayersState();
   const showMask = heatmapActive && !otherLayers.coordMismatches && !countyDrilldown;
-  const { data: hospitals = [] } = useHospitals(otherLayers.hospitals);
-  const { data: schools = [] } = useSchools(otherLayers.schools);
+  const { data: hospitals = [], isError: hospitalsError } = useHospitals(otherLayers.hospitals);
+  const { data: schools = [], isError: schoolsError } = useSchools(otherLayers.schools);
+  const { showToast: showLayerToast } = useToast();
+  useEffect(() => {
+    if (hospitalsError) showLayerToast("Couldn't load hospitals.", { variant: "error" });
+    if (schoolsError) showLayerToast("Couldn't load schools.", { variant: "error" });
+  }, [hospitalsError, schoolsError, showLayerToast]);
 
   useEffect(() => {
     onMapReady(map);

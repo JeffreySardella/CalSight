@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from "react";
+import { useToast } from "../ui/toastContext";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import { useHighwayGeoJson } from "../../hooks/useHighwayGeoJson";
@@ -53,7 +54,7 @@ export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute
   const { otherLayers, highwayMetric } = useLayersState();
   const enabled = otherLayers.highwayDanger;
 
-  const { data: geo } = useHighwayGeoJson();
+  const { data: geo, isError: geoError } = useHighwayGeoJson();
 
   const filters = useMemo<StatsFilters>(
     () => ({
@@ -82,7 +83,11 @@ export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute
   );
 
   // Only fetch danger data when the layer is on.
-  const { data: rows } = useHighwayRankings(filters, highwayMetric, HIGHWAY_LIMIT, enabled);
+  const { data: rows, isError: rowsError } = useHighwayRankings(filters, highwayMetric, HIGHWAY_LIMIT, enabled);
+  const { showToast } = useToast();
+  useEffect(() => {
+    if (enabled && (geoError || rowsError)) showToast("Couldn't load highway danger data.", { variant: "error" });
+  }, [enabled, geoError, rowsError, showToast]);
 
   const onSelectRef = useRef(onSelectHighway);
   onSelectRef.current = onSelectHighway;

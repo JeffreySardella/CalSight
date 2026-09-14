@@ -2,6 +2,7 @@ import { memo, useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import { useLayersState } from "../../hooks/useLayersState";
+import { useToast } from "../ui/toastContext";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import { useClusterHotspots, type ClusterPoint } from "../../hooks/useClusterHotspots";
 
@@ -54,7 +55,7 @@ export default memo(function ClusterLayer({ onSelectCluster, selectedCluster, on
   const { otherLayers } = useLayersState();
   const enabled = otherLayers.crashClusters;
 
-  const { clusters, hasData } = useClusterHotspots({
+  const { clusters, hasData, error: clusterError } = useClusterHotspots({
     enabled,
     county: fp.selectedCounties.size > 0
       ? [...fp.selectedCounties].map((c) => c.toLowerCase().replace(/ /g, "-")).join(",")
@@ -79,6 +80,10 @@ export default memo(function ClusterLayer({ onSelectCluster, selectedCluster, on
     roadType: fp.selectedRoadType,
     hitRun: fp.selectedHitRun,
   });
+  const { showToast } = useToast();
+  useEffect(() => {
+    if (enabled && clusterError) showToast("Couldn't load crash hotspots.", { variant: "error" });
+  }, [enabled, clusterError, showToast]);
 
   const onSelectRef = useRef(onSelectCluster);
   onSelectRef.current = onSelectCluster;
