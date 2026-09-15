@@ -27,6 +27,16 @@ class TestTransformWideToLong:
         assert len(rows) == 1
         assert rows[0]["county_code"] == 2
 
+    def test_maps_dmv_misspelled_santa_barbara(self):
+        """The DMV sheet spells it SANTA BARABARA; it must still load."""
+        records = [
+            {"_id": 1, "COUNTIES": "SANTA BARABARA  ", "2024": 300000},
+        ]
+        name_to_code = {"SANTA BARBARA": 42}
+
+        rows = transform_wide_to_long(records, name_to_code)
+        assert rows == [{"county_code": 42, "year": 2024, "driver_count": 300000}]
+
     def test_skips_summary_rows(self):
         records = [
             {"_id": 1, "COUNTIES": "TOTAL", "2024": 28000000},

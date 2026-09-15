@@ -104,10 +104,8 @@ def list_vehicles(
     return [VehicleRegistrationOut.model_validate(r) for r in q.all()]
 
 
-# deprecated (#291): no frontend callers — the dashboard reads driver counts
-# via /api/stats (mv_crash_rates). Kept working for external consumers;
-# flagged in OpenAPI so new clients don't adopt it.
-@router.get("/licensed-drivers", response_model=list[LicensedDriverOut], deprecated=True)
+# Feeds the map's per-10k-licensed-drivers measures (useChoroplethData).
+@router.get("/licensed-drivers", response_model=list[LicensedDriverOut])
 @_limiter.limit("1000/minute;20000/hour")
 def list_licensed_drivers(
     request: Request,
