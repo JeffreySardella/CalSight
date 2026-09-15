@@ -22,7 +22,9 @@ export const PRESETS: Record<PresetKey, PresetDef> = {
     slots: [
       { dimension: "severity", measure: "count", chartType: "donut", order: 0 },
       { dimension: "cause", measure: "count", chartType: "hbar", order: 1 },
-      { dimension: "year", measure: "count", chartType: "area", order: 2, options: { trendLine: true } },
+      // Crashes vs deaths per 1,000 crashes: the two lines diverge after 2019
+      // (crashes fell, lethality rose), which a crash count alone never shows.
+      { dimension: "year", measure: "count", secondaryMeasure: "fatality_rate", chartType: "line", order: 2 },
       { dimension: "county", measure: "count", chartType: "hbar", order: 3 },
     ],
   },

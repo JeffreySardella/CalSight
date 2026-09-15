@@ -70,7 +70,7 @@ export const MEASURE_LABELS: Record<Measure, string> = {
   killed: "Fatalities",
   injured: "Injuries",
   percentage: "Percentage",
-  fatality_rate: "Fatality Rate",
+  fatality_rate: "Deaths per 1,000 Crashes",
   yoy_change: "YoY Change %",
   per_100k_population: "Per 100K Population",
   per_10k_licensed_drivers: "Per 10K Drivers",

@@ -19,7 +19,7 @@ export interface Anomaly {
 
 const MEASURE_NOUNS: Record<string, string> = {
   count: "crashes", killed: "fatalities", injured: "injuries",
-  percentage: "%", fatality_rate: "fatality rate", yoy_change: "YoY change",
+  percentage: "%", fatality_rate: "deaths per 1,000 crashes", yoy_change: "YoY change",
 };
 
 function measureNoun(m: Measure): string {

@@ -28,7 +28,7 @@ test.describe("Dashboard - Preset Switching", () => {
     { label: "Fatality Focus", expectedChart: "Fatalities by Primary Cause" },
     { label: "DUI Deep Dive", expectedChart: "Crashes by Hour" },
     { label: "Injury Analysis", expectedChart: "Injuries by Month" },
-    { label: "Equity & Safety", expectedChart: "Fatality Rate by County" },
+    { label: "Equity & Safety", expectedChart: "Deaths per 1,000 Crashes by County" },
     { label: "County Comparison", expectedChart: "Crashes by County" },
   ];
 

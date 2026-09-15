@@ -178,11 +178,16 @@ describe("preset slot properties", () => {
   });
 
   it("buildPresetCharts copies all slot fields including options", () => {
-    // overview has a trendLine option on the year slot
-    const charts = buildPresetCharts("overview");
+    // rates has a trendLine option on the year slot
+    const charts = buildPresetCharts("rates");
     const yearChart = charts.find((c) => c.dimension === "year");
     expect(yearChart).toBeDefined();
     expect(yearChart!.options).toEqual({ trendLine: true });
+  });
+
+  it("overview's year slot is crashes vs deaths per 1,000 crashes", () => {
+    const yearChart = buildPresetCharts("overview").find((c) => c.dimension === "year");
+    expect(yearChart).toMatchObject({ measure: "count", secondaryMeasure: "fatality_rate", chartType: "line" });
   });
 
   it("slots without options do not have options field", () => {
