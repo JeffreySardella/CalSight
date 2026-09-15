@@ -41,6 +41,10 @@ CKAN_URL = (
 # Rows to skip (not real counties)
 SKIP_ROWS = {"OUT OF STATE", "TOTAL", "ID CARDS OUTSTANDING"}
 
+# Misspellings in the DMV sheet itself. Without these the county silently
+# fails the name lookup below and gets no driver counts at all.
+NAME_ALIASES = {"SANTA BARABARA": "SANTA BARBARA"}
+
 
 def fetch_records() -> list[dict]:
     """Grab all 61 rows from data.ca.gov in one request.
@@ -73,6 +77,7 @@ def transform_wide_to_long(records: list[dict], name_to_code: dict[str, int]) ->
     rows = []
     for rec in records:
         county_name = str(rec.get("COUNTIES", "")).strip().upper()
+        county_name = NAME_ALIASES.get(county_name, county_name)
         if county_name in SKIP_ROWS or not county_name:
             continue
 

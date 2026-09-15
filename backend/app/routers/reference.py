@@ -170,9 +170,8 @@ def list_calenviroscreen(
     return [CalenviroScreenOut.model_validate(r) for r in q.all()]
 
 
-# deprecated (#291): no frontend callers — road mileage feeds crash-rate
-# denominators through /api/stats, not through this raw list.
-@router.get("/road-miles", response_model=list[RoadMileOut], deprecated=True)
+# Feeds the map's per-100-road-miles measure (useChoroplethData).
+@router.get("/road-miles", response_model=list[RoadMileOut])
 @_limiter.limit("1000/minute;20000/hour")
 def list_road_miles(
     request: Request,
