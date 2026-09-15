@@ -19,6 +19,7 @@ const DIMENSION_SYNONYMS: [string, Dimension][] = [
 ];
 
 const MEASURE_SYNONYMS: [string, Measure][] = [
+  ["deaths per 1,000 crashes", "fatality_rate"], ["deaths per 1000 crashes", "fatality_rate"], ["per 1,000 crashes", "fatality_rate"], ["per 1000 crashes", "fatality_rate"],
   ["fatality rate", "fatality_rate"], ["death rate", "fatality_rate"], ["kill rate", "fatality_rate"],
   ["year over year", "yoy_change"], ["yoy change", "yoy_change"], ["yoy", "yoy_change"],
   ["per capita", "per_100k_population"], ["per 100k", "per_100k_population"], ["per population", "per_100k_population"],

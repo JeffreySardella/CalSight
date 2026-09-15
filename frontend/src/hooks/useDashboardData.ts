@@ -213,7 +213,8 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, cro
         items = items.map((d) => {
           const crashes = d.x ?? 1;
           const killed = d.y ?? 0;
-          return { ...d, value: crashes > 0 ? Math.round((killed / crashes) * 10000) / 100 : 0 };
+          // deaths per 1,000 crashes, one decimal
+          return { ...d, value: crashes > 0 ? Math.round((killed / crashes) * 10000) / 10 : 0 };
         });
       } else if (measure === "yoy_change") {
         const base = items.map(d => d.value);

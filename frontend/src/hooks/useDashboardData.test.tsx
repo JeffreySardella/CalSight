@@ -89,9 +89,9 @@ describe("useDashboardData", () => {
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    // fatality_rate = killed / crashes × 100, rounded to 2 decimals:
-    // 2022: 40/400 = 10%, 2023: 25/500 = 5%.
-    expect(result.current.dataBySlot["year:fatality_rate"].map((d) => d.value)).toEqual([10, 5]);
+    // fatality_rate = deaths per 1,000 crashes, one decimal:
+    // 2022: 40/400 = 100 per 1,000, 2023: 25/500 = 50 per 1,000.
+    expect(result.current.dataBySlot["year:fatality_rate"].map((d) => d.value)).toEqual([100, 50]);
   });
 
   it("does not emit a secondary key for single-axis charts", async () => {

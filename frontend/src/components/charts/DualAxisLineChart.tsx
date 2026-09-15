@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useId } from "react";
+import { niceScale } from "./niceScale";
 import ChartTooltip from "./ChartTooltip";
 import { nextChartIndex } from "./chartKeyboardNav";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
@@ -27,19 +28,6 @@ function formatNumber(val: number): string {
   if (Math.abs(val) >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
   if (Math.abs(val) < 1 && val !== 0) return val.toFixed(2);
   return val.toLocaleString();
-}
-
-function niceScale(maxVal: number, ticks: number): number[] {
-  if (maxVal <= 0) return Array.from({ length: ticks + 1 }, (_, i) => i);
-  const rawStep = maxVal / ticks;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-  const residual = rawStep / magnitude;
-  let niceStep: number;
-  if (residual <= 1.5) niceStep = 1 * magnitude;
-  else if (residual <= 3) niceStep = 2 * magnitude;
-  else if (residual <= 7) niceStep = 5 * magnitude;
-  else niceStep = 10 * magnitude;
-  return Array.from({ length: ticks + 1 }, (_, i) => Math.round(niceStep * i * 100) / 100);
 }
 
 export default function DualAxisLineChart({
