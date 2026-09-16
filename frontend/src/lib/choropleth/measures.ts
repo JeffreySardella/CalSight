@@ -8,6 +8,9 @@ export type MeasureKey =
   | "crashes_per_100k"
   | "fatalities_per_100k"
   | "injuries_per_100k"
+  | "crashes_per_10k_drivers"
+  | "fatalities_per_10k_drivers"
+  | "crashes_per_100_road_miles"
   | "crashes_raw"
   | "fatality_rate"
   | "crashes_per_income"
@@ -28,7 +31,7 @@ export type Measure = {
   /** "perCapita" needs demographics; "raw" and "rate" do not.
    *  "context" measures are sourced from external datasets
    *  (CalEnviroScreen, unemployment) rather than crash/demo queries. */
-  kind: "perCapita" | "raw" | "rate" | "perIncome" | "demographic" | "crashDemographic" | "context";
+  kind: "perCapita" | "perDriver" | "perRoadMile" | "raw" | "rate" | "perIncome" | "demographic" | "crashDemographic" | "context";
   formatLabel: (n: number) => string;
 };
 
@@ -49,6 +52,24 @@ export const MEASURES: Record<MeasureKey, Measure> = {
     key: "injuries_per_100k",
     label: "Injuries per 100k residents",
     kind: "perCapita",
+    formatLabel: (n) => n.toFixed(0),
+  },
+  crashes_per_10k_drivers: {
+    key: "crashes_per_10k_drivers",
+    label: "Crashes per 10k licensed drivers",
+    kind: "perDriver",
+    formatLabel: (n) => n.toFixed(0),
+  },
+  fatalities_per_10k_drivers: {
+    key: "fatalities_per_10k_drivers",
+    label: "Fatalities per 10k licensed drivers",
+    kind: "perDriver",
+    formatLabel: (n) => n.toFixed(2),
+  },
+  crashes_per_100_road_miles: {
+    key: "crashes_per_100_road_miles",
+    label: "Crashes per 100 road miles",
+    kind: "perRoadMile",
     formatLabel: (n) => n.toFixed(0),
   },
   crashes_raw: {
@@ -176,7 +197,30 @@ type ComputeOpts = {
   perYearInjuries?: Map<number, number>;
   /** External dataset values for "context" kind measures. */
   context?: ContextValues;
+  /** Average licensed drivers per year over the selected window (perDriver). */
+  annualDrivers?: number | null;
+  /** Total road miles in the county, all functional classes (perRoadMile). */
+  roadMiles?: number | null;
+  /** Years the crash total spans, so perDriver / perRoadMile are annual rates
+   *  like the per-100k ones. */
+  yearCount?: number;
 };
+
+export type DriverYear = { year: number; driver_count: number | null };
+
+/** Average licensed drivers per year for the selected years (empty set = all).
+ *  DMV coverage is 2008-2024; when no selected year has data, the nearest
+ *  available year stands in, since county driver counts move slowly. */
+export function annualDriverCount(rows: DriverYear[], years: Set<number>): number | null {
+  const valid = rows.filter((r) => r.driver_count != null && r.driver_count > 0);
+  if (valid.length === 0) return null;
+  let pick = years.size > 0 ? valid.filter((r) => years.has(r.year)) : valid;
+  if (pick.length === 0) {
+    const target = Math.max(...years);
+    pick = [valid.reduce((a, b) => (Math.abs(b.year - target) < Math.abs(a.year - target) ? b : a))];
+  }
+  return pick.reduce((sum, r) => sum + r.driver_count!, 0) / pick.length;
+}
 
 export function computeMeasureValue(
   measure: MeasureKey,
@@ -190,6 +234,26 @@ export function computeMeasureValue(
     const v = opts.context?.[measure];
     if (v == null) return { value: null, hasEnoughData: false };
     return { value: v, hasEnoughData: true };
+  }
+
+  // Exposure denominators: who drives (DMV) and how much road there is
+  // (Caltrans). Annualized over the selected years, same floor as per-100k.
+  if (measure === "crashes_per_10k_drivers" || measure === "fatalities_per_10k_drivers") {
+    const drivers = opts.annualDrivers;
+    const years = opts.yearCount ?? 1;
+    if (stats.crash_count < MIN_CRASHES_FOR_RATE || drivers == null || drivers <= 0 || years <= 0) {
+      return { value: null, hasEnoughData: false };
+    }
+    const numerator = measure === "crashes_per_10k_drivers" ? stats.crash_count : stats.total_killed;
+    return { value: (numerator / (drivers * years)) * 10_000, hasEnoughData: true };
+  }
+  if (measure === "crashes_per_100_road_miles") {
+    const miles = opts.roadMiles;
+    const years = opts.yearCount ?? 1;
+    if (stats.crash_count < MIN_CRASHES_FOR_RATE || miles == null || miles <= 0 || years <= 0) {
+      return { value: null, hasEnoughData: false };
+    }
+    return { value: (stats.crash_count / (miles * years)) * 100, hasEnoughData: true };
   }
 
   if (measure === "crashes_raw") {
