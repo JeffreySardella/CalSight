@@ -146,8 +146,8 @@ describe("useChoroplethData", () => {
     expect(result.current.is422).toBe(false);
   });
 
-  it("reports missingDemoYears in dataSummary for selected years without demographics", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+  it("fills selected years past the census from the nearest year and reports them", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url.includes("group_by=year")) {
         return new Response(JSON.stringify([
@@ -158,7 +158,7 @@ describe("useChoroplethData", () => {
       }
       if (url.includes("/api/stats")) {
         return new Response(JSON.stringify([
-          { county_code: 19, county_name: "Fresno", crash_count: 10, total_killed: 2, total_injured: 3 },
+          { county_code: 19, county_name: "Fresno", crash_count: 30, total_killed: 2, total_injured: 3 },
         ]));
       }
       return new Response(JSON.stringify([
@@ -176,8 +176,14 @@ describe("useChoroplethData", () => {
       { wrapper: makeWrapper() },
     );
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.dataSummary.missingDemoYears).toEqual([2024, 2025]);
+    const urls = fetchSpy.mock.calls.map((call) => String(call[0]));
+    expect(urls.some((u) => u.includes("/api/demographics") && u.includes("nearest=true"))).toBe(true);
+    expect(result.current.dataSummary.missingDemoYears).toEqual([]);
+    expect(result.current.dataSummary.estimatedDemoYears).toEqual([2024, 2025]);
+    expect(result.current.dataSummary.estimatedFromYears).toEqual([2023]);
     expect(result.current.dataSummary.totalCrashes).toBe(450_000);
+    // 30 crashes over 3 years of 50k residents = 20 per 100k per year.
+    expect(result.current.byCountyCode[19].value).toBeCloseTo(20, 10);
   });
 
   it("returns empty missingDemoYears in dataSummary when no years are selected", async () => {

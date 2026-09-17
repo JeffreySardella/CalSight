@@ -50,6 +50,10 @@ export type DataSummary = {
   totalCrashes: number;
   missingDemoYears: number[];
   partialDemoYears: number[];
+  /** Crash years with no census rows, filled from the nearest census year. */
+  estimatedDemoYears: number[];
+  /** The census years those estimates were taken from. */
+  estimatedFromYears: number[];
   sparseYears: { year: number; count: number }[];
 };
 
@@ -139,8 +143,41 @@ function buildYearStatsUrl(filters: ChoroplethFilters): string {
 function buildDemoUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   appendDateRange(p, filters.dateRange);
+  // Years past the latest ACS release come back as the nearest year instead
+  // of nothing, so per-capita maps for recent years aren't blank.
+  if (filters.dateRange) p.set("nearest", "true");
   const qs = p.toString();
   return `${API_BASE}/api/demographics${qs ? `?${qs}` : ""}`;
+}
+
+/** Restrict demographics to `years`, filling any year without census rows
+ *  from the nearest year that has them (later year on a tie). Returns the
+ *  filled rows plus which years were estimated and from where. */
+export function fillDemographicYears<T extends CountyYearDemo>(
+  rows: T[],
+  years: Set<number>,
+): { rows: T[]; estimated: Map<number, number> } {
+  const estimated = new Map<number, number>();
+  const available = [...new Set(rows.filter((r) => r.population != null).map((r) => r.year))];
+  if (years.size === 0 || available.length === 0) return { rows, estimated };
+  const out = rows.filter((r) => years.has(r.year));
+  for (const y of [...years].sort((a, b) => a - b)) {
+    if (available.includes(y)) continue;
+    const src = available.reduce((best, h) => {
+      const d = Math.abs(h - y);
+      const bd = Math.abs(best - y);
+      return d < bd || (d === bd && h > best) ? h : best;
+    });
+    estimated.set(y, src);
+    for (const r of rows) if (r.year === src) out.push({ ...r, year: y });
+  }
+  return { rows: out, estimated };
+}
+
+/** True when crashes matched but not one county could be colored. */
+export function allCountiesNoData(byCountyCode: Record<number, MeasureResult>): boolean {
+  const points = Object.values(byCountyCode);
+  return points.length > 0 && points.every((pt) => !pt.hasEnoughData);
 }
 
 export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFilters): ChoroplethData {
@@ -254,12 +291,21 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
   const cesData = cesQ.data as CalEnviroScreenData[] | undefined;
   const unempData = unempQ.data as UnemploymentData[] | undefined;
   const driverRows = driversQ.data as DriverRow[] | undefined;
+
+  // Years the crash totals span: the date filter's years, else every year the
+  // identically filtered year query returned. Population is filled for all of
+  // them so per-capita values stay annual averages.
+  const spanYears = useMemo(() => {
+    const selected = yearsInRange(filters.dateRange);
+    return selected.size > 0 ? selected : new Set((yearStats ?? []).map((r) => r.year));
+  }, [filters.dateRange, yearStats]);
+  const filledDemo = useMemo(() => fillDemographicYears(demos ?? [], spanYears), [demos, spanYears]);
   const roadMileRows = roadMilesQ.data as RoadMileRow[] | undefined;
 
   const { byCountyCode, nameToCode } = useMemo(() => {
     if (!stats) return { byCountyCode: {} as Record<number, ChoroplethPoint>, nameToCode: {} as Record<string, number> };
     const demoByCounty = new Map<number, CountyYearDemo[]>();
-    for (const d of demos ?? []) {
+    for (const d of filledDemo.rows) {
       const arr = demoByCounty.get(d.county_code) ?? [];
       arr.push(d);
       demoByCounty.set(d.county_code, arr);
@@ -328,7 +374,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       ntc[s.county_name] = s.county_code;
     }
     return { byCountyCode: out, nameToCode: ntc };
-  }, [stats, demos, measure, cesData, unempData, driverRows, roadMileRows, yearStats, filters.dateRange]);
+  }, [stats, filledDemo, measure, cesData, unempData, driverRows, roadMileRows, yearStats, filters.dateRange]);
 
   const dataSummary = useMemo<DataSummary>(() => {
     const totalCrashes = yearStats?.reduce((s, r) => s + r.crash_count, 0) ?? 0;
@@ -340,13 +386,16 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       }
     }
 
+    const estimatedDemoYears = [...filledDemo.estimated.keys()].sort((a, b) => a - b);
+    const estimatedFromYears = [...new Set(filledDemo.estimated.values())].sort((a, b) => a - b);
+
     const yearsForDisclaimer = [...yearsInRange(filters.dateRange)];
     if (yearsForDisclaimer.length === 0 || !demos) {
-      return { totalCrashes, missingDemoYears: [], partialDemoYears: [], sparseYears };
+      return { totalCrashes, missingDemoYears: [], partialDemoYears: [], estimatedDemoYears, estimatedFromYears, sparseYears };
     }
 
     const countiesByYear = new Map<number, number>();
-    for (const d of demos) {
+    for (const d of filledDemo.rows) {
       if (d.population != null) {
         countiesByYear.set(d.year, (countiesByYear.get(d.year) ?? 0) + 1);
       }
@@ -358,8 +407,8 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       if (count === 0) missingDemoYears.push(y);
       else if (count < CA_COUNTIES.length) partialDemoYears.push(y);
     }
-    return { totalCrashes, missingDemoYears, partialDemoYears, sparseYears };
-  }, [filters.dateRange, demos, yearStats]);
+    return { totalCrashes, missingDemoYears, partialDemoYears, estimatedDemoYears, estimatedFromYears, sparseYears };
+  }, [filters.dateRange, demos, filledDemo, yearStats]);
 
   const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error ?? cesQ.error ?? unempQ.error ?? driversQ.error ?? roadMilesQ.error) as (Error & { status?: number }) | null;
 

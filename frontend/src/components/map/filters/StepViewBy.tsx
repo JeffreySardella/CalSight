@@ -62,9 +62,9 @@ function demoInfoText(m: MeasureKey): string {
     return "CalEnviroScreen data averaged to county level. Counties without data show as hatched.";
   }
   if (DEMO_MEASURES.includes(m)) {
-    return "Demographic data available 2005-2023. Counties without data show as hatched.";
+    return "Census ACS data covers 2005-2023. Other years use the nearest census year.";
   }
-  return "Population data available 2005-2023. Earlier years show as hatched.";
+  return "Population from Census ACS 2005-2023. Other years use the nearest census year.";
 }
 
 function fmt(n: number): string {
@@ -96,11 +96,8 @@ function hasDemoOverlap(range: { min: number; max: number } | null): boolean {
 function isMeasureAvailable(key: MeasureKey, staged?: StagedFilters, crashCount?: number | null): { available: boolean; reason?: string } {
   const range = getSelectedYearRange(staged);
 
-  if (PER_CAPITA_MEASURES.includes(key) || DEMO_MEASURES.includes(key)) {
-    if (!hasDemoOverlap(range)) {
-      return { available: false, reason: "No demographics data for selected years (available 2005–2023)" };
-    }
-  }
+  // Per-capita and demographic measures stay available for any year: years
+  // outside the census range use the nearest census year (see the legend note).
 
   if (key === "unemployment_rate") {
     if (range && range.max < 2005) {

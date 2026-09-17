@@ -30,6 +30,10 @@ def list_demographics(
     year: str | None = Query(None),
     start: str | None = Query(None),
     end: str | None = Query(None),
+    nearest: bool = Query(
+        False,
+        description="Also return the nearest available year for requested years with no ACS rows",
+    ),
     db: Session = Depends(get_db),
 ):
     """ACS demographics per county × year. All ~27 columns per row.
@@ -38,6 +42,9 @@ def list_demographics(
     or a month-resolution date range (?start=YYYY-MM&end=YYYY-MM), which is
     rounded outward to the set of calendar years it spans. The date range
     takes precedence when both are supplied, mirroring the crash endpoints.
+    With ``nearest=true``, requested years that have no rows yet (ACS lags
+    about two years) also pull in the nearest available year. Rows keep their
+    real year so the client can label them as estimates.
     Filtering demographics to the selected years is what keeps per-capita
     denominators (e.g. crashes_per_100k) aligned with the date-filtered crash
     counts — without it the frontend divides an N-year crash count by the
@@ -50,15 +57,26 @@ def list_demographics(
         if codes:
             q = q.filter(Demographic.county_code.in_(codes))
 
+    requested: set[int] | None = None
     date_range = parse_date_range(start, end)
     if date_range is not None:
         years = years_from_date_range(date_range)
         if years is not None:
-            q = q.filter(Demographic.year.in_(years))
+            requested = set(years)
     elif year:
         years = parse_year(year)
         if years:
-            q = q.filter(Demographic.year.in_(years))
+            requested = set(years)
+
+    if requested is not None:
+        wanted = set(requested)
+        if nearest:
+            have = {y for (y,) in q.with_entities(Demographic.year).distinct()}
+            for y in requested - have:
+                if have:
+                    # Closest year wins; on a tie prefer the later one.
+                    wanted.add(min(have, key=lambda h: (abs(h - y), -h)))
+        q = q.filter(Demographic.year.in_(wanted))
 
     rows = q.order_by(Demographic.county_code, Demographic.year).all()
     return [DemographicOut.model_validate(r) for r in rows]

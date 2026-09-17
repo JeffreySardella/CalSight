@@ -12,7 +12,7 @@ import type { CoordCoverage } from "../hooks/useCoordCoverage";
 import { useMapKeyboard } from "../hooks/useMapKeyboard";
 import { LayersStateProvider, useLayersState } from "../hooks/useLayersState";
 import ChoroplethLegend from "../components/map/ChoroplethLegend";
-import { useChoroplethData, type ChoroplethData } from "../hooks/useChoroplethData";
+import { allCountiesNoData, useChoroplethData, type ChoroplethData } from "../hooks/useChoroplethData";
 import { MEASURES } from "../lib/choropleth/measures";
 import KeyboardHelpModal from "../components/map/KeyboardHelpModal";
 import IconRail from "../components/map/IconRail";
@@ -141,7 +141,9 @@ function MapPageInner() {
   usePrefetchFacets();
   const { data: countyGeoJson } = useCountyGeoJson();
 
-  const { measure, otherLayers, heatmapResolution, palette, choroplethOn } = useLayersState();
+  const { measure, otherLayers, heatmapResolution, palette, choroplethOn, setMeasure } = useLayersState();
+  // Which empty-map selection the user chose to keep looking at.
+  const [noDataDismissedKey, setNoDataDismissedKey] = useState<string | null>(null);
 
   const heatmapDetailSlugs = selectHeatmapDetailSlugs({
     compareMode,
@@ -1009,6 +1011,52 @@ function MapPageInner() {
             </div>
           </div>
         )}
+        {(() => {
+          // Crashes matched but the measure couldn't color a single county.
+          // ponytail: keyed on measure + crash total, so a filter change that
+          // lands on the same total keeps a dismissal; fine for a hint.
+          const noDataKey = `${measure}|${choroplethData.dataSummary.totalCrashes}`;
+          const show = choroplethOn
+            && !focusedCounty
+            && !choroplethData.isLoading
+            && !choroplethData.isError
+            && choroplethData.dataSummary.totalCrashes > 0
+            && allCountiesNoData(choroplethData.byCountyCode)
+            && noDataDismissedKey !== noDataKey;
+          if (!show) return null;
+          return (
+            <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none p-4">
+              <div
+                role="dialog"
+                aria-label="Nothing to color for this selection"
+                className="bg-surface-container-lowest/95 backdrop-blur-md ghost-border rounded-xl px-6 py-5 ambient-shadow pointer-events-auto max-w-sm space-y-4"
+              >
+                <EmptyState
+                  icon="visibility_off"
+                  title="Nothing to color for this selection"
+                  description={`${MEASURES[measure]?.label ?? "This measure"} has no data for the selected years or filters.`}
+                />
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => setMeasure("crashes_raw")}
+                    className="w-full text-sm font-semibold bg-primary text-on-primary rounded-lg py-2 hover:opacity-90"
+                  >
+                    Show total crashes
+                  </button>
+                  <button onClick={requestClearAll} className="w-full text-sm font-semibold text-primary hover:underline">
+                    Clear All Filters
+                  </button>
+                  <button
+                    onClick={() => setNoDataDismissedKey(noDataKey)}
+                    className="w-full text-xs text-on-surface-variant hover:underline"
+                  >
+                    Keep this view
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {heatmapEnabled && !!heatmapError && !heatmapErrorDismissed && (
           <div className="absolute top-14 md:top-3 left-1/2 -translate-x-1/2 z-20">
             <div

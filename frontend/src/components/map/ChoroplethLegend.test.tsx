@@ -22,7 +22,7 @@ function MeasureSetter({ measure }: { measure: MeasureKey }) {
   return null;
 }
 
-const BASE_SUMMARY: DataSummary = { totalCrashes: 500_000, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
+const BASE_SUMMARY: DataSummary = { totalCrashes: 500_000, missingDemoYears: [], partialDemoYears: [], estimatedDemoYears: [], estimatedFromYears: [], sparseYears: [] };
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -166,6 +166,14 @@ describe("ChoroplethLegend", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/no census data for 2024, 2025/i);
     expect(screen.getByRole("button", { name: /switch to total crashes/i })).toBeInTheDocument();
+  });
+
+  it("notes estimated population years, compressing long runs", () => {
+    render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, estimatedDemoYears: [2001, 2002, 2003, 2004, 2024, 2025], estimatedFromYears: [2005, 2023] }} />);
+    expect(screen.getByTestId("demo-estimate-note")).toHaveTextContent(
+      "Population for 2001-2004, 2024, 2025 estimated from 2005, 2023 census data",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows partial-demographics alert for years with incomplete county coverage", async () => {

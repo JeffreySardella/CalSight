@@ -83,3 +83,30 @@ def test_demographics_start_only_bounds_lower_edge(client, db_session):
     # start without end → from 2020 onward, excluding 2019.
     resp = client.get("/api/demographics?county=alameda&start=2020-01")
     assert {r["year"] for r in resp.json()} == {2023}
+
+
+def test_demographics_nearest_fills_years_without_data(client, db_session):
+    db_session.add_all([
+        Demographic(county_code=1, year=2019, population=1_600_000),
+        Demographic(county_code=1, year=2023, population=1_650_000),
+    ])
+    db_session.flush()
+    base = "/api/demographics?county=alameda"
+
+    # A year past the latest ACS release borrows the latest year.
+    resp = client.get(f"{base}&start=2025-01&end=2025-12&nearest=true")
+    assert {r["year"] for r in resp.json()} == {2023}
+
+    # A year before the first release borrows the earliest year.
+    resp = client.get(f"{base}&start=2001-01&end=2001-12&nearest=true")
+    assert {r["year"] for r in resp.json()} == {2019}
+
+    # Equidistant gap prefers the later year; present years are kept.
+    resp = client.get(f"{base}&start=2021-01&end=2021-12&nearest=true")
+    assert {r["year"] for r in resp.json()} == {2023}
+    resp = client.get(f"{base}&start=2019-01&end=2026-12&nearest=true")
+    assert {r["year"] for r in resp.json()} == {2019, 2023}
+
+    # Without the flag the D-1 contract is unchanged: no rows for the gap.
+    resp = client.get(f"{base}&start=2025-01&end=2025-12")
+    assert resp.json() == []

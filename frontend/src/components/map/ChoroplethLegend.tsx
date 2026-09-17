@@ -36,13 +36,16 @@ type Props = {
   mismatchCount?: number | null;
 };
 
+/** "2024, 2025" for short runs, "2001-2004, 2024-2026" for longer ones. */
 function formatYearList(years: number[]): string {
-  if (years.length <= 2) return years.join(", ");
   const sorted = [...years].sort((a, b) => a - b);
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-  if (last - first + 1 === sorted.length) return `${first}-${last}`;
-  return sorted.join(", ");
+  const runs: number[][] = [];
+  for (const y of sorted) {
+    const run = runs[runs.length - 1];
+    if (run && y === run[run.length - 1] + 1) run.push(y);
+    else runs.push([y]);
+  }
+  return runs.map((run) => (run.length >= 3 ? `${run[0]}-${run[run.length - 1]}` : run.join(", "))).join(", ");
 }
 
 function formatCount(n: number): string {
@@ -51,7 +54,7 @@ function formatCount(n: number): string {
   return n.toLocaleString();
 }
 
-const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], sparseYears: [] };
+const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], estimatedDemoYears: [], estimatedFromYears: [], sparseYears: [] };
 
 export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, heatmapStreaming, countyActive, countyTotalCrashes, mismatchCount }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
@@ -296,6 +299,14 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           >
             Switch to Total Crashes
           </button>
+        </div>
+      )}
+
+      {!countyActive
+        && (activeMeasure.kind === "perCapita" || activeMeasure.kind === "perIncome" || activeMeasure.kind === "demographic" || activeMeasure.kind === "crashDemographic")
+        && dataSummary.estimatedDemoYears.length > 0 && (
+        <div data-testid="demo-estimate-note" className="text-[10px] text-on-surface-variant mt-1.5 leading-snug">
+          Population for {formatYearList(dataSummary.estimatedDemoYears)} estimated from {formatYearList(dataSummary.estimatedFromYears)} census data
         </div>
       )}
 
