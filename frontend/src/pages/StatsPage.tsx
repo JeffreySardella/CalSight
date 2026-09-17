@@ -8,6 +8,7 @@ import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
 import { useStats } from "../hooks/useStats";
+import { excludePartialYear } from "../lib/partialYear";
 import { Skeleton } from "../components/ui/Skeleton";
 import DashboardModeToggle from "../components/stats/DashboardModeToggle";
 import DataFreshnessBanner from "../components/stats/DataFreshnessBanner";
@@ -355,19 +356,16 @@ function StatsPageInner() {
   const funFactsCounty = counties.size === 1 ? [...counties][0] : null;
   const { facts: funFacts } = useFunFacts(funFactsCounty, 5);
 
-  // Sparkline data: last 10 years of trends for hero metric cards
-  const sparkIncidents = useMemo(() => {
-    const yearly = data?.yearlyData ?? [];
-    return yearly.slice(-10).map((d) => d.count);
-  }, [data?.yearlyData]);
-  const sparkFatalities = useMemo(() => {
-    const yearly = data?.yearlyData ?? [];
-    return yearly.slice(-10).map((d) => d.killed);
-  }, [data?.yearlyData]);
-  const sparkKsi = useMemo(() => {
-    const yearly = data?.yearlyData ?? [];
-    return yearly.slice(-10).map((d) => d.killed + d.injured);
-  }, [data?.yearlyData]);
+  // Sparkline data: last 10 complete years for the hero metric cards. The
+  // in-progress year is excluded — it would plunge every sparkline, and
+  // deaths lag the crash record by months, so it plunges hardest of all.
+  const completeYearly = useMemo(
+    () => excludePartialYear(data?.yearlyData ?? []).slice(-10),
+    [data?.yearlyData],
+  );
+  const sparkIncidents = useMemo(() => completeYearly.map((d) => d.count), [completeYearly]);
+  const sparkFatalities = useMemo(() => completeYearly.map((d) => d.killed), [completeYearly]);
+  const sparkKsi = useMemo(() => completeYearly.map((d) => d.killed + d.injured), [completeYearly]);
 
   // SEO: dynamic meta tags and OG image based on current dashboard state
   const ogImage = useMemo(() => buildOgImageUrl({
