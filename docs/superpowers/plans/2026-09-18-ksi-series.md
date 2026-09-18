@@ -1778,7 +1778,7 @@ EOF
 )"
 ```
 
-- [ ] **Step 4: Merge after CI is green.** Run `gh pr checks --watch`, then `gh pr merge --squash --delete-branch`. That merge is the deploy. Watch it with `gh run watch "$(gh run list --workflow deploy.yml --limit 1 --json databaseId -q '.[0].databaseId')"`. Expected: every step is green, including "Run database migrations", "Backfill derived fields" and "Refresh materialized views".
+- [ ] **Step 4: Merge after CI is green.** Run `gh pr checks --watch`. The owner merges (outside the scheduler windows, all UTC: 02:00 host ETL, 07:00 local backup, 09:00 Sunday weekly, 11:00 Mon-Sat daily ETL, 15:00 vacuum, 19:00 R2 backup): `gh pr merge <n> --merge --admin --delete-branch`. That merge is the deploy. Watch it with `gh run watch "$(gh run list --workflow deploy.yml --limit 1 --json databaseId -q '.[0].databaseId')"`. Expected: every step is green, including "Run database migrations", "Backfill derived fields" and "Refresh materialized views".
 
 - [ ] **Step 5: Verify the swap on prod** (read-only). Put this in a local file `verify_ksi_views.sql`:
 
@@ -2673,7 +2673,7 @@ Browser pass done (desktop + 375px, light + dark).
 EOF
 )"
 gh pr checks --watch
-gh pr merge --squash --delete-branch
+gh pr merge <n> --merge --admin --delete-branch
 ```
 
 - [ ] **Step 4: Prod check after the deploy.** Open https://calsight.org/stats and repeat checks 1, 2 and 6 from Step 2. Then run the monitoring check: site 200, `/api/health` ok, `/api/freshness` not stale, and zero failed workflow runs.

@@ -82,7 +82,7 @@ Migration: `down_revision = "77b8d6739669"` (the current single head). Generate 
 
 At migration time `total_severe_injured` is 0 everywhere. That's harmless, because no UI reads it yet.
 
-A migration file change sets `check-backfill needed=true` in `deploy.yml`. That run does a full `backfill_derived`, then `backfill_conditions`, then refreshes the matviews, so the CCRS derivation (section 6) runs and the views are refreshed in the same deploy.
+A migration file change sets `check-backfill needed=true` in `deploy.yml`. The deploy's backfill step runs `python -m etl.backfill_derived` with no arguments, which is scoped to the latest data year (daily mode), so CCRS 2016–2024 are filled by a separate manual `backfill_derived --full` run after deploy (plan Task R1).
 
 ## 5. SWITRS backfill job: `backend/etl/backfill_switrs_ksi.py` (new, about 80 lines)
 
@@ -97,7 +97,7 @@ This module reuses `switrs_api.download_switrs_archive`, `_fold_case_id`, `_safe
 - **Runtime:** about 10–20 min, mostly download plus gunzip of the 1.3 GB archive (the same step `crashes_switrs` does). The updates are about 40 small batches per year and take minutes. Heap churn is ~200k row versions, which autovacuum absorbs.
 - **Trigger:** manual one-off. It is not registered in `jobs.py`, because the source is static.
   `gh workflow run run-etl.yml -f job=backfill_switrs_ksi -f refresh_matviews=true`
-  This runs on VM 101's runner through `docker compose exec backend`, with a 240-min timeout. Track it with `@track_etl_run("switrs_ksi")` so `etl_runs` records that it happened.
+  This runs on VM 101's runner through `docker compose exec backend`, with a 240-min timeout. It is deliberately not wrapped in `@track_etl_run`: any etl_runs source appears in /api/freshness and would read stale a week later. The workflow run log is the record.
 
 ## 6. CCRS derivation in `backfill_derived.py`
 
@@ -165,7 +165,8 @@ Add `backfill_severe_injured(db, since_year)`, modelled on `_resync_party_flag`.
 
 **Rollback:**
 - PR B is a plain revert.
-- For PR A, revert the code and leave the column in place. The column is additive and ignored, and the views with the extra column are harmless.
+- For PR A, revert the code and leave the column in place, but exclude the migration file `backend/migrations/versions/50bbb1251cb7_add_ksi_severe_injured.py`. Deleting the migration file while production's alembic_version stays at 50bbb1251cb7 makes every later deploy's `alembic upgrade head` fail with "Can't locate revision". The column is additive and ignored, and the views with the extra column are harmless.
+- If a downgrade's DROP COLUMN times out after the views were rebuilt, re-run the downgrade.
 - Only run `alembic downgrade` if the migration itself misbehaves. It rebuilds three views, so expect roughly 10 minutes of degraded `/api/stats`.
 - The backfills are idempotent, so re-running is always safe.
 - Before step 1, confirm last night's R2 dump exists.
