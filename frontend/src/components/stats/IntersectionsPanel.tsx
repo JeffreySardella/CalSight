@@ -12,6 +12,7 @@ import { useFilterParams, slugify } from "../../hooks/useFilterParams";
 import { Skeleton } from "../ui/Skeleton";
 import { EmptyState } from "../ui/EmptyState";
 import { ErrorState } from "../ui/ErrorState";
+import JargonTerm from "../ui/JargonTerm";
 
 const SCOPES: { value: StreetScope; label: string }[] = [
   { value: "intersections", label: "Intersections" },
@@ -250,7 +251,7 @@ export default function IntersectionsPanel() {
                 <th scope="col" className="text-right px-3 py-2 font-bold">Crashes</th>
                 <th scope="col" className="text-right px-3 py-2 font-bold">Fatal</th>
                 <th scope="col" className="text-right px-3 py-2 font-bold">Injury</th>
-                <th scope="col" className="text-right px-3 py-2 font-bold">PDO</th>
+                <th scope="col" className="text-right px-3 py-2 font-bold"><JargonTerm term="PDO" /></th>
                 <th
                   scope="col"
                   className="text-right px-3 py-2 font-bold"

@@ -11,6 +11,7 @@ import {
   type YearMonth,
 } from "../../hooks/useFilterParams";
 import SearchableMultiSelect from "../ui/SearchableMultiSelect";
+import JargonTerm from "../ui/JargonTerm";
 
 const PILL_ACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-on-primary transition-colors";
 const PILL_INACTIVE = "px-3 py-1.5 rounded-full text-xs font-semibold bg-surface-container-high text-on-surface-variant hover:bg-surface-variant transition-colors";
@@ -299,7 +300,7 @@ export default function FiltersPanel({
             );
           })}
         </div>
-        <p className="text-[10px] text-on-surface-variant">2016+ data only (CCRS)</p>
+        <p className="text-[10px] text-on-surface-variant">2016+ data only (<JargonTerm term="CCRS" />)</p>
       </div>
 
       {/* Driver Age */}
@@ -321,7 +322,7 @@ export default function FiltersPanel({
             </button>
           ))}
         </div>
-        <p className="text-[10px] text-on-surface-variant">2016+ data only (CCRS)</p>
+        <p className="text-[10px] text-on-surface-variant">2016+ data only (<JargonTerm term="CCRS" />)</p>
       </div>
 
     </div>

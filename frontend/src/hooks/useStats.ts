@@ -160,16 +160,23 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-function computeHeroMetrics(yearRows: YearRow[], population: number | null): HeroMetrics {
+/** Hero numbers. The killed + injured rate divides only the crash years that
+ *  have census population (ACS covers fewer years than the crash data), so it
+ *  is an annual average per 100K rather than several years of crashes over
+ *  fewer years of people. */
+export function computeHeroMetrics(yearRows: YearRow[], popByYear: Map<number, number> | null): HeroMetrics {
   if (!yearRows.length) return {};
   const totalIncidents = yearRows.reduce((s, r) => s + r.crash_count, 0);
-  const totalKilled = yearRows.reduce((s, r) => s + r.total_killed, 0);
-  const totalInjured = yearRows.reduce((s, r) => s + r.total_injured, 0);
   const complete = yearRows.filter((r) => r.year < CURRENT_YEAR).sort((a, b) => a.year - b.year);
   const hero: HeroMetrics = { totalIncidents };
 
-  if (population && population > 0) {
-    hero.ksiRatePer100k = Math.round(((totalKilled + totalInjured) / population) * 100_000 * 10) / 10;
+  if (popByYear && popByYear.size > 0) {
+    const matched = yearRows.filter((r) => popByYear.has(r.year));
+    const pop = matched.reduce((s, r) => s + popByYear.get(r.year)!, 0);
+    if (pop > 0) {
+      const harmed = matched.reduce((s, r) => s + r.total_killed + r.total_injured, 0);
+      hero.ksiRatePer100k = Math.round((harmed / pop) * 100_000 * 10) / 10;
+    }
   }
 
   if (complete.length >= 2) {
@@ -315,10 +322,14 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
       per_100k_aadt: r.per_100k_aadt, per_10k_vehicles: r.per_10k_vehicles,
     }));
 
-    const population = demoQuery.data
-      ? demoQuery.data.reduce((s, r) => s + (r.population ?? 0), 0)
-      : null;
-    const heroMetrics = computeHeroMetrics(rows<YearRow>(b.year), population);
+    let popByYear: Map<number, number> | null = null;
+    if (demoQuery.data) {
+      popByYear = new Map();
+      for (const r of demoQuery.data) {
+        if (r.population) popByYear.set(r.year, (popByYear.get(r.year) ?? 0) + r.population);
+      }
+    }
+    const heroMetrics = computeHeroMetrics(rows<YearRow>(b.year), popByYear);
 
     return { hourlyData, yearlyData, causesData, severityData, genderData, ageBracketData, atFaultGenderData, atFaultAgeBracketData, monthlyData, dayOfWeekData, rateData, heroMetrics };
   }, [batchQuery.data, demoQuery.data]);

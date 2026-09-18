@@ -54,6 +54,7 @@ import { DIMENSION_LABELS } from "../lib/dashboard/types";
 import { DATA_STORIES, getStoryById } from "../lib/dashboard/stories";
 import { useCrossFilter } from "../hooks/useCrossFilter";
 import { useIsMobile } from "../hooks/useIsMobile";
+import JargonTerm from "../components/ui/JargonTerm";
 
 export default function StatsPage() {
   // Apply the user's saved default county before mounting the real page —
@@ -527,25 +528,26 @@ function StatsPageInner() {
           </p>
         </div>
 
-        {/* KSI Rate */}
-        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="KSI Rate per 100K population">
+        {/* Killed + injured rate. Not true KSI: the injury count here includes
+            every injury, not just serious ones (true KSI is tracked separately). */}
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="Killed and injured per 100K population">
           <div className="flex items-start justify-between mb-3 sm:mb-4">
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest leading-tight">
-              KSI Rate / 100K Pop.
+              Killed + Injured / 100K Pop.
             </p>
             {!loading && sparkKsi.length >= 2 && (
-              <Sparkline data={sparkKsi} label="KSI trend, last 10 years" />
+              <Sparkline data={sparkKsi} label="Killed and injured trend, last 10 years" />
             )}
           </div>
           {loading ? (
             <Skeleton className="h-10 w-24" />
           ) : (
-            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`KSI rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
+            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`Killed and injured rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
               {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
             </p>
           )}
           <p className="text-on-surface-variant text-[11px] mt-2 italic">
-            Killed &amp; seriously injured per 100K residents
+            Everyone killed or injured, per 100K residents
           </p>
         </div>
 
@@ -841,10 +843,10 @@ function StatsPageInner() {
             <h3 className="font-bold text-on-surface text-xs">Data Sources</h3>
             <p>
               Crash records from the Statewide Integrated Traffic Records
-              System (SWITRS, 2001&ndash;2015) and the California Crash Records
-              System (CCRS, 2016&ndash;present), maintained by the California
-              Highway Patrol. Demographics from U.S. Census ACS 5-year
-              estimates. Environmental data from CalEnviroScreen 5.0 (OEHHA).
+              System (<JargonTerm term="SWITRS" />, 2001&ndash;2015) and the California Crash Records
+              System (<JargonTerm term="CCRS" />, 2016&ndash;present), maintained by the California
+              Highway Patrol. Demographics from U.S. Census <JargonTerm term="ACS" /> 5-year
+              estimates. Environmental data from <JargonTerm term="CalEnviroScreen" /> 5.0 (OEHHA).
               Employment from Bureau of Labor Statistics LAUS. Vehicle and
               driver data from California DMV.
             </p>

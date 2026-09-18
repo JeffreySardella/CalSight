@@ -16,6 +16,7 @@ const MISMATCH_DOT_COLORS: Record<PaletteKey, string> = {
 import type { DataSummary } from "../../hooks/useChoroplethData";
 import type { CoordCoverage } from "../../hooks/useCoordCoverage";
 import { useCoordValidation } from "../../hooks/useCoordValidation";
+import JargonTerm from "../ui/JargonTerm";
 
 type Props = {
   demographicsAvailable: boolean;
@@ -201,7 +202,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           </div>
           <div className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.pdo }} />
-            <span className="text-[10px] text-on-surface-variant font-semibold" title="Property Damage Only">PDO</span>
+            <span className="text-[10px] text-on-surface-variant font-semibold"><JargonTerm term="PDO" /></span>
           </div>
           {mismatchCount != null && mismatchCount > 0 && (
             <div className="flex items-center gap-1.5">
