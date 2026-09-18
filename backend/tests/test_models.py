@@ -1,4 +1,4 @@
-﻿"""Tests for SQLAlchemy models.
+"""Tests for SQLAlchemy models.
 
 These tests verify model definitions are correct by inspecting
 the table metadata — no database connection needed.

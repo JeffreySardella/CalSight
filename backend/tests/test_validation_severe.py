@@ -1,4 +1,4 @@
-﻿"""KSI guard: a complete year whose seriously-injured total is 0 means a backfill didn't run."""
+"""KSI guard: a complete year whose seriously-injured total is 0 means a backfill didn't run."""
 
 from etl.validation import check_severe_injured_coverage
 
