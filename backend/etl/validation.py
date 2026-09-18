@@ -303,6 +303,36 @@ def check_coordinate_bounds(
     )
 
 
+def check_severe_injured_coverage(db: Session) -> ValidationCheck:
+    """KSI guard: every complete year should have some seriously injured people.
+
+    crashes.number_severe_injured defaults to 0, so "never backfilled" looks
+    exactly like "none". A complete year summing to 0 means the SWITRS one-off
+    or the CCRS derivation hasn't run for it. Reads the small matview, not
+    the 11.6M-row table; the in-progress year is excluded.
+    """
+    missing = db.execute(text("""
+        SELECT crash_year FROM mv_crashes_by_year
+        WHERE crash_year < EXTRACT(YEAR FROM now())
+        GROUP BY crash_year
+        HAVING SUM(total_severe_injured) = 0
+        ORDER BY crash_year
+    """)).scalars().all()
+    if missing:
+        return ValidationCheck(
+            name="crashes_severe_injured_coverage",
+            passed=False,
+            message=f"No seriously injured people recorded for complete years: {list(missing)}",
+            severity="warning",
+            metric_value=len(missing),
+        )
+    return ValidationCheck(
+        name="crashes_severe_injured_coverage",
+        passed=True,
+        message="Every complete year has seriously injured people",
+    )
+
+
 def run_crash_validations(db: Session) -> ValidationReport:
     """Run the full validation suite for crash data."""
     report = ValidationReport(source="crashes")
@@ -311,6 +341,7 @@ def run_crash_validations(db: Session) -> ValidationReport:
     report.checks.append(check_recent_data(db, "crashes", max_staleness_days=90))
     report.checks.append(check_year_continuity(db, "crashes"))
     report.checks.append(check_coordinate_bounds(db, "crashes"))
+    report.checks.append(check_severe_injured_coverage(db))
 
     # Critical columns shouldn't have excessive nulls
     report.checks.append(check_null_rate(db, "crashes", "county_code", max_null_pct=1.0))
