@@ -29,3 +29,10 @@ export function partialYearNote(labels: Iterable<string | number>): string | nul
   }
   return null;
 }
+
+/** Drop the in-progress year from a year series. Year charts already exclude
+ *  it (see useDashboardData's "year" transform); this keeps sparklines and
+ *  other year series from ending on a partial bucket that reads as a crash. */
+export function excludePartialYear<T extends { year: number }>(rows: T[]): T[] {
+  return rows.filter((r) => !isPartialYear(r.year));
+}
