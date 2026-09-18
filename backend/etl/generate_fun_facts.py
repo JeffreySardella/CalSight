@@ -12,6 +12,10 @@ Usage
     python -m etl.generate_fun_facts              # county + statewide
     python -m etl.generate_fun_facts county        # county only
     python -m etl.generate_fun_facts statewide     # statewide only
+    python -m etl.generate_fun_facts --force       # rewrite existing (the daily `fun_facts` job)
+
+Every fact passes etl.fact_check before it is written: no figure that isn't
+in the stats, no causal language, no current (partial) year.
 """
 
 from __future__ import annotations
@@ -26,8 +30,17 @@ from sqlalchemy.orm import Session
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, CountyInsightCard, StatewideInsight
+from etl.fact_check import check_fact, numbers_context
 
 logger = logging.getLogger(__name__)
+
+
+def fact_fails(label: str, narrative: str, context: str, year: int) -> bool:
+    """Run the write-time fact check; log and return True when it fails."""
+    reasons = check_fact(narrative, context, year)
+    if reasons:
+        logger.warning("Not writing %s — %s", label, "; ".join(reasons))
+    return bool(reasons)
 
 DOW_NAMES = {0: "Monday", 1: "Tuesday", 2: "Wednesday", 3: "Thursday",
              4: "Friday", 5: "Saturday", 6: "Sunday"}
@@ -254,8 +267,7 @@ def _compose_comparison(name: str, s: dict) -> str:
                 parts.append(
                     f"The county's fatality rate of {s['fatality_rate']}% is well below "
                     f"the statewide {s['state_fatality_rate']}%, meaning crashes here "
-                    f"are less likely to be deadly — likely thanks to lower speeds and "
-                    f"better infrastructure."
+                    f"are less likely to be deadly than the California average."
                 )
 
     # DUI comparison
@@ -298,8 +310,7 @@ def _compose_quirky(name: str, s: dict) -> str:
         gap = round(365 / s["tc"], 1)
         options.append(
             f"With only {_fmt(s['tc'])} crashes all year, {name} County averages "
-            f"one collision every {gap} days. You're statistically more likely to "
-            f"see a bear than a fender-bender here."
+            f"one collision every {gap} days."
         )
     else:
         options.append(
@@ -307,24 +318,27 @@ def _compose_quirky(name: str, s: dict) -> str:
             f"roughly one every {round(24 / s['crashes_per_day'])} hours around the clock."
         )
 
-    # Dominant cause
+    # Dominant primary collision factor
     if s["causes"]:
         top_cause, top_cnt = s["causes"][0]
         top_pct = round(top_cnt / s["tc"] * 100, 1)
+        rest = s["causes"][1:]
         if top_pct > 35:
             options.append(
-                f"A single cause dominates here: \"{top_cause}\" is behind {top_pct}% "
-                f"of all crashes in {name} County — more than the next "
-                f"{len(s['causes']) - 1} causes combined."
+                f"One factor dominates here: \"{top_cause}\" is the primary collision "
+                f"factor in {top_pct}% of all crashes in {name} County"
+                + (
+                    f" — more than the next {len(rest)} factors combined."
+                    if rest and top_cnt > sum(c for _, c in rest) else "."
+                )
             )
 
     # Injury-to-fatality ratio
     if s["tk"] > 0 and s["ti"] > 0:
         ratio = round(s["ti"] / s["tk"])
         options.append(
-            f"For every person killed on {name} County roads, another {ratio} are "
-            f"injured. That {ratio}-to-1 ratio {'is higher than' if ratio > 150 else 'falls below' if ratio < 50 else 'tracks close to'} "
-            f"the statewide pattern."
+            f"For every person killed on {name} County roads, another {ratio} were "
+            f"injured."
         )
 
     # Historical swing
@@ -336,7 +350,7 @@ def _compose_quirky(name: str, s: dict) -> str:
             options.append(
                 f"The county's crash count has swung dramatically — from a peak of "
                 f"{_fmt(peak[1])} in {peak[0]} down to {_fmt(low[1])} in {low[0]}, "
-                f"a {pct_drop}% drop. {'The pandemic year likely played a role.' if low[0] == 2020 else ''}"
+                f"a {pct_drop}% drop."
             )
 
     # Pick the most interesting 1-2. MD5 here only maps a county name to a
@@ -536,7 +550,7 @@ def _compose_statewide_surprising(s: dict) -> str:
         if 15 <= h <= 18:
             parts.append(
                 f"The evening commute is as dangerous as you'd expect: "
-                f"{_hour_label(h)} is California's deadliest hour, concentrating "
+                f"{_hour_label(h)} is California's most crash-prone hour, concentrating "
                 f"{pct}% of the day's crashes into a single 60-minute window."
             )
         else:
@@ -549,9 +563,8 @@ def _compose_statewide_surprising(s: dict) -> str:
     # DUI surprise
     if s["dui_pct"] < 8:
         parts.append(
-            f"Despite the attention it gets, DUI accounts for just "
-            f"{s['dui_pct']}% of California crashes. The real villain? "
-            f"\"{s['top_cause'][0]}\" at "
+            f"DUI accounts for {s['dui_pct']}% of California crashes, while the "
+            f"most common primary factor, \"{s['top_cause'][0]}\", accounts for "
             f"{round(s['top_cause'][1] / s['tc'] * 100, 1)}%."
             if s["top_cause"] else ""
         )
@@ -566,13 +579,50 @@ def _compose_statewide_surprising(s: dict) -> str:
     if s["yoy"] is not None and abs(s["yoy"]) > 5:
         direction = "jumped" if s["yoy"] > 0 else "dropped"
         parts.append(
-            f"Crash volume {direction} {abs(s['yoy'])}% compared to the prior "
-            f"year{' — pandemic-era driving patterns likely played a role' if s['year'] in (2020, 2021) else ''}."
+            f"Crash volume {direction} {abs(s['yoy'])}% in {s['year']} compared "
+            f"to the prior year."
         )
 
     return " ".join(parts[:2]) if parts else (
-        f"California's {_fmt(s['tc'])} crashes in {s['year']} resulted in "
-        f"{_fmt(s['tk'])} fatalities — a rate of {s['fatality_rate']}%."
+        f"California recorded {_fmt(s['tc'])} crashes and {_fmt(s['tk'])} "
+        f"fatalities in {s['year']} — a fatality rate of {s['fatality_rate']}%."
+    )
+
+
+def fact_context(s: dict) -> str:
+    """Every figure a fun fact built from ``s`` may state, for etl.fact_check.
+
+    The raw stats plus the handful of figures the composers above derive
+    (shares, ratios, intervals). Covers both the county and statewide dicts.
+    """
+    tc, tk, ti = s["tc"], s["tk"], s["ti"]
+    derived: list[float] = [60, 31_536_000 / tc, 365 / tc]  # 60-minute window; seconds/days between
+    if tk:
+        derived += [ti / tk, 100 / s["fatality_rate"]] if s["fatality_rate"] else [ti / tk]
+    if s.get("crashes_per_day"):
+        derived.append(24 / s["crashes_per_day"])
+    counted = [s.get("peak_hour"), s.get("top_cause"), s.get("top_county"), *s.get("causes", [])]
+    derived += [c[1] / tc * 100 for c in counted if c]
+    if s.get("dow"):
+        hi, lo = max(s["dow"].values()), min(s["dow"].values())
+        if lo:
+            derived.append((hi - lo) / lo * 100)
+    if s.get("peak_hour") and s.get("quiet_hour") and s["quiet_hour"][1]:
+        derived.append(s["peak_hour"][1] / s["quiet_hour"][1])
+    if s.get("pop"):
+        derived.append(s["pop"] / 39_000_000 * 100)
+    if s.get("state_dui_pct") is not None:
+        derived.append(s["dui_pct"] - s["state_dui_pct"])
+    if s.get("hist"):
+        peak, low = max(c for _, c in s["hist"]), min(c for _, c in s["hist"])
+        derived.append((1 - low / peak) * 100)
+    if s.get("high_fat") and s["high_fat"][1]:
+        derived.append(100 / s["high_fat"][1])
+    if s.get("dui_count"):
+        derived.append(s["dui_count"] / 365)
+    return (
+        f"total_crashes={tc}, killed={tk}, injured={ti}, "
+        + numbers_context(s, derived)
     )
 
 
@@ -613,6 +663,7 @@ def _generate_county(db: Session, force: bool = False) -> int:
         stats = _query_county_stats(db, county.code, year)
         if stats is None:
             continue
+        context = fact_context(stats)
 
         for angle, composer in COUNTY_ANGLES.items():
             existing = (
@@ -627,6 +678,8 @@ def _generate_county(db: Session, force: bool = False) -> int:
             narrative = composer(county.name, stats)
             if not narrative or len(narrative) < 20:
                 logger.warning("Skipping %s/%s — narrative too short", county.name, angle)
+                continue
+            if fact_fails(f"{county.name}/{year}/{angle}", narrative, context, year):
                 continue
 
             stmt = (
@@ -656,6 +709,7 @@ def _generate_statewide(db: Session, force: bool = False) -> int:
     years = [
         r[0] for r in db.execute(text("""
             SELECT crash_year FROM crashes
+            WHERE crash_year < EXTRACT(year FROM CURRENT_DATE)
             GROUP BY crash_year HAVING COUNT(*) >= 1000
             ORDER BY crash_year
         """)).all()
@@ -668,6 +722,7 @@ def _generate_statewide(db: Session, force: bool = False) -> int:
         stats = _query_statewide_stats(db, year)
         if stats is None:
             continue
+        context = fact_context(stats)
 
         for angle, composer in STATEWIDE_ANGLES.items():
             existing = (
@@ -681,6 +736,8 @@ def _generate_statewide(db: Session, force: bool = False) -> int:
 
             narrative = composer(stats)
             if not narrative or len(narrative) < 20:
+                continue
+            if fact_fails(f"statewide/{year}/{angle}", narrative, context, year):
                 continue
 
             stmt = (
