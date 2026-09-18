@@ -565,6 +565,19 @@ Computed client-side:
 vehicles_per_capita = total_vehicles / population
 ```
 
+### 5.6 KSI (Killed or Seriously Injured)
+
+People, not crashes:
+
+```
+ksi = number_killed + number_severe_injured      (summed over crashes)
+ksi_per_100k = ksi / population * 100,000        (Stats hero tile; complete years only)
+```
+
+"Seriously injured" is SWITRS `severe_injury_count` for 2001–2015 and CCRS victims coded `SuspectSerious` or `SevereInactive` for 2016+. Years without census population use the nearest census year, and the tile says so. The in-progress year is excluded.
+
+\* KSI = people killed or seriously injured. Before 2016 "seriously injured" is SWITRS's "severe injury". From 2016 it is CCRS's "suspected serious injury" plus the older "severe" code that agencies phased out through about 2025. The definitions are close but not identical, so compare years across 2015→2016 (and 2017→2018, when most agencies switched) with care.
+
 ---
 
 ## 6. Statistical Methods
@@ -676,6 +689,7 @@ The system transition in 2016 introduces methodological discontinuities:
 - **Party/victim data** is only available for CCRS (2016+). Involvement flags (alcohol, drugs, distraction, cyclist, pedestrian) are NULL for SWITRS crashes.
 - **Field naming and coding** changed between systems. The ETL harmonizes both into a common schema, but subtle differences in categorization may exist.
 - **Time series analysis** spanning the transition should note this boundary.
+- **KSI** changes definition twice: at 2015→2016 (SWITRS "severe" to CCRS codes) and at 2017→2018, when most agencies moved from the old "severe" code to KABCO "suspected serious". Serious injuries rose 14% in 2018 while deaths fell, which is consistent with a scoring change rather than a real rise. See §5.6.
 
 ### 7.3 Census ACS Coverage Gaps
 
