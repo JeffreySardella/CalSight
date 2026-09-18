@@ -20,6 +20,8 @@ from sqlalchemy.orm import Session
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, CountyInsightCard
+from etl.fact_check import numbers_context
+from etl.generate_fun_facts import fact_fails
 
 logger = logging.getLogger(__name__)
 
@@ -412,8 +414,8 @@ def compose_safety_ranking(name: str, d: dict) -> str:
         if d["per_cap"] > 3000:
             parts.append(
                 f"Per capita, the county sees {_fmt(d['per_cap'])} crashes per 100,000 "
-                f"residents — elevated partly because through-traffic inflates crash "
-                f"counts beyond what the local population would suggest."
+                f"residents — high for its resident population (crashes are counted "
+                f"where they happen, so visitors and through-traffic are included)."
             )
         elif d["per_cap"] < 1000 and d["pop"] > 100000:
             parts.append(
@@ -917,21 +919,13 @@ def compose_fun_fact_timing(name: str, d: dict) -> str:
 
 
 def compose_fun_fact_comparison(name: str, d: dict) -> str:
-    """Compare county crash numbers to relatable benchmarks."""
+    """Put county crash numbers on a relatable scale, using only its own data."""
     parts = []
-    # Compare crash count to population of small cities
-    if d["tc"] > 50000:
-        parts.append(
-            f"{name} County's {_fmt(d['tc'])} crashes in {d['year']} exceed the entire "
-            f"population of cities like Calistoga or Colma — imagine every resident "
-            f"of a small town involved in a separate collision."
-        )
-    elif d["tc"] > 10000:
+    if d["tc"] > 10000:
         per_day = round(d["tc"] / 365)
         parts.append(
             f"With {_fmt(d['tc'])} crashes in {d['year']}, {name} County averaged "
-            f"{_fmt(per_day)} collisions per day — enough to fill a mid-size parking "
-            f"lot with damaged vehicles every single day."
+            f"{_fmt(per_day)} collisions per day, every day of the year."
         )
     elif d["tc"] > 1000:
         per_week = round(d["tc"] / 52)
@@ -948,12 +942,12 @@ def compose_fun_fact_comparison(name: str, d: dict) -> str:
     if d["county_share"] > 5:
         parts.append(
             f"This single county accounts for {d['county_share']}% of all crashes in "
-            f"California — a disproportionate share of the state's traffic burden."
+            f"California."
         )
     elif d["pop"] and d["tc"] > d["pop"] * 0.01:
         parts.append(
-            f"That means roughly 1 in every {round(d['pop'] / d['tc'])} residents was "
-            f"involved in a reported crash."
+            f"That's roughly one reported crash for every {round(d['pop'] / d['tc'])} "
+            f"residents."
         )
     return " ".join(parts[:2])
 
@@ -964,8 +958,7 @@ def compose_fun_fact_records(name: str, d: dict) -> str:
     if d["rank"] and d["rank"] <= 3:
         parts.append(
             f"{name} County holds the {_ordinal(d['rank'])} highest crash count in all "
-            f"of California with {_fmt(d['tc'])} collisions in {d['year']} — a dubious "
-            f"distinction driven by population and traffic volume."
+            f"of California with {_fmt(d['tc'])} collisions in {d['year']}."
         )
     elif d["rank"] and d["rank"] >= 56:
         parts.append(
@@ -992,7 +985,7 @@ def compose_fun_fact_records(name: str, d: dict) -> str:
         parts.append(
             f"The single worst month was {MONTH_NAMES[peak_m]} with {_fmt(peak_cnt)} "
             f"crashes — {round(peak_cnt / d['tc'] * 100, 1)}% of the year's total "
-            f"packed into 30 days."
+            f"packed into a single month."
         )
     return " ".join(parts[:2])
 
@@ -1091,8 +1084,7 @@ def compose_nighttime(name: str, d: dict) -> str:
     else:
         parts.append(
             f"Crashes in {name} County peak during daylight hours "
-            f"({_hour_label(peak_h)}), but nighttime collisions between 10 PM and 6 AM "
-            f"tend to be more severe due to reduced visibility and higher speeds."
+            f"({_hour_label(peak_h)})."
         )
     if d["dui_pct"] > 8:
         parts.append(
@@ -1331,6 +1323,29 @@ def compose_recovery_pattern(name: str, d: dict) -> str:
     return " ".join(parts[:2])
 
 
+def fact_context(d: dict) -> str:
+    """Every figure the fun_fact composers above may state, for etl.fact_check."""
+    tc, tk = d["tc"], d["tk"]
+    derived: list[float] = [100, 525_960 / tc, 365.25 / tc]  # "100+ crashes"; minutes/days between
+    if tk:
+        derived.append(365 / tk)
+    if d["pop"]:
+        derived.append(d["pop"] / tc)
+    if d["months"]:
+        derived.append(d["months"][0][1] / tc * 100)
+    return (
+        f"total_crashes={tc}, killed={tk}, injured={d['ti']}, "
+        + numbers_context(d, derived)
+    )
+
+
+def _fun_fact_fails(county: str, year: int, angle: str, narrative: str, data: dict) -> bool:
+    """Only fun facts are gated; the other angles aren't served as facts."""
+    return angle.startswith("fun_fact") and fact_fails(
+        f"{county}/{year}/{angle}", narrative, fact_context(data), year,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Angle registry
 # ---------------------------------------------------------------------------
@@ -1407,6 +1422,8 @@ def run() -> int:
                 narrative = composer(county.name, data)
                 if not narrative or len(narrative) < 30:
                     continue
+                if _fun_fact_fails(county.name, year, angle, narrative, data):
+                    continue
 
                 stmt = (
                     pg_insert(CountyInsightCard)
@@ -1470,6 +1487,8 @@ def run_all_years() -> int:
 
                     narrative = composer(county.name, data)
                     if not narrative or len(narrative) < 30:
+                        continue
+                    if _fun_fact_fails(county.name, year, angle, narrative, data):
                         continue
 
                     stmt = (

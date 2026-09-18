@@ -283,8 +283,20 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
     ))
     registry.register(Job(
+        # Template fun facts (no LLM). --force rewrites existing rows so a new
+        # year, a data correction or a template fix reaches the live cards;
+        # every fact passes etl.fact_check before it's written.
+        name="fun_facts",
+        module="etl.generate_fun_facts",
+        args=["--force"],
+        depends_on=["matviews"],
+        schedule="daily",
+    ))
+    registry.register(Job(
         name="vacuum",
         module="etl.vacuum_analyze",
+        # Not on fun_facts: its ~200-row upsert doesn't need a vacuum, and a
+        # failed fun-fact run must not block the nightly VACUUM ANALYZE.
         depends_on=["matviews", "insights"],
         schedule="daily",
     ))

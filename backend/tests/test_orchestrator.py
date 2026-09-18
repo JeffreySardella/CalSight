@@ -74,7 +74,7 @@ def test_resolve_detects_missing_dependency():
 
 def test_default_registry_has_all_jobs():
     registry = build_default_registry()
-    assert len(registry.jobs) == 30  # +4 water module jobs, +1 first_rain
+    assert len(registry.jobs) == 31  # +4 water module jobs, +1 first_rain, +1 fun_facts
 
 
 def test_default_registry_resolves_without_error():
@@ -87,6 +87,15 @@ def test_default_registry_resolves_without_error():
     assert names.index("backfill") < names.index("matviews")
     assert names.index("matviews") < names.index("insights")
     assert names.index("insights") < names.index("vacuum")
+    assert names.index("matviews") < names.index("fun_facts")
+
+
+def test_fun_facts_job_regenerates_daily():
+    job = build_default_registry().get("fun_facts")
+    assert job.module == "etl.generate_fun_facts"
+    assert job.args == ["--force"]
+    assert job.depends_on == ["matviews"]
+    assert job.schedule == "daily"
 
 
 class _FakeResult:

@@ -29,8 +29,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import math
-import re
 import time
 
 from sqlalchemy import text
@@ -40,6 +38,7 @@ from sqlalchemy.orm import Session
 from app.database import EtlSessionLocal as SessionLocal
 from app.llm import generate_narrative
 from app.models import County, CountyInsightCard, StatewideInsight
+from etl.fact_check import check_fact, unsupported_numbers
 from etl.generate_fun_facts import _query_statewide_stats
 
 logger = logging.getLogger(__name__)
@@ -125,8 +124,9 @@ ANGLE_PROMPTS: dict[str, str] = {
         "Make it memorable — 'one crash every X minutes' or similar. Data: {stats}"
     ),
     "fun_fact_comparison": (
-        "Write a single surprising fun fact comparing {county} County's crashes ({year}) to something "
-        "relatable — a city population, a stadium capacity, etc. Make it stick. Data: {stats}"
+        "Write a single surprising fun fact about {county} County's crashes ({year}) that makes the "
+        "scale relatable using only the figures given — per day, per resident, or share of the state. "
+        "State what the data shows, not why. Data: {stats}"
     ),
     "fun_fact_records": (
         "Write a single fun fact about what record or extreme {county} County holds for California "
@@ -191,50 +191,34 @@ STATEWIDE_ANGLE_PROMPTS: dict[str, str] = {
 # Numeric verification gate
 # ---------------------------------------------------------------------------
 
-_NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+# allowed_numbers / unsupported_numbers live in etl.fact_check (shared with the
+# template generators and etl.audit_fun_facts).
 
 
-def _numbers(s: str) -> list[float]:
-    return [float(m.replace(",", "")) for m in _NUM_RE.findall(s)]
-
-
-def allowed_numbers(stats_str: str, year: int) -> set[float]:
-    """Every figure the prompt supplied, plus cheap derivations a card may state.
-
-    Derivations: per-day / per-week / per-month / minutes-between for the three
-    totals, and floor/ceil of everything so "13%" passes for 12.6%.
-    """
-    nums = set(_numbers(stats_str)) | {float(year), 58.0}
-    for key in ("total_crashes", "killed", "injured"):
-        m = re.search(rf"\b{key}=([\d,]+)", stats_str)
-        if m and (n := float(m.group(1).replace(",", ""))):
-            nums |= {n / 365, n / 52, n / 12, n / 7, 525_600 / n, 8_760 / n}
-    for n in list(nums):
-        nums |= {float(math.floor(n)), float(math.floor(n) + 1)}
-    return nums
-
-
-def unsupported_numbers(narrative: str, stats_str: str, year: int) -> list[float]:
-    """Numbers in ``narrative`` (10..10M, not a year) with no supplied figure within 2%."""
-    allowed = allowed_numbers(stats_str, year)
-    return [
-        n for n in _numbers(narrative)
-        if 10 <= n <= 10_000_000
-        and not (n.is_integer() and 1990 <= n <= 2100)
-        and not any(abs(n - a) <= 0.02 * a for a in allowed)
-    ]
-
-
-def _generate_verified(prompt: str, stats_str: str, year: int, label: str) -> str | None:
-    """generate_narrative + numeric gate; one retry, then None (keep old card)."""
-    narrative = generate_narrative(prompt)
+def _problems(narrative: str, stats_str: str, year: int, angle: str) -> list[str]:
+    """Fun facts get the full check_fact; other angles only the numeric gate
+    (their prompts ask "why", so causal wording is expected there)."""
+    if angle.startswith("fun_fact"):
+        return check_fact(narrative, stats_str, year)
     bad = unsupported_numbers(narrative, stats_str, year)
+    return [f"figures not in stats: {bad}"] if bad else []
+
+
+def _generate_verified(
+    prompt: str, stats_str: str, year: int, label: str, angle: str = "",
+) -> str | None:
+    """generate_narrative + write-time check; one retry, then None (keep old card)."""
+    narrative = generate_narrative(prompt)
+    bad = _problems(narrative, stats_str, year, angle)
     if bad:
-        logger.warning("%s — figures not in stats %s; retrying", label, bad)
-        narrative = generate_narrative(prompt + " Use only the exact figures provided.")
-        bad = unsupported_numbers(narrative, stats_str, year)
+        logger.warning("%s — %s; retrying", label, "; ".join(bad))
+        retry = " Use only the exact figures provided."
+        if angle.startswith("fun_fact"):
+            retry = " State only what the figures show, not what caused them." + retry
+        narrative = generate_narrative(prompt + retry)
+        bad = _problems(narrative, stats_str, year, angle)
         if bad:
-            logger.warning("%s — still unsupported %s; keeping previous card", label, bad)
+            logger.warning("%s — still %s; keeping previous card", label, "; ".join(bad))
             return None
     if not narrative or len(narrative) < 30:
         return None
@@ -437,7 +421,7 @@ def _run_statewide(db: Session, mode: str, years: list[int] | None, force: bool,
             label = f"statewide/{year}/{angle}"
             try:
                 narrative = _generate_verified(
-                    tpl.format(year=year, stats=stats_str) + _GUARDRAILS, stats_str, year, label,
+                    tpl.format(year=year, stats=stats_str) + _GUARDRAILS, stats_str, year, label, angle,
                 )
                 if narrative is None:
                     continue
@@ -540,7 +524,7 @@ def run(
                     label = f"{county.name}/{year}/{angle}"
 
                     try:
-                        narrative = _generate_verified(prompt, stats_str, year, label)
+                        narrative = _generate_verified(prompt, stats_str, year, label, angle)
                         if narrative is None:
                             continue
 
