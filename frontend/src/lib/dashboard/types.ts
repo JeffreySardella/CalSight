@@ -7,7 +7,7 @@ export const DIMENSIONS = [
 export type Dimension = (typeof DIMENSIONS)[number];
 
 export const MEASURES = [
-  "count", "killed", "injured", "percentage",
+  "count", "killed", "injured", "ksi", "percentage",
   "fatality_rate", "yoy_change",
   "per_100k_population", "per_10k_licensed_drivers", "per_100_road_miles",
 ] as const;
@@ -69,6 +69,7 @@ export const MEASURE_LABELS: Record<Measure, string> = {
   count: "Crash Count",
   killed: "Fatalities",
   injured: "Injuries",
+  ksi: "Killed or Seriously Injured*",
   percentage: "Percentage",
   fatality_rate: "Deaths per 1,000 Crashes",
   yoy_change: "YoY Change %",
