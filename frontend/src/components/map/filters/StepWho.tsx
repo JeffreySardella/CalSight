@@ -1,6 +1,7 @@
 import { INVOLVEMENTS, DRIVER_AGE_BRACKETS } from "../../../hooks/useFilterParams";
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
 import FilterChip from "./FilterChip";
+import JargonTerm from "../../ui/JargonTerm";
 
 interface StepWhoProps {
   staged: StagedFilters;
@@ -33,7 +34,7 @@ export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSe
         <div>
           <h3 className="text-sm font-bold text-on-surface mb-1">Who was involved?</h3>
           <p className="text-[11px] text-on-surface-variant leading-snug">
-            Involvement and driver age data is only available for 2016+ crashes (CCRS).
+            Involvement and driver age data is only available for 2016+ crashes (<JargonTerm term="CCRS" />).
           </p>
         </div>
         <div className="bg-surface-container rounded-xl px-4 py-6 text-center">
@@ -119,7 +120,7 @@ export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSe
       <div className="flex items-center gap-2 bg-tertiary-container/30 rounded-lg px-3 py-2">
         <span className="material-symbols-outlined text-[14px] text-tertiary">info</span>
         <p className="text-[10px] text-on-surface-variant">
-          These filters use 2016+ CCRS data only. Pre-2016 crashes (SWITRS) don't have party-level details.
+          These filters use 2016+ <JargonTerm term="CCRS" /> data only. Pre-2016 crashes (<JargonTerm term="SWITRS" />) don't have party-level details.
         </p>
       </div>
     </div>

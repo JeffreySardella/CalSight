@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useStats, type StatsFilters } from "./useStats";
+import { computeHeroMetrics, useStats, type StatsFilters } from "./useStats";
 
 const FILTERS: StatsFilters = {
   dateRange: { start: { year: 2022, month: 1 }, end: { year: 2023, month: 12 } },
@@ -276,5 +276,24 @@ describe("useStats", () => {
     expect(result.current.data!.yearlyData.length).toBeGreaterThan(0);
     expect(result.current.data!.hourlyData.length).toBeGreaterThan(0);
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe("computeHeroMetrics killed + injured rate", () => {
+  const row = (year: number, killed: number, injured: number) =>
+    ({ year, crash_count: 1, total_killed: killed, total_injured: injured });
+
+  it("divides only the crash years that have population", () => {
+    const hero = computeHeroMetrics(
+      [row(2022, 100, 900), row(2023, 100, 900), row(2026, 50, 450)],
+      new Map([[2022, 1_000_000], [2023, 1_000_000]]),
+    );
+    // (1000 + 1000) harmed / 2,000,000 people = 100 per 100K; 2026 has no population.
+    expect(hero.ksiRatePer100k).toBe(100);
+  });
+
+  it("leaves the rate unset without population", () => {
+    expect(computeHeroMetrics([row(2022, 1, 1)], null).ksiRatePer100k).toBeUndefined();
+    expect(computeHeroMetrics([row(2022, 1, 1)], new Map()).ksiRatePer100k).toBeUndefined();
   });
 });

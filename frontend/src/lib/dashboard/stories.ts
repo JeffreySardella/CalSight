@@ -27,6 +27,7 @@ export type ChartBlock = {
     alcohol?: boolean;
     pedestrian?: boolean;
     counties?: string[];
+    causes?: string[];
   };
   caption?: string;
 };
@@ -82,9 +83,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "3.1x",
-        label: "Rural fatality rate gap",
-        context: "Rural counties have fatality rates 3.1 times higher than urban counties per crash",
+        value: "4.1x",
+        label: "Rural vs urban deaths per crash",
+        context: "In the five rural counties below, 24.4 people died per 1,000 crashes, against 6.0 in the five urban ones (2001 to 2025)",
       },
       {
         type: "chart",
@@ -107,7 +108,7 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "What this means",
-        body: "Infrastructure investment, emergency response times, and road design all contribute to the rural fatality gap. Urban counties benefit from lower speed limits, more signalization, and faster EMS access. Closing this gap requires targeted rural safety interventions beyond what urban-focused policy can deliver.",
+        body: "The data shows the gap; it does not show why. Commonly cited reasons include higher rural speeds, longer distances to trauma care, and fewer controlled intersections, but none of those are measured here. What the data does rule out is volume: rural counties have far fewer crashes, yet each one is about four times as likely to kill.",
       },
     ],
   },
@@ -145,9 +146,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "2:00 AM",
-        label: "Peak DUI crash hour",
-        context: "Saturday is the worst day overall, with Friday night spillover driving the early-morning peak",
+        value: "10 PM",
+        label: "Peak hour for alcohol-involved crashes",
+        context: "9 PM through midnight run nearly level, and 39% of alcohol-involved crashes fall between 10 PM and 3 AM. Saturday and Sunday are effectively tied as the worst days",
       },
       {
         type: "chart",
@@ -160,14 +161,14 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "The enforcement opportunity",
-        body: "The regularity of DUI crash timing means enforcement checkpoints and rideshare incentives can be surgically placed. Counties with high DUI counts relative to their population deserve priority funding for sobriety checkpoints during the 11 PM to 3 AM window on weekends.",
+        body: "The regularity of DUI crash timing means checkpoints and rideshare incentives can be targeted. The data points to the 9 PM to 3 AM window on Friday and Saturday nights, which is why the weekend peak spills into early Saturday and Sunday mornings.",
       },
     ],
   },
   {
     id: "twenty-years",
     title: "Twenty Years of Progress?",
-    subtitle: "Long-term crash and fatality trends reveal both gains and stagnation",
+    subtitle: "Crashes fell for two decades. Deaths did not follow the same path",
     icon: "timeline",
     blocks: [
       {
@@ -176,8 +177,8 @@ export const DATA_STORIES: DataStory[] = [
         body: (ctx) => ctx.countyCount === 1
           ? `Since the early 2000s, ${ctx.countyNames[0]} County has seen shifts in road safety investment, vehicle technology, and awareness campaigns. But has it actually worked locally? The answer depends on which metric you examine and how you define success.`
           : ctx.isFiltered
-          ? `Since the early 2000s, the ${ctx.countyCount} selected counties have seen billions invested in road safety while vehicle technology advanced dramatically. But has it actually worked? The answer depends on which metric you examine and how you define success.`
-          : `Since the early 2000s, California has invested billions in road safety, vehicle technology has advanced dramatically, and awareness campaigns have proliferated. But has it actually worked? The answer depends on which metric you examine and how you define success.`,
+          ? `Since the early 2000s, the ${ctx.countyCount} selected counties have seen major road safety investment while vehicle technology advanced. But has it actually worked? The answer depends on which metric you examine and how you define success.`
+          : `Since the early 2000s, California has spent heavily on road safety, vehicle technology has advanced, and awareness campaigns have multiplied. But has it actually worked? The answer depends on which metric you examine and how you define success.`,
         isThesis: true,
       },
       {
@@ -198,9 +199,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "-35%",
-        label: "Peak-to-trough decline",
-        context: "Total crash counts fell 35% from their peak, but fatalities have plateaued in recent years",
+        value: "-31%",
+        label: "Crashes, 2002 peak to 2020 low",
+        context: "From 542,301 crashes in 2002 to 374,756 in 2020. Deaths moved differently: they peaked at 4,661 in 2022, then fell to 3,402 in 2025, a figure still rising as late death records arrive",
       },
       {
         type: "chart",
@@ -210,28 +211,29 @@ export const DATA_STORIES: DataStory[] = [
         chartType: "area",
         options: { trendLine: true },
         filterOverrides: { pedestrian: true },
+        caption: "Pedestrian-involved crashes by year (the pedestrian flag starts in 2016)",
       },
       {
         type: "narrative",
         heading: "Progress is uneven",
-        body: "Vehicle occupant deaths have declined thanks to airbags, crumple zones, and seatbelt compliance. But pedestrian and cyclist fatalities have risen, erasing some gains. The next chapter of road safety must look beyond the car to protect all road users.",
+        body: "Crashes fell for most of two decades, but deaths did not track them. From 2019 to 2022 crashes dropped while deaths climbed to their highest level since at least 2001, and only in 2025 did deaths fall below the 2019 level. Pedestrian deaths followed the same arc, rising from 984 in 2016 to 1,278 in 2022 before falling back. This data shows the pattern; it cannot say how much airbags, road design or enforcement contributed.",
       },
     ],
   },
   {
     id: "poverty-fatality",
     title: "The Poverty-Fatality Connection",
-    subtitle: "Economic disadvantage maps directly onto crash fatality risk across California counties",
+    subtitle: "Poorer counties tend to have deadlier crashes, though the link is moderate",
     icon: "landscape",
     blocks: [
       {
         type: "narrative",
-        heading: "Poverty kills on the road too",
+        heading: "Where poverty and deadly crashes overlap",
         body: (ctx) => ctx.countyCount === 1
-          ? `In ${ctx.countyNames[0]} County, traffic violence reflects the broader pattern: poverty and crash fatality rates are linked, creating a feedback loop where economically disadvantaged communities bear both the financial and human cost of dangerous roads.`
+          ? `Statewide, counties with higher poverty rates tend to see deadlier crashes. The link is real but moderate, and it holds between counties, not individual people, so it says little about ${ctx.countyNames[0]} County on its own.`
           : ctx.isFiltered
-          ? `Across ${ctx.countyCount} selected counties, traffic violence is not equally distributed. Counties with higher poverty rates consistently report higher crash fatality rates, creating a feedback loop where economically disadvantaged communities bear both the financial and human cost of dangerous roads.`
-          : `Traffic violence is not equally distributed. Counties with higher poverty rates consistently report higher crash fatality rates, creating a feedback loop where economically disadvantaged communities bear both the financial and human cost of dangerous roads. The correlation is strong, persistent, and demands policy attention.`,
+          ? `Across California, counties with higher poverty rates tend to see deadlier crashes. The link is real but moderate, and it holds between counties, not individual people. Compare where the ${ctx.countyCount} selected counties fall below.`
+          : `Traffic deaths are not spread evenly. Counties with higher poverty rates tend to see more deaths per crash, but the link is moderate (r = 0.49 across 58 counties), not the lockstep it is sometimes described as. It holds between counties, not individual people.`,
         isThesis: true,
       },
       {
@@ -250,9 +252,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "r = 0.73",
-        label: "Poverty-fatality correlation",
-        context: "Counties in the top poverty quartile have fatality rates nearly double the state median",
+        value: "r = 0.49",
+        label: "Poverty rate vs deaths per crash",
+        context: "Across 58 counties, 2019 to 2023. The poorest quarter of counties had a median of 19.3 deaths per 1,000 crashes, 1.35 times the median county",
       },
       {
         type: "chart",
@@ -263,25 +265,25 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "narrative",
-        heading: "Structural inequality on asphalt",
-        body: "High-poverty counties tend to have older road infrastructure, fewer sidewalks, longer emergency response times, and higher-speed rural highways. Residents are more likely to drive older vehicles without modern safety features. Addressing traffic fatalities requires acknowledging that road safety is an economic justice issue.",
+        heading: "A pattern, not a proven cause",
+        body: "Plausible reasons include older roads, fewer sidewalks, longer emergency response times, higher-speed rural highways and older vehicles. None of those are measured here, and poverty overlaps heavily with rurality, which on its own predicts deadlier crashes. Treat this as a pattern worth investigating, not a proven cause.",
       },
     ],
   },
   {
     id: "ev-paradox",
-    title: "The EV Safety Paradox",
-    subtitle: "Electric vehicle adoption correlates with rising pedestrian fatality trends",
+    title: "EVs and Pedestrian Deaths",
+    subtitle: "EV registrations quadrupled. Pedestrian deaths rose, then fell",
     icon: "timeline",
     blocks: [
       {
         type: "narrative",
-        heading: "Quiet cars, louder consequences",
+        heading: "Testing a popular theory",
         body: (ctx) => ctx.countyCount === 1
-          ? `${ctx.countyNames[0]} County mirrors a statewide trend: as EV registrations climb, pedestrian fatalities have risen in parallel. The near-silent operation of EVs at low speeds, combined with heavier vehicle weights and instant torque, may be contributing to a new category of road danger.`
+          ? `A popular theory holds that quiet, heavy electric vehicles are making roads more dangerous for pedestrians. Statewide, the numbers do not bear it out so far. The charts below show how ${ctx.countyNames[0]} County's pedestrian crashes moved over the same years.`
           : ctx.isFiltered
-          ? `Across ${ctx.countyCount} selected counties, a troubling pattern has emerged: as EV registrations climb, pedestrian fatalities have risen in parallel. The near-silent operation of EVs at low speeds, combined with heavier vehicle weights, may be contributing to a new category of road danger for the most vulnerable users.`
-          : `California leads the nation in electric vehicle adoption, but a troubling pattern has emerged: as EV registrations climb, pedestrian fatalities have risen in parallel. The near-silent operation of EVs at low speeds, combined with heavier vehicle weights and instant torque, may be contributing to a new category of road danger for the most vulnerable users.`,
+          ? `A popular theory holds that quiet, heavy electric vehicles are making roads more dangerous for pedestrians. Statewide, the numbers do not bear it out so far. The charts below show how pedestrian crashes moved in the ${ctx.countyCount} selected counties.`
+          : `Electric vehicles have spread fast in California, and a popular theory holds that quiet, heavy EVs endanger pedestrians. The statewide numbers do not bear that out so far: EV registrations climbed every year while pedestrian deaths rose, peaked in 2022, and then fell.`,
         isThesis: true,
       },
       {
@@ -291,13 +293,13 @@ export const DATA_STORIES: DataStory[] = [
         measure: "count",
         chartType: "area",
         filterOverrides: { pedestrian: true },
-        caption: "Pedestrian crash counts by year",
+        caption: "Pedestrian-involved crashes by year (the pedestrian flag starts in 2016)",
       },
       {
         type: "stat-callout",
-        value: "+340%",
-        label: "EV registration growth",
-        context: "Over the same period, pedestrian fatalities rose 18% statewide",
+        value: "+338%",
+        label: "EV registrations, 2019 to 2025",
+        context: "From 423,017 to 1,854,887. Over the same years, pedestrian deaths went from 1,050 to a peak of 1,278 in 2022, then down to 958 in 2025",
       },
       {
         type: "chart",
@@ -310,25 +312,25 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "narrative",
-        heading: "Correlation is not causation, but...",
-        body: "Multiple factors drive pedestrian fatality increases: larger SUVs, smartphone distraction, and housing policies that push pedestrians onto high-speed arterials. However, the EV-silence factor deserves study. Federal minimum-noise regulations took effect in 2020, but compliance and effectiveness remain unproven. The heaviest EVs also pose greater kinetic energy risks in any collision.",
+        heading: "What this can and can't show",
+        body: "Statewide totals cannot isolate an EV effect: pedestrian risk also moves with vehicle size, distraction, travel volume and where people walk. But the pattern here, EVs up every year while pedestrian deaths peaked in 2022 and fell, does not support a strong EV-driven rise. The 2025 figure is still provisional, since death records arrive months late.",
       },
     ],
   },
   {
     id: "wfh-dividend",
     title: "The WFH Safety Dividend",
-    subtitle: "Remote work reshaped commute patterns and rush-hour crash risk — but not everywhere",
+    subtitle: "Morning rush-hour crashes fell about a quarter after 2020, statewide",
     icon: "timeline",
     blocks: [
       {
         type: "narrative",
         heading: "Empty commutes, safer roads?",
         body: (ctx) => ctx.countyCount === 1
-          ? `The post-2020 shift to remote work reshaped ${ctx.countyNames[0]} County's rush-hour traffic. Whether the safety dividend materialized here depends on the local workforce composition — white-collar counties saw immediate gains while service-economy areas saw none.`
+          ? `The post-2020 shift to remote work thinned out rush-hour traffic. Statewide, 7 to 9 AM crashes fell 28% between 2019 and 2023. The charts below show how ${ctx.countyNames[0]} County's crash hours compare.`
           : ctx.isFiltered
-          ? `The post-2020 shift to remote work removed commuters from rush-hour traffic across ${ctx.countyCount} selected counties. The safety dividend was immediate and measurable — but only in counties with large white-collar workforces. Service-economy counties saw no benefit.`
-          : `The post-2020 shift to remote work removed millions of California commuters from rush-hour traffic. The safety dividend was immediate and measurable — but only in counties with large white-collar workforces. Blue-collar and service-economy counties saw no benefit, widening the safety gap between communities.`,
+          ? `The post-2020 shift to remote work thinned out rush-hour traffic. Statewide, 7 to 9 AM crashes fell 28% between 2019 and 2023. The charts below show how the ${ctx.countyCount} selected counties compare.`
+          : `The post-2020 shift to remote work thinned out rush-hour traffic. Between 2019 and 2023, 7 to 9 AM crashes fell 28% statewide. The Bay Area's five tech-heavy counties fell 26%, no more than the state as a whole, so the drop was not confined to white-collar areas.`,
         isThesis: true,
       },
       {
@@ -337,7 +339,7 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "hour",
         measure: "count",
         chartType: "bar",
-        caption: "Crash distribution by hour (all years) — note the rush-hour peaks at 8 AM and 5 PM",
+        caption: "Crashes by hour of day, all years. Note the morning and evening rush-hour peaks",
       },
       {
         type: "chart",
@@ -346,13 +348,13 @@ export const DATA_STORIES: DataStory[] = [
         measure: "count",
         chartType: "bar",
         filterOverrides: { counties: ["san-francisco", "santa-clara", "san-mateo", "alameda", "marin"] },
-        caption: "Bay Area tech counties — flattened rush-hour peaks post-WFH",
+        caption: "Bay Area tech counties (San Francisco, Santa Clara, San Mateo, Alameda, Marin), all years",
       },
       {
         type: "stat-callout",
-        value: "-31%",
-        label: "Rush-hour crash reduction",
-        context: "White-collar counties saw a 31% drop in 7-9 AM crashes vs pre-2020, while WFH adoption remains stuck at +12% above baseline",
+        value: "-28%",
+        label: "7 to 9 AM crashes, 2019 to 2023",
+        context: "Statewide, from 49,130 to 35,429. The five Bay Area tech counties fell 26%, about the same",
       },
       {
         type: "chart",
@@ -365,25 +367,25 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "narrative",
-        heading: "A dividend for some, not all",
-        body: "Remote work is a safety intervention that only reaches knowledge workers. Counties reliant on agriculture, logistics, and service industries saw no rush-hour improvement. This reinforces a broader theme: road safety gains increasingly track economic privilege. Policy must find ways to deliver similar safety benefits to communities that cannot work from home.",
+        heading: "Broad, and hard to credit to remote work alone",
+        body: "The morning rush-hour drop was broad, not limited to counties with many remote-capable jobs. That makes it hard to credit remote work alone: 2020 also brought lockdowns, shifted travel times, and fewer trips overall. This data shows when crashes fell, not why.",
       },
     ],
   },
   {
     id: "young-drivers",
     title: "Young Drivers, Old Roads",
-    subtitle: "The 18-24 age bracket is massively over-represented as at-fault in California crashes",
+    subtitle: "Drivers aged 18 to 24 are over-represented among at-fault drivers",
     icon: "landscape",
     blocks: [
       {
         type: "narrative",
-        heading: "Inexperience meets infrastructure",
+        heading: "Young drivers at fault",
         body: (ctx) => ctx.countyCount === 1
-          ? `In ${ctx.countyNames[0]} County, drivers aged 18-24 are massively over-represented as at-fault in crashes. This is not simply about recklessness — it reflects inexperience interacting with road designs that assume expert-level situational awareness, particularly at night and on high-speed arterials.`
+          ? `Statewide, drivers aged 18 to 24 show up among at-fault drivers far more often than their share of the population. The chart below shows the age mix of at-fault drivers in ${ctx.countyNames[0]} County.`
           : ctx.isFiltered
-          ? `Across ${ctx.countyCount} selected counties, drivers aged 18-24 are massively over-represented as at-fault in crashes. This 2.3x over-representation reflects inexperience interacting with road designs that assume expert-level situational awareness, particularly at night and on high-speed arterials.`
-          : `Drivers aged 18-24 represent roughly 12% of licensed drivers in California but account for 28% of at-fault crashes. This 2.3x over-representation is not simply about recklessness — it reflects inexperience interacting with road designs that assume expert-level situational awareness, particularly at night and on high-speed arterials.`,
+          ? `Statewide, drivers aged 18 to 24 show up among at-fault drivers far more often than their share of the population. The chart below shows the age mix of at-fault drivers in the ${ctx.countyCount} selected counties.`
+          : `Drivers aged 18 to 24 were 23% of at-fault drivers with a recorded age, while that age group is about 9.5% of Californians. The comparison is rough: the population figure includes children too young to drive, and nearly half of crash records carry no driver age.`,
         isThesis: true,
       },
       {
@@ -400,13 +402,13 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "severity",
         measure: "count",
         chartType: "donut",
-        caption: "Severity distribution across all at-fault crashes",
+        caption: "Severity of all crashes",
       },
       {
         type: "stat-callout",
-        value: "2.3x",
-        label: "Over-representation factor",
-        context: "18-24 year-olds cause 28% of at-fault crashes while comprising only 12% of licensed drivers",
+        value: "23%",
+        label: "At-fault drivers aged 18 to 24",
+        context: "Among at-fault drivers with a recorded age. The group is about 9.5% of Californians, but nearly half of crash records have no driver age",
       },
       {
         type: "chart",
@@ -414,7 +416,7 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "cause",
         measure: "count",
         chartType: "hbar",
-        caption: "Primary crash causes — speeding and distraction dominate young at-fault crashes",
+        caption: "Primary crash causes, all drivers",
       },
       {
         type: "chart",
@@ -422,29 +424,29 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "hour",
         measure: "count",
         chartType: "bar",
-        caption: "Young driver crashes peak in late-night hours when fatigue and impairment compound inexperience",
+        caption: "All crashes by hour of day",
       },
       {
         type: "narrative",
         heading: "Better training or better roads?",
-        body: "Graduated licensing laws have helped, but the over-representation persists. Road designs that are 'forgiving' of errors — roundabouts instead of uncontrolled intersections, rumble strips on rural curves, better nighttime lighting — would disproportionately benefit young drivers without requiring perfect judgment from imperfect humans.",
+        body: "Graduated licensing is the standard policy answer for new drivers; this data cannot measure its effect. Road designs that forgive errors, such as roundabouts instead of uncontrolled intersections, rumble strips on rural curves and better night lighting, help every driver, including the youngest.",
       },
     ],
   },
   {
     id: "seasonal",
-    title: "Seasonal Killing Season",
-    subtitle: "July through October consistently produces 30-40% more traffic fatalities than winter months",
+    title: "The Deadly Second Half",
+    subtitle: "Every year since 2001, the deadliest month has fallen between July and December",
     icon: "landscape",
     blocks: [
       {
         type: "narrative",
-        heading: "Summer roads, deadly roads",
+        heading: "The second half of the year",
         body: (ctx) => ctx.countyCount === 1
-          ? `Every year, ${ctx.countyNames[0]} County enters a predictable fatality surge from July through October. More daylight hours mean more driving, vacation travel fills highways with unfamiliar drivers, and motorcycle ridership peaks. October consistently claims the most lives.`
+          ? `Statewide, the deadliest month for traffic deaths has fallen between July and December in every year since 2001. The charts below show how ${ctx.countyNames[0]} County's months compare.`
           : ctx.isFiltered
-          ? `Every year, the ${ctx.countyCount} selected counties enter a predictable fatality surge from July through October. Vacation travel fills highways with unfamiliar drivers, motorcycle ridership peaks, and October consistently claims the most lives — a grim harvest that repeats with disturbing regularity.`
-          : `Every year, California enters a predictable fatality surge from July through October. More daylight hours mean more driving, vacation travel fills highways with unfamiliar drivers, and motorcycle ridership peaks. October consistently claims the most lives — a grim harvest that repeats year after year with disturbing regularity.`,
+          ? `Statewide, the deadliest month for traffic deaths has fallen between July and December in every year since 2001. The charts below show how the ${ctx.countyCount} selected counties compare.`
+          : `In every year since 2001, California's deadliest month for traffic deaths has fallen between July and December, never in the first half. October leads over the whole period, though not every year; November was the deadliest month more often. The swing is real but modest: July through October average about 10% more deaths per day than December through February.`,
         isThesis: true,
       },
       {
@@ -453,7 +455,7 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "month",
         measure: "killed",
         chartType: "area",
-        caption: "Fatalities by month — the July-October surge is unmistakable",
+        caption: "Deaths by month, all years combined",
       },
       {
         type: "chart",
@@ -461,13 +463,13 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "month",
         measure: "count",
         chartType: "area",
-        caption: "Total crash count by month — volume increase is less dramatic than fatality increase",
+        caption: "Crashes by month, all years combined",
       },
       {
         type: "stat-callout",
-        value: "+37%",
-        label: "October vs February fatalities",
-        context: "October is consistently the deadliest month, with fatality counts 37% above the February trough",
+        value: "+25%",
+        label: "October vs February deaths",
+        context: "Over 2001 to 2025. Part of that is the calendar, since February is short: per day, October runs 14% above February",
       },
       {
         type: "chart",
@@ -476,29 +478,29 @@ export const DATA_STORIES: DataStory[] = [
         measure: "count",
         chartType: "bar",
         filterOverrides: { pedestrian: true },
-        caption: "Pedestrian crashes by month — fall darkness catches pedestrians in the open",
+        caption: "Pedestrian-involved crashes by month (2016 onward)",
       },
       {
         type: "narrative",
-        heading: "Darkness and complacency",
-        body: "The October peak has a specific mechanism: daylight savings ends, pushing sunset earlier while driving habits have not yet adjusted. Pedestrians who were visible at 6 PM in summer are invisible at 6 PM in October. Combine this with end-of-summer complacency and holiday travel, and the seasonal killing season becomes tragically predictable — and therefore preventable.",
+        heading: "Why the second half?",
+        body: "Longer evenings of driving, summer travel and holiday trips are the usual explanations, and in November the switch back to standard time moves sunset into the evening commute. This data cannot separate those effects. It does show the pattern is steady enough to plan around.",
       },
     ],
   },
   {
     id: "environmental-justice",
     title: "Environmental Justice on the Road",
-    subtitle: "CalEnviroScreen disadvantaged communities suffer disproportionate crash burden",
+    subtitle: "At the county level, pollution burden barely tracks how deadly crashes are",
     icon: "landscape",
     blocks: [
       {
         type: "narrative",
-        heading: "Pollution and crashes share the same ZIP codes",
+        heading: "Do polluted places have deadlier roads?",
         body: (ctx) => ctx.countyCount === 1
-          ? `In ${ctx.countyNames[0]} County, CalEnviroScreen-identified disadvantaged communities bear a disproportionate traffic crash burden. The roads that carry pollution through these neighborhoods also kill their residents — traffic violence is yet another dimension of environmental injustice.`
+          ? `CalEnviroScreen scores communities on pollution, poverty and health burdens. Across California's 58 counties, those scores barely track how deadly crashes are. County averages also blur the neighborhood differences that matter most inside ${ctx.countyNames[0]} County.`
           : ctx.isFiltered
-          ? `Across ${ctx.countyCount} selected counties, CalEnviroScreen-identified communities burdened by pollution, poverty, and health risks also bear a disproportionate traffic crash burden. The correlation between environmental disadvantage and crash fatality rates reveals that traffic violence is yet another dimension of environmental injustice.`
-          : `California's CalEnviroScreen identifies communities burdened by pollution, poverty, and health risks. These same communities also bear a disproportionate traffic crash burden. The correlation between environmental disadvantage scores and crash fatality rates reveals that traffic violence is yet another dimension of environmental injustice — the roads that carry pollution through these neighborhoods also kill their residents.`,
+          ? `CalEnviroScreen scores communities on pollution, poverty and health burdens. Across California's 58 counties, those scores barely track how deadly crashes are, and county averages blur neighborhood differences inside the ${ctx.countyCount} selected counties.`
+          : `California's CalEnviroScreen scores communities on pollution, poverty and health burdens. A natural question is whether the same places also have deadlier roads. At the county level the answer is barely: across 58 counties, the correlation between CalEnviroScreen score and deaths per crash is 0.14, close to none.`,
         isThesis: true,
       },
       {
@@ -507,13 +509,13 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "county",
         measure: "count",
         chartType: "scatter",
-        caption: "County crash counts reveal concentration in environmentally burdened areas",
+        caption: "Crashes by county",
       },
       {
         type: "stat-callout",
-        value: "r = 0.52",
-        label: "CES score vs fatality rate",
-        context: "Counties with higher CalEnviroScreen burden scores also experience higher traffic fatality rates",
+        value: "r = 0.14",
+        label: "CalEnviroScreen score vs deaths per crash",
+        context: "Across 58 counties, 2019 to 2023. Close to no relationship at the county level",
       },
       {
         type: "chart",
@@ -521,29 +523,29 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "county",
         measure: "fatality_rate",
         chartType: "hbar",
-        caption: "Fatality rate by county — disadvantaged communities cluster at the top",
+        caption: "Deaths per 1,000 crashes by county",
       },
       {
         type: "narrative",
-        heading: "One community, many burdens",
-        body: "Disadvantaged communities face a compounding effect: freight corridors that bring diesel pollution also bring high-speed truck traffic. Lack of investment means fewer crosswalks, older road designs, and less lighting. Residents are more likely to walk or bike because car ownership is lower, exposing them to exactly the infrastructure that was never designed for their safety. Environmental justice and traffic justice are the same fight.",
+        heading: "What a neighborhood-level look could add",
+        body: "The case that environmental and traffic burdens overlap is usually made neighborhood by neighborhood: freight corridors, missing crosswalks, lower car ownership. Those are census-tract stories, and county averages blur them. CalEnviroScreen is built for tracts, so a tract-level crash comparison is the honest next step before drawing a conclusion either way.",
       },
     ],
   },
   {
     id: "speed-enforcement",
-    title: "The Speed Camera Effect",
-    subtitle: "Enforcement strategy changes produce measurable crash reductions over time",
+    title: "Speeding and Drunk Driving Since 2016",
+    subtitle: "Both fell, but this data cannot say enforcement did it",
     icon: "timeline",
     blocks: [
       {
         type: "narrative",
-        heading: "When enforcement changes, crashes respond",
+        heading: "Two long declines",
         body: (ctx) => ctx.countyCount === 1
-          ? `${ctx.countyNames[0]} County's traffic enforcement has evolved significantly — from DUI crackdowns in the 2000s to speed camera pilots in recent years. Each enforcement shift leaves a measurable signature in the crash data. Sustained enforcement works, but its effects fade when resources shift elsewhere.`
+          ? `Statewide, crashes with speeding as the primary factor fell 30% from 2016 to 2025, and deaths in alcohol-involved crashes fell 35%. The charts below show ${ctx.countyNames[0]} County's trends. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
           : ctx.isFiltered
-          ? `Across ${ctx.countyCount} selected counties, the approach to traffic enforcement has evolved significantly. Each major enforcement shift leaves a measurable signature in the crash data. The evidence is clear: sustained enforcement works, but its effects fade when political will wanes.`
-          : `California's approach to traffic enforcement has evolved significantly — from DUI crackdowns in the 2000s to speed camera pilots in recent years. Each major enforcement shift leaves a measurable signature in the crash data. The evidence is clear: sustained enforcement works, but its effects fade when political will wanes or resources shift elsewhere.`,
+          ? `Statewide, crashes with speeding as the primary factor fell 30% from 2016 to 2025, and deaths in alcohol-involved crashes fell 35%. The charts below show the ${ctx.countyCount} selected counties. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
+          : `Speeding and drunk driving are two of the oldest targets of traffic enforcement. From 2016 to 2025, crashes with speeding as the primary factor fell 30%, and deaths in alcohol-involved crashes fell 35%, while alcohol-involved crashes themselves fell only 7%. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit those drops to enforcement.`,
         isThesis: true,
       },
       {
@@ -553,7 +555,8 @@ export const DATA_STORIES: DataStory[] = [
         measure: "count",
         chartType: "area",
         options: { trendLine: true },
-        caption: "Speeding-related crash trends over time",
+        filterOverrides: { causes: ["speeding"] },
+        caption: "Crashes with speeding as the primary factor, by year",
       },
       {
         type: "chart",
@@ -562,13 +565,13 @@ export const DATA_STORIES: DataStory[] = [
         measure: "killed",
         chartType: "area",
         options: { trendLine: true },
-        caption: "Total fatality trend — enforcement gains are visible in the data",
+        caption: "Traffic deaths by year",
       },
       {
         type: "stat-callout",
-        value: "-22%",
-        label: "Speed-related crash decline",
-        context: "Sustained speed enforcement correlates with a 22% reduction, while DUI enforcement produced a 41% decline in alcohol crashes",
+        value: "-30%",
+        label: "Speeding crashes, 2016 to 2025",
+        context: "From 163,095 to 114,480. Deaths in alcohol-involved crashes fell 35% over the same years, while alcohol-involved crashes fell only 7%",
       },
       {
         type: "chart",
@@ -578,12 +581,12 @@ export const DATA_STORIES: DataStory[] = [
         chartType: "area",
         options: { trendLine: true },
         filterOverrides: { alcohol: true },
-        caption: "DUI crash trend — decades of enforcement and awareness have driven sustained decline",
+        caption: "Alcohol-involved crashes by year (the alcohol flag starts in 2016)",
       },
       {
         type: "narrative",
-        heading: "Enforcement as infrastructure",
-        body: "The speed camera debate often focuses on revenue vs. safety. But the data suggests enforcement should be viewed as infrastructure — a sustained, consistent system rather than periodic campaigns. California's AB 645 speed camera pilot in 6 cities will provide the first controlled evidence of automated enforcement's impact. If results match international data, the case for statewide expansion becomes overwhelming.",
+        heading: "What would settle it",
+        body: "California's AB 645 speed camera pilot in six cities is the kind of controlled test that can answer what this data cannot: whether automated enforcement itself cuts crashes. Until results arrive, treat the declines above as trends, not proof.",
       },
     ],
   },

@@ -242,6 +242,7 @@ function OverriddenChartBlock({
     ...(overrides.counties !== undefined && { counties: overrides.counties }),
     ...(overrides.alcohol !== undefined && { alcohol: overrides.alcohol }),
     ...(overrides.pedestrian !== undefined && { pedestrian: overrides.pedestrian }),
+    ...(overrides.causes !== undefined && { causes: overrides.causes }),
   }), [baseFilters, overrides]);
 
   const chartSlots = useMemo<ChartSlot[]>(() => [{
