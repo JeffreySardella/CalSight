@@ -15,7 +15,7 @@ The API change is additive: a new field on the year, county, cause, severity and
 - Frontend: React + TypeScript, TanStack Query, Vitest, Playwright.
 - Deploy: GitHub Actions (`deploy.yml`, `Run ETL Job`).
 
-**Spec:** `C:\Users\Jeff\AppData\Local\Temp\claude\C--Users-Jeff-Documents-Github-new-CalSight\7ce57eaa-1120-42a5-bb30-5f3fe3f658b6\scratchpad\ksi-spec.md`. Where they differ, the owner decisions override the spec:
+**Spec:** `docs/superpowers/specs/2026-09-18-ksi-series-design.md`. Where they differ, the owner decisions override the spec:
 - footnote only, naming both boundaries;
 - nearest-census denominator plus an "estimated" note;
 - no KSI on `mv_crash_rates`;

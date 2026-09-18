@@ -1,6 +1,6 @@
 # Spec: a real KSI series (Killed or Seriously Injured people)
 
-Status: draft for owner review. Nothing implemented. Numbers measured read-only on prod 2026-09-18.
+Status: approved 2026-09-18. Owner decisions on section 10: footnote only (name both 2015/2016 and 2017/2018); nearest-census-year population for the hero denominator; no KSI on the rates dashboard; exclude the partial current year. Implementation plan: docs/superpowers/plans/2026-09-18-ksi-series.md. Numbers measured read-only on prod 2026-09-18.
 
 ## 1. Goal
 
