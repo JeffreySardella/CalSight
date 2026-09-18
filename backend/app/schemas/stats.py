@@ -19,6 +19,7 @@ class GrandTotal(BaseModel):
     total_crashes: int
     total_killed: int
     total_injured: int
+    total_severe_injured: int = 0
 
 
 class CountyRow(BaseModel):
@@ -27,6 +28,7 @@ class CountyRow(BaseModel):
     crash_count: int
     total_killed: int
     total_injured: int
+    total_severe_injured: int = 0
 
 
 class YearRow(BaseModel):
@@ -34,6 +36,7 @@ class YearRow(BaseModel):
     crash_count: int
     total_killed: int
     total_injured: int
+    total_severe_injured: int = 0
 
 
 class CauseRow(BaseModel):
@@ -41,6 +44,7 @@ class CauseRow(BaseModel):
     crash_count: int
     total_killed: int
     total_injured: int
+    total_severe_injured: int = 0
 
 
 class HourRow(BaseModel):
@@ -53,6 +57,7 @@ class SeverityRow(BaseModel):
     crash_count: int
     total_killed: int
     total_injured: int
+    total_severe_injured: int = 0
 
 
 class GenderRow(BaseModel):
