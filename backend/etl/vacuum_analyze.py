@@ -60,6 +60,8 @@ _TABLES = [
     # gets VACUUM'd or fresh planner stats.
     "mv_street_aggregates",
     "mv_street_totals",
+    # School proximity view (migration 10f264138733), same story.
+    "mv_school_crash_counts",
 ]
 
 

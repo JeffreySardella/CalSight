@@ -56,6 +56,18 @@ class HospitalOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+def format_cds_code(v: str) -> str:
+    """Format a CDS code as CC-DDDDD-SSSSSSS so the raw 14-digit number doesn't
+    trigger DAST credit-card-number heuristics (ZAP PII Disclosure).
+
+    Shared by SchoolOut and SchoolCrashCountOut: the map joins those two
+    payloads on cds_code, so the two spellings must stay identical.
+    """
+    if v and len(v) == 14 and v.isdigit():
+        return f"{v[:2]}-{v[2:7]}-{v[7:]}"
+    return v
+
+
 class SchoolOut(BaseModel):
     cds_code: str
     school_name: str
@@ -68,14 +80,52 @@ class SchoolOut(BaseModel):
 
     @field_serializer("cds_code")
     @classmethod
-    def format_cds_code(cls, v: str) -> str:
-        """Format as CC-DDDDD-SSSSSSS so the raw 14-digit number doesn't
-        trigger DAST credit-card-number heuristics (ZAP PII Disclosure)."""
-        if v and len(v) == 14 and v.isdigit():
-            return f"{v[:2]}-{v[2:7]}-{v[7:]}"
-        return v
+    def serialize_cds_code(cls, v: str) -> str:
+        return format_cds_code(v)
 
     model_config = {"from_attributes": True}
+
+
+class SchoolCrashCountOut(BaseModel):
+    """Crashes within 500 ft of one school, summed over the requested years.
+
+    Keyed by cds_code rather than the internal school_locations.id so the map
+    can join it straight onto the rows /api/schools already returned. The
+    formatting has to match SchoolOut's exactly or that join silently misses.
+    """
+
+    cds_code: str
+    crashes: int
+    killed: int
+    injured: int
+    severe_injured: int
+
+    @field_serializer("cds_code")
+    @classmethod
+    def serialize_cds_code(cls, v: str) -> str:
+        return format_cds_code(v)
+
+
+class CountyCoordCoverageOut(BaseModel):
+    """Share of a county's crashes that carry map coordinates.
+
+    Statewide only ~37% of crashes are geocoded, and the gap tracks the
+    reporting agency rather than the year — so a school in a county whose
+    sheriff never geocoded looks safe purely because its crashes are missing
+    from the map. The map shows this number next to every count.
+    """
+
+    county_code: int
+    county_name: str | None = None
+    total_crashes: int
+    crashes_with_coords: int
+    coords_pct: float
+
+
+class SchoolCrashCountsResponse(BaseModel):
+    years: list[int]
+    schools: list[SchoolCrashCountOut]
+    coverage: list[CountyCoordCoverageOut]
 
 
 class CalenviroScreenOut(BaseModel):

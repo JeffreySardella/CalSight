@@ -5,6 +5,13 @@ import L from "leaflet";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import type { Hospital, School } from "../../hooks/useMapOverlays";
+import {
+  coverageCaveat,
+  schoolCrashColor,
+  schoolRampEdges,
+  yearsLabel,
+  type SchoolCrashCountsResponse,
+} from "../../lib/map/schoolCrashRamp";
 
 function useCenterOnClick() {
   const map = useMap();
@@ -31,6 +38,10 @@ interface OverlayMarkersProps {
   schools: School[];
   showHospitals: boolean;
   showSchools: boolean;
+  /** Crashes within 500 ft per school, for the marker ramp. Undefined while
+   *  loading, or when the matview hasn't been populated yet — either way the
+   *  markers fall back to the flat no-data color. */
+  schoolCrashCounts?: SchoolCrashCountsResponse;
 }
 
 const hospitalIcon = L.divIcon({
@@ -42,14 +53,25 @@ const hospitalIcon = L.divIcon({
   iconAnchor: [12, 12],
 });
 
-const schoolIcon = L.divIcon({
-  className: "",
-  html: `<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:#eab308;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3)">
+// One divIcon per ramp color rather than per school — Leaflet keeps the
+// instance alive for every marker, and 10K schools x a fresh icon object was
+// the difference between a smooth pan and a stutter.
+const schoolIconCache = new Map<string, L.DivIcon>();
+
+function schoolIcon(color: string): L.DivIcon {
+  const hit = schoolIconCache.get(color);
+  if (hit) return hit;
+  const icon = L.divIcon({
+    className: "",
+    html: `<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:${color};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3)">
     <span style="font-size:12px;line-height:1">\u{1F393}</span>
   </div>`,
-  iconSize: [22, 22],
-  iconAnchor: [11, 11],
-});
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+  schoolIconCache.set(color, icon);
+  return icon;
+}
 
 function createClusterIcon(color: string) {
   return (cluster: { getChildCount(): number }) => {
@@ -66,8 +88,28 @@ function createClusterIcon(color: string) {
 const hospitalClusterIcon = createClusterIcon("#dc2626");
 const schoolClusterIcon = createClusterIcon("#eab308");
 
-export default memo(function OverlayMarkers({ hospitals, schools, showHospitals, showSchools }: OverlayMarkersProps) {
+export default memo(function OverlayMarkers({
+  hospitals,
+  schools,
+  showHospitals,
+  showSchools,
+  schoolCrashCounts,
+}: OverlayMarkersProps) {
   const centerOnClick = useCenterOnClick();
+
+  const countsByCds = useMemo(
+    () => new Map((schoolCrashCounts?.schools ?? []).map((c) => [c.cds_code, c])),
+    [schoolCrashCounts],
+  );
+  const rampEdges = useMemo(
+    () => schoolRampEdges(schoolCrashCounts?.schools ?? []),
+    [schoolCrashCounts],
+  );
+  const coverageByCounty = useMemo(
+    () => new Map((schoolCrashCounts?.coverage ?? []).map((c) => [c.county_code, c])),
+    [schoolCrashCounts],
+  );
+  const yearsText = yearsLabel(schoolCrashCounts?.years ?? []);
 
   const validHospitals = useMemo(
     () => hospitals.filter((h) => h.latitude != null && h.longitude != null),
@@ -116,25 +158,45 @@ export default memo(function OverlayMarkers({ hospitals, schools, showHospitals,
           disableClusteringAtZoom={14}
           iconCreateFunction={schoolClusterIcon}
         >
-          {validSchools.map((s) => (
-            <Marker
-              key={s.cds_code}
-              position={[s.latitude!, s.longitude!]}
-              icon={schoolIcon}
-              eventHandlers={{ click: centerOnClick }}
-            >
-              <Popup>
-                <div style={{ fontSize: 12, minWidth: 180 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#eab308", display: "inline-block" }} />
-                    <strong>School</strong>
+          {validSchools.map((s) => {
+            const counts = countsByCds.get(s.cds_code);
+            const color = schoolCrashColor(counts?.crashes, rampEdges);
+            const caveat = coverageCaveat(coverageByCounty.get(s.county_code));
+            return (
+              <Marker
+                key={s.cds_code}
+                position={[s.latitude!, s.longitude!]}
+                icon={schoolIcon(color)}
+                eventHandlers={{ click: centerOnClick }}
+              >
+                <Popup>
+                  <div style={{ fontSize: 12, minWidth: 180, maxWidth: 240 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color, display: "inline-block" }} />
+                      <strong>School</strong>
+                    </div>
+                    <div style={{ fontWeight: 600, marginBottom: 2 }}>{s.school_name}</div>
+                    <div style={{ color: "rgb(var(--on-surface-variant))" }}>{s.city} — {s.school_type}</div>
+                    <div style={{ marginTop: 6, borderTop: "1px solid rgb(var(--outline-variant))", paddingTop: 6 }}>
+                      <div style={{ fontWeight: 600, marginBottom: 2 }}>
+                        Within 500 ft ({yearsText})
+                      </div>
+                      <div>{counts?.crashes ?? 0} crashes</div>
+                      <div>
+                        {counts?.killed ?? 0} killed, {counts?.injured ?? 0} injured,{" "}
+                        {counts?.severe_injured ?? 0} seriously injured
+                      </div>
+                      {caveat && (
+                        <div style={{ marginTop: 6, color: "rgb(var(--on-surface-variant))", lineHeight: 1.35 }}>
+                          {caveat}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontWeight: 600, marginBottom: 2 }}>{s.school_name}</div>
-                  <div style={{ color: "rgb(var(--on-surface-variant))" }}>{s.city} — {s.school_type}</div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+                </Popup>
+              </Marker>
+            );
+          })}
         </MarkerClusterGroup>
       )}
     </>

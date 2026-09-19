@@ -1,5 +1,6 @@
 import { getPalette, type PaletteKey } from "../../../lib/choropleth/palettes";
 import { useIsDark } from "../../../context/ThemeContext";
+import { SCHOOL_CRASH_COLORS, SCHOOL_NO_DATA_COLOR } from "../../../lib/map/schoolCrashRamp";
 
 interface StepDisplayProps {
   choroplethOn: boolean;
@@ -41,6 +42,40 @@ function Toggle({ enabled, onToggle, label }: { enabled: boolean; onToggle: () =
   );
 }
 
+/**
+ * Ramp key for the school markers, shown only while the layer is on.
+ *
+ * The caveat is not optional garnish: coordinate coverage is ~37% statewide
+ * and varies by reporting agency, so a gray marker often means "these crashes
+ * were never geocoded" rather than "nothing happened here". Putting that next
+ * to the toggle — not only in /about — is the whole reason this legend exists.
+ */
+function SchoolCrashLegend() {
+  return (
+    <div className="pl-1 pb-2 space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <span
+          className="w-3 h-3 rounded-full border border-surface-container-lowest"
+          style={{ backgroundColor: SCHOOL_NO_DATA_COLOR }}
+        />
+        <span className="text-[11px] text-on-surface-variant">none</span>
+        {SCHOOL_CRASH_COLORS.map((c) => (
+          <span
+            key={c}
+            className="w-3 h-3 rounded-full border border-surface-container-lowest"
+            style={{ backgroundColor: c }}
+          />
+        ))}
+        <span className="text-[11px] text-on-surface-variant">most crashes within 500 ft</span>
+      </div>
+      <p className="text-[11px] text-on-surface-variant leading-snug">
+        Only crashes with map coordinates count, and coverage varies by county — schools in
+        low-coverage counties look safer than they are.
+      </p>
+    </div>
+  );
+}
+
 export default function StepDisplay({
   choroplethOn,
   onToggleChoropleth,
@@ -72,6 +107,7 @@ export default function StepDisplay({
         <Toggle label="County boundaries" enabled={countyBoundaries} onToggle={onToggleBoundaries} />
         <Toggle label="Hospitals" enabled={hospitalsOn} onToggle={onToggleHospitals} />
         <Toggle label="Schools" enabled={schoolsOn} onToggle={onToggleSchools} />
+        {schoolsOn && <SchoolCrashLegend />}
       </div>
 
       <div className="space-y-3">

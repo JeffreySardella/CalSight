@@ -170,6 +170,7 @@ erDiagram
 | `mv_at_fault_parties_by_demographics` | small | At-fault party gender / age; migration `f8a1b2c3d4e5` |
 | `mv_street_aggregates` | street rollup | Intersections / corridors; migration `c4f1a9b2d3e7`. Optional — endpoints fall back to `crashes` |
 | `mv_street_totals` | coarse totals | Default-state street totals; migration `77b8d6739669`, added 2026-09. Optional |
+| `mv_school_crash_counts` | (school, year) | Crashes within 500 ft of each school; migration `10f264138733`, added 2026-09. Columns `school_id, year, crashes, killed, injured, severe_injured`. Bounding box on `ix_crashes_lat_lng` then an equirectangular distance — no PostGIS. Feeds `/api/schools/crash-counts`. Optional — the endpoint returns an empty list until the first refresh. **Only counts crashes that have coordinates (~37%), and coverage varies by county** |
 | `mv_crash_victims_by_demographics` | 26,360 | Populated 2026-04-18. JOINs `crash_victims` to `crashes` on `(collision_id, data_source)`. Aggregates by (county, year, severity, gender, age_bracket). Powers `/api/stats?group_by=gender|age_bracket`. **Counts victims, not crashes.** |
 
 ## Key constraints and gotchas

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, AttributionControl, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
@@ -27,8 +27,9 @@ import type { ClusterPoint } from "../../hooks/useClusterHotspots";
 import type { HighwayRow } from "../../hooks/useHighwayRankings";
 import type { ViewportSeed } from "../../hooks/useViewportParams";
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
-import { useHospitals, useSchools } from "../../hooks/useMapOverlays";
+import { useHospitals, useSchoolCrashCounts, useSchools } from "../../hooks/useMapOverlays";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
+import { useFilterParams } from "../../hooks/useFilterParams";
 import { useIsDark } from "../../context/ThemeContext";
 import { useToast } from "../ui/toastContext";
 import { BASEMAPS, TILE_ERROR_LIMIT } from "../../lib/map/basemaps";
@@ -165,6 +166,11 @@ function MapInternals({
   const showMask = heatmapActive && !otherLayers.coordMismatches && !countyDrilldown;
   const { data: hospitals = [], isError: hospitalsError } = useHospitals(otherLayers.hospitals);
   const { data: schools = [], isError: schoolsError } = useSchools(otherLayers.schools);
+  // Nearby-crash counts follow the map's year filter, so they refetch when it
+  // changes while the (static) school list stays cached.
+  const { selectedYears } = useFilterParams();
+  const schoolYears = useMemo(() => [...selectedYears], [selectedYears]);
+  const { data: schoolCrashCounts } = useSchoolCrashCounts(otherLayers.schools, schoolYears);
   const { showToast: showLayerToast } = useToast();
   useEffect(() => {
     if (hospitalsError) showLayerToast("Couldn't load hospitals.", { variant: "error" });
@@ -238,6 +244,7 @@ function MapInternals({
         schools={schools}
         showHospitals={otherLayers.hospitals}
         showSchools={otherLayers.schools}
+        schoolCrashCounts={schoolCrashCounts}
       />
       {tempMarker && <Marker position={tempMarker} />}
     </>

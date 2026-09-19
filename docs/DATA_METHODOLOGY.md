@@ -578,6 +578,40 @@ ksi_per_100k = ksi / population * 100,000        (Stats hero tile; complete year
 
 \* KSI = people killed or seriously injured. Before 2016 "seriously injured" is SWITRS's "severe injury". From 2016 it is CCRS's "suspected serious injury" plus the older "severe" code that agencies phased out through about 2025. The definitions are close but not identical, so compare years across 2015→2016 (and 2017→2018, when most agencies switched) with care.
 
+### 5.7 Crashes within 500 ft of a school
+
+The school marker layer colors each of the ~9,932 active public schools by how
+many crashes happened within 500 feet of it, precomputed nightly into
+`mv_school_crash_counts` (migration `10f264138733`). This database runs without
+PostGIS, so the distance is computed arithmetically in two steps. First a
+bounding box on latitude and longitude, which is what the existing partial
+index `ix_crashes_lat_lng` can answer without scanning the 11.3M-row crashes
+table: 500 ft is 0.0947 statute miles, or 0.00136 degrees of latitude, and the
+longitude half-width is that figure divided by `cos(latitude)` because a degree
+of longitude shrinks away from the equator. Then, inside that box, an
+equirectangular distance — `69.0 * sqrt(dlat^2 + (dlon * cos(lat))^2)` miles —
+keeps only the points actually inside the 500 ft circle, discarding the box
+corners that sit up to 700 ft away on the diagonal. Haversine would be the more
+correct formula over long distances; across 500 feet at California latitudes
+the flat-earth error is orders of magnitude below the precision of the crash
+coordinates themselves, and the simpler form avoids `acos()` domain clamping.
+Killed and injured are summed from the crash rows; seriously injured reads
+`crashes.number_severe_injured`, the same KSI column described in 5.6.
+
+The load-bearing caveat is coverage, not geometry. Only about 37% of crashes
+carry coordinates, and as described in 7.1 the gap follows the reporting agency
+rather than the year — some county sheriffs geocode and some never have. A
+crash without coordinates cannot be within 500 ft of anything, so a school in a
+low-geocoding county shows a low count because its crashes are missing from the
+map, not because they did not happen. The API therefore returns each county's
+coordinate share alongside the counts, the marker popup states it in full
+("N% of crashes in <county> have map coordinates; schools in low-coverage
+counties look safer than they are"), and the legend beside the layer toggle
+repeats it. Schools with no nearby crash on file are drawn in a neutral gray
+rather than at the bottom of the danger ramp, because "nothing recorded here"
+and "the safe end of the scale" are different claims. These counts rank schools
+within a county; they are not a fair comparison between counties.
+
 ---
 
 ## 6. Statistical Methods

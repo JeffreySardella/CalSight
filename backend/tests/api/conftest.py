@@ -3,6 +3,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 # CRITICAL: override DATABASE_URL BEFORE importing anything from `app`.
 # app.settings reads it at import time (pydantic-settings), and
@@ -18,6 +19,12 @@ ADMIN_URL = os.environ.get(
     "postgresql://calsight:calsight_dev@localhost:5433/postgres",
 )
 os.environ["DATABASE_URL"] = TEST_DB_URL
+
+# Derived from TEST_DATABASE_URL, never hard-coded: overriding that env var to
+# point at a differently-named database used to be silently ignored here, so
+# the fixtures dropped and recreated `calsight_test` while the tests connected
+# to whatever the override named — and found it empty.
+TEST_DB_NAME = urlparse(TEST_DB_URL).path.lstrip("/") or "calsight_test"
 
 import pytest  # noqa: E402
 from alembic import command as alembic_command  # noqa: E402
@@ -70,8 +77,11 @@ def _db_available(url: str) -> bool:
 def _create_test_db() -> None:
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
-        conn.execute(text("DROP DATABASE IF EXISTS calsight_test"))
-        conn.execute(text("CREATE DATABASE calsight_test"))
+        # Identifiers can't be bound as parameters; the name comes from our own
+        # env var, and quoting it keeps a surprising name from splitting the
+        # statement.
+        conn.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DB_NAME}"'))
+        conn.execute(text(f'CREATE DATABASE "{TEST_DB_NAME}"'))
     admin.dispose()
 
 

@@ -1,19 +1,23 @@
 """Reference data endpoints: counties, hospitals, schools, road-miles,
 calenviroscreen, traffic-volumes, speed-limits."""
 
+import logging
+
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.cities_match import normalize_name
 from app.county_slug_map import get_slug_map
 from app.database import get_db
-from app.filters import parse_county_codes
+from app.filters import parse_county_codes, parse_year
 from app.models import (
     CalenviroScreen,
     City,
     County,
+    DataQualityStat,
     Hospital,
     RoadMile,
     SchoolLocation,
@@ -24,15 +28,20 @@ from app.schemas.common import PaginatedResponse
 from app.schemas.reference import (
     CalenviroScreenOut,
     CityOut,
+    CountyCoordCoverageOut,
     CountyOut,
     HospitalOut,
     RoadMileOut,
+    SchoolCrashCountOut,
+    SchoolCrashCountsResponse,
     SchoolOut,
     SpeedLimitOut,
     TrafficVolumeOut,
 )
 
 router = APIRouter(tags=["reference"])
+
+logger = logging.getLogger(__name__)
 
 _limiter = Limiter(key_func=rate_limit_key)
 
@@ -149,6 +158,147 @@ def list_schools(
         offset=offset,
         items=[SchoolOut.model_validate(r) for r in rows],
         total=total,
+    )
+
+
+_SCHOOL_MV = "mv_school_crash_counts"
+
+# Summed over the requested years, one row per school that has at least one
+# crash within 500 ft. Schools with none simply aren't in the view; the map
+# treats a missing school as zero. See migration 10f264138733 for the
+# distance method.
+_SCHOOL_CRASH_SQL = """
+SELECT s.cds_code       AS cds_code,
+       sum(m.crashes)::bigint        AS crashes,
+       sum(m.killed)::bigint         AS killed,
+       sum(m.injured)::bigint        AS injured,
+       sum(m.severe_injured)::bigint AS severe_injured
+FROM mv_school_crash_counts m
+JOIN school_locations s ON s.id = m.school_id
+-- The cast is what lets the all-years case pass an empty list: an untyped
+-- '{}' literal has no element type for PG to compare year against.
+WHERE (:all_years OR m.year = ANY(CAST(:years AS integer[])))
+GROUP BY s.cds_code
+"""
+
+
+def _school_mv_populated(db: Session) -> bool:
+    """Whether mv_school_crash_counts exists and has been populated.
+
+    It is created WITH NO DATA (migration 10f264138733) and only becomes
+    readable after the first nightly refresh — SELECTing from it before then
+    raises "materialized view has not been populated", which would be a 500
+    on every map load between deploy and that first refresh. No cache here:
+    this endpoint is fetched once per map session, so a catalog lookup per
+    request is cheaper than a cache that has to be invalidated in tests.
+    """
+    try:
+        return bool(
+            db.execute(
+                text(
+                    "SELECT relispopulated FROM pg_class "
+                    "WHERE relname = :name AND relkind = 'm'"
+                ),
+                {"name": _SCHOOL_MV},
+            ).scalar()
+        )
+    except Exception:  # noqa: BLE001 — never let the probe break the endpoint
+        logger.warning("%s population probe failed; serving no counts", _SCHOOL_MV, exc_info=True)
+        return False
+
+
+def _coord_coverage(db: Session, years: set[int] | None) -> list[CountyCoordCoverageOut]:
+    """Per-county share of crashes that carry coordinates, for the caveat line.
+
+    Reads the pre-computed data_quality_stats table rather than grouping the
+    11.3M-row crashes table on every request. That table stores one row per
+    (county, year) plus a county-level rollup row with year IS NULL, so an
+    unfiltered request reads ~58 rows and a filtered one reads 58 x |years|.
+    """
+    q = (
+        db.query(
+            DataQualityStat.county_code.label("county_code"),
+            County.name.label("county_name"),
+            func.coalesce(func.sum(DataQualityStat.total_crashes), 0).label("total_crashes"),
+            func.coalesce(func.sum(DataQualityStat.crashes_with_coords), 0).label("with_coords"),
+        )
+        .outerjoin(County, County.code == DataQualityStat.county_code)
+        .filter(DataQualityStat.county_code.isnot(None))
+        .group_by(DataQualityStat.county_code, County.name)
+    )
+    if years:
+        q = q.filter(DataQualityStat.year.in_(years))
+    else:
+        # The all-time rollup row, not a sum over the per-year rows — summing
+        # both would double-count every crash.
+        q = q.filter(DataQualityStat.year.is_(None))
+
+    out: list[CountyCoordCoverageOut] = []
+    for r in q.all():
+        total = int(r.total_crashes or 0)
+        with_coords = int(r.with_coords or 0)
+        if total <= 0:
+            continue
+        out.append(
+            CountyCoordCoverageOut(
+                county_code=r.county_code,
+                county_name=r.county_name,
+                total_crashes=total,
+                crashes_with_coords=with_coords,
+                coords_pct=round(with_coords / total * 100, 1),
+            )
+        )
+    return sorted(out, key=lambda c: c.county_code)
+
+
+@router.get("/schools/crash-counts", response_model=SchoolCrashCountsResponse)
+@_limiter.limit("1000/minute;20000/hour")
+def school_crash_counts(
+    request: Request,
+    response: Response,
+    years: str | None = Query(
+        None,
+        description="Comma-separated crash years, e.g. '2022,2023'. Omit for all years.",
+    ),
+    db: Session = Depends(get_db),
+):
+    """Crashes within 500 ft of each school, for coloring the school markers.
+
+    Returns one row per school that has any nearby crash in the requested
+    years, plus the per-county share of crashes that actually carry
+    coordinates. That second list is not decoration: coordinate coverage is
+    ~37% statewide and varies by reporting agency, so a school in a
+    low-coverage county looks safer here than it is.
+
+    Empty `schools` while mv_school_crash_counts is unpopulated (between a
+    deploy and the next nightly refresh) rather than a 500.
+
+    Example: `/api/schools/crash-counts?years=2022,2023`
+    """
+    response.headers["Cache-Control"] = _ONE_HOUR
+    parsed = parse_year(years)
+
+    rows: list[SchoolCrashCountOut] = []
+    if _school_mv_populated(db):
+        result = db.execute(
+            text(_SCHOOL_CRASH_SQL),
+            {"all_years": parsed is None, "years": sorted(parsed or [])},
+        )
+        rows = [
+            SchoolCrashCountOut(
+                cds_code=r.cds_code,
+                crashes=int(r.crashes or 0),
+                killed=int(r.killed or 0),
+                injured=int(r.injured or 0),
+                severe_injured=int(r.severe_injured or 0),
+            )
+            for r in result
+        ]
+
+    return SchoolCrashCountsResponse(
+        years=sorted(parsed or []),
+        schools=rows,
+        coverage=_coord_coverage(db, parsed),
     )
 
 
