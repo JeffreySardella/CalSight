@@ -64,13 +64,6 @@ DUMMY_HASH = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
 FIRST_YEAR = 2001  # start of the SWITRS crash history the map can select
 
-# EMFAC will happily hand back 2026-2050, but those years are model
-# *projections*, not history — publishing one as the denominator of a real
-# crash rate would invent exposure that never happened. So the cap is the
-# last complete calendar year: any year >= the current one is a forecast and
-# is never loaded.
-LAST_YEAR = date.today().year - 1
-
 # Statewide VMT has sat between ~275B and ~340B miles/year across 2001-2025.
 # A result outside this band means the response changed meaning under us —
 # most likely `unit` silently reverting to "day", which would be ~365x low.
@@ -111,6 +104,11 @@ ALL_VEHICLE_CATEGORIES = [
     "T7 Single Dump Class 8", "T7 Single Other Class 8", "T7 Tractor Class 8",
     "T7 SWCV Class 8", "T7IS", "PTO", "UBUS", "SBUS", "Motor Coach", "OBUS",
 ]
+# Inert as far as the numbers go: `modelYearAll: True` below is what actually
+# selects the model years, and the 2025 pull came back on the 2023/24 trend
+# rather than short of it. The list is sent because the form must arrive whole
+# (see the gotcha above), so its 2024 end does not need to advance with the
+# calendar and no newer model years are being dropped.
 MODEL_YEARS = list(range(1978, 2025))
 SPEEDS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90]
 ALL_FUELS = [
@@ -218,6 +216,57 @@ def county_vmt_miles(result: dict) -> dict[str, float]:
     return totals
 
 
+def last_complete_year() -> int:
+    """The newest year EMFAC reports as history rather than forecast.
+
+    EMFAC will happily hand back 2026-2050, but those years are model
+    *projections*: publishing one as the denominator of a real crash rate
+    would invent exposure that never happened. So the cap is the last
+    complete calendar year — any year >= the current one is never loaded.
+
+    Computed per run rather than at import because the pipeline container is
+    long-lived (APScheduler): an import-time constant would still hold last
+    year's value every January until the container was recreated.
+    """
+    return date.today().year - 1
+
+
+def check_counties(totals: dict[str, float], year: int) -> None:
+    """Require exactly the 58 counties we asked for, by name.
+
+    Neither of the other guards can see a short response: Alpine is ~0.02%
+    of statewide VMT and the band below is +/-30%, so a dropped county — or
+    a dozen small ones — sails through. A renamed county is the same problem
+    wearing a different hat. Upserts never delete, so a county missing from
+    this pull silently keeps last month's row and the row count still rises,
+    which means the orchestrator's drop guard cannot see it either. Fail the
+    year instead.
+    """
+    expected = set(COUNTY_NAMES)
+    got = set(totals)
+    missing = sorted(expected - got)
+    unknown = sorted(got - expected)
+    if missing or unknown:
+        raise ValueError(
+            f"EMFAC returned {len(got)} counties for {year}, expected "
+            f"{len(expected)} — missing: {missing or 'none'}; "
+            f"unexpected: {unknown or 'none'}"
+        )
+
+
+def check_statewide(totals: dict[str, float], year: int) -> float:
+    """Return the statewide total, or raise if it is not physically plausible."""
+    statewide = sum(totals.values())
+    if not STATEWIDE_MIN_MILES <= statewide <= STATEWIDE_MAX_MILES:
+        raise ValueError(
+            f"EMFAC statewide VMT for {year} is {statewide:,.0f} miles, "
+            f"outside the plausible {STATEWIDE_MIN_MILES:,.0f}-"
+            f"{STATEWIDE_MAX_MILES:,.0f} band — the response probably "
+            f"changed units (check `unit`: 'year' vs 'day')"
+        )
+    return statewide
+
+
 @track_etl_run("vmt")
 def run():
     """Main ETL entry point."""
@@ -229,17 +278,12 @@ def run():
 
         inserted = 0
         updated = 0
-        for year in range(FIRST_YEAR, LAST_YEAR + 1):
+        for year in range(FIRST_YEAR, last_complete_year() + 1):
+            # Both guards run before anything is written, so an incomplete or
+            # mis-scaled year leaves the table untouched rather than half-filled.
             totals = county_vmt_miles(fetch_year(year))
-
-            statewide = sum(totals.values())
-            if not STATEWIDE_MIN_MILES <= statewide <= STATEWIDE_MAX_MILES:
-                raise ValueError(
-                    f"EMFAC statewide VMT for {year} is {statewide:,.0f} miles, "
-                    f"outside the plausible {STATEWIDE_MIN_MILES:,.0f}-"
-                    f"{STATEWIDE_MAX_MILES:,.0f} band — the response probably "
-                    f"changed units (check `unit`: 'year' vs 'day')"
-                )
+            check_counties(totals, year)
+            statewide = check_statewide(totals, year)
             logger.info(
                 "%d: %d counties, %.1fB miles statewide",
                 year, len(totals), statewide / 1e9,
@@ -248,8 +292,12 @@ def run():
             for county_name, miles in totals.items():
                 county_code = name_to_code.get(county_name.upper())
                 if county_code is None:
-                    logger.warning("Unknown county %r in EMFAC response", county_name)
-                    continue
+                    # check_counties already matched EMFAC's names against our
+                    # own list, so this means the counties table is short.
+                    raise ValueError(
+                        f"No county row for {county_name!r} — the counties "
+                        f"table is incomplete, so {year} cannot be loaded"
+                    )
 
                 vmt_millions = round(miles / 1e6, 2)
                 existing = db.query(Vmt).filter_by(

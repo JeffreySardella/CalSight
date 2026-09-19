@@ -152,8 +152,10 @@ def test_vmt_returns_rows(client):
 
 
 def test_vmt_county_filter(client):
-    response = client.get("/api/vmt?county=los-angeles")
-    body = response.json()
+    # The seed holds two counties, so an unapplied filter fails this.
+    assert len(client.get("/api/vmt").json()) == 2
+    body = client.get("/api/vmt?county=los-angeles").json()
+    assert len(body) == 1
     assert all(r["county_code"] == 19 for r in body)
 
 

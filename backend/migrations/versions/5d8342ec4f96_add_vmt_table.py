@@ -4,6 +4,11 @@ County vehicle miles traveled per year, from CARB EMFAC. New empty table —
 plain CREATE TABLE, nothing else reads it yet. `source` records the EMFAC
 model version that produced each row, since a future release restates them.
 
+`calsight_team` read comes from pg_default_acl on objects calsight creates.
+The guarded GRANT covers `calsight_api_ro`, which exists in neither prod nor
+CI today (hence the guard) but is the convention every table migration since
+fa863b601b57 follows.
+
 Revision ID: 5d8342ec4f96
 Revises: 50bbb1251cb7
 Create Date: 2026-09-18 20:08:03.730714
@@ -35,6 +40,17 @@ def upgrade() -> None:
         sa.UniqueConstraint("county_code", "year"),
     )
     op.create_index("ix_vmt_county_year", "vmt", ["county_code", "year"])
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'calsight_api_ro') THEN
+                GRANT SELECT ON vmt TO calsight_api_ro;
+            END IF;
+        END
+        $$;
+        """
+    )
 
 
 def downgrade() -> None:

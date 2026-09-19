@@ -187,7 +187,10 @@ def _seed(session: Session) -> None:
         VehicleRegistration(county_code=19, year=2023,
                             total_vehicles=6200000, ev_vehicles=310000),
         LicensedDriver(county_code=19, year=2023, driver_count=5800000),
+        # Two counties so the /api/vmt county filter has something to exclude.
         Vmt(county_code=19, year=2023, vmt_millions=81997.43,
+            source="EMFAC2025 v2.1.1"),
+        Vmt(county_code=1, year=2023, vmt_millions=12120.14,
             source="EMFAC2025 v2.1.1"),
         DataQualityStat(county_code=19, year=2023, total_crashes=500000,
                         crashes_with_coords=480000, coords_pct=96.0),
