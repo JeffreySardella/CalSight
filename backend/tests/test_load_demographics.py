@@ -175,3 +175,62 @@ class TestRunFailureHandling:
         # 2021 was still inserted and committed despite 2020 failing.
         db.add.assert_called_once()
         assert db.commit.called
+
+
+class TestZeroRowGuard:
+    """M-B10: an empty/malformed Census response must fail the job instead
+    of silently recording "0 inserted, 0 updated" as success — except for
+    the newest requested year, which legitimately isn't published yet."""
+
+    def _db(self):
+        db = MagicMock()
+        db.execute.return_value.all.return_value = [(1, "06001")]
+        db.query.return_value.filter_by.return_value.first.return_value = None
+        return db
+
+    def test_empty_response_for_older_year_raises(self, monkeypatch):
+        from etl import load_demographics as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key="fake-key"))
+        monkeypatch.setattr(mod, "SessionLocal", lambda: self._db())
+        # Every year — including the older one — returns nothing.
+        monkeypatch.setattr(mod, "fetch_county_demographics", lambda year, key: [])
+
+        with pytest.raises(RuntimeError, match=r"1 year\(s\) failed: \[2020\]"):
+            mod.run(start_year=2020, end_year=2021)
+
+    def test_empty_response_for_newest_year_is_not_an_error(self, monkeypatch):
+        from etl import load_demographics as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key="fake-key"))
+        db = self._db()
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+
+        def fake_fetch(year, api_key):
+            # Only the newest (end_year) vintage is unpublished.
+            return [] if year == 2021 else [{"county_fips": "001", "population": 1000}]
+
+        monkeypatch.setattr(mod, "fetch_county_demographics", fake_fetch)
+
+        mod.run(start_year=2020, end_year=2021)  # must not raise
+
+        db.add.assert_called_once()  # 2020's row was still loaded
+
+    def test_valid_fixture_loads_normally(self, monkeypatch):
+        from etl import load_demographics as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key="fake-key"))
+        db = self._db()
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        monkeypatch.setattr(
+            mod, "fetch_county_demographics",
+            lambda year, key: [{"county_fips": "001", "population": 1000000}],
+        )
+
+        mod.run(start_year=2021, end_year=2021)  # must not raise
+
+        db.add.assert_called_once()
+        assert db.commit.called

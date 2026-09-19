@@ -19,7 +19,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, Hospital
-from etl._utils import get_with_retry, track_etl_run
+from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -127,31 +127,31 @@ def run():
                 break
 
         logger.info("Total hospitals: %d", len(all_rows))
+        require_rows(all_rows, "hospitals", "hospital records")
 
         # Bulk upsert
-        if all_rows:
-            batch_size = 500
-            for i in range(0, len(all_rows), batch_size):
-                batch = all_rows[i : i + batch_size]
-                stmt = pg_insert(Hospital).values(batch)
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=["facility_id"],
-                    set_={
-                        "facility_name": stmt.excluded.facility_name,
-                        "facility_type": stmt.excluded.facility_type,
-                        "county_code": stmt.excluded.county_code,
-                        "city": stmt.excluded.city,
-                        "address": stmt.excluded.address,
-                        "latitude": stmt.excluded.latitude,
-                        "longitude": stmt.excluded.longitude,
-                        "bed_capacity": stmt.excluded.bed_capacity,
-                        "trauma_center": stmt.excluded.trauma_center,
-                        "trauma_pediatric": stmt.excluded.trauma_pediatric,
-                        "status": stmt.excluded.status,
-                    },
-                )
-                db.execute(stmt)
-                db.commit()
+        batch_size = 500
+        for i in range(0, len(all_rows), batch_size):
+            batch = all_rows[i : i + batch_size]
+            stmt = pg_insert(Hospital).values(batch)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["facility_id"],
+                set_={
+                    "facility_name": stmt.excluded.facility_name,
+                    "facility_type": stmt.excluded.facility_type,
+                    "county_code": stmt.excluded.county_code,
+                    "city": stmt.excluded.city,
+                    "address": stmt.excluded.address,
+                    "latitude": stmt.excluded.latitude,
+                    "longitude": stmt.excluded.longitude,
+                    "bed_capacity": stmt.excluded.bed_capacity,
+                    "trauma_center": stmt.excluded.trauma_center,
+                    "trauma_pediatric": stmt.excluded.trauma_pediatric,
+                    "status": stmt.excluded.status,
+                },
+            )
+            db.execute(stmt)
+            db.commit()
 
         logger.info("Done. %d hospital records upserted.", len(all_rows))
 

@@ -15,6 +15,8 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from etl import cdec_api
 from etl import load_precip_indices as mod
 from etl.cdec_api import (
@@ -44,13 +46,35 @@ class TestFetchWiring:
         def fake_fetch_sensor_data(stations, sensor, start, end, duration="D"):
             captured["stations"] = stations
             captured["sensor"] = sensor
-            return []
+            # A real response — an empty one now raises (M-B10 zero-row guard),
+            # which is covered separately in TestZeroRowGuard below.
+            return [
+                {
+                    "stationId": "8SI",
+                    "SENSOR_NUM": sensor,
+                    "date": "2026-01-01 00:00",
+                    "value": 12.3,
+                    "units": "INCHES",
+                }
+            ]
 
         monkeypatch.setattr(cdec_api, "fetch_sensor_data", fake_fetch_sensor_data)
         cdec_api.fetch_precip_indices(date(2026, 1, 1), date(2026, 1, 2))
 
         assert set(captured["stations"]) == {"8SI", "5SI", "6SI"}
         assert captured["sensor"] == SENSOR_PRECIP_ACCUM
+
+
+class TestZeroRowGuard:
+    """M-B10: precip_indices is one unchunked request covering all three
+    regional indices for the whole window — an empty servlet body means
+    total outage, never a legitimate outcome, and must fail the job."""
+
+    def test_empty_servlet_body_raises(self, monkeypatch):
+        monkeypatch.setattr(cdec_api, "fetch_sensor_data", lambda *a, **k: [])
+
+        with pytest.raises(RuntimeError, match="precip_indices.*0 raw CDEC rows"):
+            cdec_api.fetch_precip_indices(date(2026, 1, 1), date(2026, 1, 2))
 
 
 class TestUpsertObservations:
