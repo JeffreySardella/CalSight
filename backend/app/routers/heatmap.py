@@ -56,6 +56,16 @@ _DECIMALS = {
     Resolution.high: 3,
 }
 
+# `medium` run statewide (no county) groups the full filtered crashes table
+# into a 0.01deg (~0.7mi) grid across all 58 counties — measured at 9.3 MB of
+# JSON for a single year (2026-09-18 latency sweep). `raw`/`high` require a
+# county for the same reason, but `medium` can't get that guard: the frontend
+# legitimately requests it unscoped (LayersPanel's statewide-heatmap Resolution
+# toggle offers only Low/Medium, no county involved). `low` already stays
+# small at any scope by being coarse enough on its own — give unscoped
+# `medium` the same treatment: a coarser step, not a bigger guard.
+_STATEWIDE_MEDIUM_STEP = 0.03  # ~2mi, vs 0.01 (~0.7mi) once a county scopes it
+
 
 _limiter = Limiter(key_func=rate_limit_key)
 
@@ -74,9 +84,8 @@ def clear_heatmap_cache() -> None:
     _heatmap_cache.clear()
 
 
-def _compute_grid(db: Session, preds: list, resolution: Resolution) -> HeatmapResponse:
+def _compute_grid(db: Session, preds: list, resolution: Resolution, step: float) -> HeatmapResponse:
     """Grid-aggregate crashes under *preds*. Factored out so the cache is observable."""
-    step = _STEP[resolution]
     lat_bucket = (func.round(Crash.latitude / step) * step).label("lat")
     lng_bucket = (func.round(Crash.longitude / step) * step).label("lng")
     weight = func.count().label("weight")
@@ -255,7 +264,10 @@ def crash_heatmap(
     if cached is not None and cached[0] > time.monotonic():
         return cached[1]
 
-    result = _compute_grid(db, preds, resolution)
+    step = _STEP[resolution]
+    if resolution == Resolution.medium and not county_codes:
+        step = _STATEWIDE_MEDIUM_STEP
+    result = _compute_grid(db, preds, resolution, step)
 
     if len(_heatmap_cache) >= _HEATMAP_CACHE_MAX:
         _heatmap_cache.clear()

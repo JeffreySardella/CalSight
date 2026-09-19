@@ -46,6 +46,22 @@ function ReducedMotionSync() {
   return null;
 }
 
+// axe/WCAG: Leaflet gives its container tabindex="0" (for keyboard pan) but no
+// role or accessible name, so a screen reader lands on an unlabeled focusable
+// div. react-leaflet's MapContainer doesn't forward arbitrary DOM attributes,
+// so this sets them imperatively on the underlying element instead. The same
+// county/highway/intersection figures are also readable as text on the Stats
+// page, so a descriptive label (not a full data dump) is enough here.
+function MapA11y() {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    el.setAttribute("role", "region");
+    el.setAttribute("aria-label", "Interactive map of California traffic crash data by county");
+  }, [map]);
+  return null;
+}
+
 // Delay before the URL starts tracking the viewport — long enough to swallow
 // the moveend/zoomend events Leaflet fires while settling its initial view
 // (and the first invalidateSize), so an untouched map keeps a clean URL.
@@ -347,6 +363,7 @@ export default function MapCanvas({
       zoomAnimationThreshold={4}
     >
       <ReducedMotionSync />
+      <MapA11y />
       {onViewportChange && <ViewportSync onChange={onViewportChange} />}
       {/* Required tile-provider credit. The MapContainer disables the default
           control (to drop the "Leaflet" promo prefix); this renders the one

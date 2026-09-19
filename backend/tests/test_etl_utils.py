@@ -71,6 +71,81 @@ class TestRequireRows:
         assert _utils.require_rows(5, "unemployment") == 5
 
 
+def _db_with_existing(found: bool):
+    """A mocked session whose SELECT 1 ... LIMIT 1 either finds a row or not."""
+    from unittest.mock import MagicMock
+
+    db = MagicMock()
+    db.execute.return_value.first.return_value = (1,) if found else None
+    return db
+
+
+class TestPeriodAlreadyLoaded:
+    def test_true_when_a_row_is_found(self):
+        db = _db_with_existing(found=True)
+        assert _utils.period_already_loaded(
+            db, "fars_county_year", "year = :year", {"year": 2020}
+        ) is True
+
+    def test_false_when_no_row_is_found(self):
+        db = _db_with_existing(found=False)
+        assert _utils.period_already_loaded(
+            db, "fars_county_year", "year = :year", {"year": 2020}
+        ) is False
+
+    def test_query_is_scoped_by_the_given_where_and_params(self):
+        db = _db_with_existing(found=False)
+        _utils.period_already_loaded(
+            db, "weather", "year = :year AND month = :month",
+            {"year": 2026, "month": 1},
+        )
+        query, params = db.execute.call_args[0]
+        assert "weather" in str(query)
+        assert "year = :year AND month = :month" in str(query)
+        assert params == {"year": 2026, "month": 1}
+
+
+class TestRequireRowsUnlessNewPeriod:
+    """The distinguishing rule behind the 5 "publishing lag" loader families
+    (fars, tract_density, vehicles, weather, CCRS crashes/parties/victims):
+    an empty pull is only a hard failure when the period already has rows."""
+
+    def test_nonempty_rows_pass_through_without_querying(self):
+        db = _db_with_existing(found=True)
+        rows = [{"a": 1}]
+        result = _utils.require_rows_unless_new_period(
+            rows, db, "fars_county_year", "year = :year", {"year": 2020},
+            "fars", "county rows",
+        )
+        assert result is rows
+        db.execute.assert_not_called()
+
+    def test_empty_rows_with_no_existing_period_rows_returns_empty(self):
+        db = _db_with_existing(found=False)
+        result = _utils.require_rows_unless_new_period(
+            [], db, "fars_county_year", "year = :year", {"year": 2027},
+            "fars", "county rows",
+        )
+        assert result == []
+
+    def test_empty_rows_with_existing_period_rows_raises(self):
+        db = _db_with_existing(found=True)
+        with pytest.raises(RuntimeError, match="fars.*already has rows loaded"):
+            _utils.require_rows_unless_new_period(
+                [], db, "fars_county_year", "year = :year", {"year": 2020},
+                "fars", "county rows",
+            )
+
+    def test_zero_int_count_with_existing_period_rows_raises(self):
+        # crashes_ccrs passes an already-computed total (int), not a list.
+        db = _db_with_existing(found=True)
+        with pytest.raises(RuntimeError, match="crashes_ccrs"):
+            _utils.require_rows_unless_new_period(
+                0, db, "crashes", "crash_year = :year AND data_source = 'ccrs'",
+                {"year": 2020}, "crashes_ccrs", "total records",
+            )
+
+
 class TestSafeFloat:
     def test_float_passthrough(self):
         assert _utils.safe_float(3.14) == 3.14
