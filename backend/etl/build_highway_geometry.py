@@ -4,15 +4,19 @@ Network (SHN) line layer.
 Produces one simplified MultiLineString per canonical California route, so the
 Map page can draw highways and color them by crash danger.
 
-Source: Caltrans GIS open data — "State Highway Network" (lines). The layer's
-`Route` attribute is the bare route number; we resolve it to the canonical ID
-(I-5 / US-101 / SR-99) via app.ca_highways and keep only routes we recognize.
+Source: Caltrans GIS open data — "State Highway Network" (lines), fetched
+live from the ArcGIS FeatureServer. The layer's `Route` attribute is the bare
+route number; we resolve it to the canonical ID (I-5 / US-101 / SR-99) via
+app.ca_highways and keep only routes we recognize.
 
-Reproducible run:
-  1. Download the SHN line GeoJSON to backend/data/shn_raw.geojson
-  2. From backend/:  python -m etl.build_highway_geometry
+Reproducible run (from backend/):
+  python -m etl.build_highway_geometry
+
+Or reuse a local dump instead of hitting the network:
+  python -m etl.build_highway_geometry --raw data/shn_raw.geojson
 """
 
+import argparse
 import json
 import re
 from pathlib import Path
@@ -21,8 +25,55 @@ from shapely.geometry import mapping, shape
 from shapely.ops import linemerge, unary_union
 
 from app.ca_highways import resolve_route
+from etl._utils import get_with_retry
 
 _DIGITS = re.compile(r"(\d+)")
+
+SHN_FEATURE_SERVICE_URL = (
+    "https://caltrans-gis.dot.ca.gov/arcgis/rest/services"
+    "/CHhighway/SHN_Lines/FeatureServer/0/query"
+)
+
+# ArcGIS REST caps resultRecordCount per request; page until a short page
+# signals there's nothing left (works regardless of whether the server
+# echoes exceededTransferLimit for f=geojson responses).
+PAGE_SIZE = 1000
+
+# 0.001 deg (~110m) keeps statewide highway lines visually tight at street
+# zoom; Cloudflare Pages' gzip/brotli compresses the coordinate-heavy JSON
+# ~4x, so the ~650 KB raw file still ships ~176 KB on the wire. (Was 0.005.)
+SIMPLIFY_TOLERANCE = 0.001
+
+
+def fetch_shn_features(page_size: int = PAGE_SIZE) -> list[dict]:
+    """Download all SHN line features from the Caltrans FeatureServer.
+
+    Pages via resultOffset/resultRecordCount and requests f=geojson so each
+    page is already standard GeoJSON Features, matching the shape
+    build_geojson() expects.
+    """
+    features: list[dict] = []
+    offset = 0
+    while True:
+        params = {
+            "where": "1=1",
+            "outFields": "Route",
+            "resultOffset": offset,
+            "resultRecordCount": page_size,
+            "f": "geojson",
+            # 6 decimal places is ~0.1m — far finer than our simplify
+            # tolerance, but keeps coordinates from ballooning to full
+            # float64 precision (~17 sig figs) and roughly tripling the
+            # output size for no visual gain.
+            "geometryPrecision": 6,
+        }
+        resp = get_with_retry(SHN_FEATURE_SERVICE_URL, params=params, timeout=60)
+        page = resp.json().get("features", [])
+        features.extend(page)
+        if len(page) < page_size:
+            break
+        offset += page_size
+    return features
 
 
 def route_id_from_caltrans(route_field: str) -> str | None:
@@ -39,7 +90,7 @@ def route_id_from_caltrans(route_field: str) -> str | None:
     return highway.canonical_id if highway else None
 
 
-def build_geojson(features: list[dict], simplify_tolerance: float = 0.001) -> dict:
+def build_geojson(features: list[dict], simplify_tolerance: float = SIMPLIFY_TOLERANCE) -> dict:
     """Group SHN line features by canonical route, union + simplify each.
 
     Returns a FeatureCollection with one Feature per known route:
@@ -75,11 +126,21 @@ def build_geojson(features: list[dict], simplify_tolerance: float = 0.001) -> di
 
 
 def main() -> None:
-    raw_path = Path("data/shn_raw.geojson")
-    raw = json.loads(raw_path.read_text())
-    # 0.005 deg (~550m) keeps statewide highway lines visually faithful while
-    # holding the static asset well under 1 MB.
-    fc = build_geojson(raw["features"], simplify_tolerance=0.005)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--raw",
+        type=Path,
+        default=None,
+        help="Reuse a local SHN GeoJSON dump instead of downloading from Caltrans.",
+    )
+    args = parser.parse_args()
+
+    if args.raw:
+        features = json.loads(args.raw.read_text())["features"]
+    else:
+        features = fetch_shn_features()
+
+    fc = build_geojson(features, simplify_tolerance=SIMPLIFY_TOLERANCE)
     out_path = Path("../frontend/public/ca-highways.geojson")
     out_path.write_text(json.dumps(fc))
     size_kb = out_path.stat().st_size / 1024
