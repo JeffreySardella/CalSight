@@ -98,7 +98,13 @@ export default function YoyChangesPanel() {
       ) : rows.length === 0 ? (
         <EmptyState className="py-10" icon="table_rows" description="No county changes to show." />
       ) : (
-        <div className="overflow-x-auto rounded-lg bg-surface-container-lowest ghost-border">
+        <div
+          className="overflow-x-auto rounded-lg bg-surface-container-lowest ghost-border"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- WAI-ARIA's fix for a scrollable region (axe: scrollable-region-focusable)
+          tabIndex={0}
+          role="region"
+          aria-label={`Counties ranked by year-over-year change in ${metricLabel}, scrollable`}
+        >
           <table className="w-full text-xs">
             <caption className="sr-only">
               Counties ranked by year-over-year change in {metricLabel}

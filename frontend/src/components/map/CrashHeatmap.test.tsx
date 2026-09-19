@@ -81,6 +81,35 @@ describe("CrashHeatmap", () => {
 
     expect(L.heatLayer).toHaveBeenCalled();
   });
+
+  it("cancels a pending redraw animation frame before removing the layer", async () => {
+    // leaflet.heat's onRemove() nulls the canvas/listeners but never cancels
+    // a requestAnimationFrame already scheduled by redraw() — when that frame
+    // fires afterward it reads the now-null `_map` and throws. Regression for
+    // the map's init-time "Cannot read properties of null (reading 'getSize')"
+    // crash: removeHeatLayer must cancel it first.
+    vi.mocked(L.heatLayer).mockClear();
+    const cancelSpy = vi.spyOn(L.Util, "cancelAnimFrame");
+    const { useHeatLayer } = await import("./CrashHeatmap");
+
+    const points = [
+      { lat: 34.0, lng: -118.0, weight: 42 },
+      { lat: 34.1, lng: -118.1, weight: 17 },
+    ];
+
+    const { unmount } = renderHook(() => useHeatLayer(points, "medium", "default", false));
+
+    // Simulate leaflet.heat's redraw() having scheduled a requestAnimationFrame
+    // (e.g. from a streamed setLatLngs) that hasn't fired yet when we tear down.
+    const layer = vi.mocked(L.heatLayer).mock.results[0].value as { _frame?: number };
+    layer._frame = 12345;
+
+    unmount();
+
+    expect(cancelSpy).toHaveBeenCalledWith(12345);
+    expect(mockMap.removeLayer).toHaveBeenCalledWith(layer);
+    cancelSpy.mockRestore();
+  });
 });
 
 describe("useFatalLayer", () => {

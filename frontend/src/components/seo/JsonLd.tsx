@@ -95,7 +95,7 @@ export function buildDatasetSchema(params?: {
       { "@type": "PropertyValue", name: "Total Crashes", unitCode: "C62" },
       { "@type": "PropertyValue", name: "Fatalities", unitCode: "C62" },
       { "@type": "PropertyValue", name: "Injuries", unitCode: "C62" },
-      { "@type": "PropertyValue", name: "Killed and Injured per 100K Population", unitCode: "P1" },
+      { "@type": "PropertyValue", name: "Killed or Seriously Injured per 100K Population", unitCode: "P1" },
     ],
     measurementTechnique: "Police-reported crash records via CHP SWITRS/CCRS systems",
     keywords: [
