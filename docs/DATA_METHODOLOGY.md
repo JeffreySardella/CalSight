@@ -351,6 +351,25 @@ The Water page has no AI component; it is a direct presentation of four public f
 
 **Cadence.** CDEC has no freshness probe, so the three CDEC jobs pull a trailing window every day. USDM publishes on Thursdays; the `drought` job re-pulls the trailing eight weeks daily to absorb revisions. Upserts never delete, so a shrinking row count is treated as a failure.
 
+### 2.17 CARB EMFAC -- Vehicle Miles Traveled (VMT)
+
+| Attribute | Value |
+|---|---|
+| **Official Name** | EMFAC2025 v2.1.1 Web Platform, Emissions Inventory |
+| **Source Agency** | California Air Resources Board (CARB) |
+| **Legal Authority** | California Public Records Act |
+| **URL** | https://emfac.arb.ca.gov/emissions-inventory/ |
+| **Coverage** | 2001 through the last complete calendar year, all 58 counties |
+| **Update Frequency** | Monthly check (EMFAC itself restates only on a new model release) |
+| **Row Count** | 58 counties x ~25 years |
+
+**Fields Extracted:**
+County, calendar year, and `Total VMT` summed across every vehicle category and fuel type, stored as millions of miles per county-year alongside the EMFAC model version that produced it.
+
+**Aggregation Method:** EMFAC has no documented REST API; the ETL posts the same JSON form the tool's own front end sends, one calendar year per request with all 58 counties, and sums `Total VMT` per county. Two settings decide whether the numbers mean anything: `unit` must be `year` (the default is a representative operation-day rate, roughly 365x lower), and the full vehicle-category, model-year, speed and fuel lists must be requested so the total covers the whole fleet. The request is rejected with an HTML error page if any field of the form is omitted, even fields that do not affect the result, so the payload template is sent whole. Each year is checked against a plausible statewide band (200-450 billion miles) before it is written; a year outside it fails the job rather than storing a denominator that is wrong by orders of magnitude.
+
+**Caveats.** EMFAC's VMT is a model output calibrated against DMV vehicle population and Caltrans travel-demand control totals, not a traffic count, and it is "historical" only in the sense that the inputs are observed; the 2001-2025 statewide series runs 275-335 billion miles a year and sits within about 6% of Caltrans' separately published Public Road Data figure. Years from the current calendar year onward are forecasts and are never loaded. CARB had not obtained EPA approval of EMFAC2025 for State Implementation Plan conformity use at the time of writing, which does not affect its use here as a descriptive exposure denominator.
+
 ---
 
 ## 3. ETL Pipeline Architecture
@@ -395,6 +414,7 @@ Execution order is resolved via topological sort. Two schedulers on LXC 100 run 
 | `calenviroscreen` | OEHHA ArcGIS | `calenviroscreen` | Monthly |
 | `licensed_drivers` | data.ca.gov CKAN | `licensed_drivers` | Monthly |
 | `road_miles` | data.ca.gov CKAN | `road_miles` | Monthly |
+| `vmt` | CARB EMFAC | `vmt` | Monthly |
 
 **Tier 2: Internal Transforms (depend on Tier 1 completions)**
 
@@ -525,7 +545,12 @@ All rates are computed per county per year per severity level:
 | **Crashes per 10K licensed drivers** | `(total_crashes / licensed_drivers) * 10,000` | Exposure-adjusted rate (NHTSA standard) |
 | **Crashes per 100 road miles** | `(total_crashes / total_road_miles) * 100` | Infrastructure-adjusted rate |
 | **Crashes per 100K AADT** | `(total_crashes / total_aadt) * 100,000` | Traffic volume-adjusted rate |
+| **Crashes per 100M vehicle miles** | `(total_crashes / vmt_millions) * 100` | Exposure-adjusted rate (miles actually driven) |
 | **Crashes per 10K registered vehicles** | `(total_crashes / total_vehicles) * 10,000` | Vehicle fleet-adjusted rate |
+
+**Reading the per-vehicle-mile rate.** Crashes do not scale one-for-one with miles driven: the safety-in-numbers literature consistently finds the relationship is sublinear, so doubling a county's travel raises its crash count by less than double, and the crashes-per-mile rate falls on arithmetic alone. A high-mileage county therefore tends to post a lower rate than a low-mileage one even when driving there is no safer, and part of any gap between two counties is a mileage effect rather than a difference in road safety. The rate is best read within a county over time, or between counties of broadly similar travel volume, and never as a straight multiplier of individual risk. The same caution applies in the opposite direction to the small rural counties, where a handful of crashes divided by a small mileage base moves the rate a long way; counties below the minimum crash count for a rate are left uncoloured for that reason.
+
+Vehicle miles traveled also differs from the AADT-based rate above on two axes. AADT is a point count taken on the state highway system only, so it misses local and city streets entirely -- where a large share of crashes happen -- and it describes an average day rather than a year's travel. VMT covers all roads and is annualized, which is why it, not AADT, is the standard exposure denominator in the safety literature.
 
 ### 5.2 Fatality Rate
 
@@ -733,7 +758,7 @@ County-level correlations (e.g., poverty rate vs. crash rate) describe associati
 | Schedule | Data Sources | Trigger |
 |---|---|---|
 | **Daily** (host cron 02:00 UTC; container 11:00 UTC Mon–Sat, weekly full refresh Sun 09:00 UTC) | CCRS crashes, parties, victims; derived fields; route numbers; first rain; materialized views; coordinate validation; data quality; AI insights; reservoirs, snowpack, precipitation indices, drought | Host cron + APScheduler in `calsight-pipeline-1` (see `backend/deploy/lxc100-crontab.md`) |
-| **Monthly** | Demographics, weather, FARS, tract density, unemployment, hospitals, schools, speed limits, AADT, vehicles, CalEnviroScreen, licensed drivers, road miles | Same schedulers (monthly check) |
+| **Monthly** | Demographics, weather, FARS, tract density, unemployment, hospitals, schools, speed limits, AADT, vehicles, CalEnviroScreen, licensed drivers, road miles, VMT | Same schedulers (monthly check) |
 | **Static** | SWITRS (2001-2015 historical archive) | Manual trigger only (data is fixed) |
 
 The orchestrator supports freshness checking: before re-fetching a source, it queries the CKAN/ArcGIS metadata to determine if the upstream data has changed since the last successful load. If unchanged, the job is skipped (`skipped_unchanged` status).
@@ -757,7 +782,7 @@ All data sources are accessed through legally authorized public channels:
 
 | Legal Framework | Applicable Sources |
 |---|---|
-| **California Public Records Act** (Gov. Code 6250-6270) | CCRS, SWITRS, DMV vehicles, DMV drivers, hospitals, schools, road miles, Caltrans AADT |
+| **California Public Records Act** (Gov. Code 6250-6270) | CCRS, SWITRS, DMV vehicles, DMV drivers, hospitals, schools, road miles, Caltrans AADT, CARB EMFAC |
 | **Freedom of Information Act** (5 U.S.C. 552) | Census ACS, NOAA weather, BLS unemployment, FHWA HPMS |
 | **SB 535 / AB 1550** (Environmental Justice) | CalEnviroScreen |
 | **Open Data Portals** | data.ca.gov (CKAN), Census API, NOAA CDO API, BLS API |
@@ -822,24 +847,28 @@ All other data sources (data.ca.gov CKAN, Caltrans ArcGIS, FHWA ArcGIS, OEHHA Ar
 
 13. California Office of Environmental Health Hazard Assessment. *CalEnviroScreen 5.0*. https://oehha.ca.gov/calenviroscreen
 
+14. California Air Resources Board. *EMFAC2025 Web Platform, Emissions Inventory*. https://emfac.arb.ca.gov/emissions-inventory/
+
+15. Elvik, R. and Goel, R. (2019). "Safety-in-numbers: An updated meta-analysis of estimates." *Accident Analysis and Prevention*, 129, 136-147.
+
 ### Statistical Methods
 
-14. Conover, W.J. (1999). *Practical Nonparametric Statistics*, 3rd ed. Wiley.
+16. Conover, W.J. (1999). *Practical Nonparametric Statistics*, 3rd ed. Wiley.
 
-15. Numerical Recipes in C, Chapter 6: Special Functions. Cambridge University Press.
+17. Numerical Recipes in C, Chapter 6: Special Functions. Cambridge University Press.
 
-16. NIST/SEMATECH Engineering Statistics Handbook. https://www.itl.nist.gov/div898/handbook/
+18. NIST/SEMATECH Engineering Statistics Handbook. https://www.itl.nist.gov/div898/handbook/
 
-17. Benjamini, Y. and Hochberg, Y. (1995). "Controlling the false discovery rate: a practical and powerful approach to multiple testing." *Journal of the Royal Statistical Society, Series B*, 57(1), 289-300.
+19. Benjamini, Y. and Hochberg, Y. (1995). "Controlling the false discovery rate: a practical and powerful approach to multiple testing." *Journal of the Royal Statistical Society, Series B*, 57(1), 289-300.
 
 ### Legal Authorities
 
-18. California Public Records Act, Government Code Sections 6250-6270.
+20. California Public Records Act, Government Code Sections 6250-6270.
 
-19. Freedom of Information Act, 5 U.S.C. 552.
+21. Freedom of Information Act, 5 U.S.C. 552.
 
-20. Title 13, United States Code (Census Bureau enabling legislation).
+22. Title 13, United States Code (Census Bureau enabling legislation).
 
-21. California Vehicle Code Section 20008 (mandatory crash reporting).
+23. California Vehicle Code Section 20008 (mandatory crash reporting).
 
-22. SB 535 (De Leon, 2012) and AB 1550 (Gomez, 2016) -- Disadvantaged Communities designation.
+24. SB 535 (De Leon, 2012) and AB 1550 (Gomez, 2016) -- Disadvantaged Communities designation.
