@@ -260,7 +260,16 @@ def run(start_year: int | None = None, end_year: int | None = None) -> int:
                 db.bulk_insert_mappings(TractCrashYear, rows)
             db.commit()
             total += len(rows)
-            logger.info("Year %d: %d tract rows written", year, len(rows))
+            # The join drops crashes outside every tract or exactly on a shared
+            # boundary. Say how many, so a bad coordinate batch or a changed
+            # tract layer shows up in the run log instead of as a quiet dip.
+            matched = sum(r["crash_count"] for r in rows)
+            dropped = len(crashes) - matched
+            log = logger.warning if crashes and dropped / len(crashes) > 0.02 else logger.info
+            log(
+                "Year %d: %d tract rows written; %d of %d crashes matched no tract",
+                year, len(rows), dropped, len(crashes),
+            )
 
         logger.info("Done. %d tract-year rows across %d-%d",
                     total, start_year, end_year)
