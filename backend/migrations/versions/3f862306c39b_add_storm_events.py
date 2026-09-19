@@ -9,7 +9,7 @@ therefore (source_event_id, county_code), NOT source_event_id alone; a plain
 unique on the event id would make multi-county zones unloadable.
 
 Revision ID: 3f862306c39b
-Revises: 50bbb1251cb7
+Revises: bdc07f3141d1
 Create Date: 2026-09-18 00:00:00.000000
 """
 from typing import Sequence, Union
@@ -20,7 +20,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '3f862306c39b'
-down_revision: Union[str, None] = '50bbb1251cb7'
+down_revision: Union[str, None] = 'bdc07f3141d1'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
