@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DIMENSIONS, DIMENSION_LABELS, MEASURE_LABELS, defaultChartType } from "../../lib/dashboard/types";
+import { DIMENSIONS, DIMENSION_LABELS, MEASURE_LABELS, defaultChartType, isPersonLevelDimension, CRASH_ONLY_MEASURES, sanitizeMeasure } from "../../lib/dashboard/types";
 import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
 
 interface ChartConfig {
@@ -48,12 +48,17 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "yoy_change", label: MEASURE_LABELS.yoy_change },
 ];
 
+// Two rules decide which measures a dimension offers. Person-level dimensions
+// (gender/age_bracket/at_fault_*) carry victim_count/party_count rather than a
+// crash-level row, so fatality_rate/yoy_change never render correctly there.
 // KSI is offered on the year axis only: that is the chart its definition
-// footnote is written for (the API also returns it for county/cause/severity).
+// footnote is written for. sanitizeMeasure in lib/dashboard/types enforces the
+// same two rules at every other entry point.
 function measureOptions(dim: Dimension): { value: Measure; label: string }[] {
-  return dim === "year"
-    ? [...SUPPORTED_MEASURES, { value: "ksi", label: MEASURE_LABELS.ksi }]
+  const base = isPersonLevelDimension(dim)
+    ? SUPPORTED_MEASURES.filter((m) => !CRASH_ONLY_MEASURES.includes(m.value))
     : SUPPORTED_MEASURES;
+  return dim === "year" ? [...base, { value: "ksi", label: MEASURE_LABELS.ksi }] : base;
 }
 
 const SUPPORTS_DUAL_AXIS = new Set<ChartType>(["line", "area"]);
@@ -71,11 +76,11 @@ const SUPPORTS_FORECAST = new Set<ChartType>(["line", "area"]);
 
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
   const initialDimension = initial?.dimension ?? "hour";
-  // A stale/tampered slot (legacy localStorage dashboard, decoded share URL —
-  // validateConfig allow-lists dimension and measure independently) can carry
-  // ksi on a non-year dimension, where measureOptions never renders it.
-  const initialMeasure = initialDimension !== "year" && initial?.measure === "ksi" ? "count" : (initial?.measure ?? "count");
-  const initialSecondaryMeasure = initialDimension !== "year" && initial?.secondaryMeasure === "ksi" ? undefined : initial?.secondaryMeasure;
+  // A stale/tampered slot (legacy localStorage dashboard, decoded share URL)
+  // can carry a measure its dimension cannot render: fatality_rate/yoy_change
+  // on a person-level dimension, or ksi off the year axis.
+  const initialMeasure = sanitizeMeasure(initialDimension, initial?.measure) ?? "count";
+  const initialSecondaryMeasure = sanitizeMeasure(initialDimension, initial?.secondaryMeasure);
 
   const [dimension, setDimension] = useState<Dimension>(initialDimension);
   const [measure, setMeasure] = useState<Measure>(initialMeasure);
@@ -86,6 +91,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
   function handleDimensionChange(dim: Dimension) {
     setDimension(dim);
     setChartType(defaultChartType(dim));
+    setMeasure((prev) => sanitizeMeasure(dim, prev) ?? "count");
     setSecondaryMeasure(undefined);
     setOptions({});
     if (dim !== "year" && measure === "ksi") setMeasure("count");

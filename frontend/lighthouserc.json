@@ -5,7 +5,8 @@
         "http://localhost:3000/",
         "http://localhost:3000/water",
         "http://localhost:3000/stats",
-        "http://localhost:3000/about"
+        "http://localhost:3000/about",
+        "http://localhost:3000/ask"
       ],
       "numberOfRuns": 1,
       "settings": {

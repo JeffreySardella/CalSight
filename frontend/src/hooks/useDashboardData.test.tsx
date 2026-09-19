@@ -175,4 +175,73 @@ describe("useDashboardData", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.dataBySlot["year:ksi"].map((d) => d.value)).toEqual([100, 75]);
   });
+
+  describe("person-level dimension measures (gender/age_bracket)", () => {
+    // Gender rows carry victim_count/fatal_victim_count, not crash_count/
+    // total_killed/total_injured — those are crash-level fields.
+    const GENDER_ROWS = [
+      { gender: "male", victim_count: 100, fatal_victim_count: 8 },
+      { gender: "female", victim_count: 60, fatal_victim_count: 2 },
+    ];
+
+    function mockGenderFetch() {
+      return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+        const url = String(input);
+        if (url.includes("/api/stats/batch")) {
+          return new Response(JSON.stringify({ gender: GENDER_ROWS }));
+        }
+        return new Response(JSON.stringify({}));
+      });
+    }
+
+    it("count = victim_count", async () => {
+      mockGenderFetch();
+      const charts: ChartSlot[] = [
+        { id: "a", dimension: "gender", measure: "count", chartType: "bar", order: 0 },
+      ];
+      const { result } = renderHook(() => useDashboardData(charts, FILTERS), { wrapper: makeWrapper() });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.dataBySlot["gender:count"].map((d) => d.value)).toEqual([100, 60]);
+    });
+
+    it("killed = fatal_victim_count", async () => {
+      mockGenderFetch();
+      const charts: ChartSlot[] = [
+        { id: "a", dimension: "gender", measure: "killed", chartType: "bar", order: 0 },
+      ];
+      const { result } = renderHook(() => useDashboardData(charts, FILTERS), { wrapper: makeWrapper() });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.dataBySlot["gender:killed"].map((d) => d.value)).toEqual([8, 2]);
+    });
+
+    it("injured = victim_count - fatal_victim_count (excludes the killed)", async () => {
+      mockGenderFetch();
+      const charts: ChartSlot[] = [
+        { id: "a", dimension: "gender", measure: "injured", chartType: "bar", order: 0 },
+      ];
+      const { result } = renderHook(() => useDashboardData(charts, FILTERS), { wrapper: makeWrapper() });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      // Before the fix this fell through to victim_count (100, 60) — the killed
+      // were double-counted as "injured" too.
+      expect(result.current.dataBySlot["gender:injured"].map((d) => d.value)).toEqual([92, 58]);
+    });
+
+    it("injured never goes below 0 even if fatal_victim_count exceeds victim_count", async () => {
+      vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+        const url = String(input);
+        if (url.includes("/api/stats/batch")) {
+          return new Response(JSON.stringify({
+            gender: [{ gender: "male", victim_count: 5, fatal_victim_count: 9 }],
+          }));
+        }
+        return new Response(JSON.stringify({}));
+      });
+      const charts: ChartSlot[] = [
+        { id: "a", dimension: "gender", measure: "injured", chartType: "bar", order: 0 },
+      ];
+      const { result } = renderHook(() => useDashboardData(charts, FILTERS), { wrapper: makeWrapper() });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.dataBySlot["gender:injured"].map((d) => d.value)).toEqual([0]);
+    });
+  });
 });

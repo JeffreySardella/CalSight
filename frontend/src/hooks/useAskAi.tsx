@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE } from "../config";
+import { readSseStream, visibleAnswer } from "../lib/ai/askStream";
 
 const STORAGE_KEY = "calsight-ask-ai-messages";
 const MAX_MESSAGES = 50;
 const COOLDOWN_MS = 15_000;
 const API_URL = `${API_BASE}/api/ask`;
+const STREAM_URL = `${API_BASE}/api/ask/stream`;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 3000;
 const COOLDOWN_KEY = "calsight-ask-ai-cooldown";
@@ -41,6 +43,23 @@ interface AskResponse {
   grounded: boolean;
   filters_used: Record<string, unknown>;
   tools_called: string[];
+  /** Only present on the SSE `done` payload; the JSON endpoint uses X-Cache. */
+  cached?: boolean;
+}
+
+function toAiMessage(data: AskResponse, question: string, cached: boolean): ChatMessage {
+  return {
+    role: "assistant",
+    content: data.answer,
+    timestamp: Date.now(),
+    provider: data.provider,
+    suggestions: data.suggestions,
+    chart: data.chart ?? undefined,
+    toolsCalled: data.tools_called,
+    grounded: data.grounded,
+    question,
+    cached,
+  };
 }
 
 export interface AskAiApi {
@@ -48,6 +67,9 @@ export interface AskAiApi {
   isLoading: boolean;
   error: string | null;
   cooldownEnd: number;
+  /** Answer text received so far on the current streamed request; "" until
+   *  the first token arrives (show the thinking indicator until then). */
+  streamingText: string;
   /** Resolves true when the question was accepted (appears in the
    * conversation), false when a guard refused it (cooldown, in-flight,
    * blank) — callers that clear an input must check this. */
@@ -95,6 +117,7 @@ function saveMessages(messages: ChatMessage[]) {
 function useAskAiState(): AskAiApi {
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [cooldownEnd, setCooldownEnd] = useState<number>(() => {
     const stored = sessionStorage.getItem(COOLDOWN_KEY);
@@ -174,6 +197,73 @@ function useAskAiState(): AskAiApi {
 
     let lastWas429 = false;
     try {
+    // Streamed attempt first. Anything that goes wrong BEFORE the first token
+    // falls through to the JSON endpoint below, so behaviour is never worse
+    // than it was before streaming existed.
+    setStreamingText("");
+    const streamController = new AbortController();
+    let sawToken = false;
+    let streamTimedOut = false;
+    const streamTimer = setTimeout(() => {
+      streamTimedOut = true;
+      streamController.abort();
+    }, 55_000);
+    try {
+      abortRef.current = streamController;
+      const resp = await fetch(STREAM_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: streamController.signal,
+      });
+      if (resp.ok && resp.body) {
+        let raw = "";
+        let streamError: string | null = null;
+        let done: AskResponse | null = null;
+        for await (const ev of readSseStream(resp.body)) {
+          if (ev.event === "token") {
+            raw += (JSON.parse(ev.data) as { t: string }).t;
+            sawToken = true;
+            setStreamingText(visibleAnswer(raw));
+          } else if (ev.event === "reset") {
+            // That round turned out to be a tool call: the model was narrating
+            // ("Let me check the data…"), not answering. Drop the preamble.
+            raw = "";
+            setStreamingText("");
+          } else if (ev.event === "done") {
+            done = JSON.parse(ev.data) as AskResponse;
+          } else if (ev.event === "error") {
+            streamError = (JSON.parse(ev.data) as { message: string }).message;
+          }
+        }
+        setStreamingText("");
+        if (done !== null && done.answer.trim() !== "") {
+          const final = done;
+          setError(null);
+          setMessages((prev) => [...prev, toAiMessage(final, question.trim(), !!final.cached)]);
+          return true;
+        }
+        if (sawToken) {
+          // Tokens already reached the user — retrying on the JSON endpoint
+          // would bill a second answer for the same question.
+          setError(streamError || "AI couldn't generate a response. Try rephrasing your question.");
+          return true;
+        }
+      }
+    } catch {
+      setStreamingText("");
+      // Unmount or a newer question aborted us: leave the UI alone.
+      if (streamController.signal.aborted && !streamTimedOut) return true;
+      if (sawToken) {
+        // Partial text is already on screen; re-asking on the JSON endpoint
+        // would bill a second answer for the same question.
+        setError("The AI stream was interrupted. Please try again.");
+        return true;
+      }
+    } finally {
+      clearTimeout(streamTimer);
+    }
+
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         if (attempt > 0 && !lastWas429) {
@@ -237,20 +327,7 @@ function useAskAiState(): AskAiApi {
 
         setError(null);
         const cached = resp.headers.get("x-cache")?.toUpperCase() === "HIT";
-        const aiMsg: ChatMessage = {
-          role: "assistant",
-          content: data.answer,
-          timestamp: Date.now(),
-          provider: data.provider,
-          suggestions: data.suggestions,
-          chart: data.chart ?? undefined,
-          toolsCalled: data.tools_called,
-          grounded: data.grounded,
-          question: question.trim(),
-          cached,
-        };
-
-        setMessages((prev) => [...prev, aiMsg]);
+        setMessages((prev) => [...prev, toAiMessage(data, question.trim(), cached)]);
         setIsLoading(false);
         return true;
       } catch (e: unknown) {
@@ -267,6 +344,7 @@ function useAskAiState(): AskAiApi {
       // path — including the early returns and the success return inside the
       // loop — so a completed request never blocks the next question.
       setIsLoading(false);
+      setStreamingText("");
       inFlightRef.current = false;
       abortRef.current = null;
     }
@@ -299,6 +377,7 @@ function useAskAiState(): AskAiApi {
   return {
     messages,
     isLoading,
+    streamingText,
     error,
     cooldownEnd,
     sendMessage,
