@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAskAi, AskAiProvider } from "./useAskAi";
+import { stubJsonOnly } from "../__mocks__/askFetch";
 
 const STORAGE_KEY = "calsight-ask-ai-messages";
 const COOLDOWN_KEY = "calsight-ask-ai-cooldown";
@@ -53,7 +54,7 @@ describe("useAskAi — server backoff and session persistence", () => {
       .mockResolvedValueOnce(errResponse(429, { retry_after: 0.001 }))
       .mockResolvedValueOnce(errResponse(429, { retry_after: 0.001 }))
       .mockResolvedValueOnce(errResponse(429, { retry_after: 60 }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
 
@@ -94,7 +95,7 @@ describe("useAskAi — server backoff and session persistence", () => {
       .mockResolvedValueOnce(errResponse(429, { retry_after: 0.001 }))
       .mockResolvedValueOnce(errResponse(429, { retry_after: 0.001 }))
       .mockResolvedValueOnce(errResponse(503, { message: "All AI providers are busy right now.", retry_after: 42 }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
 
@@ -120,7 +121,7 @@ describe("useAskAi — server backoff and session persistence", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(errResponse(429, { retry_after: 0.001 }))
       .mockResolvedValueOnce(okResponse("recovered answer"));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
 
@@ -143,7 +144,7 @@ describe("useAskAi — server backoff and session persistence", () => {
       .mockResolvedValueOnce(errResponse(429, { retry_after: 0.001 }))
       .mockResolvedValueOnce(errResponse(429, { retry_after: 0.001 }))
       .mockResolvedValueOnce(okResponse("finally an answer"));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
 
@@ -177,7 +178,7 @@ describe("useAskAi — server backoff and session persistence", () => {
   });
 
   it("persists the conversation to sessionStorage and rehydrates it on a fresh mount", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(okResponse("stored answer")));
+    stubJsonOnly(vi.fn().mockResolvedValue(okResponse("stored answer")));
 
     const first = renderHook(() => useAskAi(), { wrapper });
     await act(async () => {
@@ -201,7 +202,7 @@ describe("useAskAi — server backoff and session persistence", () => {
     const future = Date.now() + 60_000;
     sessionStorage.setItem(COOLDOWN_KEY, String(future));
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
     expect(result.current.cooldownEnd).toBe(future);
@@ -222,7 +223,7 @@ describe("useAskAi — server backoff and session persistence", () => {
   });
 
   it("clearConversation wipes messages, error, cooldown and both storage keys", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(okResponse("bye")));
+    stubJsonOnly(vi.fn().mockResolvedValue(okResponse("bye")));
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
     await act(async () => {
