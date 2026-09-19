@@ -99,7 +99,13 @@ function Table({ rows, sort }: { rows: HighwayRow[]; sort: HighwaySort }) {
     );
   }
   return (
-    <div className="overflow-x-auto rounded-lg bg-surface-container-lowest ghost-border">
+    <div
+      className="overflow-x-auto rounded-lg bg-surface-container-lowest ghost-border"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- WAI-ARIA's fix for a scrollable region (axe: scrollable-region-focusable)
+      tabIndex={0}
+      role="region"
+      aria-label="Most dangerous highways table, scrollable"
+    >
       <table className="w-full text-xs">
         <thead>
           <tr className="text-[10px] uppercase tracking-widest text-on-surface-variant">

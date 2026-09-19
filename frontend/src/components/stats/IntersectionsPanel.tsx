@@ -237,7 +237,13 @@ export default function IntersectionsPanel() {
           description={EMPTY_COPY[scope]}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg bg-surface-container-lowest ghost-border">
+        <div
+          className="overflow-x-auto rounded-lg bg-surface-container-lowest ghost-border"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- WAI-ARIA's fix for a scrollable region (axe: scrollable-region-focusable)
+          tabIndex={0}
+          role="region"
+          aria-label={`${scopeLabel} ranked ${rankLabel}, scrollable`}
+        >
           <table className="w-full text-xs">
             <caption className="sr-only">
               {scopeLabel} ranked {rankLabel}

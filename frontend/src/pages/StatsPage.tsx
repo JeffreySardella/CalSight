@@ -797,10 +797,12 @@ function StatsPageInner() {
         <HighwayRankingsTable filters={statsFilters} />
       </section>
 
-      {/* Street-level crash aggregation (intersections / corridors) */}
-      <section aria-label="Street-level crash aggregation" className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
+      {/* Street-level crash aggregation (intersections / corridors) — IntersectionsPanel
+          renders its own "Street-level crash aggregation" landmark, so this wrapper
+          stays a plain div (axe: landmark-unique, a duplicate aria-label pair). */}
+      <div className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
         <IntersectionsPanel />
-      </section>
+      </div>
 
       {/* Year-over-year change by county */}
       <section aria-label="Year-over-year change" className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
