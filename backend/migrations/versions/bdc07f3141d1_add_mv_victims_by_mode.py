@@ -44,6 +44,14 @@ also has a blank injury_severity). So victim_count here is people injured or
 killed, not everyone present. That is the Vision Zero framing and it is why
 the uninjured cannot be classified at all.
 
+severity is the CRASH's severity, carried at the same grain and with the same
+COALESCE(..., 'Unknown') as b5e9d3f1c8a4 uses, so the dashboard's severity
+filter applies to group_by=mode exactly as it does to gender/age_bracket.
+"Pedestrian deaths by year" is the question this dimension exists for, and it
+is asked with a severity filter on — the view has to be able to answer it.
+Note the two casualty columns come from the VICTIM's own injury_severity, so
+a fatal crash's non-fatal victims still count as injured people within it.
+
 The LEFT JOIN LATERAL ... LIMIT 1 is not decoration: 32 (collision_id,
 data_source, party_number) keys are duplicated in crash_parties, and a plain
 JOIN would fan those victims out and inflate the counts.
@@ -74,6 +82,7 @@ WITH classified AS (
     SELECT
         c.county_code,
         c.crash_year,
+        COALESCE(c.severity, 'Unknown') AS severity,
         v.injury_severity,
         CASE
             WHEN v.person_type = 'Pedestrian' THEN 'pedestrian'
@@ -104,6 +113,7 @@ WITH classified AS (
 SELECT
     county_code,
     crash_year,
+    severity,
     mode,
     COUNT(*)::integer AS victim_count,
     COUNT(*) FILTER (WHERE injury_severity = 'Fatal')::integer
@@ -113,7 +123,7 @@ SELECT
     )::integer AS severe_injured_count
 FROM classified
 WHERE mode IS NOT NULL
-GROUP BY county_code, crash_year, mode
+GROUP BY county_code, crash_year, severity, mode
 WITH NO DATA
 """
 
@@ -121,7 +131,7 @@ WITH NO DATA
 # every query is a county/year filter plus a GROUP BY mode.
 CREATE_UNIQUE_INDEX = """
 CREATE UNIQUE INDEX ux_mv_victims_by_mode_key
-    ON mv_victims_by_mode (county_code, crash_year, mode)
+    ON mv_victims_by_mode (county_code, crash_year, severity, mode)
 """
 
 

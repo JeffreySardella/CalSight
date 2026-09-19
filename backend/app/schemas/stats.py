@@ -107,8 +107,13 @@ class ModeRow(BaseModel):
     CCRS-only, so the series starts in 2016 — the UI carries a footnote
     saying so. And a person's mode is only known when they have a recorded
     injury outcome, so victim_count is people injured or killed, not everyone
-    present. There is no crash `severity` here for the same reason; the API
-    rejects that filter rather than quietly ignoring it."""
+    present.
+
+    The view does carry the crash's severity, so the dashboard's severity
+    filter applies here the same way it does to gender/age_bracket. `killed`
+    and `severe_injured` come from each victim's own injury outcome, so a
+    severity=Fatal cut still reports the injured survivors of fatal crashes
+    inside victim_count."""
     mode: str
     victim_count: int
     killed: int

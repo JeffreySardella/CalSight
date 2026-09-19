@@ -125,6 +125,7 @@ mv_mode = Table(
     "mv_victims_by_mode", _metadata,
     Column("county_code", SmallInteger),
     Column("crash_year", SmallInteger),
+    Column("severity", String),
     Column("mode", String),
     Column("victim_count", Integer),
     Column("fatal_victim_count", Integer),
@@ -333,16 +334,6 @@ def _run_group_query(
             "cause filter is not supported with demographic group_by values "
             f"({', '.join(_PERSON_GROUPS)}) — those views don't carry "
             "canonical_cause.",
-        )
-
-    if group_by == "mode" and severities:
-        # mv_victims_by_mode carries no crash severity — it is keyed on the
-        # victim's own injury outcome instead. Silently dropping the filter
-        # would present unfiltered people counts as filtered.
-        raise FilterError(
-            "severity",
-            "severity filter is not supported with group_by=mode — that view "
-            "counts people by injury outcome, not crashes by severity.",
         )
 
     if group_by == "rate" and causes:
@@ -829,6 +820,8 @@ def _run_group_query(
             stmt = stmt.where(v.c.crash_year.in_(years))
         if county_codes:
             stmt = stmt.where(v.c.county_code.in_(county_codes))
+        if severities:
+            stmt = stmt.where(v.c.severity.in_(severities))
         rows = db.execute(stmt).all()
         return [
             ModeRow(
@@ -939,8 +932,8 @@ def stats(
         mv_at_fault_parties_by_demographics (counts AT-FAULT PARTIES —
         typically drivers — not victims and not crashes)
       - `mode` -> mv_victims_by_mode (counts PEOPLE by road user —
-        pedestrian / cyclist / motorcyclist / occupant. CCRS-only, so 2016+,
-        and it rejects the severity filter: see ModeRow)
+        pedestrian / cyclist / motorcyclist / occupant. CCRS-only, so 2016+
+        — see ModeRow)
       - everything else -> mv_crashes_by_year
 
     `alcohol` / `distracted` are not supported here (crash views don't carry

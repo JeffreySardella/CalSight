@@ -111,13 +111,38 @@ def test_mode_respects_county_filter(client, db_session):
     assert "motorcyclist" not in {r["mode"] for r in la}
 
 
-@pytest.mark.parametrize("bad", ["cause=dui", "alcohol=true", "severity=fatal"])
+@pytest.mark.parametrize("bad", ["cause=dui", "alcohol=true"])
 def test_mode_rejects_filters_the_view_cannot_answer(client, bad):
-    """mv_victims_by_mode carries no cause, no involvement flags and no crash
-    severity. Each must 422 rather than return unfiltered counts."""
+    """mv_victims_by_mode carries no cause and no involvement flags. Each must
+    422 rather than return unfiltered counts."""
     response = client.get(f"/api/stats?group_by=mode&{bad}")
     assert response.status_code == 422
-    assert response.json()["filter"] in {"cause", "involvement", "severity"}
+    assert response.json()["filter"] in {"cause", "involvement"}
+
+
+def test_mode_severity_filter_narrows_to_fatal_crashes(client, db_session):
+    """"Pedestrian deaths by year" is asked with a severity filter on, so the
+    view carries the crash's severity and the filter has to apply.
+
+    Crash 400 is Property Damage Only, so a fatal cut must drop every person
+    seeded there and leave only the Los Angeles fatal crash's two occupants.
+    """
+    _seed_all_modes(db_session)
+    unfiltered = {r["mode"]: r for r in
+                  client.get("/api/stats?group_by=mode").json()}
+    assert set(unfiltered) == {"pedestrian", "cyclist", "motorcyclist", "occupant"}
+
+    response = client.get("/api/stats?group_by=mode&severity=fatal")
+    assert response.status_code == 200
+    rows = {r["mode"]: r for r in response.json()}
+
+    # Only crash 100 (Fatal, LA) survives: a killed driver and a seriously
+    # injured passenger, both vehicle occupants.
+    assert set(rows) == {"occupant"}
+    assert rows["occupant"]["victim_count"] == 2
+    assert rows["occupant"]["killed"] == 1
+    # …and the filter really did narrow — it is not the unfiltered row.
+    assert rows["occupant"]["victim_count"] < unfiltered["occupant"]["victim_count"]
 
 
 def test_mode_available_in_batch(client, db_session):
