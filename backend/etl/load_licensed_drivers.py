@@ -23,7 +23,7 @@ from sqlalchemy import select
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, LicensedDriver
-from etl._utils import get_with_retry, track_etl_run
+from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -123,6 +123,7 @@ def run():
 
         records = fetch_records()
         logger.info("Fetched %d rows from CKAN", len(records))
+        require_rows(records, "licensed_drivers", "CKAN records")
 
         rows = transform_wide_to_long(records, name_to_code)
         logger.info("Transformed to %d (county, year) rows", len(rows))
