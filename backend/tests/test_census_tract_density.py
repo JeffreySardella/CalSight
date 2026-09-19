@@ -1,7 +1,13 @@
 """Unit tests for lived-density helpers (no DB, no network)."""
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
+
 from etl.census_tract_density import (
     compute_weighted_density,
+    fetch_tract_population,
     gazetteer_year_for,
     aggregate_county_density,
 )
@@ -152,3 +158,82 @@ class TestLoudFailure:
         monkeypatch.setattr(mod, "gazetteer_year_for", not_published)
 
         mod.run(start_year=2024, end_year=2024)
+
+
+class TestPublishLagGuard:
+    """Distinguish a malformed ACS response (raise) from a genuinely empty
+    newest-vintage pull (legitimate publishing lag, log+skip) vs an empty
+    OLDER year (real problem, raise)."""
+
+    def test_non_list_response_raises(self, monkeypatch):
+        """The ACS API returns a JSON error object (not a list) for a bad
+        key or malformed query — that must fail loudly, not degrade to []."""
+        from etl import census_tract_density as mod
+
+        fake_resp = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"error": "invalid key"},
+        )
+        monkeypatch.setattr(mod.httpx, "get", lambda *a, **kw: fake_resp)
+
+        with pytest.raises(RuntimeError, match="unexpected response shape"):
+            fetch_tract_population(2022, "fake-key")
+
+    def test_well_formed_empty_list_returns_empty_without_raising(self, monkeypatch):
+        from etl import census_tract_density as mod
+
+        fake_resp = SimpleNamespace(raise_for_status=lambda: None, json=lambda: [])
+        monkeypatch.setattr(mod.httpx, "get", lambda *a, **kw: fake_resp)
+
+        assert fetch_tract_population(2022, "fake-key") == []
+
+    def _patch_run(self, monkeypatch, *, period_already_loaded: bool = False):
+        """period_already_loaded controls what the new
+        require_rows_unless_new_period() existence check (a mocked
+        db.execute(...).first()) reports for the year being fetched."""
+        from etl import _utils
+        from etl import census_tract_density as mod
+
+        monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key="key"))
+        db = MagicMock()
+        db.query.return_value.all.return_value = [SimpleNamespace(code=1, fips="06001")]
+        db.execute.return_value.first.return_value = (
+            (1,) if period_already_loaded else None
+        )
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        monkeypatch.setattr(mod, "fetch_gazetteer_land", lambda gaz_year: {"06001400100": 1.0})
+        monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+        monkeypatch.setattr(
+            _utils, "EtlRun",
+            lambda **kw: SimpleNamespace(**{"id": 1, "rows_loaded": None, **kw}),
+        )
+        return mod, db
+
+    def test_empty_tract_rows_with_no_existing_rows_is_not_an_error(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=False)
+        monkeypatch.setattr(mod, "fetch_tract_population", lambda year, key: [])
+
+        mod.run(start_year=2022, end_year=2022)  # must not raise
+
+    def test_empty_tract_rows_with_existing_rows_raises(self, monkeypatch):
+        """A year we already have tract_density_county_year rows for going
+        to zero is a real regression, regardless of whether it's the newest
+        requested year (the old end_year-keyed carve-out could miss this on
+        a manual backfill — Minor 4)."""
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=True)
+        monkeypatch.setattr(mod, "fetch_tract_population", lambda year, key: [])
+
+        with pytest.raises(RuntimeError, match=r"1 year\(s\) failed: \[2020\]"):
+            mod.run(start_year=2020, end_year=2020)
+
+    def test_valid_fixture_loads_normally(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch)
+        monkeypatch.setattr(
+            mod, "fetch_tract_population",
+            lambda year, key: [{"geoid": "06001400100", "pop": 1000}],
+        )
+
+        mod.run(start_year=2022, end_year=2022)  # must not raise
+
+        assert db.execute.called
+        assert db.commit.called

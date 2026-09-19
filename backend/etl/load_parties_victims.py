@@ -37,7 +37,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CrashParty, CrashVictim
-from etl._utils import dedupe_rows
+from etl._utils import dedupe_rows, period_already_loaded
 from etl.ckan_api import merged_resource_ids
 
 logging.basicConfig(
@@ -234,6 +234,7 @@ def load_table(
 
             resource_id = resource_ids[year]
             year_rows = 0
+            year_total = None
             offset = 0
 
             logger.info("Starting %s year %d...", table_type, year)
@@ -247,6 +248,8 @@ def load_table(
                     break
 
                 total = result["total"]
+                if year_total is None:
+                    year_total = total
                 records = result["records"]
                 if not records:
                     break
@@ -296,6 +299,40 @@ def load_table(
 
                 if offset >= total:
                     break
+
+            if year_total == 0:
+                # A resource can pass the availability check (its DataStore
+                # is "activated") days or weeks before CHP backfills rows —
+                # e.g. a just-created next-year resource. Zero total records
+                # is only a real regression when we already have rows for
+                # that year in this table; otherwise it's routine publishing
+                # lag, same distinction as load_crashes.py's CCRS check (see
+                # require_rows_unless_new_period()'s docstring). This loader
+                # re-pulls each year's FULL resource nightly (no watermark),
+                # so a quiet CHP weekend still reports the year's usual
+                # nonzero total and never reaches this branch.
+                if period_already_loaded(
+                    db,
+                    f"{model_class.__tablename__} t "
+                    "JOIN crashes c ON c.collision_id = t.collision_id",
+                    "c.crash_year = :year AND c.data_source = 'ccrs' "
+                    "AND t.data_source = 'ccrs'",
+                    {"year": year},
+                ):
+                    logger.error(
+                        "%s year %d: resource exists but returned 0 total "
+                        "records for a year we already have data for — "
+                        "refusing to record a silent regression",
+                        table_type, year,
+                    )
+                    had_failure = True
+                else:
+                    logger.info(
+                        "%s year %d: resource exists but returned 0 total "
+                        "records and we have no existing rows for this "
+                        "year — not published yet, skipping",
+                        table_type, year,
+                    )
 
             total_rows += year_rows
             logger.info("%s year %d complete: %d rows", table_type, year, year_rows)

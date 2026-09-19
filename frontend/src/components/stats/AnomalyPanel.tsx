@@ -58,8 +58,11 @@ export default function AnomalyPanel({ anomalies, defaultCollapsed = false }: Pr
           </p>
         </div>
         <span className="flex items-center gap-1.5 flex-shrink-0">
+          {/* axe: color-contrast — text-error on bg-error/15 was ~3.8:1 on the
+              page's white base, below the 4.5:1 AA floor. The error-container
+              pair is tuned for this on-tint use and clears 4.5:1 in both themes. */}
           {collapsed && (
-            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-error/15 text-error text-[10px] font-bold">
+            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-error-container text-on-error-container text-[10px] font-bold">
               {anomalies.length}
             </span>
           )}

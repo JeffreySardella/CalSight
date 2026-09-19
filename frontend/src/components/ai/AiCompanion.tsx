@@ -1,12 +1,20 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import Markdown from "../ui/Markdown";
+import { createContext, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazyWithRetry } from "../../lib/lazyWithRetry";
 import type { DataContext } from "../../lib/ai/dataContext";
 import { explainContext } from "../../lib/ai/explainContext";
 import { useAskAi } from "../../hooks/useAskAi";
 import type { ChatMessage } from "../../hooks/useAskAi";
-import InlineChart from "../ask/InlineChart";
 import { useDistribution } from "../../hooks/useDistribution";
 import { measureToMetric, filtersToDistributionParams } from "../../lib/ai/measureMetric";
+
+// This companion widget is mounted app-wide (every route), but its answer
+// body is only shown after the user opens "Explain" and asks to go deeper.
+// react-markdown + remark-gfm (Markdown) and the chart renderers (InlineChart)
+// are real weight (~50KB+ gzip) that every visitor would otherwise pay for
+// on first load, so they're split into their own chunk and fetched only when
+// this block actually renders.
+const Markdown = lazyWithRetry(() => import("../ui/Markdown"));
+const InlineChart = lazyWithRetry(() => import("../ask/InlineChart"));
 
 export function buildDeepDivePrompt(ctx: DataContext): string {
   const parts: string[] = [`Explain this CalSight data point: "${ctx.label}".`];
@@ -162,8 +170,10 @@ export function AiCompanionProvider({ children }: { children: ReactNode }) {
               )}
               {!isLoading && !error && lastAnswer && (
                 <div className="prose prose-sm dark:prose-invert max-w-none text-on-surface">
-                  <Markdown>{lastAnswer.content}</Markdown>
-                  {lastAnswer.chart && <InlineChart chart={lastAnswer.chart} />}
+                  <Suspense fallback={<span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" role="status" aria-label="Loading answer" />}>
+                    <Markdown>{lastAnswer.content}</Markdown>
+                    {lastAnswer.chart && <InlineChart chart={lastAnswer.chart} />}
+                  </Suspense>
                 </div>
               )}
             </div>

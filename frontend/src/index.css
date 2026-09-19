@@ -285,6 +285,16 @@
   }
 }
 
+/* axe/WCAG 2.4.11 Focus Not Obscured: below md, .sticky-filter-bar stacks under
+ * the fixed nav and stays on screen while stuck, extending the obscured zone
+ * to ~172px (48px nav + 124px bar) — deeper than the 4rem default above.
+ * Scoped to the same <768px breakpoint the bar itself uses. */
+@media (max-width: 767px) {
+  html {
+    scroll-padding-top: 11rem;
+  }
+}
+
 /* Bottom padding that accounts for the tab bar + iPhone safe area */
 /* Resets at lg to match BottomTabBar (lg:hidden). */
 .pb-safe-bottom {
@@ -369,6 +379,9 @@
 
 .leaflet-container .leaflet-control-attribution.leaflet-control-attribution a {
   color: rgb(var(--primary));
+  /* axe: link-in-text-block (WCAG 1.4.1) — the link sits next to plain text
+   * ("Tiles © Esri — Esri, HERE, ...") and can't rely on color alone. */
+  text-decoration: underline;
 }
 
 .leaflet-overlay-pane canvas {
@@ -388,7 +401,11 @@
   color: rgb(var(--on-surface-variant));
 }
 
-.county-focus-tooltip {
+/* Same load-order gotcha as the Leaflet overrides above: repeat the class to
+ * outrank leaflet.css's own `.leaflet-tooltip` (equal specificity, but its
+ * lazy-chunk sheet loads after this one in production). Without it this rule
+ * silently loses and the tooltip renders leaflet's white background. */
+.county-focus-tooltip.county-focus-tooltip {
   background: rgb(var(--surface-container-low));
   border: none;
   border-radius: 4px;
@@ -399,7 +416,7 @@
   box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.3);
 }
 
-.county-focus-tooltip::before {
+.county-focus-tooltip.county-focus-tooltip::before {
   display: none;
 }
 

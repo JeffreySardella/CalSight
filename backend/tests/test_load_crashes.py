@@ -4,6 +4,8 @@ Tests pure logic (source routing) without needing a database connection.
 The actual DB upsert is exercised in the integration test.
 """
 
+import pytest
+
 from etl.load_crashes import (
     determine_source,
     normalize_city_id,
@@ -259,3 +261,79 @@ class TestAlertCurrentYearUnpublished:
 
         assert fired is False
         alert.assert_not_called()
+
+
+class TestZeroTotalGuard:
+    """A CCRS resource that passed the availability check (its DataStore is
+    activated — see discover_resource_ids' datastore_active gate, and the
+    static fallback is only hand-added once a year is confirmed live) can
+    still return 0 total records days or weeks before CHP backfills rows —
+    e.g. DEFAULT_END_YEAR auto-advances to next calendar year, so a
+    just-activated, still-empty next-year resource is always in range
+    ("the CCRS January scenario"). That's routine publishing lag, not a
+    regression, UNLESS we already have crashes rows loaded for that year."""
+
+    def _patch_common(self, monkeypatch, *, period_already_loaded: bool = False):
+        """period_already_loaded controls what the new
+        require_rows_unless_new_period() existence check (a mocked
+        db.execute(...).first()) reports for the year being fetched."""
+        from unittest.mock import MagicMock
+        from etl import ckan_api
+        from etl import load_crashes as mod
+
+        monkeypatch.setattr(mod, "build_city_lookup", lambda db: {})
+        monkeypatch.setattr(mod, "get_loaded_years", lambda db: {})
+        monkeypatch.setattr(mod, "select_years_to_load", lambda *a, **k: ([], [2020], []))
+        monkeypatch.setattr(
+            mod, "alert_if_current_year_unpublished",
+            lambda available, today_year=None: False,
+        )
+        monkeypatch.setattr(ckan_api, "merged_resource_ids", lambda prefix, static: {2020: "resource-id"})
+        db = MagicMock()
+        db.execute.return_value.first.return_value = (
+            (1,) if period_already_loaded else None
+        )
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        return mod, ckan_api, db
+
+    def test_zero_total_with_no_existing_rows_is_not_an_error(self, monkeypatch):
+        """The CCRS January scenario: discovery picks up next year's
+        resource the moment CHP activates its (still-empty) DataStore —
+        DEFAULT_END_YEAR = today.year + 1 means that year is always in
+        range. With no crashes rows loaded for it yet, this must succeed,
+        not page every night until rows land."""
+        mod, ckan_api, db = self._patch_common(monkeypatch, period_already_loaded=False)
+
+        def fake_fetch(year, resource_ids):
+            yield [], 0, 0  # resource exists, DataStore not backfilled yet
+
+        monkeypatch.setattr(ckan_api, "fetch_crashes_for_year", fake_fetch)
+
+        mod.run(start_year=2020, end_year=2020, source_filter="ccrs")  # must not raise/exit
+
+    def test_zero_total_with_existing_rows_exits_nonzero(self, monkeypatch):
+        """A year we already have crashes rows for going to zero total
+        records is a real regression."""
+        mod, ckan_api, db = self._patch_common(monkeypatch, period_already_loaded=True)
+
+        def fake_fetch(year, resource_ids):
+            yield [], 0, 0
+
+        monkeypatch.setattr(ckan_api, "fetch_crashes_for_year", fake_fetch)
+
+        with pytest.raises(SystemExit) as exc_info:
+            mod.run(start_year=2020, end_year=2020, source_filter="ccrs")
+        assert exc_info.value.code == 1
+
+    def test_nonzero_total_loads_normally(self, monkeypatch):
+        mod, ckan_api, db = self._patch_common(monkeypatch)
+        monkeypatch.setattr(mod, "upsert_crashes", lambda db, batch, city_lookup=None: len(batch))
+
+        def fake_fetch(year, resource_ids):
+            yield [{"collision_id": 1}], 1, 1
+
+        monkeypatch.setattr(ckan_api, "fetch_crashes_for_year", fake_fetch)
+
+        mod.run(start_year=2020, end_year=2020, source_filter="ccrs")  # must not raise/exit
+
+        assert db.commit.called

@@ -80,3 +80,65 @@ class TestRunFailureHandling:
         # 2021 was still upserted and committed despite 2020 failing.
         assert db.execute.called
         assert db.commit.called
+
+
+class TestPublishLagGuard:
+    """Distinguish a malformed CKAN body (raise) from a genuinely empty
+    newest-year pull (legitimate publishing lag, log+skip) vs an empty OLDER
+    year (real problem, raise)."""
+
+    def test_malformed_response_missing_result_key_raises(self, monkeypatch):
+        from etl import dmv_vehicles as mod
+
+        fake_resp = SimpleNamespace(
+            raise_for_status=lambda: None,
+            json=lambda: {"success": False},  # no "result" key
+        )
+        monkeypatch.setattr(mod.httpx, "get", lambda *a, **kw: fake_resp)
+
+        with pytest.raises(KeyError):
+            mod.fetch_and_aggregate_year(2022, {"94601": 1})
+
+    def _patch_run(self, monkeypatch, *, period_already_loaded: bool = False):
+        """period_already_loaded controls what the new
+        require_rows_unless_new_period() existence check (a mocked
+        db.execute(...).first()) reports for the year being fetched."""
+        from etl import dmv_vehicles as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        monkeypatch.setattr(mod, "build_zip_to_county_mapping", lambda: {"94601": 1})
+        db = MagicMock()
+        db.execute.return_value.first.return_value = (
+            (1,) if period_already_loaded else None
+        )
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        return mod, db
+
+    def test_zero_rows_with_no_existing_rows_is_not_an_error(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=False)
+        monkeypatch.setattr(mod, "fetch_and_aggregate_year", lambda year, z: {})
+
+        mod.run(start_year=2025, end_year=2025)  # must not raise
+
+    def test_zero_rows_with_existing_rows_raises(self, monkeypatch):
+        """A year we already have vehicle_registrations rows for going to
+        zero is a real problem (crosswalk or upstream bug), regardless of
+        whether it's the newest requested year (the old end_year-keyed
+        carve-out could miss this on a manual backfill — Minor 4)."""
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=True)
+        monkeypatch.setattr(mod, "fetch_and_aggregate_year", lambda year, z: {})
+
+        with pytest.raises(RuntimeError, match=r"1 year\(s\) failed: \[2020\]"):
+            mod.run(start_year=2020, end_year=2020)
+
+    def test_valid_fixture_loads_normally(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch)
+        monkeypatch.setattr(
+            mod, "fetch_and_aggregate_year",
+            lambda year, z: {1: {"total_vehicles": 100, "ev_vehicles": 10}},
+        )
+
+        mod.run(start_year=2021, end_year=2021)  # must not raise
+
+        assert db.execute.called
+        assert db.commit.called

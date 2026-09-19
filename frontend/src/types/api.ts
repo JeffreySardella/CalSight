@@ -14,6 +14,8 @@ export interface StatsMeasures {
   crash_count?: number | null;
   total_killed?: number | null;
   total_injured?: number | null;
+  /** People seriously injured (KSI's "SI"); year/county/cause/severity/total groups only. */
+  total_severe_injured?: number | null;
   /** Victim-level counts (gender / age_bracket dimensions). */
   victim_count?: number | null;
   fatal_victim_count?: number | null;
