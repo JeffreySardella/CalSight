@@ -24,7 +24,8 @@ const FRESNO: FogDays = {
   county: "fresno",
   year: null,
   fog_event_type: "Dense Fog",
-  months: [11, 12, 1, 2, 3],
+  // Ascending, exactly as the API returns it — the block re-orders for display.
+  months: [1, 2, 3, 11, 12],
   storm_events_through: 2024,
   totals: year(2024),
   years: [year(2022), year(2023), year(2024)],
@@ -81,9 +82,16 @@ describe("TuleFogBlock", () => {
   it("names the months the API actually compared against, not 'winter'", async () => {
     renderBlock();
     const chart = await screen.findByRole("img");
-    const months = /November, December, January, February and March/;
+    // The API sends [1, 2, 3, 11, 12]; the whole fog season reads as a range.
+    const months = /November through March/;
     expect(chart.getAttribute("aria-label")).toMatch(months);
     expect(chart.closest("figure")?.querySelector("figcaption")?.textContent).toMatch(months);
+  });
+
+  it("orders a partial month set from November rather than from January", async () => {
+    renderBlock(json({ ...FRESNO, months: [1, 12] }));
+    const chart = await screen.findByRole("img");
+    expect(chart.getAttribute("aria-label")).toMatch(/December and January/);
   });
 
   it("says association, not cause", async () => {

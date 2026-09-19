@@ -16,7 +16,13 @@ on those rows is a zone number (307 = "FRESNO - CLOVIS"), not a county FIPS,
 and nothing shipped alongside the CSVs decomposes zones into counties.
 
 So ZONE_COUNTIES below hand-maps the zones that actually carry these events for
-the eight San Joaquin Valley counties and the Sierra counties around them.
+the eight San Joaquin Valley counties and the Sierra counties around them —
+83 zones onto 32 counties. The extra counties are not scope creep: transcribing
+a zone verbatim takes every county the NWS file lists for it, and several of
+those zones reach down the Sacramento Valley or into the far north (CAZ017
+reaches Sacramento and Solano, CAZ016 reaches Butte, Colusa, Glenn and Sutter,
+CAZ068 reaches Shasta and Tehama, CAZ070 is Modoc). The story is still the
+valley; the map is simply honest about where its zones end.
 Anything else in the CSV — other states, other event types, unmapped zones — is
 dropped. This is deliberately not a statewide storm-events feature; making it
 one means ingesting NWS's full zone-county correlation file.
@@ -359,10 +365,11 @@ def fetch_year(filename: str) -> str:
 def upsert(db, rows: Iterable[dict]) -> int:
     """Idempotent upsert on (source_event_id, county_code). Returns rows written.
 
-    Counts what Postgres actually inserted or updated, not what was attempted:
-    a no-op re-run must be distinguishable from a real load in
-    `EtlRun.rows_loaded`, because that number is the only signal a silently
-    broken upstream leaves behind.
+    Counts rows Postgres reported touching rather than rows handed to the
+    driver, so `EtlRun.rows_loaded` reflects what reached the table — that is
+    what makes "the CSV parsed to nothing" visible. It does NOT distinguish a
+    no-op re-run from a first load: the unconditional SET means every
+    conflicting row is still an update, so a pure re-run reports the same count.
     """
     rows = dedupe_rows(list(rows), ("source_event_id", "county_code"))
     written = 0

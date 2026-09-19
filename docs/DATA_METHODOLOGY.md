@@ -377,13 +377,15 @@ Every California row of these event types is keyed to an **NWS forecast zone** (
 
 **The county join is coordinate-independent.** No latitude, longitude, geometry or spatial join is involved -- only the zone id and the hand-built map -- so unlike the geocoded sources it cannot be cross-checked against crash coordinates.
 
-The map deliberately does **not** cover: CAZ338-339 (Kern's Mojave Desert) and every zone outside the San Joaquin Valley and the Sierra -- the north coast (CAZ101-115), Siskiyou and Modoc (CAZ080-085), the Sacramento Valley floor north of CAZ066, the Bay Area and central coast (CAZ500-530), southern California (CAZ038-062, CAZ340-383) and the southern deserts (CAZ521-570). Those zones do carry fog and winter events; they are out of this story's scope. The loader counts every row it drops for an unmapped zone and logs the totals and the top zones per year at warning level, so the omission stays visible rather than silent.
+The 32 counties are the eight San Joaquin Valley counties, the Sierra and foothill counties around them, and ten Sacramento Valley and far-northern counties -- Butte, Colusa, Glenn, Modoc, Sacramento, Shasta, Solano, Sutter, Tehama and Yolo -- that the transcribed zones reach into. Those last ten are a consequence of transcribing a zone whole rather than an attempt to cover the north: CAZ016 "Central Sacramento Valley" spans Butte, Colusa, Glenn, Nevada, Sutter and Yuba, CAZ017 reaches Sacramento and Solano, CAZ068 reaches Shasta and Tehama, and CAZ070 is Modoc alone.
+
+The map deliberately does **not** cover: CAZ338-339 (Kern's Mojave Desert) and every zone outside the ranges listed above -- the north coast (CAZ101-115), Siskiyou and the rest of Modoc (CAZ080-085; only CAZ070 is mapped), the Sacramento Valley zones north and west of CAZ066, the Bay Area and central coast (CAZ500-530), southern California (CAZ038-062, CAZ340-383) and the southern deserts (CAZ521-570). Those zones do carry fog and winter events; they are out of this story's scope. The loader counts every row it drops for an unmapped zone and logs the totals and the top zones per year at warning level, so the omission stays visible rather than silent.
 
 #### Fog days vs baseline
 
 `/api/fog-days` (and `/stats?story=tule-fog`) computes, live from `storm_events` and `crashes`, per county and calendar year:
 
-- **fog_event_days:** distinct county-days covered by a Dense Fog event. A single event's day span is capped at 14 days.
+- **fog_event_days:** distinct county-days covered by a Dense Fog event. A single event contributes at most 15 calendar days (`_MAX_EVENT_DAYS = 14`, an inclusive begin-to-end span).
 - **Fog season:** only November, December, January, February and March are considered, intersected with the months advisories were actually issued in. The response returns the resulting month list so the UI names it rather than asserting "winter".
 - **crashes_on_fog_days** and its daily average.
 - **Baseline:** every *other* day in those same months of that year, and the crashes on them -- so a fog day is compared against the rest of its own season, not against July. Days past the end of the crash record are excluded from both sides.

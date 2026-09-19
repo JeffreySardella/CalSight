@@ -43,12 +43,27 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-/** [11, 12, 1, 2] -> "November, December, January and February", in calendar
- *  order as the API returns it. The chart must name the real comparison
- *  window rather than calling it "winter". */
+/** The fog season the API clamps to, in the order a reader expects it. */
+const FOG_SEASON = [11, 12, 1, 2, 3];
+
+/** The API returns `months` ascending, so the tule-fog set arrives as
+ *  [1, 2, 3, 11, 12]. Reading that back as "January, February, March, November
+ *  and December" splits a season that runs continuously from November, so the
+ *  months are re-ordered from November onward, and the full season collapses
+ *  to "November through March". The chart must name the real comparison window
+ *  rather than calling it "winter". */
 export function formatMonths(months: number[]): string {
-  const names = months.map((m) => MONTH_NAMES[m - 1]).filter(Boolean);
-  if (names.length === 0) return "";
+  const ordered = [...months]
+    .filter((m) => m >= 1 && m <= 12)
+    .sort((a, b) => ((a - 11 + 12) % 12) - ((b - 11 + 12) % 12));
+  if (ordered.length === 0) return "";
+  if (
+    ordered.length === FOG_SEASON.length &&
+    FOG_SEASON.every((m, i) => ordered[i] === m)
+  ) {
+    return "November through March";
+  }
+  const names = ordered.map((m) => MONTH_NAMES[m - 1]);
   if (names.length === 1) return names[0];
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
