@@ -10,7 +10,9 @@ class TractBurdenRow(BaseModel):
     crash_count: int
     killed: int
     injured: int
-    # Only present when CalEnviroScreen carried a population for the tract.
+    # Null when CalEnviroScreen carried no population for this tract. Callers
+    # must not read that as zero: the tract's burden is only expressible as a
+    # raw count, and has to be labelled as such where it is shown.
     crashes_per_1k_pop: float | None = None
 
 
@@ -23,9 +25,13 @@ class TractBurdenSummary(BaseModel):
     tract_count: int
     start_year: int | None = None
     end_year: int | None = None
-    # False when no tract had a CES population, so the rate is unavailable
-    # and the caller must fall back to raw counts.
+    # False when NO tract had a CES population, so the whole ramp falls back
+    # to raw counts. True does not mean every tract has one — see
+    # tracts_without_population and each row's crashes_per_1k_pop.
     population_available: bool
+    # How many returned tracts have no population, and so can only show a
+    # count while the ramp is a rate.
+    tracts_without_population: int = 0
 
 
 class TractBurdenOut(BaseModel):

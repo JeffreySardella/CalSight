@@ -45,6 +45,9 @@ _TABLES = [
     "data_quality_stats",
     "county_insights",
     "county_insight_details",
+    # Rebuilt by a full delete+reinsert of the trailing window every run,
+    # so it accumulates dead tuples on a schedule autovacuum has to chase.
+    "tract_crash_year",
     # Materialized views — VACUUM ANALYZE updates planner stats so the
     # API picks the right index when querying them.
     "mv_crashes_by_hour",

@@ -10,6 +10,8 @@ response is an association between where crashes are recorded and where
 burdened communities are — not evidence that one causes the other.
 """
 
+import time
+
 from fastapi import APIRouter, Depends, Query, Request, Response
 from slowapi import Limiter
 from sqlalchemy import and_, func, select
@@ -33,6 +35,22 @@ _limiter = Limiter(key_func=rate_limit_key)
 # The aggregate only moves when the ETL reruns (nightly at most) and the
 # payload is ~9,100 rows, so a day of browser cache is the point of it.
 _ONE_DAY = "public, max-age=86400"
+
+# Cache-Control only helps a client that has already been here. This is the
+# largest response in the API (~9,100 rows, ~1.2 MB before gzip) and every
+# cold client pays for the outer join, the GROUP BY and 9,100 model
+# validations. Same in-process TTL cache as heatmap.py / clusters.py /
+# intersections.py, keyed on the query that produced it. Like those, it can
+# serve up to the TTL past an ETL run; the underlying aggregate moves nightly
+# at most and the endpoint already promises a day of browser cache.
+_TRACT_BURDEN_CACHE_TTL_SECONDS = 6 * 3600
+_TRACT_BURDEN_CACHE_MAX = 64
+_tract_burden_cache: dict[tuple, tuple[float, TractBurdenOut]] = {}
+
+
+def clear_tract_burden_cache() -> None:
+    """Drop all cached results (tests / manual invalidation)."""
+    _tract_burden_cache.clear()
 
 
 def _coord_share(
@@ -64,7 +82,10 @@ def _coord_share(
 
 
 @router.get("/tract-burden", response_model=TractBurdenOut)
-@_limiter.limit("1000/minute;20000/hour")
+# Heavy tier, matching intersections.py / changes.py: at ~1.2 MB a
+# response the house 1000/minute default would allow ~1.2 GB/min of
+# egress per key.
+@_limiter.limit("120/minute;5000/hour")
 def tract_burden(
     request: Request,
     response: Response,
@@ -77,6 +98,11 @@ def tract_burden(
     response.headers["Cache-Control"] = _ONE_DAY
 
     codes = parse_county_codes(county, get_slug_map(db)) if county else None
+
+    cache_key = (start, end, frozenset(codes or ()))
+    cached = _tract_burden_cache.get(cache_key)
+    if cached is not None and cached[0] > time.monotonic():
+        return cached[1]
 
     # The year filter lives in the JOIN condition, not a WHERE: a tract with
     # no crashes in the window must still come back (with zeroes) so the map
@@ -112,7 +138,6 @@ def tract_burden(
 
     rows = db.execute(q).all()
 
-    population_available = any(r.population for r in rows)
     tracts = [
         TractBurdenRow(
             geoid=r.geoid,
@@ -121,6 +146,9 @@ def tract_burden(
             crash_count=r.crash_count,
             killed=r.killed,
             injured=r.injured,
+            # Null, not 0, when CES carried no population for the tract: the
+            # caller has to tell "no rate available" apart from "no crashes",
+            # and label that tract's number in the units it is actually in.
             crashes_per_1k_pop=(
                 round(r.crash_count * 1000.0 / r.population, 2)
                 if r.population
@@ -130,13 +158,26 @@ def tract_burden(
         for r in rows
     ]
 
-    return TractBurdenOut(
+    result = TractBurdenOut(
         summary=TractBurdenSummary(
             coord_share=_coord_share(db, start, end, codes),
             tract_count=len(tracts),
             start_year=start,
             end_year=end,
-            population_available=population_available,
+            # Whether the RAMP can be a rate at all. Individual tracts can
+            # still lack a population inside a "true" response — that is what
+            # each row's null crashes_per_1k_pop means.
+            population_available=any(t.crashes_per_1k_pop is not None for t in tracts),
+            tracts_without_population=sum(
+                1 for t in tracts if t.crashes_per_1k_pop is None
+            ),
         ),
         tracts=tracts,
     )
+
+    if len(_tract_burden_cache) >= _TRACT_BURDEN_CACHE_MAX:
+        _tract_burden_cache.clear()
+    _tract_burden_cache[cache_key] = (
+        time.monotonic() + _TRACT_BURDEN_CACHE_TTL_SECONDS, result,
+    )
+    return result
