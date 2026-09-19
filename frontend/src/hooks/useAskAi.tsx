@@ -225,6 +225,11 @@ function useAskAiState(): AskAiApi {
             raw += (JSON.parse(ev.data) as { t: string }).t;
             sawToken = true;
             setStreamingText(visibleAnswer(raw));
+          } else if (ev.event === "reset") {
+            // That round turned out to be a tool call: the model was narrating
+            // ("Let me check the data…"), not answering. Drop the preamble.
+            raw = "";
+            setStreamingText("");
           } else if (ev.event === "done") {
             done = JSON.parse(ev.data) as AskResponse;
           } else if (ev.event === "error") {

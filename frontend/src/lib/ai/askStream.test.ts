@@ -29,6 +29,21 @@ describe("createSseParser", () => {
     expect(parse('ken\ndata: {"t":"b"}\n\n')).toEqual([{ event: "token", data: '{"t":"b"}' }]);
   });
 
+  it("frames CRLF-terminated events", () => {
+    // Valid SSE, and what a rewriting intermediary can emit. Without
+    // normalisation the terminator is never found and the reader hangs.
+    const parse = createSseParser();
+    expect(parse('event: token\r\ndata: {"t":"a"}\r\n\r\n')).toEqual([
+      { event: "token", data: '{"t":"a"}' },
+    ]);
+  });
+
+  it("normalises a CRLF pair split across two chunks", () => {
+    const parse = createSseParser();
+    expect(parse('event: token\r\ndata: {"t":"a"}\r\n\r')).toEqual([]);
+    expect(parse("\n")).toEqual([{ event: "token", data: '{"t":"a"}' }]);
+  });
+
   it("joins multi-line data fields and tolerates the optional space", () => {
     const parse = createSseParser();
     expect(parse("event: note\ndata: one\ndata:two\n\n")).toEqual([

@@ -289,6 +289,17 @@ def generate_with_fallback(
     )
 
 
+def _close_quietly(stream: Any) -> None:
+    """Release a provider's HTTP stream without letting teardown mask the error."""
+    close = getattr(stream, "close", None)
+    if close is None:
+        return
+    try:
+        close()
+    except Exception:
+        logger.debug("Failed to close a provider stream", exc_info=True)
+
+
 def _peek_stream(chunks: Any) -> Iterator[Any]:
     """Pull the first chunk eagerly, then re-attach it.
 
@@ -296,10 +307,27 @@ def _peek_stream(chunks: Any) -> Iterator[Any]:
     emitting a single token falls through to the next provider exactly like a
     non-streaming failure. Once the first chunk is in hand the provider has
     committed, and later errors surface to the caller instead.
+
+    The returned generator closes the underlying provider stream on every exit
+    — exhaustion, error, or the caller being closed when the client hangs up —
+    so an abandoned response never waits on the garbage collector.
     """
     it = iter(chunks)
-    first = next(it, None)
-    return it if first is None else itertools.chain([first], it)
+    try:
+        first = next(it, None)
+    except BaseException:
+        _close_quietly(chunks)
+        raise
+
+    def rest() -> Iterator[Any]:
+        try:
+            if first is not None:
+                yield first
+            yield from it
+        finally:
+            _close_quietly(chunks)
+
+    return rest()
 
 
 def consume_stream(chunks: Any) -> Iterator[str]:
@@ -312,26 +340,33 @@ def consume_stream(chunks: Any) -> Iterator[str]:
     content: list[str] = []
     calls: dict[int, dict[str, str]] = {}
 
-    for chunk in chunks:
-        choices = getattr(chunk, "choices", None)
-        if not choices:
-            continue
-        delta = getattr(choices[0], "delta", None)
-        if delta is None:
-            continue
-        text = getattr(delta, "content", None)
-        if text:
-            content.append(text)
-            yield text
-        for tc in getattr(delta, "tool_calls", None) or []:
-            slot = calls.setdefault(tc.index, {"id": "", "name": "", "arguments": ""})
-            if getattr(tc, "id", None):
-                slot["id"] = tc.id
-            fn = getattr(tc, "function", None)
-            if fn is None:
+    try:
+        for chunk in chunks:
+            choices = getattr(chunk, "choices", None)
+            if not choices:
                 continue
-            slot["name"] += getattr(fn, "name", None) or ""
-            slot["arguments"] += getattr(fn, "arguments", None) or ""
+            delta = getattr(choices[0], "delta", None)
+            if delta is None:
+                continue
+            text = getattr(delta, "content", None)
+            if text:
+                content.append(text)
+                yield text
+            for tc in getattr(delta, "tool_calls", None) or []:
+                # Every field is optional per provider — a missing `index`
+                # used to raise mid-stream, where there is no failover left.
+                slot = calls.setdefault(
+                    getattr(tc, "index", 0) or 0, {"id": "", "name": "", "arguments": ""}
+                )
+                if getattr(tc, "id", None):
+                    slot["id"] = tc.id
+                fn = getattr(tc, "function", None)
+                if fn is None:
+                    continue
+                slot["name"] += getattr(fn, "name", None) or ""
+                slot["arguments"] += getattr(fn, "arguments", None) or ""
+    finally:
+        _close_quietly(chunks)
 
     tool_calls = [
         SimpleNamespace(

@@ -16,7 +16,10 @@ export interface SseEvent {
 export function createSseParser(): (chunk: string) => SseEvent[] {
   let buffer = "";
   return (chunk: string): SseEvent[] => {
-    buffer += chunk;
+    // CRLF is valid SSE and is what a rewriting intermediary can emit; without
+    // this the frame terminator is never found and the reader hangs. Done over
+    // the whole buffer so a lone trailing \r normalises on the next chunk.
+    buffer = (buffer + chunk).replace(/\r\n/g, "\n");
     const events: SseEvent[] = [];
     for (;;) {
       const end = buffer.indexOf("\n\n");

@@ -46,6 +46,13 @@ router = APIRouter(tags=["ask"])
 
 limiter = Limiter(key_func=rate_limit_key)
 
+# ONE bucket for every way of asking a question. slowapi scopes a plain
+# @limiter.limit to the endpoint, so giving /ask/stream its own decorator would
+# hand each caller a second 10/minute;200/day allowance of LLM calls — and the
+# client falls back from a throttled stream to /api/ask, which would then serve
+# it from that second bucket. shared_limit(scope="ask") keeps them on one.
+_ask_limit = limiter.shared_limit("10/minute;200/day", scope="ask")
+
 _MAX_TOOL_ROUNDS = 3
 _MAX_TOOL_CALLS_PER_ROUND = 3
 _MAX_HISTORY = 10
@@ -62,6 +69,12 @@ def _apply_statement_timeout(db: Session, ms: int = _STATEMENT_TIMEOUT_MS) -> No
 
 class _AskAbandoned(Exception):
     """The HTTP request already timed out; stop burning LLM quota."""
+
+
+# Yielded by the streaming tool loop when a round it already streamed turns
+# out to be a tool call: the prose was the model narrating ("Let me check the
+# data…"), it is discarded server-side, and the client must drop it too.
+_RESET = object()
 
 
 # Control characters have no legitimate use in chat text but do show up in
@@ -205,7 +218,7 @@ def feedback(
 
 
 @router.post("/ask", response_model=AskResponse)
-@limiter.limit("10/minute;200/day")
+@_ask_limit
 async def ask(
     request: Request,
     response: Response,
@@ -258,11 +271,20 @@ def _sse(event: str, data: dict[str, Any]) -> bytes:
     return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n".encode()
 
 
-def _sse_tokens(tokens: Iterator[str]) -> Iterator[bytes]:
-    """Re-frame a token generator as SSE, passing its return value through."""
+def _sse_tokens(tokens: Iterator[Any], deadline: float) -> Iterator[bytes]:
+    """Re-frame a token generator as SSE, passing its return value through.
+
+    The deadline is re-checked per token, not just per tool round: the OpenAI
+    client's ``timeout`` is per read, so a provider trickling one token every
+    29s would otherwise hold this connection (and its DB session) open long
+    past the deadline ``/api/ask`` enforces with ``asyncio.wait_for``.
+    """
     try:
         while True:
-            yield _sse("token", {"t": next(tokens)})
+            if time.monotonic() >= deadline:
+                raise _AskAbandoned()
+            item = next(tokens)
+            yield _sse("reset", {}) if item is _RESET else _sse("token", {"t": item})
     except StopIteration as stop:
         return stop.value
 
@@ -273,18 +295,22 @@ def _stream_ask(body: AskRequest) -> Iterator[bytes]:
     Runs on Starlette's threadpool (a sync generator), so it owns its own DB
     session for the same reason ``_handle_ask`` does.
     """
-    cache = get_ask_cache()
-    history_payload = [m.model_dump() for m in body.history]
-    cache_key = make_cache_key(body.question, body.filters, history_payload)
-    cached = cache.get(cache_key)
-    if cached is not None:
-        yield _sse("token", {"t": cached.answer})
-        yield _sse("done", {**cached.model_dump(), "cached": True})
-        return
-
-    deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
-    db = SessionLocal()
+    db = None
     try:
+        # Inside the try: the response has already started by the time this
+        # generator runs, so an exception here must become an `error` event
+        # rather than tearing down the connection with no terminal event.
+        cache = get_ask_cache()
+        history_payload = [m.model_dump() for m in body.history]
+        cache_key = make_cache_key(body.question, body.filters, history_payload)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            yield _sse("token", {"t": cached.answer})
+            yield _sse("done", {**cached.model_dump(), "cached": True})
+            return
+
+        deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
+        db = SessionLocal()
         _apply_statement_timeout(db)
         messages = _build_messages(body, db)
         tools_called: list[str] = []
@@ -296,7 +322,8 @@ def _stream_ask(body: AskRequest) -> Iterator[bytes]:
                 _run_with_tools_gen(
                     db, messages, tools_called, tools_succeeded, deadline, tool_results,
                     stream=True,
-                )
+                ),
+                deadline,
             )
         except AllProvidersExhausted:
             try:
@@ -327,24 +354,28 @@ def _stream_ask(body: AskRequest) -> Iterator[bytes]:
         logger.exception("Ask stream failed")
         yield _sse("error", {"message": "The AI stream was interrupted. Please try again."})
     finally:
-        db.close()
+        if db is not None:
+            db.close()
 
 
 @router.post("/ask/stream")
-@limiter.limit("10/minute;200/day")
+@_ask_limit
 async def ask_stream(request: Request, body: AskRequest):
     """Same answer as POST /api/ask, delivered token by token over SSE.
 
     POST, not GET, on purpose: a Cloudflare cache rule stores API GETs for
     about an hour, which would serve one user's answer stream to the next.
-    ``X-Accel-Buffering: no`` disables proxy buffering where a reverse proxy
-    honours it; Starlette's GZipMiddleware already excludes text/event-stream.
+    ``Cache-Control: no-store`` matches /api/ask — answers depend on the POST
+    body, so no shared cache may store them (#291). ``X-Accel-Buffering: no``
+    disables proxy buffering where a reverse proxy honours it; Starlette's
+    GZipMiddleware excludes text/event-stream, which
+    ``test_sse_is_not_gzipped`` pins so an upgrade cannot silently regress it.
     """
     return StreamingResponse(
         _stream_ask(body),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-store",
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },
@@ -509,7 +540,7 @@ def _run_with_tools_gen(
     deadline: float,
     tool_results: list[str] | None = None,
     stream: bool = False,
-) -> Iterator[str]:
+) -> Iterator[Any]:
     """Run the tool-calling loop (max 3 rounds), returning (answer, provider).
 
     Round 0: tool_choice="required" — forces at least one tool call
@@ -518,8 +549,9 @@ def _run_with_tools_gen(
     With ``stream=True`` every round after the forced tool round is requested
     with ``stream=True`` and its content deltas are yielded as they arrive.
     Round 0 is never streamed: it exists to produce tool calls, not prose.
-    A round that emits prose *and* tool calls (rare) streams a preamble that
-    the loop then discards — the final ``done`` payload is authoritative.
+    A streamed round that turns out to be a tool call yields ``_RESET`` so the
+    discarded preamble is dropped on the client too, instead of staying glued
+    to the front of the real answer until ``done`` replaces it.
     """
     provider = "unknown"
     for round_num in range(_MAX_TOOL_ROUNDS):
@@ -528,8 +560,9 @@ def _run_with_tools_gen(
         if time.monotonic() >= deadline:
             raise _AskAbandoned()
         tc = "required" if round_num == 0 else "auto"
+        streamed_round = stream and round_num > 0
         message, provider = yield from _complete(
-            messages, tool_choice=tc, stream=stream and round_num > 0
+            messages, tool_choice=tc, stream=streamed_round
         )
         has_tools = bool(message.tool_calls)
         logger.info("Round %d: provider=%s tool_choice=%s has_tool_calls=%s", round_num, provider, tc, has_tools)
@@ -541,6 +574,10 @@ def _run_with_tools_gen(
             continue
 
         if message.tool_calls:
+            if streamed_round:
+                # Anything streamed this round was a preamble to a tool call,
+                # not part of the answer — tell the reader to drop it.
+                yield _RESET
             capped_calls = message.tool_calls[:_MAX_TOOL_CALLS_PER_ROUND]
             assistant_msg: dict[str, Any] = {
                 "role": "assistant",
@@ -606,7 +643,7 @@ def _complete(
     messages: list[dict],
     tool_choice: str,
     stream: bool,
-) -> Iterator[str]:
+) -> Iterator[Any]:
     """One LLM round over the shared provider chain.
 
     Yields content deltas when ``stream`` is set; returns (message, provider).

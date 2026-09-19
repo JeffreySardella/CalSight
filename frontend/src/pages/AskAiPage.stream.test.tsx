@@ -66,6 +66,31 @@ describe("AskAiPage streaming", () => {
     expect(screen.getByText("Kern County saw 12 crashes.")).toBeTruthy();
   });
 
+  it("drops a narrated preamble when the round turns out to be a tool call", async () => {
+    const { stream, push, close } = pushableStream();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: { get: () => null }, body: stream,
+    } as unknown as Response));
+
+    await ask("How many crashes in Kern?");
+
+    await push(sseFrame("token", { t: "Let me check the data" }));
+    await waitFor(() => expect(screen.getByText("Let me check the data")).toBeTruthy());
+
+    // The backend discards that text server-side; `reset` says so.
+    await push(sseFrame("reset", {}));
+    await waitFor(() => expect(screen.queryByText("Let me check the data")).toBeNull());
+    expect(screen.getByRole("status", { name: /thinking/i })).toBeTruthy();
+
+    await push(sseFrame("token", { t: "Kern County saw 12 crashes." }));
+    await waitFor(() => expect(screen.getByText("Kern County saw 12 crashes.")).toBeTruthy());
+    await push(sseFrame("done", askPayload("Kern County saw 12 crashes.", { provider: "Groq" })));
+    await close();
+
+    await waitFor(() => expect(screen.getByText(/Powered by Groq/)).toBeTruthy());
+    expect(screen.queryByText(/Let me check the data/)).toBeNull();
+  });
+
   it("shows the error state when the stream fails after its first token", async () => {
     const { stream, push, close } = pushableStream();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
