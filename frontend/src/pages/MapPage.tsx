@@ -12,6 +12,7 @@ import type { CoordCoverage } from "../hooks/useCoordCoverage";
 import { useMapKeyboard } from "../hooks/useMapKeyboard";
 import { LayersStateProvider, useLayersState } from "../hooks/useLayersState";
 import ChoroplethLegend from "../components/map/ChoroplethLegend";
+import TractBurdenLegend from "../components/map/TractBurdenLegend";
 import { allCountiesNoData, useChoroplethData, type ChoroplethData } from "../hooks/useChoroplethData";
 import { MEASURES } from "../lib/choropleth/measures";
 import KeyboardHelpModal from "../components/map/KeyboardHelpModal";
@@ -944,6 +945,7 @@ function MapPageInner() {
           searchOpen={mobileSearchOpen}
           mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
         />
+        <TractBurdenLegend />
         {timelapseAvailable && (
           <TemporalScrubber
             active={timelapse.active}

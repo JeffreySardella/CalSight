@@ -26,6 +26,10 @@ vi.mock("./OverlayMarkers", () => ({
 vi.mock("./CrashDotLayer", () => ({
   default: () => null,
 }));
+// Reads the filter params, which need a Router this harness doesn't provide.
+vi.mock("./TractBurdenLayer", () => ({
+  default: () => null,
+}));
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Map as LeafletMap } from "leaflet";
