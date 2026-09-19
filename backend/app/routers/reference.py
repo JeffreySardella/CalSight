@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.cities_match import normalize_name
 from app.county_slug_map import get_slug_map
-from app.database import get_db
+from app.database import apply_statement_timeout, get_db
 from app.filters import parse_county_codes, parse_year
 from app.models import (
     CalenviroScreen,
@@ -278,6 +278,10 @@ def school_crash_counts(
     Example: `/api/schools/crash-counts?years=2022,2023`
     """
     response.headers["Cache-Control"] = _ONE_HOUR
+    # The query is bounded (a pre-aggregated matview joined to ~9,900 schools),
+    # but every other matview-backed endpoint sets this as a backstop: without
+    # it a pathological plan holds a pooled connection indefinitely.
+    apply_statement_timeout(db, 30_000)
     parsed = parse_year(years)
 
     rows: list[SchoolCrashCountOut] = []
