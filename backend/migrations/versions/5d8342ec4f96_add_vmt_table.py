@@ -10,7 +10,7 @@ CI today (hence the guard) but is the convention every table migration since
 fa863b601b57 follows.
 
 Revision ID: 5d8342ec4f96
-Revises: 50bbb1251cb7
+Revises: 3f862306c39b
 Create Date: 2026-09-18 20:08:03.730714
 """
 from typing import Sequence, Union
@@ -21,7 +21,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '5d8342ec4f96'
-down_revision: Union[str, None] = '50bbb1251cb7'
+down_revision: Union[str, None] = '3f862306c39b'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
