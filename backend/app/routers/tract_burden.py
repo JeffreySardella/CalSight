@@ -18,7 +18,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from app.county_slug_map import get_slug_map
-from app.database import get_db
+from app.database import apply_statement_timeout, get_db
 from app.filters import parse_county_codes
 from app.models import DataQualityStat, TractCes, TractCrashYear
 from app.rate_limit import rate_limit_key
@@ -103,6 +103,12 @@ def tract_burden(
     cached = _tract_burden_cache.get(cache_key)
     if cached is not None and cached[0] > time.monotonic():
         return cached[1]
+
+    # Only on a miss — a cache hit should not pay a round-trip to set this.
+    # The query is bounded (TractCes outer-joined to a pre-aggregated table,
+    # never raw crashes), but every sibling heavy endpoint sets a backstop so a
+    # pathological plan cannot hold a pooled connection indefinitely.
+    apply_statement_timeout(db, 30_000)
 
     # The year filter lives in the JOIN condition, not a WHERE: a tract with
     # no crashes in the window must still come back (with zeroes) so the map
