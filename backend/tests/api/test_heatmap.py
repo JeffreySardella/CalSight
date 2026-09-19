@@ -122,3 +122,37 @@ def test_heatmap_grid_cached_within_ttl(client):
         assert spy.call_count == 1
         client.get("/api/crashes/heatmap?severity=fatal")
         assert spy.call_count == 2
+
+
+def test_heatmap_medium_statewide_does_not_require_county(client):
+    """medium is allowed unscoped (the statewide-heatmap Resolution toggle
+    offers Low/Medium with no county involved) — it must not 422 like
+    raw/high do."""
+    response = client.get("/api/crashes/heatmap?resolution=medium&year=2023")
+    assert response.status_code == 200
+
+
+def test_heatmap_medium_statewide_uses_coarser_step_than_county_scoped(client):
+    """Unscoped medium groups the full crashes table — 9.3 MB of JSON for one
+    statewide year in the 2026-09-18 sweep. Guard the size at the source with
+    a coarser grid step (mirroring how `low` stays small at any scope) rather
+    than requiring a county the frontend doesn't always pass. Pin the coarser
+    step directly: every unscoped-medium point must land on a multiple of
+    _STATEWIDE_MEDIUM_STEP, not the finer 0.01 used once a county scopes it."""
+    statewide = client.get("/api/crashes/heatmap?resolution=medium&year=2023").json()
+    assert statewide["points"], "expected at least one grid cell"
+    step = heatmap_mod._STATEWIDE_MEDIUM_STEP
+    for pt in statewide["points"]:
+        bucket = round(pt["lat"] / step)
+        assert pt["lat"] == pytest.approx(bucket * step, abs=1e-6)
+
+    # LA's seeded crashes (ids 1-3) are all pre-2023 — omit the year filter
+    # here so the county-scoped request actually has points to check.
+    scoped = client.get(
+        "/api/crashes/heatmap?resolution=medium&county=los-angeles"
+    ).json()
+    assert scoped["points"], "expected at least one grid cell"
+    fine_step = heatmap_mod._STEP[heatmap_mod.Resolution.medium]
+    for pt in scoped["points"]:
+        bucket = round(pt["lat"] / fine_step)
+        assert pt["lat"] == pytest.approx(bucket * fine_step, abs=1e-6)
