@@ -1,5 +1,10 @@
 """Unit tests for FARS aggregation helpers (no DB, no network)."""
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
+
 from etl.nhtsa_fars import build_county_lookup, aggregate_fars
 
 
@@ -126,3 +131,83 @@ class TestLoudFailure:
         # FARS publishes 1-2 years behind; a trailing-year 404 must not fail
         # the run every month until NHTSA releases the file.
         mod.run(start_year=2024, end_year=2025)
+
+
+class TestPublishLagGuard:
+    """Distinguish a malformed FARS bundle (raise) from a genuinely empty
+    newest-year pull (legitimate publishing lag, log+skip) vs an empty OLDER
+    year (real problem, raise)."""
+
+    def _zip_bytes(self, *, has_person_csv: bool) -> bytes:
+        import io
+        import zipfile
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            if has_person_csv:
+                zf.writestr("PERSON.csv", "STATE,COUNTY,INJ_SEV,REST_USE\n")
+            else:
+                zf.writestr("ACCIDENT.csv", "STATE\n")
+        return buf.getvalue()
+
+    def test_zip_without_person_csv_raises(self, monkeypatch):
+        """A 200 response whose zip lacks person.csv is malformed, not
+        'not published yet' — that must fail loudly, not silently skip."""
+        from etl import nhtsa_fars as mod
+
+        fake_resp = SimpleNamespace(
+            raise_for_status=lambda: None,
+            content=self._zip_bytes(has_person_csv=False),
+        )
+        monkeypatch.setattr(mod.httpx, "get", lambda *a, **kw: fake_resp)
+
+        with pytest.raises(RuntimeError, match="malformed bundle"):
+            mod.fetch_year(2022)
+
+    def _patch_run(self, monkeypatch, *, period_already_loaded: bool = False):
+        """period_already_loaded controls what the new
+        require_rows_unless_new_period() existence check (a mocked
+        db.execute(...).first()) reports for the year being fetched."""
+        from etl import _utils
+        from etl import nhtsa_fars as mod
+
+        db = MagicMock()
+        db.query.return_value.all.return_value = [SimpleNamespace(code=19, fips="06037")]
+        db.execute.return_value.first.return_value = (
+            (1,) if period_already_loaded else None
+        )
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+        monkeypatch.setattr(
+            _utils, "EtlRun",
+            lambda **kw: SimpleNamespace(**{"id": 1, "rows_loaded": None, **kw}),
+        )
+        return mod, db
+
+    def test_empty_year_with_no_existing_rows_is_not_an_error(self, monkeypatch):
+        """The 'CCRS January' scenario for FARS: a year with no fars_county_year
+        rows yet returning 0 CA fatalities is routine publishing lag."""
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=False)
+        monkeypatch.setattr(mod, "fetch_year", lambda year: [])
+
+        mod.run(start_year=2025, end_year=2025)  # must not raise
+
+    def test_empty_year_with_existing_rows_raises(self, monkeypatch):
+        """A year we already have fars_county_year rows for going to zero is
+        a real regression, regardless of whether it's the newest requested
+        year (the old end_year-keyed carve-out could miss this on a
+        manual backfill — Minor 4)."""
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=True)
+        monkeypatch.setattr(mod, "fetch_year", lambda year: [])
+
+        with pytest.raises(RuntimeError, match=r"1 year\(s\) failed: \[2020\]"):
+            mod.run(start_year=2020, end_year=2020)
+
+    def test_valid_fixture_loads_normally(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch)
+        monkeypatch.setattr(mod, "fetch_year", lambda year: [_person()])
+
+        mod.run(start_year=2021, end_year=2021)  # must not raise
+
+        assert db.execute.called
+        assert db.commit.called

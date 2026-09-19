@@ -5,7 +5,8 @@ import { useLayersState } from "../../hooks/useLayersState";
 import { useChoroplethData } from "../../hooks/useChoroplethData";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import { useCountyGeoJson } from "../../hooks/useCountyGeoJson";
-import { quantileBuckets, bucketFor } from "../../lib/choropleth/binning";
+import { legendEdges, bucketFor } from "../../lib/choropleth/binning";
+import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette, HATCH_PATTERN_ID, installHatchPattern } from "../../lib/choropleth/palettes";
 import { prefersReducedMotionNow } from "../../lib/a11y/motion";
 import { useIsDark } from "../../context/ThemeContext";
@@ -202,9 +203,13 @@ export default memo(function CountyBoundaries({
         if (!point || !point.hasEnoughData || point.value == null) return;
         allValues.push(point.value);
       });
-      const edges = quantileBuckets(allValues, 5);
-      if (edges) edgesRef.current = edges;
-      setBucketEdges(edgesRef.current);
+      // legendEdges never freezes a stale array from a previous, larger
+      // selection: with too few values for real quantiles it collapses to a
+      // single class spanning the current data, and integer measures (raw
+      // counts) round to whole-number breaks.
+      const edges = legendEdges(allValues, 5, { integer: MEASURES[measure]?.kind === "raw" });
+      edgesRef.current = edges;
+      setBucketEdges(edges);
     }
 
     layer.eachLayer((fl) => {
@@ -218,7 +223,7 @@ export default memo(function CountyBoundaries({
         }
       }
     });
-  }, [geojson, choroplethOn, otherLayers.countyBoundaries, byCountyCode, computeStyle, setBucketEdges]);
+  }, [geojson, choroplethOn, otherLayers.countyBoundaries, byCountyCode, measure, computeStyle, setBucketEdges]);
 
   useEffect(() => {
     if (!geojson) return;

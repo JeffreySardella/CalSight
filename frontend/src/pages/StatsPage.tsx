@@ -52,6 +52,7 @@ import { useDrillDown } from "../hooks/useDrillDown";
 import DrillBreadcrumb from "../components/stats/DrillBreadcrumb";
 import { DIMENSION_LABELS } from "../lib/dashboard/types";
 import { DATA_STORIES, getStoryById } from "../lib/dashboard/stories";
+import { buildStatsPageSeo } from "../lib/dashboard/pageSeo";
 import { useCrossFilter } from "../hooks/useCrossFilter";
 import { useIsMobile } from "../hooks/useIsMobile";
 import JargonTerm from "../components/ui/JargonTerm";
@@ -69,12 +70,25 @@ function StatsPageInner() {
   const [resetKey, setResetKey] = useState(0);
   const [timelapseActive, setTimelapseActive] = useState(false);
   // `/stats?story=<id>` deep-links straight into a story (the Water page's
-  // first-storm tile uses it). Read once at mount; not written back after.
-  const [searchParams] = useSearchParams();
+  // first-storm tile uses it, and it's what Layout reads — via pageTitles.ts
+  // — to title the tab while a story is open). setActiveStory below keeps the
+  // URL and this state in lockstep in both directions, so entering a story
+  // from the card grid titles the tab correctly too, and leaving one (Back,
+  // or switching dashboard mode away from Stories) clears it again instead
+  // of leaving a stale ?story= for the next reload to pick back up.
+  const [searchParams, setSearchParams] = useSearchParams();
   const linkedStoryId = searchParams.get("story");
   const linkedStory = linkedStoryId && getStoryById(linkedStoryId) ? linkedStoryId : null;
   const [storiesMode, setStoriesMode] = useState(linkedStory !== null);
   const [activeStoryId, setActiveStoryId] = useState<string | null>(linkedStory);
+  const setActiveStory = useCallback((id: string | null) => {
+    setActiveStoryId(id);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (id) next.set("story", id); else next.delete("story");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
   // A deep-linked story mounts below the header/filter bar; on phones that is
   // below the fold, so bring it into view once (reduced motion => instant).
   const storyRef = useRef<HTMLDivElement>(null);
@@ -349,7 +363,7 @@ function StatsPageInner() {
   ];
 
   const heroMetrics = data?.heroMetrics ?? {};
-  const { totalIncidents, incidentYoYPct, ksiRatePer100k, yoyFatalityChangePct } = heroMetrics;
+  const { totalIncidents, incidentYoYPct, ksiRatePer100k, ksiPopEstimatedFrom, yoyFatalityChangePct } = heroMetrics;
   const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
   const fatalityUp = yoyFatalityChangePct != null && yoyFatalityChangePct > 0;
 
@@ -366,7 +380,7 @@ function StatsPageInner() {
   );
   const sparkIncidents = useMemo(() => completeYearly.map((d) => d.count), [completeYearly]);
   const sparkFatalities = useMemo(() => completeYearly.map((d) => d.killed), [completeYearly]);
-  const sparkKsi = useMemo(() => completeYearly.map((d) => d.killed + d.injured), [completeYearly]);
+  const sparkKsi = useMemo(() => completeYearly.map((d) => d.killed + d.severeInjured), [completeYearly]);
 
   // SEO: dynamic meta tags and OG image based on current dashboard state
   const ogImage = useMemo(() => buildOgImageUrl({
@@ -377,17 +391,23 @@ function StatsPageInner() {
     trend: incidentYoYPct != null ? (incidentYoYPct >= 0 ? "up" : "down") : undefined,
   }), [dashboard.config.preset, counties, totalIncidents, incidentYoYPct]);
 
-  const seoDescription = useMemo(() => {
-    const parts = ["California crash statistics"];
-    if (counties.size > 0 && counties.size <= 3) {
-      parts.push(`for ${[...counties].join(", ")}`);
-    }
-    if (totalIncidents != null) {
-      parts.push(`— ${totalIncidents.toLocaleString()} incidents`);
-    }
-    parts.push(". Explore trends, demographics, and safety metrics on CalSight.");
-    return parts.join(" ");
-  }, [counties, totalIncidents]);
+  const activeStory = activeStoryId ? getStoryById(activeStoryId) ?? null : null;
+
+  // <title> is Layout's job (src/lib/pageTitles.ts reads the same ?story=/
+  // ?preset= params off the URL, via this same buildStatsPageSeo). Layout is
+  // the parent route element, so its effect runs after this page's — a title
+  // set here would always lose to Layout's anyway. The description has no
+  // such conflict (Layout never touches it), so it stays here, reactive to
+  // the live activeStory/counties/totalIncidents state MetaTags needs.
+  const { description: pageDescription } = useMemo(
+    () => buildStatsPageSeo({
+      preset: dashboard.config.preset,
+      story: activeStory,
+      counties: [...counties],
+      totalIncidents: totalIncidents ?? null,
+    }),
+    [dashboard.config.preset, activeStory, counties, totalIncidents],
+  );
 
   const jsonLd = useMemo(() => ({
     "@context": "https://schema.org",
@@ -430,8 +450,6 @@ function StatsPageInner() {
     ],
   }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
 
-  const activeStory = activeStoryId ? getStoryById(activeStoryId) : null;
-
   return (
     <>
     {printPreview && (
@@ -450,12 +468,12 @@ function StatsPageInner() {
     <div className={`max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main type-scaled${printPreview ? " mt-12" : ""}`}>
       <PrintHeader filters={printFilters} />
       <MetaTags
-        title={`Statistics Dashboard — CalSight`}
-        description={seoDescription}
+        description={pageDescription}
         ogImage={ogImage}
         path="/stats"
         jsonLd={jsonLd}
         twitterCard="summary_large_image"
+        manageDocumentTitle={false}
       />
       <h1 className="sr-only">Statistics Dashboard</h1>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -528,27 +546,33 @@ function StatsPageInner() {
           </p>
         </div>
 
-        {/* Killed + injured rate. Not true KSI: the injury count here includes
-            every injury, not just serious ones (true KSI is tracked separately). */}
-        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="Killed and injured per 100K population">
+        {/* KSI: people killed or seriously injured per 100K residents a year,
+            complete years only (computeHeroMetrics). The KSI term's tooltip
+            carries the definition footnote. */}
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="Killed or seriously injured per 100K population">
           <div className="flex items-start justify-between mb-3 sm:mb-4">
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest leading-tight">
-              Killed + Injured / 100K Pop.
+              <JargonTerm term="KSI" /> / 100K Pop.*
             </p>
             {!loading && sparkKsi.length >= 2 && (
-              <Sparkline data={sparkKsi} label="Killed and injured trend, last 10 years" />
+              <Sparkline data={sparkKsi} label="Killed or seriously injured trend, last 10 years" />
             )}
           </div>
           {loading ? (
             <Skeleton className="h-10 w-24" />
           ) : (
-            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`Killed and injured rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
+            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`Killed or seriously injured rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
               {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
             </p>
           )}
           <p className="text-on-surface-variant text-[11px] mt-2 italic">
-            Everyone killed or injured, per 100K residents
+            People killed or seriously injured, per 100K residents a year
           </p>
+          {!loading && ksiPopEstimatedFrom && (
+            <p className="text-on-surface-variant text-[10px] mt-1">
+              Population for some years estimated from the {ksiPopEstimatedFrom.length > 1 ? `${ksiPopEstimatedFrom.slice(0, -1).join(", ")} and ${ksiPopEstimatedFrom[ksiPopEstimatedFrom.length - 1]}` : ksiPopEstimatedFrom[0]} ACS
+            </p>
+          )}
         </div>
 
         {/* YoY Fatality Change */}
@@ -644,7 +668,7 @@ function StatsPageInner() {
                 setStoriesMode(true);
               } else {
                 setStoriesMode(false);
-                setActiveStoryId(null);
+                setActiveStory(null);
                 dashboard.setMode(m);
               }
             }}
@@ -699,7 +723,7 @@ function StatsPageInner() {
             <div ref={storyRef}>
             <StoryReader
               story={activeStory}
-              onBack={() => setActiveStoryId(null)}
+              onBack={() => setActiveStory(null)}
             />
             </div>
           ) : (
@@ -708,7 +732,7 @@ function StatsPageInner() {
                 <button
                   key={story.id}
                   type="button"
-                  onClick={() => setActiveStoryId(story.id)}
+                  onClick={() => setActiveStory(story.id)}
                   className="text-left bg-surface-container-lowest rounded-xl p-4 sm:p-5 ambient-shadow hover:bg-surface-container-low transition-colors group"
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -791,10 +815,12 @@ function StatsPageInner() {
         <HighwayRankingsTable filters={statsFilters} />
       </section>
 
-      {/* Street-level crash aggregation (intersections / corridors) */}
-      <section aria-label="Street-level crash aggregation" className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
+      {/* Street-level crash aggregation (intersections / corridors) — IntersectionsPanel
+          renders its own "Street-level crash aggregation" landmark, so this wrapper
+          stays a plain div (axe: landmark-unique, a duplicate aria-label pair). */}
+      <div className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">
         <IntersectionsPanel />
-      </section>
+      </div>
 
       {/* Year-over-year change by county */}
       <section aria-label="Year-over-year change" className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 md:p-8 ambient-shadow overflow-hidden">

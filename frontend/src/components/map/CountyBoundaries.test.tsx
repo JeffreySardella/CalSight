@@ -17,12 +17,20 @@ vi.mock("topojson-client", () => ({
 }));
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LayersStateProvider, useLayersState } from "../../hooks/useLayersState";
+import { LayersStateProvider, useLayersState, type LayerUrlState } from "../../hooks/useLayersState";
 import { CustomThemeProvider } from "../../context/CustomThemeContext";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { MemoryRouter } from "react-router-dom";
 
 import CountyBoundaries from "./CountyBoundaries";
+
+/** Exposes the shared bucketEdges state so tests can assert on it, since
+ *  CountyBoundaries itself renders null. */
+function BucketEdgesSpy({ onEdges }: { onEdges: (e: number[] | null) => void }) {
+  const { bucketEdges } = useLayersState();
+  onEdges(bucketEdges);
+  return null;
+}
 
 function EnableHighwayDanger() {
   const { setOtherLayer } = useLayersState();
@@ -210,6 +218,62 @@ describe("CountyBoundaries", () => {
     expect(totalCalls).toBeGreaterThan(0);
   });
 
+  // Regression for the QA repro: filtering down to one matching crash, then
+  // switching measure via "Show total crashes", must show a single-class
+  // legend for the current data — not a frozen quintile split from whatever
+  // larger dataset last computed real breaks.
+  it("sets a single-class integer legend, not a stale multi-bucket one, when only one county has data", async () => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("ca-counties.topo.json")) {
+        return { ok: true, json: () => Promise.resolve({ type: "Topology", objects: { counties: {} }, arcs: [] }) } as Response;
+      }
+      if (url.includes("/api/stats")) {
+        // Only Fresno has a matching crash; Alameda has none and is absent
+        // from the response entirely (not zero — genuinely no row).
+        return new Response(JSON.stringify([
+          { county_code: 19, county_name: "Fresno", crash_count: 1, total_killed: 1, total_injured: 0 },
+        ]));
+      }
+      if (url.includes("/api/demographics")) {
+        return new Response(JSON.stringify([]));
+      }
+      throw new Error("Unexpected fetch: " + url);
+    }) as unknown as typeof fetch;
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const urlSeed: Partial<LayerUrlState> = { measure: "crashes_raw" };
+    let edges: number[] | null | undefined;
+
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <ThemeProvider>
+            <CustomThemeProvider>
+              <LayersStateProvider urlSeed={urlSeed}>
+                <CountyBoundaries
+                  focusedCounty={null}
+                  onFocusCounty={onFocusCounty}
+                  onSelectCounty={onSelectCounty}
+                />
+                <BucketEdgesSpy onEdges={(e) => { edges = e; }} />
+              </LayersStateProvider>
+            </CustomThemeProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(edges).not.toBeUndefined();
+      expect(edges).not.toBeNull();
+    });
+
+    // Single class spanning the one real value — not a 6-point quintile
+    // split, and integer (crashes_raw is a count, never fractional).
+    expect(edges).toEqual([1, 1]);
+  });
+
   it("dims county fill opacity by ~0.4 when the Highway Danger layer is on", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -241,7 +305,8 @@ describe("CountyBoundaries", () => {
       expect(fillOpacities.length).toBeGreaterThan(0);
       expect(fillOpacities).not.toContain(0.6);
       expect(fillOpacities).not.toContain(0.75);
-      expect(fillOpacities.some((v) => v === 0.24 || v === 0.3)).toBe(true);
+      // toBeCloseTo, not === : 0.75 * 0.4 is 0.30000000000000004 in floating point.
+      expect(fillOpacities.some((v) => Math.abs(v - 0.24) < 1e-9 || Math.abs(v - 0.3) < 1e-9)).toBe(true);
     });
   });
 });
