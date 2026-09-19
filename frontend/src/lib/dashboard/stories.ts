@@ -47,7 +47,20 @@ export type FirstRainStoryBlock = {
   countySlug: string;
 };
 
-export type StoryBlock = NarrativeBlock | ChartBlock | StatCalloutBlock | FirstRainStoryBlock;
+/** Average daily crashes on NOAA dense-fog-advisory days vs every other day
+ *  in the same months, for one county — a live chart off /api/fog-days. */
+export type TuleFogStoryBlock = {
+  type: "tule-fog";
+  id: string;
+  countySlug: string;
+};
+
+export type StoryBlock =
+  | NarrativeBlock
+  | ChartBlock
+  | StatCalloutBlock
+  | FirstRainStoryBlock
+  | TuleFogStoryBlock;
 
 export type DataStory = {
   id: string;
@@ -608,6 +621,27 @@ export const DATA_STORIES: DataStory[] = [
         type: "narrative",
         heading: "What this does and doesn't say",
         body: "Rain here is a county-average from nClimGrid, so a storm that soaks one edge of a large county counts for all of it, and a light shower can cross the 0.10-inch line without wetting every road. Only the first qualifying storm of each water year is counted — later storms, and the days after the first one, are not. Smaller counties have small baselines, and a handful of crashes either way moves their percentages a lot; those are flagged. Above all, this is an association: crash counts rose on these days and rain is the obvious thing that changed, but the data cannot say it was the cause.",
+      },
+    ],
+  },
+  {
+    id: "tule-fog",
+    title: "The valley disappears",
+    subtitle: "Tule fog days in the San Joaquin Valley, and the crashes that land on them",
+    icon: "foggy",
+    blocks: [
+      {
+        type: "narrative",
+        heading: "A fog that sits on the floor",
+        body: "Tule fog forms on the floor of the San Joaquin Valley on still winter nights after the first soaking rains, and it does not drift — it fills the valley from Stockton to Bakersfield and stays until the sun burns it off, sometimes for days. Visibility on Highway 99 and Interstate 5 can fall to a few car lengths with no warning, which is how the valley produced some of the largest chain-reaction pileups in California history.\n\nThe charts below put two independent records side by side. The National Weather Service issues a Dense Fog Advisory when it expects visibility at or under a quarter mile; those advisories are what the red bars count. The grey bars are every other day in the same winter months, so fog days are compared against winter, not against July.",
+        isThesis: true,
+      },
+      { type: "tule-fog", id: "story-tule-fog-fresno", countySlug: "fresno" },
+      { type: "tule-fog", id: "story-tule-fog-kern", countySlug: "kern" },
+      {
+        type: "narrative",
+        heading: "What this does and doesn't say",
+        body: "The Weather Service keys these advisories to forecast zones, not counties, and a zone can straddle a county line — so a fog day here means an advisory covered part of the county, not that the whole county was fogged in. Advisories are also a forecaster's judgement about an approaching night, not a measurement of what the roads were actually like; a quiet fog night and a valley-wide whiteout count the same. Crash reporting varies across a 25-year record, and the zones themselves were renumbered twice in that span.\n\nSo read this as an association: more crashes are recorded on days the valley was under a dense-fog advisory than on other days of the same winter. The data cannot say the fog caused them, cannot separate fog from the driving, the traffic and the holidays that share those weeks, and cannot tell you what any single morning on Highway 99 will be like.",
       },
     ],
   },
