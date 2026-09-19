@@ -23,10 +23,12 @@ describe("index.html JSON-LD", () => {
     expect(types).toContain("Dataset");
   });
 
-  it("Dataset states the real license, free access, and 2001-to-present coverage", () => {
+  it("Dataset states free access and 2001-to-present coverage, and claims no license", () => {
     const data = extractJsonLd() as { "@graph": Array<Record<string, unknown>> };
     const dataset = data["@graph"].find((e) => e["@type"] === "Dataset")!;
-    expect(dataset.license).toBe("https://www.ca.gov/about/public-records-act/");
+    // The source agencies publish under public-records law, which is a legal
+    // authority, not a license. Claim none rather than invent one.
+    expect(dataset.license).toBeUndefined();
     expect(dataset.isAccessibleForFree).toBe(true);
     expect(dataset.temporalCoverage).toMatch(/^2001-01-01/);
     expect((dataset.spatialCoverage as { name: string }).name).toContain("California");
