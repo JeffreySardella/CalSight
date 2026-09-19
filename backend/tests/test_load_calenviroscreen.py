@@ -145,3 +145,49 @@ class TestBuildTractRows:
         # geoid is the PK — a duplicate in one batch would abort the upsert.
         rows = build_tract_rows([self.TRACT, self.TRACT], {"06001": 1})
         assert len(rows) == 1
+
+
+class TestArcgisLookup:
+    """The service is republished from time to time; the loader must follow
+    the layer by name and fail loudly on ArcGIS error bodies."""
+
+    @staticmethod
+    def _resp(payload):
+        from unittest.mock import MagicMock
+        r = MagicMock()
+        r.json.return_value = payload
+        return r
+
+    def test_resolves_the_layer_id_by_name(self):
+        from unittest.mock import patch
+        from etl import load_calenviroscreen as m
+        service = {"layers": [{"id": 0, "name": "Other"}, {"id": 2, "name": m.LAYER_NAME}]}
+        with patch.object(m, "get_with_retry", return_value=self._resp(service)):
+            assert m.resolve_layer_id() == 2
+
+    def test_missing_layer_raises(self):
+        import pytest
+        from unittest.mock import patch
+        from etl import load_calenviroscreen as m
+        with patch.object(m, "get_with_retry", return_value=self._resp({"layers": [{"id": 0, "name": "Other"}]})):
+            with pytest.raises(RuntimeError, match="not found"):
+                m.resolve_layer_id()
+
+    def test_arcgis_error_body_raises_instead_of_ending_the_page_loop(self):
+        import pytest
+        from unittest.mock import patch
+        from etl import load_calenviroscreen as m
+        service = {"layers": [{"id": 2, "name": m.LAYER_NAME}]}
+        error = {"error": {"code": 400, "message": "Invalid URL"}}
+        with patch.object(m, "get_with_retry", side_effect=[self._resp(service), self._resp(error)]):
+            with pytest.raises(RuntimeError, match="query failed"):
+                m.fetch_tracts()
+
+    def test_pages_through_the_resolved_layer(self):
+        from unittest.mock import patch
+        from etl import load_calenviroscreen as m
+        service = {"layers": [{"id": 2, "name": m.LAYER_NAME}]}
+        page = {"features": [{"attributes": {"tract": 6001400100}}]}
+        with patch.object(m, "get_with_retry", side_effect=[self._resp(service), self._resp(page)]) as get:
+            assert len(m.fetch_tracts()) == 1
+        assert "/FeatureServer/2/query?" in get.call_args_list[1].args[0]
