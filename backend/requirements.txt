@@ -9,6 +9,12 @@ python-dotenv==1.2.3
 pydantic-settings==2.15.0
 openai==2.54.0
 shapely==2.1.2
+# Tract point-in-polygon for etl/compute_tract_crashes.py (no PostGIS on
+# the DB host). geopandas pulls pandas + pyproj; pyogrio is the shapefile
+# reader. All three ship manylinux wheels with GDAL/PROJ bundled, so the
+# Dockerfile needs no extra apt packages.
+geopandas==1.1.4
+pyogrio==0.13.0
 slowapi==0.1.10
 apscheduler==3.11.3
 boto3>=1.43.91,<2.0.0

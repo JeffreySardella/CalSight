@@ -214,6 +214,27 @@ def build_default_registry() -> JobRegistry:
         schedule="daily",
     ))
     registry.register(Job(
+        # Point-in-polygon of coordinate-bearing crashes into census tracts,
+        # for the equity map layer. Only the trailing window is recomputed;
+        # the 2001-onward first load is manual:
+        #   python -m etl.compute_tract_crashes --start 2001
+        # Tract boundaries are a 2020 vintage and don't move, so a monthly
+        # cadence is all the intent this needs (the pipeline runs every
+        # non-static job daily regardless — see the drought job's note).
+        name="tract_crashes",
+        module="etl.compute_tract_crashes",
+        depends_on=["crashes_ccrs", "validate_coords"],
+        schedule="monthly",
+        table_name="tract_crash_year",
+        max_drop_pct=10,
+        # Not "federal": the federal probe skips a run whenever the target
+        # table's row count is unchanged, and this table's count is ~9,100
+        # tracts x the window every time. It would skip forever and then
+        # report itself stale. It's an internal transform of our own crashes
+        # table anyway — just run it.
+        source_type="none",
+    ))
+    registry.register(Job(
         name="route_number",
         module="etl.extract_route_number",
         depends_on=["crashes_ccrs"],
