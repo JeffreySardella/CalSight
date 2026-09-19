@@ -105,4 +105,16 @@ describe("ChartCard KSI definition footnote", () => {
     renderCard({ ...yearSlot, chartType: "line", secondaryMeasure: "ksi" }, years(2012, 2019));
     expect(screen.getByText(/^\* KSI = people killed or seriously injured/)).toBeInTheDocument();
   });
+
+  it("appends asterisk to the heading when the KSI footnote is shown", () => {
+    const { container } = renderCard(ksiSlot, years(2012, 2019));
+    const heading = container.querySelector(".chart-card-themed h3");
+    expect(heading?.textContent).toMatch(/\*$/);
+  });
+
+  it("does not append asterisk to the heading when the KSI footnote is not shown", () => {
+    const { container } = renderCard(ksiSlot, years(2019, 2024));
+    const heading = container.querySelector(".chart-card-themed h3");
+    expect(heading?.textContent).not.toMatch(/\*$/);
+  });
 });

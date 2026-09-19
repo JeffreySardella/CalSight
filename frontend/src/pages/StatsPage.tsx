@@ -552,7 +552,7 @@ function StatsPageInner() {
           </p>
           {!loading && ksiPopEstimatedFrom && (
             <p className="text-on-surface-variant text-[10px] mt-1">
-              Population for some years estimated from {ksiPopEstimatedFrom.join(", ")} census
+              Population for some years estimated from the {ksiPopEstimatedFrom.length > 1 ? `${ksiPopEstimatedFrom.slice(0, -1).join(", ")} and ${ksiPopEstimatedFrom[ksiPopEstimatedFrom.length - 1]}` : ksiPopEstimatedFrom[0]} ACS
             </p>
           )}
         </div>

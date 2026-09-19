@@ -354,6 +354,9 @@ function ChartCard({
     ? ksiDefinitionNote(data.map((d) => d.label))
     : null;
 
+  // Append asterisk to the chart title only when the KSI footnote is shown
+  const displayTitle = ksiNote ? `${title}*` : title;
+
   return (
     <div
       ref={cardRef}
@@ -377,7 +380,7 @@ function ChartCard({
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
             </span>
           )}
-          <h3 className={`flex-1 font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{title}</h3>
+          <h3 className={`flex-1 font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{displayTitle}</h3>
           {/* Mobile: always-visible kebab menu */}
           {!compact && (
             <MobileMenu
