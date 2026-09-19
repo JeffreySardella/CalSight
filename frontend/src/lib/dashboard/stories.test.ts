@@ -1,6 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { DATA_STORIES, STORY_IDS, getStoryById } from "./stories";
 
+/** Every narrative body in the holidays story, resolved against no filters. */
+function holidayNarratives(): string[] {
+  return getStoryById("holidays-on-the-road")!.blocks.flatMap((block) => {
+    if (block.type !== "narrative") return [];
+    return [
+      typeof block.body === "function"
+        ? block.body({
+            countyCount: 58, countyNames: [], hasSeverityFilter: false,
+            severities: [], hasDateFilter: false, isFiltered: false,
+          })
+        : block.body,
+    ];
+  });
+}
+
 describe("data story registration", () => {
   it("has unique ids and every story is reachable by id", () => {
     expect(new Set(STORY_IDS).size).toBe(STORY_IDS.length);
@@ -26,19 +41,19 @@ describe("data story registration", () => {
   });
 
   it("keeps hard-coded figures out of the holidays narrative — every number is rendered from the endpoint", () => {
-    const story = getStoryById("holidays-on-the-road")!;
-    for (const block of story.blocks) {
-      if (block.type !== "narrative") continue;
-      const body = typeof block.body === "function"
-        ? block.body({
-            countyCount: 58, countyNames: [], hasSeverityFilter: false,
-            severities: [], hasDateFilter: false, isFiltered: false,
-          })
-        : block.body;
+    for (const body of holidayNarratives()) {
       // Calendar dates (October 31, November 1) are definitions, not findings;
       // a percentage or a thousands-separated count would be a stale figure.
       expect(body).not.toMatch(/\d+(\.\d+)?\s?%/);
       expect(body).not.toMatch(/\d,\d{3}/);
+    }
+  });
+
+  it("keeps the holidays copy on the DUI metric, not on alcohol generally", () => {
+    // The metric is canonical_cause = 'dui', an officer-coded primary cause —
+    // not a measure of whether anyone had been drinking.
+    for (const body of holidayNarratives()) {
+      expect(body.toLowerCase()).not.toMatch(/alcohol|drinking|drunk/);
     }
   });
 

@@ -20,6 +20,10 @@ class HolidayOut(DayRates):
     label: str
     baseline_month: str
     baseline: DayRates
+    #: Too few baseline crashes/day or too few pooled holiday days for the
+    #: lift to be trusted. The figures are still reported — the frontend marks
+    #: them rather than hiding them.
+    small_sample: bool
     crashes_lift_pct: float | None
     deaths_lift_pct: float | None
     dui_share_lift_pct: float | None

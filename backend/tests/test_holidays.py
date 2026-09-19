@@ -228,6 +228,49 @@ def test_summarize_clips_a_period_that_runs_past_the_window():
     assert len(period_days("christmas_new_year", 2024)) == 9
 
 
+def test_small_sample_is_clear_when_the_baseline_is_thick_and_the_holiday_long():
+    # 10 crashes/day everywhere, and every holiday pools >= 5 days over 10 years.
+    daily = {}
+    for year in range(2016, 2026):
+        day = date(year, 1, 1)
+        while day <= date(year, 12, 31):
+            daily[day] = (10, 1, 1)
+            day += timedelta(days=1)
+    rows = summarize(daily, range(2016, 2026), (date(2016, 1, 1), date(2025, 12, 31)))
+    assert all(r["small_sample"] is False for r in rows), [
+        r["key"] for r in rows if r["small_sample"]
+    ]
+
+
+def test_small_sample_flags_a_thin_baseline():
+    # 1 crash/day is below MIN_BASELINE_CRASHES_PER_DAY, so every lift is noisy.
+    daily = _flat((1, 0, 0))
+    rows = summarize(daily, [2024], (date(2024, 1, 1), date(2024, 12, 31)))
+    assert all(r["small_sample"] is True for r in rows)
+    # The numbers are still reported — flagged, never hidden.
+    assert all(r["crashes_lift_pct"] == 0.0 for r in rows)
+
+
+def test_small_sample_flags_a_short_pooled_holiday_even_on_a_thick_baseline():
+    daily = _flat((100, 10, 10))
+    rows = {r["key"]: r for r in summarize(daily, [2024], (date(2024, 1, 1), date(2024, 12, 31)))}
+    # One year only: Super Bowl is 1 day and Halloween 2, both under the floor.
+    assert rows["super_bowl"]["days"] == 1 and rows["super_bowl"]["small_sample"] is True
+    assert rows["halloween"]["days"] == 2 and rows["halloween"]["small_sample"] is True
+    # Thanksgiving is 5 days, right on the floor, with a thick baseline.
+    assert rows["thanksgiving"]["days"] == 5 and rows["thanksgiving"]["small_sample"] is False
+
+
+def test_small_sample_flags_the_endpoint_fixture_shape():
+    # The integration fixture's shape: one busy holiday day against a baseline
+    # of 0.2 crashes/day, which yields a +900% lift off almost nothing.
+    daily = {thanksgiving(2024): (10, 2, 4), date(2024, 11, 5): (5, 1, 1)}
+    rows = {r["key"]: r for r in summarize(daily, [2024], (date(2024, 1, 1), date(2024, 12, 31)))}
+    tg = rows["thanksgiving"]
+    assert tg["crashes_lift_pct"] == 900.0
+    assert tg["small_sample"] is True
+
+
 def test_summarize_pools_years():
     window = (date(2023, 1, 1), date(2025, 12, 31))
     daily = {}

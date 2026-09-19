@@ -18,6 +18,9 @@ export interface Holiday extends HolidayRates {
   /** Month name whose ordinary days form the baseline, e.g. "November". */
   baseline_month: string;
   baseline: HolidayRates;
+  /** Too thin a baseline or too few pooled holiday days for the lift to be
+   *  trusted. The figures are still shown — marked, never hidden. */
+  small_sample: boolean;
   /** Null when the baseline rate is zero — undefined, not zero. */
   crashes_lift_pct: number | null;
   deaths_lift_pct: number | null;

@@ -1,5 +1,11 @@
 import { formatLift, formatRate, useHolidays } from "../../hooks/useHolidays";
 
+/** Shown on the marked lift cells and, once, under the table. */
+const SMALL_SAMPLE_NOTE =
+  "Marked * — too few ordinary-day crashes, or too few holiday days, for this " +
+  "percentage to be stable. The figure is shown as computed; read it as a hint, " +
+  "not a finding.";
+
 /**
  * Story block: one row per holiday period, comparing crashes and deaths per
  * day and DUI share against ordinary days of the same month. Every figure
@@ -56,17 +62,31 @@ export default function HolidayBlock({ countySlug }: { countySlug?: string | nul
                       {formatRate(h.baseline.crashes_per_day)} ordinary
                     </span>
                   </td>
-                  <td className="py-2.5 px-2">
+                  {/* A thin baseline or a short pooled holiday still shows its
+                      number — greyed and marked, never hidden. */}
+                  <td className={`py-2.5 px-2 ${h.small_sample ? "opacity-50" : ""}`}>
                     <div className="flex items-center justify-end gap-2">
                       <span
-                        className={`h-1.5 rounded-full ${up ? "bg-error" : "bg-primary"}`}
+                        className={`h-1.5 rounded-full ${
+                          h.small_sample ? "bg-on-surface-variant" : up ? "bg-error" : "bg-primary"
+                        }`}
                         style={{ width: `${(Math.abs(lift ?? 0) / widest) * 48}px` }}
                         aria-hidden="true"
                       />
                       <span
-                        className={`tabular-nums font-semibold ${up ? "text-error" : "text-primary"}`}
+                        className={`tabular-nums font-semibold ${
+                          h.small_sample
+                            ? "text-on-surface-variant"
+                            : up
+                              ? "text-error"
+                              : "text-primary"
+                        }`}
+                        title={h.small_sample ? SMALL_SAMPLE_NOTE : undefined}
                       >
                         {formatLift(lift)}
+                        {h.small_sample && (
+                          <span aria-label="small sample"> *</span>
+                        )}
                       </span>
                     </div>
                   </td>
@@ -88,14 +108,23 @@ export default function HolidayBlock({ countySlug }: { countySlug?: string | nul
           </tbody>
         </table>
       </div>
-      <figcaption className="text-xs text-on-surface-variant mt-3 italic font-serif leading-relaxed">
-        {`${where}, ${data.first_year} to ${data.last_year}. Each holiday is compared with the ` +
-          `ordinary days of its own month in the same year, so season and daylight are held ` +
-          `roughly constant. The source is daily rather than hourly, so Halloween is counted ` +
-          `as the whole of October 31 and November 1, daytime hours either side of the night ` +
-          `included. DUI means a crash whose primary cause was coded as driving under ` +
-          `the influence. Fatality records lag crash records by six months or more, so ` +
-          `${data.last_year} is the newest year included and its death counts may still rise.`}
+      <figcaption className="text-xs text-on-surface-variant mt-3 italic font-serif leading-relaxed space-y-2">
+        <span className="block">
+          {`${where}, ${data.first_year} to ${data.last_year}. Each holiday is compared with the ` +
+            `ordinary days of its own month in the same year, so season and daylight are held ` +
+            `roughly constant. Memorial Day and Labor Day weekends run Friday through Monday, ` +
+            `following the National Safety Council's holiday-period convention, which opens on ` +
+            `the Friday evening; all four days are counted as holiday days and all four come ` +
+            `out of that month's ordinary-day baseline. The source is daily rather than hourly, ` +
+            `so Halloween is counted as the whole of October 31 and November 1, daytime hours ` +
+            `either side of the night included. DUI means a crash whose primary cause was coded ` +
+            `as driving under the influence. Fatality records lag crash records by six months ` +
+            `or more, so ${data.last_year} is the newest year included and its death counts ` +
+            `may still rise.`}
+        </span>
+        {data.holidays.some((h) => h.small_sample) && (
+          <span className="block">{SMALL_SAMPLE_NOTE}</span>
+        )}
       </figcaption>
     </figure>
   );

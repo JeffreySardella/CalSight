@@ -113,6 +113,18 @@ def test_lift_arithmetic(client):
     assert tg["dui_share_lift_pct"] == 100.0
 
 
+def test_small_sample_flagged_on_a_lift_built_on_almost_nothing(client):
+    tg = _thanksgiving(client.get("/api/holidays?years=2024-2024").json())
+    # 0.2 crashes/day baseline is far under the floor: the +900% stands, flagged.
+    assert tg["small_sample"] is True
+    assert tg["crashes_lift_pct"] == 900.0
+
+
+def test_every_holiday_carries_the_small_sample_flag(client):
+    body = client.get("/api/holidays?years=2024-2024").json()
+    assert all(isinstance(h["small_sample"], bool) for h in body["holidays"])
+
+
 def test_holiday_with_no_crashes_reports_zero_not_an_error(client):
     body = client.get("/api/holidays?years=2024-2024").json()
     sb = next(h for h in body["holidays"] if h["key"] == "super_bowl")

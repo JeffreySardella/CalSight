@@ -594,6 +594,8 @@ Holiday periods, all defined on whole calendar days:
 | Super Bowl Sunday | First Sunday of February through 2021; second Sunday from 2022, when the NFL's 17-game season moved the game a week later (1 day) | February |
 | Halloween | October 31 and November 1 (2 days) | October |
 
+**Memorial Day and Labor Day weekends start on the Friday, not the Saturday.** This is deliberate rather than an artifact of the Thanksgiving span logic. It follows the National Safety Council's long-standing holiday-period convention, which opens a three-day holiday weekend on the Friday *evening* before the Monday holiday; the source here resolves to whole days, so the whole Friday is counted and the period is four days rather than the NSC's "Friday 6 PM through Monday midnight". The choice has two visible effects: the period is four days long, and — since the baseline excludes every holiday-period day — all four Friday-to-Monday days are also held out of that month's ordinary-day baseline.
+
 The baseline for a holiday is every day of its anchor month **except** days belonging to any holiday period — November 1 counts as Halloween, not as an ordinary November day, so it is removed from Thanksgiving's baseline as well as its own.
 
 ```
@@ -605,7 +607,9 @@ lift_pct        = (holiday_rate - ordinary_rate) / ordinary_rate * 100
 
 A day with no crashes still counts toward the denominator. `lift_pct` is reported as null, never as zero, when the baseline rate is zero. DUI reuses the `canonical_cause = 'dui'` definition used by the county insight cards (§4.2), not the `is_alcohol_involved` party flag — that flag is NULL for every SWITRS row, so a share built on it would be understated wherever SWITRS is the source.
 
-Three limitations are stated on the story itself. Halloween night is really 6 PM October 31 to 6 AM November 1, but the source view resolves to whole days, so both days are counted in full and the figure includes daytime hours either side. Periods are clipped to the requested year range, so a Christmas period running into the following January contributes only the days inside the window — per-day normalization keeps a clipped period comparable. Fatality records lag crash records by six months or more, so the range ends at the last complete year and even that year's death counts may still rise.
+**Small-number discipline.** Following the same rule as the first-rain story (§2.6), a lift built on too little is flagged rather than suppressed. A holiday row carries `small_sample` when its baseline averages fewer than 5.0 crashes per day — the same `_MIN_BASELINE` the first-rain endpoint uses — or when fewer than 5 holiday days were pooled. The second floor is the one that matters here: Super Bowl Sunday is a single day per year and Halloween two, so a single-year query for a small county can swing by hundreds of percent on a handful of crashes. Flagged figures are still shown, greyed and marked with an asterisk, with a footnote under the table.
+
+Four limitations are stated on the story itself. Halloween night is really 6 PM October 31 to 6 AM November 1, but the source view resolves to whole days, so both days are counted in full and the figure includes daytime hours either side. Periods are clipped to the requested year range, so a Christmas period running into the following January contributes only the days inside the window — per-day normalization keeps a clipped period comparable. Fatality records lag crash records by six months or more, so the range ends at the last complete year and even that year's death counts may still rise. And a lift resting on a thin baseline or a short pooled holiday is marked, with the reader told to read it as a hint rather than a finding.
 
 ---
 

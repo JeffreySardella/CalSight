@@ -238,12 +238,13 @@ API consumers should treat NULLs in returned rows as "this scope" markers, not m
 
 ### Materialized view granularity
 
-There are 10 materialized views as of 2026-09-12 (see the row-count table). The four original StatsPage views are not interchangeable — pick the smallest one that supports your filters:
+There are 11 materialized views as of 2026-09-19 (see the row-count table). The four original StatsPage views are not interchangeable — pick the smallest one that supports your filters:
 
 - **`mv_crashes_by_year`** (4.4K rows): no `canonical_cause` column. Use when no cause filter is in play.
 - **`mv_crashes_by_cause`** (19.7K rows): adds `canonical_cause`. Use when filtering or grouping by cause.
 - **`mv_crashes_by_hour`** (307K rows): adds `crash_hour` AND drops `total_killed`/`total_injured`. Only use for hour-grouped queries; can return counts only, not casualty totals.
 - **`mv_crash_victims_by_demographics`** (26K rows): totally different dimensions — counts **victims**, not crashes, and breaks them down by `(county, year, severity, gender, age_bracket)`. Use for `?group_by=gender|age_bracket`. Source rows are `crash_victims` JOINed to `crashes` on `(collision_id, data_source)`; one fatal crash with 3 injured passengers contributes 3 to `victim_count`. Has no `canonical_cause` column, so the cause filter is rejected on these grouping paths.
+- **`mv_crashes_by_day`** (~530K rows): the only day-of-month grain in the schema — `(county_code, day)` with `crashes`, `killed`, `injured` and `dui_crashes` (`canonical_cause = 'dui'`). Serves `/api/holidays`; added 2026-09.
 
 ### Extra bucket values introduced by the MVs
 

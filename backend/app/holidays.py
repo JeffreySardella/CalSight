@@ -29,6 +29,19 @@ MON, TUE, WED, THU, FRI, SAT, SUN = range(7)
 _WEEKEND = (SAT, SUN)
 _DAY = timedelta(days=1)
 
+# Small-number discipline, the same shape first_rain.py uses: a lift built on
+# too little is reported, never hidden, but it carries `small_sample` so the
+# frontend can mark it rather than headline it.
+#
+# Both floors matter and they catch different failures. A thin baseline makes
+# the denominator noisy — 5.0 crashes/day is first_rain's `_MIN_BASELINE`, kept
+# identical so the two stories agree on what "too few" means. A short pooled
+# holiday makes the numerator noisy, which is the real risk here: Super Bowl
+# Sunday is one day a year and Halloween two, so a single-year query for a
+# small county can swing hundreds of percent on a handful of crashes.
+MIN_BASELINE_CRASHES_PER_DAY = 5.0
+MIN_HOLIDAY_DAYS = 5
+
 # Ordered as they appear in the story. Each entry carries the anchor month
 # whose ordinary days form the baseline, plus the label and the caveat the
 # frontend renders verbatim (no figures live in the frontend copy).
@@ -236,6 +249,10 @@ def summarize(
             "baseline_month": calendar.month_name[month],
             **h,
             "baseline": b,
+            "small_sample": (
+                b["crashes_per_day"] < MIN_BASELINE_CRASHES_PER_DAY
+                or h["days"] < MIN_HOLIDAY_DAYS
+            ),
             "crashes_lift_pct": lift_pct(h["crashes_per_day"], b["crashes_per_day"]),
             "deaths_lift_pct": lift_pct(h["deaths_per_day"], b["deaths_per_day"]),
             "dui_share_lift_pct": lift_pct(h["dui_share_pct"], b["dui_share_pct"]),

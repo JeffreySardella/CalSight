@@ -19,6 +19,7 @@ function holiday(over: Partial<Holiday> & Pick<Holiday, "key" | "label">): Holid
       days: 25, crashes: 5, killed: 1, dui_crashes: 1,
       crashes_per_day: 0.2, deaths_per_day: 0.04, dui_share_pct: 20,
     },
+    small_sample: false,
     crashes_lift_pct: 900,
     deaths_lift_pct: 900,
     dui_share_lift_pct: 100,
@@ -111,6 +112,40 @@ describe("HolidayBlock", () => {
     expect(await screen.findByText(/October 31 and November 1/)).toBeInTheDocument();
     expect(screen.getByText(/lag crash records by six months/)).toBeInTheDocument();
     expect(screen.getByText(/2025 is the newest year/)).toBeInTheDocument();
+  });
+
+  it("states the Friday-through-Monday convention and its effect on the baseline", async () => {
+    renderBlock();
+    const caption = await screen.findByText(/National Safety Council/);
+    expect(caption).toHaveTextContent(
+      /Memorial Day and Labor Day weekends run Friday through Monday/,
+    );
+    expect(caption).toHaveTextContent(/all four come out of that month's ordinary-day baseline/);
+  });
+
+  it("greys and marks a small-sample lift without hiding the number", async () => {
+    const payload = {
+      ...PAYLOAD,
+      holidays: [holiday({ key: "super_bowl", label: "Super Bowl Sunday", small_sample: true })],
+    };
+    renderBlock(json(payload));
+    const row = await screen.findByRole("row", { name: /Super Bowl/ });
+    // The figure is still there, marked, in the muted colour rather than red.
+    expect(row).toHaveTextContent("+900%");
+    const marked = row.querySelector('[aria-label="small sample"]');
+    expect(marked).not.toBeNull();
+    const lift = marked!.parentElement!;
+    expect(lift.className).toContain("text-on-surface-variant");
+    expect(lift.className).not.toContain("text-error");
+    // And the footnote explains the mark once, under the table.
+    expect(screen.getByText(/read it as a hint, not a finding/)).toBeInTheDocument();
+  });
+
+  it("leaves a well-sampled lift unmarked and un-greyed, with no footnote", async () => {
+    renderBlock();
+    const row = await screen.findByRole("row", { name: /Thanksgiving/ });
+    expect(row.querySelector('[aria-label="small sample"]')).toBeNull();
+    expect(screen.queryByText(/read it as a hint, not a finding/)).not.toBeInTheDocument();
   });
 
   it("passes the county through and names it", async () => {
