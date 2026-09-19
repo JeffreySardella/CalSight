@@ -67,6 +67,15 @@ describe("ChartCard mode-coverage annotation", () => {
     expect(screen.getByRole("heading", { level: 3 }).textContent).toMatch(/\*$/);
   });
 
+  it("drops the asterisk with the footnote when the chart is empty", () => {
+    // The normal result when a filter the mode view cannot answer is active:
+    // /api/stats/batch returns the in-band error object and the card renders
+    // empty. An asterisk with no footnote under it is worse than neither.
+    renderCard(modeSlot, []);
+    expect(screen.queryByText(/Mode data starts/)).toBeNull();
+    expect(screen.getByRole("heading", { level: 3 }).textContent).not.toMatch(/\*$/);
+  });
+
   it("leaves other dimensions alone", () => {
     renderCard({ ...modeSlot, dimension: "county" }, [{ label: "Kern", value: 12 }]);
     expect(screen.queryByText(/Mode data starts/)).toBeNull();

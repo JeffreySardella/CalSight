@@ -140,10 +140,10 @@ describe("useDashboardData", () => {
       if (String(input).includes("/api/stats/batch")) {
         return new Response(JSON.stringify({
           mode: [
-            { mode: "occupant", victim_count: 900, killed: 30, severe_injured: 120 },
-            { mode: "pedestrian", victim_count: 140, killed: 50, severe_injured: 90 },
-            { mode: "motorcyclist", victim_count: 120, killed: 20, severe_injured: 80 },
-            { mode: "cyclist", victim_count: 90, killed: 5, severe_injured: 40 },
+            { mode: "occupant", victim_count: 900, fatal_victim_count: 30 },
+            { mode: "pedestrian", victim_count: 140, fatal_victim_count: 50 },
+            { mode: "motorcyclist", victim_count: 120, fatal_victim_count: 20 },
+            { mode: "cyclist", victim_count: 90, fatal_victim_count: 5 },
           ],
         }));
       }
@@ -166,7 +166,8 @@ describe("useDashboardData", () => {
       { label: "Motorcyclist", value: 120, x: 0, y: 0 },
       { label: "Cyclist", value: 90, x: 0, y: 0 },
     ]);
-    // `killed` on a mode row lives in `killed`, not `total_killed`.
+    // mode rows are victim rows: `killed` reads fatal_victim_count, the same
+    // field the gender rows use, not total_killed.
     expect(result.current.dataBySlot["mode:killed"].map((d) => d.value))
       .toEqual([30, 50, 20, 5]);
   });

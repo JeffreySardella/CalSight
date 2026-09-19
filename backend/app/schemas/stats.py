@@ -110,14 +110,16 @@ class ModeRow(BaseModel):
     present.
 
     The view does carry the crash's severity, so the dashboard's severity
-    filter applies here the same way it does to gender/age_bracket. `killed`
-    and `severe_injured` come from each victim's own injury outcome, so a
+    filter applies here the same way it does to gender/age_bracket. The two
+    casualty columns come from each victim's own injury outcome, so a
     severity=Fatal cut still reports the injured survivors of fatal crashes
-    inside victim_count."""
+    inside victim_count. The field names match GenderRow and the view's own
+    columns; severe_injured_count has no frontend consumer yet and is here
+    for the KSI work."""
     mode: str
     victim_count: int
-    killed: int
-    severe_injured: int
+    fatal_victim_count: int
+    severe_injured_count: int
 
 
 class MonthRow(BaseModel):

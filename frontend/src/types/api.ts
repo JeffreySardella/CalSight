@@ -20,9 +20,6 @@ export interface StatsMeasures {
   /** Party-level counts (at_fault_* dimensions). */
   party_count?: number | null;
   fatal_party_count?: number | null;
-  /** Person-level counts for the `mode` dimension (victim_count is shared). */
-  killed?: number | null;
-  severe_injured?: number | null;
 }
 
 /**
@@ -34,7 +31,8 @@ export interface StatsMeasures {
  * - "county" → `county_code` + `county_name`
  * - "gender"/"at_fault_gender" → `gender`;
  *   "age_bracket"/"at_fault_age_bracket" → `age_bracket`
- * - "mode" → `mode` (counts people by road user, 2016+)
+ * - "mode" → `mode` (counts people by road user, 2016+; shares the
+ *   victim_count / fatal_victim_count measures with the gender rows)
  * - "weather"/"lighting"/"collision_type" → `value` (or the dimension name)
  */
 export interface DimensionRow extends StatsMeasures {

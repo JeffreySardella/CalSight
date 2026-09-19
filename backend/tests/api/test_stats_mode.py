@@ -83,14 +83,16 @@ def test_mode_rows_count_people_by_road_user(client, db_session):
     # duplicated party 2 does NOT fan its victim out into a third person.
     assert rows["motorcyclist"] == {
         "mode": "motorcyclist", "victim_count": 2,
-        "killed": 1, "severe_injured": 1,
+        "fatal_victim_count": 1, "severe_injured_count": 1,
     }
     assert rows["pedestrian"] == {
-        "mode": "pedestrian", "victim_count": 1, "killed": 1, "severe_injured": 0,
+        "mode": "pedestrian", "victim_count": 1,
+        "fatal_victim_count": 1, "severe_injured_count": 0,
     }
     # Both serious-injury codes count, the retired one included.
     assert rows["cyclist"] == {
-        "mode": "cyclist", "victim_count": 1, "killed": 0, "severe_injured": 1,
+        "mode": "cyclist", "victim_count": 1,
+        "fatal_victim_count": 0, "severe_injured_count": 1,
     }
     # The uninjured victim and the 'Other' person are excluded, so San
     # Francisco's only occupant is the injured passenger.
@@ -102,7 +104,9 @@ def test_mode_rows_do_not_leak_crash_count_fields(client, db_session):
     body = client.get("/api/stats?group_by=mode").json()
     assert body
     for row in body:
-        assert set(row) == {"mode", "victim_count", "killed", "severe_injured"}
+        assert set(row) == {
+            "mode", "victim_count", "fatal_victim_count", "severe_injured_count",
+        }
 
 
 def test_mode_respects_year_filter(client, db_session):
@@ -150,7 +154,7 @@ def test_mode_severity_filter_narrows_to_fatal_crashes(client, db_session):
     # injured passenger, both vehicle occupants.
     assert set(rows) == {"occupant"}
     assert rows["occupant"]["victim_count"] == 2
-    assert rows["occupant"]["killed"] == 1
+    assert rows["occupant"]["fatal_victim_count"] == 1
     # …and the filter really did narrow — it is not the unfiltered row.
     assert rows["occupant"]["victim_count"] < unfiltered["occupant"]["victim_count"]
 

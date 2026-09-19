@@ -351,10 +351,13 @@ function ChartCard({
   // Pedestrian/cyclist/motorcyclist/occupant come from CCRS party and victim
   // records, which start in 2016 — say so rather than imply the earlier years
   // had no vulnerable road users.
-  const modeNote = slot.dimension === "mode" ? MODE_COVERAGE_NOTE : null;
+  // Gated on the same condition as the footnote below: an empty mode chart
+  // (the normal result when a filter the view cannot answer is active) would
+  // otherwise show a dangling asterisk with nothing to attach it to.
+  const showModeNote = !loading && hasData && slot.dimension === "mode";
 
   // Asterisk on the title only while the footnote is actually on screen.
-  const displayTitle = modeNote ? `${title}*` : title;
+  const displayTitle = showModeNote ? `${title}*` : title;
 
   return (
     <div
@@ -581,8 +584,8 @@ function ChartCard({
         <p className="text-[10px] italic text-on-surface-variant mt-1.5">{partialNote}</p>
       )}
 
-      {!loading && hasData && modeNote && (
-        <p className="text-[10px] italic text-on-surface-variant mt-1.5">{modeNote}</p>
+      {showModeNote && (
+        <p className="text-[10px] italic text-on-surface-variant mt-1.5">{MODE_COVERAGE_NOTE}</p>
       )}
 
       {narrativeResult && <ChartNarrative narrative={narrativeResult} />}

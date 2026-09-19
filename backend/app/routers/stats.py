@@ -811,8 +811,8 @@ def _run_group_query(
             select(
                 v.c.mode,
                 func.sum(v.c.victim_count).label("victim_count"),
-                func.sum(v.c.fatal_victim_count).label("killed"),
-                func.sum(v.c.severe_injured_count).label("severe_injured"),
+                func.sum(v.c.fatal_victim_count).label("fatal_victim_count"),
+                func.sum(v.c.severe_injured_count).label("severe_injured_count"),
             )
             .group_by(v.c.mode)
             .order_by(func.sum(v.c.victim_count).desc())
@@ -828,8 +828,8 @@ def _run_group_query(
             ModeRow(
                 mode=r.mode,
                 victim_count=r.victim_count,
-                killed=r.killed,
-                severe_injured=r.severe_injured,
+                fatal_victim_count=r.fatal_victim_count,
+                severe_injured_count=r.severe_injured_count,
             ).model_dump()
             for r in rows
         ]
