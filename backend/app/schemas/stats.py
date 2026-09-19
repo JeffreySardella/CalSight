@@ -98,6 +98,30 @@ class AtFaultAgeBracketRow(BaseModel):
     fatal_party_count: int
 
 
+class ModeRow(BaseModel):
+    """Row from /api/stats?group_by=mode. Counts PEOPLE by road user, sourced
+    from mv_victims_by_mode: pedestrian, cyclist, motorcyclist (motorcycles
+    and mopeds) and occupant (everyone else riding in a vehicle).
+
+    Two caveats travel with these numbers. Party and victim records are
+    CCRS-only, so the series starts in 2016 — the UI carries a footnote
+    saying so. And a person's mode is only known when they have a recorded
+    injury outcome, so victim_count is people injured or killed, not everyone
+    present.
+
+    The view does carry the crash's severity, so the dashboard's severity
+    filter applies here the same way it does to gender/age_bracket. The two
+    casualty columns come from each victim's own injury outcome, so a
+    severity=Fatal cut still reports the injured survivors of fatal crashes
+    inside victim_count. The field names match GenderRow and the view's own
+    columns; severe_injured_count has no frontend consumer yet and is here
+    for the KSI work."""
+    mode: str
+    victim_count: int
+    fatal_victim_count: int
+    severe_injured_count: int
+
+
 class MonthRow(BaseModel):
     month: int
     crash_count: int

@@ -161,6 +161,15 @@ class RoadMileOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class VmtOut(BaseModel):
+    county_code: int
+    year: int
+    vmt_millions: float | None = None
+    source: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class TrafficVolumeOut(BaseModel):
     county_code: int
     total_aadt: int | None = None

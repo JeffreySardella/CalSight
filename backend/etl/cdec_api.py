@@ -42,7 +42,7 @@ import time
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from etl._utils import get_with_retry, safe_int
+from etl._utils import get_with_retry, require_rows, safe_int
 
 logger = logging.getLogger(__name__)
 
@@ -367,6 +367,28 @@ def _parse_cdec_date(raw: str) -> date | None:
     return None
 
 
+def _parse_with_zero_row_guard(
+    raw: list[dict], source: str, window_start: date, window_end: date
+) -> list[Observation]:
+    """Shared empty/quiet-day handling for the three whole-batch CDEC pulls.
+
+    Each of these fetches every station/index in ONE request, so an empty
+    *raw* body means the servlet returned nothing at all for the window —
+    never legitimate. Zero *parsed* observations from a non-empty raw body
+    (e.g. every reading is the day's -9999 sentinel) can be a genuinely
+    quiet day, so that case is only logged, not raised.
+    """
+    require_rows(raw, source, "raw CDEC rows")
+    observations = parse_observations(raw)
+    if not observations:
+        logger.warning(
+            "%s: parsed 0 observations from %d raw CDEC rows for %s–%s "
+            "(quiet window, not treated as a failure)",
+            source, len(raw), window_start, window_end,
+        )
+    return observations
+
+
 def fetch_reservoir_storage(start: date, end: date) -> list[Observation]:
     """Fetch daily storage for every reservoir in MAJOR_RESERVOIRS."""
     raw = fetch_sensor_data(
@@ -375,7 +397,7 @@ def fetch_reservoir_storage(start: date, end: date) -> list[Observation]:
         start=start,
         end=end,
     )
-    return parse_observations(raw)
+    return _parse_with_zero_row_guard(raw, "reservoirs", start, end)
 
 
 def fetch_snow_water_content(start: date, end: date) -> list[Observation]:
@@ -397,7 +419,7 @@ def fetch_snow_water_content(start: date, end: date) -> list[Observation]:
                 end=end,
             )
         )
-    return parse_observations(raw)
+    return _parse_with_zero_row_guard(raw, "snowpack", start, end)
 
 
 def fetch_precip_indices(start: date, end: date) -> list[Observation]:
@@ -409,7 +431,7 @@ def fetch_precip_indices(start: date, end: date) -> list[Observation]:
         start=start,
         end=end,
     )
-    return parse_observations(raw)
+    return _parse_with_zero_row_guard(raw, "precip_indices", start, end)
 
 
 def _smoke_test() -> int:

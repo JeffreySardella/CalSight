@@ -28,7 +28,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, DroughtCountyWeekly
-from etl._utils import date_windows, dedupe_rows, track_etl_run
+from etl._utils import date_windows, dedupe_rows, require_rows, track_etl_run
 from etl.usdm_api import DroughtWeek, fetch_county_drought, parse_drought_weeks
 
 logging.basicConfig(
@@ -127,6 +127,11 @@ def run(start: date, end: date) -> int:
                 "Window %d/%d: %s → %s", i + 1, len(windows), win_start, win_end
             )
             raw = fetch_county_drought(win_start, win_end)
+            # One request covers all 58 counties for the whole window, so an
+            # empty body means USDM returned nothing at all — never
+            # legitimate. Zero *parsed* weeks from a non-empty body would
+            # still be logged by parse_drought_weeks, not raised here.
+            require_rows(raw, "drought", "raw USDM rows")
             total += upsert_drought_weeks(db, parse_drought_weeks(raw), fips_to_code)
 
         logger.info("Done. %d county-week rows upserted.", total)

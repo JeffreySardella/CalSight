@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
-import { slotKey, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
+import { MODE_LABELS, slotKey, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
 import type { StatsFilters } from "./useStats";
 import { formatYearMonth } from "./useFilterParams";
 import { movingAverage } from "../lib/dashboard/stats";
@@ -37,19 +37,25 @@ function severityToSlug(s: string): string {
 }
 
 function pickValue(r: DimensionRow, measure: Measure, dim: Dimension): number {
-  const isDemographic = dim === "gender" || dim === "age_bracket";
+  // Victim-level rows, whatever they are bucketed by: gender, age and mode
+  // all carry victim_count / fatal_victim_count.
+  const isVictim = dim === "gender" || dim === "age_bracket" || dim === "mode";
   const isAtFault = dim === "at_fault_gender" || dim === "at_fault_age_bracket";
 
   if (measure === "killed") {
-    if (isDemographic) return r.fatal_victim_count ?? 0;
+    if (isVictim) return r.fatal_victim_count ?? 0;
     if (isAtFault) return r.fatal_party_count ?? 0;
     if (r.total_killed != null) return r.total_killed;
   }
   if (measure === "injured") {
+    // Victim/at-fault rows don't carry total_injured — it's the crash-level
+    // field. Injured = person-level count minus the fatal share (never negative).
+    if (isVictim) return Math.max(0, (r.victim_count ?? 0) - (r.fatal_victim_count ?? 0));
+    if (isAtFault) return Math.max(0, (r.party_count ?? 0) - (r.fatal_party_count ?? 0));
     if (r.total_injured != null) return r.total_injured;
   }
 
-  if (isDemographic) return r.victim_count ?? 0;
+  if (isVictim) return r.victim_count ?? 0;
   if (isAtFault) return r.party_count ?? 0;
   return r.crash_count ?? 0;
 }
@@ -115,6 +121,11 @@ function transformRows(dimension: Dimension, measure: Measure, rows: DimensionRo
           label: AGE_LABEL[r.age_bracket ?? ""] ?? String(r.age_bracket),
           value: val(r), ...xy(r),
         }));
+    case "mode":
+      return rows.map((r) => ({
+        label: MODE_LABELS[r.mode ?? ""] ?? String(r.mode),
+        value: val(r), ...xy(r),
+      }));
     case "weather":
     case "lighting":
     case "collision_type":

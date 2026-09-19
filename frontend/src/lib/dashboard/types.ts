@@ -1,7 +1,7 @@
 export const DIMENSIONS = [
   "hour", "day_of_week", "month", "year", "cause", "severity",
   "county", "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket",
-  "weather", "lighting", "collision_type",
+  "mode", "weather", "lighting", "collision_type",
 ] as const;
 
 export type Dimension = (typeof DIMENSIONS)[number];
@@ -60,6 +60,7 @@ export const DIMENSION_LABELS: Record<Dimension, string> = {
   age_bracket: "Victim Age",
   at_fault_gender: "At-Fault Gender",
   at_fault_age_bracket: "At-Fault Age",
+  mode: "Mode of Travel",
   weather: "Weather",
   lighting: "Lighting",
   collision_type: "Collision Type",
@@ -90,8 +91,53 @@ const DEFAULT_CHART_TYPE: Partial<Record<Dimension, ChartType>> = {
   collision_type: "hbar",
 };
 
+/**
+ * Footnote for any chart cut by mode. It has to carry both caveats, because
+ * the chart title says "Crashes by …" while every bar is a person: the values
+ * are people, and party/victim records only exist from CCRS onward, so the
+ * four road-user buckets have no pre-2016 history rather than a 2016 explosion
+ * in walking. Rendered by ChartCard the same way partialYearNote is.
+ */
+export const MODE_COVERAGE_NOTE =
+  "* Counts people injured or killed, not crashes. Mode data starts in 2016 (CCRS).";
+
+/** Display names for the four road-user buckets /api/stats?group_by=mode returns. */
+export const MODE_LABELS: Record<string, string> = {
+  pedestrian: "Pedestrian",
+  cyclist: "Cyclist",
+  motorcyclist: "Motorcyclist",
+  occupant: "Vehicle Occupant",
+};
+
 export function defaultChartType(dim: Dimension): ChartType {
   return DEFAULT_CHART_TYPE[dim] ?? "bar";
+}
+
+/**
+ * Person-level dimensions (one row per victim or per at-fault party) instead
+ * of one row per crash. Rows for these carry victim_count/fatal_victim_count
+ * or party_count/fatal_party_count, not crash_count/total_killed — so
+ * fatality_rate and yoy_change (which need the crash-level denominator/series)
+ * aren't meaningful for them.
+ */
+export function isPersonLevelDimension(dim: Dimension): boolean {
+  return dim === "gender" || dim === "age_bracket" || dim === "at_fault_gender" || dim === "at_fault_age_bracket";
+}
+
+/** Measures that require a crash-level row and don't apply to person-level dimensions. */
+export const CRASH_ONLY_MEASURES: readonly Measure[] = ["fatality_rate", "yoy_change"];
+
+/**
+ * The single choke point for the person-level/crash-only-measure rule: returns
+ * `m` unchanged unless it's a CRASH_ONLY_MEASURES entry on a person-level
+ * dimension, in which case it returns undefined so the caller can fall back
+ * (usually to "count"). Every path that can create or restore a chart slot —
+ * the chart editor, addChart/updateChart, the localStorage/URL dashboard
+ * restore, and chart suggestions — must run measure/secondaryMeasure through
+ * this before it reaches a chart slot.
+ */
+export function sanitizeMeasure(dim: Dimension, m: Measure | undefined): Measure | undefined {
+  return m && isPersonLevelDimension(dim) && CRASH_ONLY_MEASURES.includes(m) ? undefined : m;
 }
 
 export function generateId(): string {

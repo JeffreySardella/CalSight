@@ -53,6 +53,7 @@ _TABLES = [
     "mv_crashes_by_month",
     "mv_crash_victims_by_demographics",
     "mv_at_fault_parties_by_demographics",
+    "mv_victims_by_mode",
     "mv_crash_rates",
     "mv_crashes_wide",
     # Street aggregation views (migrations c4f1a9b2d3e7, 77b8d6739669). Refreshed nightly with

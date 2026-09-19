@@ -46,7 +46,7 @@ function buildPopularQuestions(county: string | null) {
 
 function AskAiPageInner() {
   const [inputValue, setInputValue] = useState("");
-  const { messages, isLoading, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
+  const { messages, isLoading, streamingText, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
   const { title, blocks, count } = useStoryCanvas();
   const [storyOpen, setStoryOpen] = useState(false);
   // "New Chat" only renders when there are messages, so opening the dialog
@@ -119,7 +119,7 @@ function AskAiPageInner() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior() });
-  }, [messages, isLoading]);
+  }, [messages, isLoading, streamingText]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -281,7 +281,10 @@ function AskAiPageInner() {
                 )}
               </div>
             ))}
-            {isLoading && <ThinkingIndicator status={error} />}
+            {isLoading && streamingText === "" && <ThinkingIndicator status={error} />}
+            {isLoading && streamingText !== "" && (
+              <ChatMessage message={{ role: "assistant", content: streamingText, timestamp: 0 }} />
+            )}
             {error && !isLoading && (
               <div className="flex justify-start mb-4">
                 <div role="alert" className="bg-error-container text-on-error-container rounded-xl px-4 py-3 text-sm max-w-[85%] flex items-center gap-3">

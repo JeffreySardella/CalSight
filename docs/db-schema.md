@@ -15,6 +15,7 @@ erDiagram
     counties ||--o{ weather : "county_code"
     counties ||--o{ weather_daily : "county_code"
     counties ||--o{ first_rain_events : "county_code"
+    counties ||--o{ storm_events : "county_code"
     counties ||--o{ vehicle_registrations : "county_code"
     counties ||--o{ licensed_drivers : "county_code"
     counties ||--o{ road_miles : "county_code"
@@ -141,6 +142,7 @@ erDiagram
 | `weather` | ~17,900 | NOAA nClimGrid, monthly per county |
 | `weather_daily` | ~540K | NOAA nClimGrid-Daily, one row per county-day; populated 2026-09 (2001→present) |
 | `first_rain_events` | ≤ 58 per water year, WY 2002+ | First rain of each water year vs the 28 days before it; from `etl.compute_first_rain`; populated 2026-09 |
+| `storm_events` | filled after first load | NOAA Storm Events dense-fog and winter rows, 2001+, for the 32 mapped counties (San Joaquin Valley and Sierra, plus the Sacramento Valley and far-northern counties those NWS zones reach into); NWS zone-keyed, so one NOAA event becomes one row per county its zone touches (`etl.load_storm_events`) |
 | `fars_county_year` | 58 × years | NHTSA FARS fatalities per county-year (`etl.nhtsa_fars`) |
 | `tract_density_county_year` | 58 × years | Population-weighted lived density (`etl.census_tract_density`) |
 | `reservoirs` / `reservoir_daily` | 15 / ~190K | CDEC daily storage, backfilled from 1991 |
@@ -171,6 +173,7 @@ erDiagram
 | `mv_street_aggregates` | street rollup | Intersections / corridors; migration `c4f1a9b2d3e7`. Optional — endpoints fall back to `crashes` |
 | `mv_street_totals` | coarse totals | Default-state street totals; migration `77b8d6739669`, added 2026-09. Optional |
 | `mv_school_crash_counts` | (school, year) | Crashes within 500 ft of each school; migration `10f264138733`, added 2026-09. Columns `school_id, year, crashes, killed, injured, severe_injured`. Bounding box on `ix_crashes_lat_lng` then an equirectangular distance — no PostGIS. Feeds `/api/schools/crash-counts`. Optional — the endpoint returns an empty list until the first refresh. **Only counts crashes that have coordinates (~37%), and coverage varies by county** |
+| `mv_victims_by_mode` | ~10,000 | Road-user mode; migration `bdc07f3141d1`, added 2026-09. Counts **people**, CCRS-only so 2016+. Powers `/api/stats?group_by=mode`. |
 | `mv_crash_victims_by_demographics` | 26,360 | Populated 2026-04-18. JOINs `crash_victims` to `crashes` on `(collision_id, data_source)`. Aggregates by (county, year, severity, gender, age_bracket). Powers `/api/stats?group_by=gender|age_bracket`. **Counts victims, not crashes.** |
 
 ## Key constraints and gotchas
@@ -239,12 +242,13 @@ API consumers should treat NULLs in returned rows as "this scope" markers, not m
 
 ### Materialized view granularity
 
-There are 10 materialized views as of 2026-09-12 (see the row-count table). The four original StatsPage views are not interchangeable — pick the smallest one that supports your filters:
+There are 12 materialized views as of 2026-09-19 (see the row-count table). The four original StatsPage views are not interchangeable — pick the smallest one that supports your filters:
 
 - **`mv_crashes_by_year`** (4.4K rows): no `canonical_cause` column. Use when no cause filter is in play.
 - **`mv_crashes_by_cause`** (19.7K rows): adds `canonical_cause`. Use when filtering or grouping by cause.
 - **`mv_crashes_by_hour`** (307K rows): adds `crash_hour` AND drops `total_killed`/`total_injured`. Only use for hour-grouped queries; can return counts only, not casualty totals.
 - **`mv_crash_victims_by_demographics`** (26K rows): totally different dimensions — counts **victims**, not crashes, and breaks them down by `(county, year, severity, gender, age_bracket)`. Use for `?group_by=gender|age_bracket`. Source rows are `crash_victims` JOINed to `crashes` on `(collision_id, data_source)`; one fatal crash with 3 injured passengers contributes 3 to `victim_count`. Has no `canonical_cause` column, so the cause filter is rejected on these grouping paths.
+- **`mv_victims_by_mode`** (~10K rows): counts **people**, bucketed as `pedestrian`, `cyclist`, `motorcyclist` (motorcycles and mopeds) or `occupant`. Use for `?group_by=mode`. Mode comes from `crash_victims.person_type`, plus that victim's own party row's `vehicle_type` for the motorcyclist test — so it is party/victim data, which is CCRS-only and starts in 2016. `person_type` is blank for everyone without an injury outcome, so `victim_count` is people injured or killed, not everyone present. Carries the crash's `severity` at the same grain as the demographics view, so the severity filter applies; it has no `canonical_cause`, so the cause filter is rejected rather than silently dropped.
 
 ### Extra bucket values introduced by the MVs
 

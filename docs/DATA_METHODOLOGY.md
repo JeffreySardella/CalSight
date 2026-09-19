@@ -351,6 +351,66 @@ The Water page has no AI component; it is a direct presentation of four public f
 
 **Cadence.** CDEC has no freshness probe, so the three CDEC jobs pull a trailing window every day. USDM publishes on Thursdays; the `drought` job re-pulls the trailing eight weeks daily to absorb revisions. Upserts never delete, so a shrinking row count is treated as a failure.
 
+### 2.17 NOAA Storm Events (dense fog and winter weather)
+
+| Attribute | Value |
+|---|---|
+| **Official Name** | NOAA Storm Events Database |
+| **Source Agency** | NOAA National Centers for Environmental Information (NCEI) |
+| **Legal Authority** | Freedom of Information Act (5 U.S.C. 552); NOAA Open Data Policy |
+| **URL** | https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/ |
+| **Access** | Bulk gzipped CSV, one file per year, no API token; filenames carry a compile date resolved from the directory index |
+| **Coverage** | 2001 -- present, California rows only; event types Dense Fog, Winter Storm, Winter Weather, Heavy Snow, Blizzard, Ice Storm |
+| **Update Frequency** | Weekly job, trailing two years (NOAA reissues years in place) |
+| **Row Count** | Filled after the first prod load |
+
+**Fields Extracted:**
+NOAA event id, event type, begin and end date, NWS forecast zone id and name, direct deaths, direct injuries, and NOAA's own `SOURCE` field (who reported the event).
+
+#### Zone-to-county mapping
+
+Every California row of these event types is keyed to an **NWS forecast zone** (`CZ_TYPE='Z'`), never to a county -- measured across 2001--2025, not assumed. `CZ_FIPS` on those rows is a zone number (307 = "FRESNO - CLOVIS"), not a county FIPS, and nothing NCEI ships alongside the CSVs decomposes zones into counties.
+
+`etl/load_storm_events.py` therefore carries a hand-built map of 83 zones onto 32 counties. Zones in use today are transcribed row for row from the NWS Zone-County Correlation File `bp18mr25.dbx` (CAZ016-019, CAZ066-073, CAZ300-337, CAZ519-520). The Hanford forecast office renumbered its zones twice inside the window, so its retired numbers (CAZ089-099, used through about 2019, and CAZ180-199, used about 2019-2021) have no entry in that file and are hand-read from the zone names in the data itself; those only resolve on rows whose `WFO` is `HNX`.
+
+**A zone can straddle a county line, so one NOAA event becomes one row per county its zone touches** -- `storm_events` is unique on `(source_event_id, county_code)`, not on the event id alone. Consequently a "fog day" in this data means *an advisory covered part of this county*, not that the county was fogged in.
+
+**The county join is coordinate-independent.** No latitude, longitude, geometry or spatial join is involved -- only the zone id and the hand-built map -- so unlike the geocoded sources it cannot be cross-checked against crash coordinates.
+
+The 32 counties are the eight San Joaquin Valley counties, the Sierra and foothill counties around them, and ten Sacramento Valley and far-northern counties -- Butte, Colusa, Glenn, Modoc, Sacramento, Shasta, Solano, Sutter, Tehama and Yolo -- that the transcribed zones reach into. Those last ten are a consequence of transcribing a zone whole rather than an attempt to cover the north: CAZ016 "Central Sacramento Valley" spans Butte, Colusa, Glenn, Nevada, Sutter and Yuba, CAZ017 reaches Sacramento and Solano, CAZ068 reaches Shasta and Tehama, and CAZ070 is Modoc alone.
+
+The map deliberately does **not** cover: CAZ338-339 (Kern's Mojave Desert) and every zone outside the ranges listed above -- the north coast (CAZ101-115), Siskiyou and the rest of Modoc (CAZ080-085; only CAZ070 is mapped), the Sacramento Valley zones north and west of CAZ066, the Bay Area and central coast (CAZ500-530), southern California (CAZ038-062, CAZ340-383) and the southern deserts (CAZ521-570). Those zones do carry fog and winter events; they are out of this story's scope. The loader counts every row it drops for an unmapped zone and logs the totals and the top zones per year at warning level, so the omission stays visible rather than silent.
+
+#### Fog days vs baseline
+
+`/api/fog-days` (and `/stats?story=tule-fog`) computes, live from `storm_events` and `crashes`, per county and calendar year:
+
+- **fog_event_days:** distinct county-days covered by a Dense Fog event. A single event contributes at most 15 calendar days (`_MAX_EVENT_DAYS = 14`, an inclusive begin-to-end span).
+- **Fog season:** only November, December, January, February and March are considered, intersected with the months advisories were actually issued in. The response returns the resulting month list so the UI names it rather than asserting "winter".
+- **crashes_on_fog_days** and its daily average.
+- **Baseline:** every *other* day in those same months of that year, and the crashes on them -- so a fog day is compared against the rest of its own season, not against July. Days past the end of the crash record are excluded from both sides.
+- **lift_pct:** `(fog_avg - base_avg) / base_avg * 100`; NULL when the baseline is zero.
+- **fog_coded_crashes:** crashes whose own weather field says fog (`canonical_weather = 'fog'`), for the same months -- an *independent* signal from the advisories, not a subset of the above.
+
+### 2.18 CARB EMFAC -- Vehicle Miles Traveled (VMT)
+
+| Attribute | Value |
+|---|---|
+| **Official Name** | EMFAC2025 v2.1.1 Web Platform, Emissions Inventory |
+| **Source Agency** | California Air Resources Board (CARB) |
+| **Legal Authority** | California Public Records Act |
+| **URL** | https://emfac.arb.ca.gov/emissions-inventory/ |
+| **Coverage** | 2001 through the last complete calendar year, all 58 counties |
+| **Update Frequency** | Monthly check (EMFAC itself restates only on a new model release) |
+| **Row Count** | 58 counties x ~25 years |
+
+**Fields Extracted:**
+County, calendar year, and `Total VMT` summed across every vehicle category and fuel type, stored as millions of miles per county-year alongside the EMFAC model version that produced it.
+
+**Aggregation Method:** EMFAC has no documented REST API; the ETL posts the same JSON form the tool's own front end sends, one calendar year per request with all 58 counties, and sums `Total VMT` per county. Two settings decide whether the numbers mean anything: `unit` must be `year` (the default is a representative operation-day rate, roughly 365x lower), and the full vehicle-category, model-year, speed and fuel lists must be requested so the total covers the whole fleet. The request is rejected with an HTML error page if any field of the form is omitted, even fields that do not affect the result, so the payload template is sent whole. Each year is checked against a plausible statewide band (200-450 billion miles) before it is written; a year outside it fails the job rather than storing a denominator that is wrong by orders of magnitude.
+
+**Caveats.** EMFAC's VMT is a model output calibrated against DMV vehicle population and Caltrans travel-demand control totals, not a traffic count, and it is "historical" only in the sense that the inputs are observed; the 2001-2025 statewide series runs 275-335 billion miles a year and sits within about 6% of Caltrans' separately published Public Road Data figure. Years from the current calendar year onward are forecasts and are never loaded. The most recent years that *are* loaded still rest partly on projected inputs -- vehicle population and travel activity for a year only just finished are carried forward from the model's own assumptions until CARB's next data update revises them -- so the newest one or two years should be read as provisional and may shift on a later EMFAC release. CARB had not obtained EPA approval of EMFAC2025 for State Implementation Plan conformity use at the time of writing, which does not affect its use here as a descriptive exposure denominator.
+
 ---
 
 ## 3. ETL Pipeline Architecture
@@ -395,6 +455,7 @@ Execution order is resolved via topological sort. Two schedulers on LXC 100 run 
 | `calenviroscreen` | OEHHA ArcGIS | `calenviroscreen` | Monthly |
 | `licensed_drivers` | data.ca.gov CKAN | `licensed_drivers` | Monthly |
 | `road_miles` | data.ca.gov CKAN | `road_miles` | Monthly |
+| `vmt` | CARB EMFAC | `vmt` | Monthly |
 
 **Tier 2: Internal Transforms (depend on Tier 1 completions)**
 
@@ -525,7 +586,12 @@ All rates are computed per county per year per severity level:
 | **Crashes per 10K licensed drivers** | `(total_crashes / licensed_drivers) * 10,000` | Exposure-adjusted rate (NHTSA standard) |
 | **Crashes per 100 road miles** | `(total_crashes / total_road_miles) * 100` | Infrastructure-adjusted rate |
 | **Crashes per 100K AADT** | `(total_crashes / total_aadt) * 100,000` | Traffic volume-adjusted rate |
+| **Crashes per 100M vehicle miles** | `(total_crashes / vmt_millions) * 100` | Exposure-adjusted rate (miles actually driven) |
 | **Crashes per 10K registered vehicles** | `(total_crashes / total_vehicles) * 10,000` | Vehicle fleet-adjusted rate |
+
+**Reading the per-vehicle-mile rate.** Crashes do not scale one-for-one with miles driven: the safety-in-numbers literature consistently finds the relationship is sublinear, so doubling a county's travel raises its crash count by less than double, and the crashes-per-mile rate falls on arithmetic alone. A high-mileage county therefore tends to post a lower rate than a low-mileage one even when driving there is no safer, and part of any gap between two counties is a mileage effect rather than a difference in road safety. The rate is best read within a county over time, or between counties of broadly similar travel volume, and never as a straight multiplier of individual risk. The same caution applies in the opposite direction to the small rural counties, where a handful of crashes divided by a small mileage base moves the rate a long way; counties below the minimum crash count for a rate are left uncoloured for that reason.
+
+Vehicle miles traveled also differs from the AADT-based rate above on two axes. AADT is a point count taken on the state highway system only, so it misses local and city streets entirely -- where a large share of crashes happen -- and it describes an average day rather than a year's travel. VMT covers all roads and is annualized, which is why it, not AADT, is the standard exposure denominator in the safety literature.
 
 ### 5.2 Fatality Rate
 
@@ -771,6 +837,12 @@ The HPMS speed limit data is from 2022. Speed limits change over time due to roa
 
 County-level correlations (e.g., poverty rate vs. crash rate) describe associations between county averages, not individual-level relationships. A high correlation between county poverty and county crash rates does not mean that poor individuals are more likely to crash -- this is the ecological fallacy. CalSight's analysis is appropriate for policy-level and infrastructure-level insights, not individual risk assessment.
 
+### 7.9 Fog and Winter Events Are Zone-Keyed Judgements
+
+NOAA's Storm Events rows for dense fog and winter weather are attached to NWS forecast zones, not counties, and CalSight maps those zones onto counties by hand (see 2.17). A zone can straddle a county line, so "a fog day in Kings County" means an advisory covered part of the county on that day -- not that the county was fogged in, and not that any particular road was. Unlike the geocoded sources, nothing in this record can be checked against crash coordinates.
+
+An advisory is also a forecaster's judgement about an approaching night, not a measurement of what the roads were like: a quiet fog night and a valley-wide whiteout count the same. The fog-days comparison is therefore an association between two records that co-occur, and cannot separate fog from the traffic volumes, holidays and daylight that share the same weeks.
+
 ---
 
 ## 8. Update Schedule
@@ -778,7 +850,8 @@ County-level correlations (e.g., poverty rate vs. crash rate) describe associati
 | Schedule | Data Sources | Trigger |
 |---|---|---|
 | **Daily** (host cron 02:00 UTC; container 11:00 UTC Mon–Sat, weekly full refresh Sun 09:00 UTC) | CCRS crashes, parties, victims; derived fields; route numbers; first rain; materialized views; coordinate validation; data quality; AI insights; reservoirs, snowpack, precipitation indices, drought | Host cron + APScheduler in `calsight-pipeline-1` (see `backend/deploy/lxc100-crontab.md`) |
-| **Monthly** | Demographics, weather, FARS, tract density, unemployment, hospitals, schools, speed limits, AADT, vehicles, CalEnviroScreen, licensed drivers, road miles | Same schedulers (monthly check) |
+| **Monthly** | Demographics, weather, FARS, tract density, unemployment, hospitals, schools, speed limits, AADT, vehicles, CalEnviroScreen, licensed drivers, road miles, VMT | Same schedulers (monthly check) |
+| **Weekly** | NOAA Storm Events (`storm_events`), trailing two years | Same schedulers (weekly full refresh, Sun 09:00 UTC) |
 | **Static** | SWITRS (2001-2015 historical archive) | Manual trigger only (data is fixed) |
 
 The orchestrator supports freshness checking: before re-fetching a source, it queries the CKAN/ArcGIS metadata to determine if the upstream data has changed since the last successful load. If unchanged, the job is skipped (`skipped_unchanged` status).
@@ -802,7 +875,7 @@ All data sources are accessed through legally authorized public channels:
 
 | Legal Framework | Applicable Sources |
 |---|---|
-| **California Public Records Act** (Gov. Code 6250-6270) | CCRS, SWITRS, DMV vehicles, DMV drivers, hospitals, schools, road miles, Caltrans AADT |
+| **California Public Records Act** (Gov. Code 6250-6270) | CCRS, SWITRS, DMV vehicles, DMV drivers, hospitals, schools, road miles, Caltrans AADT, CARB EMFAC |
 | **Freedom of Information Act** (5 U.S.C. 552) | Census ACS, NOAA weather, BLS unemployment, FHWA HPMS |
 | **SB 535 / AB 1550** (Environmental Justice) | CalEnviroScreen |
 | **Open Data Portals** | data.ca.gov (CKAN), Census API, NOAA CDO API, BLS API |
@@ -867,24 +940,32 @@ All other data sources (data.ca.gov CKAN, Caltrans ArcGIS, FHWA ArcGIS, OEHHA Ar
 
 13. California Office of Environmental Health Hazard Assessment. *CalEnviroScreen 5.0*. https://oehha.ca.gov/calenviroscreen
 
+14. NOAA National Centers for Environmental Information. *Storm Events Database*. https://www.ncei.noaa.gov/stormevents/
+
+15. National Weather Service. *Zone-County Correlation File*. https://www.weather.gov/source/gis/Shapefiles/County/bp18mr25.dbx
+
+16. California Air Resources Board. *EMFAC2025 Web Platform, Emissions Inventory*. https://emfac.arb.ca.gov/emissions-inventory/
+
+17. Elvik, R. and Goel, R. (2019). "Safety-in-numbers: An updated meta-analysis of estimates." *Accident Analysis and Prevention*, 129, 136-147.
+
 ### Statistical Methods
 
-14. Conover, W.J. (1999). *Practical Nonparametric Statistics*, 3rd ed. Wiley.
+18. Conover, W.J. (1999). *Practical Nonparametric Statistics*, 3rd ed. Wiley.
 
-15. Numerical Recipes in C, Chapter 6: Special Functions. Cambridge University Press.
+19. Numerical Recipes in C, Chapter 6: Special Functions. Cambridge University Press.
 
-16. NIST/SEMATECH Engineering Statistics Handbook. https://www.itl.nist.gov/div898/handbook/
+20. NIST/SEMATECH Engineering Statistics Handbook. https://www.itl.nist.gov/div898/handbook/
 
-17. Benjamini, Y. and Hochberg, Y. (1995). "Controlling the false discovery rate: a practical and powerful approach to multiple testing." *Journal of the Royal Statistical Society, Series B*, 57(1), 289-300.
+21. Benjamini, Y. and Hochberg, Y. (1995). "Controlling the false discovery rate: a practical and powerful approach to multiple testing." *Journal of the Royal Statistical Society, Series B*, 57(1), 289-300.
 
 ### Legal Authorities
 
-18. California Public Records Act, Government Code Sections 6250-6270.
+22. California Public Records Act, Government Code Sections 6250-6270.
 
-19. Freedom of Information Act, 5 U.S.C. 552.
+23. Freedom of Information Act, 5 U.S.C. 552.
 
-20. Title 13, United States Code (Census Bureau enabling legislation).
+24. Title 13, United States Code (Census Bureau enabling legislation).
 
-21. California Vehicle Code Section 20008 (mandatory crash reporting).
+25. California Vehicle Code Section 20008 (mandatory crash reporting).
 
-22. SB 535 (De Leon, 2012) and AB 1550 (Gomez, 2016) -- Disadvantaged Communities designation.
+26. SB 535 (De Leon, 2012) and AB 1550 (Gomez, 2016) -- Disadvantaged Communities designation.

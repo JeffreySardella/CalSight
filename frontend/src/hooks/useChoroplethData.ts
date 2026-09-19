@@ -2,9 +2,11 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import {
   annualDriverCount,
+  annualVmtMillions,
   computeMeasureValue,
   MEASURES,
   type DriverYear,
+  type VmtYear,
   type ContextValues,
   type CountyStats,
   type CountyYearDemo,
@@ -60,6 +62,7 @@ export type DataSummary = {
 type YearStats = { year: number; crash_count: number; total_killed: number; total_injured: number };
 type DriverRow = DriverYear & { county_code: number };
 type RoadMileRow = { county_code: number; total_miles: number | null };
+type VmtRow = VmtYear & { county_code: number };
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -193,7 +196,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     rt: filters.roadType, hr: filters.hitRun,
   };
 
-  // All five queries below are persisted offline (queryPersistence.ts
+  // All the queries below are persisted offline (queryPersistence.ts
   // whitelist) — they carry PERSISTED_QUERY_GC_TIME so they outlive the short
   // global gcTime and keep feeding the snapshot.
   const queries = useQueries({
@@ -270,6 +273,18 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
         },
       },
       {
+        // CARB EMFAC vehicle miles traveled per county-year (~1.4k rows).
+        queryKey: ["choropleth", "vmt"],
+        staleTime: Infinity,
+        gcTime: PERSISTED_QUERY_GC_TIME,
+        enabled: MEASURES[measure]?.kind === "perVmt",
+        queryFn: async (): Promise<VmtRow[]> => {
+          const res = await fetch(`${API_BASE}/api/vmt`);
+          if (!res.ok) throw new Error(`vmt ${res.status}`);
+          return res.json();
+        },
+      },
+      {
         // Caltrans road miles per county x functional class; summed below.
         queryKey: ["choropleth", "roadMiles"],
         staleTime: Infinity,
@@ -284,7 +299,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     ],
   });
 
-  const [statsQ, demoQ, yearStatsQ, cesQ, unempQ, driversQ, roadMilesQ] = queries;
+  const [statsQ, demoQ, yearStatsQ, cesQ, unempQ, driversQ, vmtQ, roadMilesQ] = queries;
   const stats = statsQ.data;
   const demos = demoQ.data;
   const yearStats = yearStatsQ.data;
@@ -301,6 +316,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
   }, [filters.dateRange, yearStats]);
   const filledDemo = useMemo(() => fillDemographicYears(demos ?? [], spanYears), [demos, spanYears]);
   const roadMileRows = roadMilesQ.data as RoadMileRow[] | undefined;
+  const vmtRows = vmtQ.data as VmtRow[] | undefined;
 
   const { byCountyCode, nameToCode } = useMemo(() => {
     if (!stats) return { byCountyCode: {} as Record<number, ChoroplethPoint>, nameToCode: {} as Record<string, number> };
@@ -339,6 +355,12 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       arr.push(r);
       driversByCounty.set(r.county_code, arr);
     }
+    const vmtByCounty = new Map<number, VmtRow[]>();
+    for (const r of vmtRows ?? []) {
+      const arr = vmtByCounty.get(r.county_code) ?? [];
+      arr.push(r);
+      vmtByCounty.set(r.county_code, arr);
+    }
     const milesByCounty = new Map<number, number>();
     for (const r of roadMileRows ?? []) {
       milesByCounty.set(r.county_code, (milesByCounty.get(r.county_code) ?? 0) + (r.total_miles ?? 0));
@@ -368,13 +390,14 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
         context: ctx,
         annualDrivers: annualDriverCount(driversByCounty.get(s.county_code) ?? [], selectedYears),
         roadMiles: milesByCounty.get(s.county_code) ?? null,
+        annualVmtMillions: annualVmtMillions(vmtByCounty.get(s.county_code) ?? [], selectedYears),
         yearCount,
       });
       out[s.county_code] = { ...result, rawCount: s.crash_count, totalKilled: s.total_killed, totalInjured: s.total_injured };
       ntc[s.county_name] = s.county_code;
     }
     return { byCountyCode: out, nameToCode: ntc };
-  }, [stats, filledDemo, measure, cesData, unempData, driverRows, roadMileRows, yearStats, filters.dateRange]);
+  }, [stats, filledDemo, measure, cesData, unempData, driverRows, vmtRows, roadMileRows, yearStats, filters.dateRange]);
 
   const dataSummary = useMemo<DataSummary>(() => {
     const totalCrashes = yearStats?.reduce((s, r) => s + r.crash_count, 0) ?? 0;
@@ -410,13 +433,13 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     return { totalCrashes, missingDemoYears, partialDemoYears, estimatedDemoYears, estimatedFromYears, sparseYears };
   }, [filters.dateRange, demos, filledDemo, yearStats]);
 
-  const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error ?? cesQ.error ?? unempQ.error ?? driversQ.error ?? roadMilesQ.error) as (Error & { status?: number }) | null;
+  const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error ?? cesQ.error ?? unempQ.error ?? driversQ.error ?? vmtQ.error ?? roadMilesQ.error) as (Error & { status?: number }) | null;
 
   return {
     byCountyCode,
     nameToCode,
-    isLoading: statsQ.isLoading || demoQ.isLoading || yearStatsQ.isLoading || cesQ.isLoading || unempQ.isLoading || driversQ.isLoading || roadMilesQ.isLoading,
-    isError: statsQ.isError || demoQ.isError || yearStatsQ.isError || cesQ.isError || unempQ.isError || driversQ.isError || roadMilesQ.isError,
+    isLoading: statsQ.isLoading || demoQ.isLoading || yearStatsQ.isLoading || cesQ.isLoading || unempQ.isLoading || driversQ.isLoading || vmtQ.isLoading || roadMilesQ.isLoading,
+    isError: statsQ.isError || demoQ.isError || yearStatsQ.isError || cesQ.isError || unempQ.isError || driversQ.isError || vmtQ.isError || roadMilesQ.isError,
     is422: rawError?.status === 422,
     error: rawError,
     demographicsAvailable: !demoQ.isError && (demos?.length ?? 0) > 0,
