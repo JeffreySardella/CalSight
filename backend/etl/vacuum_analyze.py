@@ -60,6 +60,9 @@ _TABLES = [
     # gets VACUUM'd or fresh planner stats.
     "mv_street_aggregates",
     "mv_street_totals",
+    # Per-day rollup behind /api/holidays (migration e15a88b36527) — same
+    # CONCURRENTLY refresh, same need for fresh stats on the (day) index.
+    "mv_crashes_by_day",
 ]
 
 

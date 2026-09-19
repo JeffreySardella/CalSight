@@ -36,7 +36,15 @@ MATERIALIZED_VIEWS: tuple[str, ...] = (
 # /api/street-concentration fall back to querying the raw crashes table when
 # they aren't populated. Slow is not the same as broken, so an unpopulated
 # street view shouldn't put a banner across the whole site.
-OPTIONAL_MATERIALIZED_VIEWS: tuple[str, ...] = ("mv_street_aggregates", "mv_street_totals")
+#
+# mv_crashes_by_day is optional for the same reason from the other direction:
+# /api/holidays returns an empty holiday list while it is unpopulated, so one
+# story block goes quiet rather than the whole site declaring itself broken.
+OPTIONAL_MATERIALIZED_VIEWS: tuple[str, ...] = (
+    "mv_street_aggregates",
+    "mv_street_totals",
+    "mv_crashes_by_day",
+)
 
 # Everything the nightly refresh job maintains.
 REFRESHABLE_VIEWS: tuple[str, ...] = MATERIALIZED_VIEWS + OPTIONAL_MATERIALIZED_VIEWS

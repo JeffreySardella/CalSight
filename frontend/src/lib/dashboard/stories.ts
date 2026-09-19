@@ -47,7 +47,22 @@ export type FirstRainStoryBlock = {
   countySlug: string;
 };
 
-export type StoryBlock = NarrativeBlock | ChartBlock | StatCalloutBlock | FirstRainStoryBlock;
+/** Holiday-period crash, death and DUI rates against ordinary days of the
+ *  same month — a live table off /api/holidays, outside the /api/stats
+ *  dimensions (nothing else in the schema carries day-of-month). */
+export type HolidayStoryBlock = {
+  type: "holidays";
+  id: string;
+  /** Omit for statewide; a slug narrows the whole table to one county. */
+  countySlug?: string;
+};
+
+export type StoryBlock =
+  | NarrativeBlock
+  | ChartBlock
+  | StatCalloutBlock
+  | FirstRainStoryBlock
+  | HolidayStoryBlock;
 
 export type DataStory = {
   id: string;
@@ -608,6 +623,32 @@ export const DATA_STORIES: DataStory[] = [
         type: "narrative",
         heading: "What this does and doesn't say",
         body: "Rain here is a county-average from nClimGrid, so a storm that soaks one edge of a large county counts for all of it, and a light shower can cross the 0.10-inch line without wetting every road. Only the first qualifying storm of each water year is counted — later storms, and the days after the first one, are not. Smaller counties have small baselines, and a handful of crashes either way moves their percentages a lot; those are flagged. Above all, this is an association: crash counts rose on these days and rain is the obvious thing that changed, but the data cannot say it was the cause.",
+      },
+    ],
+  },
+  {
+    id: "holidays-on-the-road",
+    title: "Holidays on the road",
+    subtitle: "Which holidays actually put more people in the ambulance, and which only feel that way",
+    icon: "celebration",
+    blocks: [
+      {
+        type: "narrative",
+        heading: "The holiday you are told to fear",
+        body: "Every year the same warnings go out before the same long weekends. They are rarely accompanied by a number, and almost never by the right comparison: a holiday in July is being measured against a January nobody drove in.\n\nThe table below makes the comparison the honest way. Each holiday period is set beside the ordinary days of its own month, in the same year — same season, same daylight, same weather — so what is left is the holiday itself rather than the time of year. Every figure is computed live; none of them are written into this page.",
+        isThesis: true,
+      },
+      { type: "holidays", id: "story-holidays-statewide" },
+      {
+        type: "narrative",
+        heading: "Volume and risk are two different questions",
+        body: "A holiday can move crashes and deaths in opposite directions. Long weekends empty the commute and fill the highways, so the crash count can fall while the share of crashes involving alcohol climbs — the same evening, with fewer people driving and more of them drinking. Read the crash column and the DUI column as separate findings, not as one.\n\nThe periods themselves are of different lengths — a single Sunday for the Super Bowl, nine days from Christmas Eve to New Year's Day — which is why everything is expressed per day rather than as a total.",
+      },
+      { type: "holidays", id: "story-holidays-la", countySlug: "los-angeles" },
+      {
+        type: "narrative",
+        heading: "What this cannot tell you",
+        body: "These are counts of reported crashes, not of risk per mile. Nobody records how much more or less Californians drove on a given holiday, so a period with more crashes may simply have more traffic, and one with fewer may just be a weekend when people stayed home. The DUI figure is the share of crashes whose primary cause was coded as driving under the influence, which depends on what the attending officer recorded, not on a blood test.\n\nHalloween night runs from the evening of October 31 into the early hours of November 1, but this data resolves to whole days, so both are counted in full — daylight hours included. Fatality records also catch up months after crash records, so the most recent year shown is the last complete one, and even its death counts may still rise.",
       },
     ],
   },

@@ -10,10 +10,12 @@ Views and the migrations that defined them:
   - mv_crash_rates                         (g4h5i6j7k8l9) — per-capita rates
   - mv_street_aggregates                   (c4f1a9b2d3e7) — street-level rollup
   - mv_street_totals                       (77b8d6739669) — coarse street rollups (default state)
+  - mv_crashes_by_day                      (e15a88b36527) — county × day, for /api/holidays
 
-The street views are "optional": the street endpoints fall back to the raw
-crashes table when they are unpopulated, so unlike the others they do not
-gate the site-wide rebuilding banner. See app/health.py.
+The street views and mv_crashes_by_day are "optional": the street endpoints
+fall back to the raw crashes table when they are unpopulated, and /api/holidays
+returns an empty holiday list, so unlike the others they do not gate the
+site-wide rebuilding banner. See app/health.py.
 
 They were created WITH NO DATA — the first run of this module populates
 them. Subsequent runs do a CONCURRENTLY refresh (doesn't block reads)

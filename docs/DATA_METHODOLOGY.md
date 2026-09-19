@@ -578,6 +578,35 @@ ksi_per_100k = ksi / population * 100,000        (Stats hero tile; complete year
 
 \* KSI = people killed or seriously injured. Before 2016 "seriously injured" is SWITRS's "severe injury". From 2016 it is CCRS's "suspected serious injury" plus the older "severe" code that agencies phased out through about 2025. The definitions are close but not identical, so compare years across 2015→2016 (and 2017→2018, when most agencies switched) with care.
 
+### 5.7 Holiday Periods and the Same-Month Baseline
+
+The "Holidays on the road" story (`/api/holidays`, backed by `mv_crashes_by_day`) compares each holiday period against **ordinary days of its own anchor month, in the same year**. Comparing a July holiday against the annual average would mostly measure summer; comparing it against the rest of July holds season, daylight and weather roughly constant, so what remains is closer to the holiday itself.
+
+Holiday periods, all defined on whole calendar days:
+
+| Holiday | Period | Anchor month |
+|---|---|---|
+| Thanksgiving | Wednesday before through the Sunday after the fourth Thursday of November (5 days) | November |
+| Christmas to New Year | December 24 through January 1 (9 days) | December |
+| July 4th weekend | July 4 plus any weekend days directly adjoining it (1–3 days) | July |
+| Memorial Day weekend | Friday through the last Monday of May (4 days) | May |
+| Labor Day weekend | Friday through the first Monday of September (4 days) | September |
+| Super Bowl Sunday | First Sunday of February through 2021; second Sunday from 2022, when the NFL's 17-game season moved the game a week later (1 day) | February |
+| Halloween | October 31 and November 1 (2 days) | October |
+
+The baseline for a holiday is every day of its anchor month **except** days belonging to any holiday period — November 1 counts as Halloween, not as an ordinary November day, so it is removed from Thanksgiving's baseline as well as its own.
+
+```
+crashes_per_day = crashes in the period / calendar days in the period
+deaths_per_day  = number_killed in the period / calendar days in the period
+dui_share_pct   = crashes with canonical_cause = 'dui' / crashes in the period * 100
+lift_pct        = (holiday_rate - ordinary_rate) / ordinary_rate * 100
+```
+
+A day with no crashes still counts toward the denominator. `lift_pct` is reported as null, never as zero, when the baseline rate is zero. DUI reuses the `canonical_cause = 'dui'` definition used by the county insight cards (§4.2), not the `is_alcohol_involved` party flag — that flag is NULL for every SWITRS row, so a share built on it would be understated wherever SWITRS is the source.
+
+Three limitations are stated on the story itself. Halloween night is really 6 PM October 31 to 6 AM November 1, but the source view resolves to whole days, so both days are counted in full and the figure includes daytime hours either side. Periods are clipped to the requested year range, so a Christmas period running into the following January contributes only the days inside the window — per-day normalization keeps a clipped period comparable. Fatality records lag crash records by six months or more, so the range ends at the last complete year and even that year's death counts may still rise.
+
 ---
 
 ## 6. Statistical Methods

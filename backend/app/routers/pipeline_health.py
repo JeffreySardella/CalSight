@@ -216,6 +216,7 @@ _ALLOWED_MATVIEWS = frozenset([
     "mv_at_fault_parties_by_demographics",
     "mv_crash_rates",
     "mv_crashes_wide",
+    "mv_crashes_by_day",
 ])
 
 

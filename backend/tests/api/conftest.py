@@ -24,6 +24,7 @@ from alembic import command as alembic_command  # noqa: E402
 from alembic.config import Config as AlembicConfig  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine, text  # noqa: E402
+from sqlalchemy.engine import make_url  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
 from app.database import get_db  # noqa: E402
@@ -67,11 +68,28 @@ def _db_available(url: str) -> bool:
         return False
 
 
+def _test_db_name() -> str:
+    """The database name inside TEST_DATABASE_URL.
+
+    Derived rather than hard-coded: overriding TEST_DATABASE_URL to run against
+    a differently-named scratch DB used to still DROP and CREATE `calsight_test`,
+    so the override silently tested the wrong database (or clobbered someone
+    else's). The `_test` suffix is enforced so a typo can never drop a real DB.
+    """
+    name = make_url(TEST_DB_URL).database or ""
+    if not name.endswith("_test"):
+        raise RuntimeError(
+            f"refusing to drop/create {name!r}: the test database name must end in '_test'"
+        )
+    return name
+
+
 def _create_test_db() -> None:
+    name = _test_db_name()
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
-        conn.execute(text("DROP DATABASE IF EXISTS calsight_test"))
-        conn.execute(text("CREATE DATABASE calsight_test"))
+        conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
+        conn.execute(text(f'CREATE DATABASE "{name}"'))
     admin.dispose()
 
 
