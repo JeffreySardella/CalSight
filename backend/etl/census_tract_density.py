@@ -27,7 +27,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.database import EtlSessionLocal as SessionLocal
 from app.models import County, TractDensityCountyYear
 from app.settings import settings
-from etl._utils import require_rows, track_etl_run
+from etl._utils import require_rows_unless_new_period, track_etl_run
 from etl.nhtsa_fars import build_county_lookup
 
 logger = logging.getLogger(__name__)
@@ -220,16 +220,17 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                 land = gaz_cache[gaz_year]
 
                 tract_rows = fetch_tract_population(year, api_key)
-                if not tract_rows and year == end_year:
-                    logger.info(
-                        "ACS tract pop %d not published yet (0 rows), skipping",
-                        year,
-                    )
-                    continue
-                require_rows(tract_rows, "tract_density", f"ACS tract rows for year {year}")
-
                 rows = aggregate_county_density(tract_rows, land, lookup, year)
-                require_rows(rows, "tract_density", f"aggregated county rows for year {year}")
+                # Zero rows is only legitimate ("not published yet") for a
+                # year we've never loaded before — see
+                # require_rows_unless_new_period()'s docstring. A year we
+                # already have rows for going to zero is a real regression.
+                rows = require_rows_unless_new_period(
+                    rows, db, "tract_density_county_year", "year = :year", {"year": year},
+                    "tract_density", f"county rows for year {year}",
+                )
+                if not rows:
+                    continue
                 stmt = pg_insert(TractDensityCountyYear).values(rows)
                 stmt = stmt.on_conflict_do_update(
                     constraint="tract_density_county_year_county_code_year_key",

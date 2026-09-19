@@ -200,32 +200,62 @@ class TestRunFailureHandling:
 
 
 class TestPublishLagGuard:
-    """Distinguish a malformed/empty CSV for an already-complete month
-    (raise) from the current in-progress month (legitimate, log+skip)."""
+    """Distinguish a zero-row CSV for a month we already have data for
+    (raise -- real regression) from a month we've never loaded before
+    (legitimate publishing lag, log+skip). Replaces an earlier
+    current-month-only carve-out that missed the previous month in the
+    DEFAULT_MONTHS_BACK=2 trailing window still being unpublished right
+    after the 1st (a normal NOAA publication lag, not a broken loader)."""
 
-    def _patch_run(self, monkeypatch):
+    def _patch_run(self, monkeypatch, *, period_already_loaded: bool = False):
+        """period_already_loaded controls what the new
+        require_rows_unless_new_period() existence check (a mocked
+        db.execute(...).first()) reports for the month being fetched."""
         from etl import nclimgrid_weather as mod
 
         _patch_etl_run_tracking(monkeypatch)
         monkeypatch.setattr(mod.time, "sleep", lambda *_: None)
         db = MagicMock()
         db.query.return_value.all.return_value = [(1, "Alameda")]
+        db.execute.return_value.first.return_value = (
+            (1,) if period_already_loaded else None
+        )
         monkeypatch.setattr(mod, "SessionLocal", lambda: db)
         return mod, db
 
-    def test_zero_rows_for_current_month_is_not_an_error(self, monkeypatch):
-        from datetime import date as _date
-
-        mod, db = self._patch_run(monkeypatch)
-        today = _date.today()
+    def test_zero_rows_with_no_existing_rows_is_not_an_error(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=False)
         monkeypatch.setattr(mod, "fetch_variable_csv", lambda variable, year, month: "")
 
-        mod.run(year_months=[(today.year, today.month)])  # must not raise
+        mod.run(year_months=[(2019, 1)])  # must not raise
 
-    def test_zero_rows_for_already_complete_month_raises(self, monkeypatch):
-        mod, db = self._patch_run(monkeypatch)
-        # A month far in the past is never "current" regardless of when the
-        # suite runs.
+    def test_first_of_month_previous_month_unpublished_is_not_an_error(self, monkeypatch):
+        """The trailing window's PREVIOUS month (fetched by design because
+        it may still be 'prelim') can legitimately have nothing published
+        yet on the 1st-3rd of the new month — not just the current month."""
+        from datetime import date
+
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=False)
+        today = date.today()
+        prev_month = (today.year, today.month - 1) if today.month > 1 else (today.year - 1, 12)
+
+        def fake_fetch(variable, year, month):
+            # Simulate the trailing window: current month has data, the
+            # previous month hasn't been published for this variable yet.
+            if (year, month) == prev_month:
+                return ""
+            return f"cty,04001,CA: Alameda County,{year},{month:02d},{variable.upper()},    20.0"
+
+        monkeypatch.setattr(mod, "fetch_variable_csv", fake_fetch)
+
+        mod.run(year_months=[prev_month, (today.year, today.month)])  # must not raise
+
+    def test_zero_rows_with_existing_rows_raises(self, monkeypatch):
+        """A month we already have weather rows for going to zero is a real
+        regression, regardless of whether it's the current in-progress
+        month (the old current-month-only carve-out could miss this on the
+        previous month in the trailing window — Critical 2)."""
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=True)
         monkeypatch.setattr(mod, "fetch_variable_csv", lambda variable, year, month: "")
 
         with pytest.raises(RuntimeError, match="1 month"):

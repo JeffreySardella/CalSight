@@ -33,7 +33,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.cities_match import normalize_name
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import City, Crash
-from etl._utils import dedupe_rows
+from etl._utils import dedupe_rows, require_rows_unless_new_period
 from etl.alerts import AlertLevel, send_alert
 
 logging.basicConfig(
@@ -512,22 +512,22 @@ def run(
 
                     logger.info("CCRS year %d complete: %d rows", year, year_rows)
 
-                    if year_total == 0:
-                        # The resource passed the availability check, which
-                        # means CHP has published AND activated its DataStore
-                        # (discover_resource_ids only offers datastore_active
-                        # resources; the static fallback map is only ever
-                        # hand-added once a year is confirmed live). So an
-                        # active resource returning 0 total records is a real
-                        # upstream regression, not routine publishing lag —
-                        # unlike a missing resource entirely, which
-                        # alert_if_current_year_unpublished already covers.
-                        failed_batches += 1
-                        logger.error(
-                            "CCRS year %d: resource exists but returned 0 "
-                            "total records — refusing to record a silent "
-                            "no-op success",
-                            year,
+                    # A resource can pass the availability check (its
+                    # DataStore is "activated") days or weeks before CHP
+                    # backfills rows — e.g. DEFAULT_END_YEAR auto-advances to
+                    # next calendar year, so a just-activated, still-empty
+                    # next-year resource is always in range. Zero total
+                    # records is only a real regression when we already have
+                    # CCRS rows loaded for that year; otherwise it's routine
+                    # publishing lag. See require_rows_unless_new_period()'s
+                    # docstring. (A missing resource entirely is the
+                    # separate case alert_if_current_year_unpublished covers.)
+                    if year_total is not None:
+                        require_rows_unless_new_period(
+                            year_total, db, "crashes",
+                            "crash_year = :year AND data_source = 'ccrs'",
+                            {"year": year},
+                            "crashes_ccrs", f"total records for year {year}",
                         )
 
                 except Exception as exc:

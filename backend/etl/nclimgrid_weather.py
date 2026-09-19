@@ -47,7 +47,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, Weather, WeatherDaily
-from etl._utils import require_rows, track_etl_run
+from etl._utils import require_rows_unless_new_period, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -302,7 +302,6 @@ def run(year_months: list[tuple[int, int]] | None = None):
 
         total_rows = 0
         failed: list[tuple[int, int]] = []
-        current_ym = (date.today().year, date.today().month)
 
         for year, month in year_months:
             try:
@@ -347,18 +346,20 @@ def run(year_months: list[tuple[int, int]] | None = None):
                         "precipitation_in": cols.get("precipitation_in"),
                     })
 
-                if not rows and (year, month) == current_ym:
-                    # The in-progress current month legitimately has partial
-                    # or no data yet (nClimGrid publishes scaled/prelim files
-                    # with a lag) — not a broken upstream. Any already-
-                    # complete month returning zero rows is a real problem.
-                    logger.info(
-                        "%d-%02d: 0 county rows — current month in progress, "
-                        "skipping without failing the run",
-                        year, month,
-                    )
-                else:
-                    require_rows(rows, "weather", f"county rows for {year}-{month:02d}")
+                # Zero rows is only legitimate ("not yet published") for a
+                # month we've never loaded before — see
+                # require_rows_unless_new_period()'s docstring. This covers
+                # both the in-progress current month and a still-lagging
+                # trailing month (nClimGrid publishes scaled/prelim files
+                # with a lag that can cross the 1st of the new month). A
+                # month we already have rows for going to zero is a real
+                # regression.
+                rows = require_rows_unless_new_period(
+                    rows, db, "weather", "year = :year AND month = :month",
+                    {"year": year, "month": month},
+                    "weather", f"county rows for {year}-{month:02d}",
+                )
+                if rows:
                     stmt = pg_insert(Weather).values(rows)
                     stmt = stmt.on_conflict_do_update(
                         constraint="weather_county_code_year_month_key",

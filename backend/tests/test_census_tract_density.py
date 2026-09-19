@@ -187,13 +187,19 @@ class TestPublishLagGuard:
 
         assert fetch_tract_population(2022, "fake-key") == []
 
-    def _patch_run(self, monkeypatch):
+    def _patch_run(self, monkeypatch, *, period_already_loaded: bool = False):
+        """period_already_loaded controls what the new
+        require_rows_unless_new_period() existence check (a mocked
+        db.execute(...).first()) reports for the year being fetched."""
         from etl import _utils
         from etl import census_tract_density as mod
 
         monkeypatch.setattr(mod, "settings", SimpleNamespace(census_api_key="key"))
         db = MagicMock()
         db.query.return_value.all.return_value = [SimpleNamespace(code=1, fips="06001")]
+        db.execute.return_value.first.return_value = (
+            (1,) if period_already_loaded else None
+        )
         monkeypatch.setattr(mod, "SessionLocal", lambda: db)
         monkeypatch.setattr(mod, "fetch_gazetteer_land", lambda gaz_year: {"06001400100": 1.0})
         monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
@@ -203,22 +209,22 @@ class TestPublishLagGuard:
         )
         return mod, db
 
-    def test_empty_tract_rows_for_newest_year_is_not_an_error(self, monkeypatch):
-        mod, db = self._patch_run(monkeypatch)
+    def test_empty_tract_rows_with_no_existing_rows_is_not_an_error(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=False)
         monkeypatch.setattr(mod, "fetch_tract_population", lambda year, key: [])
 
         mod.run(start_year=2022, end_year=2022)  # must not raise
 
-    def test_empty_tract_rows_for_older_year_raises(self, monkeypatch):
-        mod, db = self._patch_run(monkeypatch)
-
-        def fake_fetch(year, key):
-            return [] if year == 2020 else [{"geoid": "06001400100", "pop": 1000}]
-
-        monkeypatch.setattr(mod, "fetch_tract_population", fake_fetch)
+    def test_empty_tract_rows_with_existing_rows_raises(self, monkeypatch):
+        """A year we already have tract_density_county_year rows for going
+        to zero is a real regression, regardless of whether it's the newest
+        requested year (the old end_year-keyed carve-out could miss this on
+        a manual backfill — Minor 4)."""
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=True)
+        monkeypatch.setattr(mod, "fetch_tract_population", lambda year, key: [])
 
         with pytest.raises(RuntimeError, match=r"1 year\(s\) failed: \[2020\]"):
-            mod.run(start_year=2020, end_year=2021)
+            mod.run(start_year=2020, end_year=2020)
 
     def test_valid_fixture_loads_normally(self, monkeypatch):
         mod, db = self._patch_run(monkeypatch)

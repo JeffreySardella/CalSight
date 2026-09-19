@@ -26,7 +26,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, VehicleRegistration
-from etl._utils import require_rows, track_etl_run
+from etl._utils import require_rows_unless_new_period, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -253,17 +253,17 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                     for code, data in county_data.items()
                 ]
 
-                if not rows and year == end_year:
-                    # The newest requested year's DMV extract legitimately
-                    # isn't published yet — same "not yet published" carve-out
-                    # as fars/tract_density. Any OLDER year returning zero
-                    # counties is a real problem (crosswalk or upstream bug).
-                    logger.info(
-                        "DMV vehicles %d: 0 rows — not yet published, skipping",
-                        year,
-                    )
+                # Zero counties is only legitimate ("not yet published") for
+                # a year we've never loaded before — see
+                # require_rows_unless_new_period()'s docstring. A year we
+                # already have rows for going to zero is a real problem
+                # (crosswalk or upstream bug), not publishing lag.
+                rows = require_rows_unless_new_period(
+                    rows, db, "vehicle_registrations", "year = :year", {"year": year},
+                    "vehicles", f"county rows for year {year}",
+                )
+                if not rows:
                     continue
-                require_rows(rows, "vehicles", f"county rows for year {year}")
 
                 stmt = pg_insert(VehicleRegistration).values(rows)
                 stmt = stmt.on_conflict_do_update(

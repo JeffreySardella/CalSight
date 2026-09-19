@@ -164,12 +164,18 @@ class TestPublishLagGuard:
         with pytest.raises(RuntimeError, match="malformed bundle"):
             mod.fetch_year(2022)
 
-    def _patch_run(self, monkeypatch):
+    def _patch_run(self, monkeypatch, *, period_already_loaded: bool = False):
+        """period_already_loaded controls what the new
+        require_rows_unless_new_period() existence check (a mocked
+        db.execute(...).first()) reports for the year being fetched."""
         from etl import _utils
         from etl import nhtsa_fars as mod
 
         db = MagicMock()
         db.query.return_value.all.return_value = [SimpleNamespace(code=19, fips="06037")]
+        db.execute.return_value.first.return_value = (
+            (1,) if period_already_loaded else None
+        )
         monkeypatch.setattr(mod, "SessionLocal", lambda: db)
         monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
         monkeypatch.setattr(
@@ -178,22 +184,24 @@ class TestPublishLagGuard:
         )
         return mod, db
 
-    def test_zero_ca_fatalities_for_newest_year_is_not_an_error(self, monkeypatch):
-        mod, db = self._patch_run(monkeypatch)
+    def test_empty_year_with_no_existing_rows_is_not_an_error(self, monkeypatch):
+        """The 'CCRS January' scenario for FARS: a year with no fars_county_year
+        rows yet returning 0 CA fatalities is routine publishing lag."""
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=False)
         monkeypatch.setattr(mod, "fetch_year", lambda year: [])
 
         mod.run(start_year=2025, end_year=2025)  # must not raise
 
-    def test_zero_ca_fatalities_for_older_year_raises(self, monkeypatch):
-        mod, db = self._patch_run(monkeypatch)
-
-        def fake_fetch(year):
-            return [] if year == 2020 else [_person()]
-
-        monkeypatch.setattr(mod, "fetch_year", fake_fetch)
+    def test_empty_year_with_existing_rows_raises(self, monkeypatch):
+        """A year we already have fars_county_year rows for going to zero is
+        a real regression, regardless of whether it's the newest requested
+        year (the old end_year-keyed carve-out could miss this on a
+        manual backfill — Minor 4)."""
+        mod, db = self._patch_run(monkeypatch, period_already_loaded=True)
+        monkeypatch.setattr(mod, "fetch_year", lambda year: [])
 
         with pytest.raises(RuntimeError, match=r"1 year\(s\) failed: \[2020\]"):
-            mod.run(start_year=2020, end_year=2021)
+            mod.run(start_year=2020, end_year=2020)
 
     def test_valid_fixture_loads_normally(self, monkeypatch):
         mod, db = self._patch_run(monkeypatch)

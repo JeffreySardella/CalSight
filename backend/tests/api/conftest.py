@@ -31,14 +31,24 @@ from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 # hardcoded literal — otherwise two worktrees/sessions pointed at different
 # TEST_DATABASE_URLs on the same Postgres instance would both DROP/CREATE
 # the same hardcoded "calsight_test" database out from under each other.
-# Require a "_test" suffix as a guardrail: this runs DROP DATABASE, so it
-# must never be pointed at a non-test database by a typo'd env var.
-_TEST_DB_NAME = make_url(TEST_DB_URL).database
-if not _TEST_DB_NAME or not _TEST_DB_NAME.endswith("_test"):
-    raise RuntimeError(
-        f"TEST_DATABASE_URL database name {_TEST_DB_NAME!r} must end with "
-        "'_test' — refusing to run DROP/CREATE DATABASE against it"
-    )
+
+
+def _require_test_suffix(db_name: str | None) -> str:
+    """Guard for _TEST_DB_NAME: refuse anything not clearly a test database.
+
+    Backs the DROP DATABASE / CREATE DATABASE calls in _create_test_db()
+    below — a typo'd or missing TEST_DATABASE_URL must never let those run
+    against a non-test database. See test_conftest_db_name_guard.py.
+    """
+    if not db_name or not db_name.endswith("_test"):
+        raise RuntimeError(
+            f"TEST_DATABASE_URL database name {db_name!r} must end with "
+            "'_test' — refusing to run DROP/CREATE DATABASE against it"
+        )
+    return db_name
+
+
+_TEST_DB_NAME = _require_test_suffix(make_url(TEST_DB_URL).database)
 
 from app.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402

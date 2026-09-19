@@ -23,7 +23,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal
 from app.models import County, FarsCountyYear
-from etl._utils import require_rows, track_etl_run
+from etl._utils import require_rows_unless_new_period, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -154,20 +154,17 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
             try:
                 person_rows = fetch_year(year)
                 rows = aggregate_fars(person_rows, lookup, year)
+                # A 200 that parses to zero CA fatalities is only legitimate
+                # ("not published yet") when we've never loaded this year
+                # before — see require_rows_unless_new_period()'s docstring.
+                # A year we already have rows for going to zero is a real
+                # regression, not publishing lag.
+                rows = require_rows_unless_new_period(
+                    rows, db, "fars_county_year", "year = :year", {"year": year},
+                    "fars", f"county rows for year {year}",
+                )
                 if not rows:
-                    if year == end_year:
-                        # The newest requested vintage legitimately isn't
-                        # published for months — same carve-out as the 404
-                        # path above, extended to a 200 that parses to zero
-                        # CA fatalities. Any OLDER year returning empty is a
-                        # real problem, not a publishing lag.
-                        logger.info(
-                            "FARS %d not published yet (0 CA fatalities "
-                            "parsed), skipping",
-                            year,
-                        )
-                        continue
-                    require_rows(rows, "fars", f"county rows for year {year}")
+                    continue
                 stmt = pg_insert(FarsCountyYear).values(rows)
                 stmt = stmt.on_conflict_do_update(
                     constraint="fars_county_year_county_code_year_key",

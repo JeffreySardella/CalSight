@@ -37,7 +37,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CrashParty, CrashVictim
-from etl._utils import dedupe_rows
+from etl._utils import dedupe_rows, period_already_loaded
 from etl.ckan_api import merged_resource_ids
 
 logging.basicConfig(
@@ -301,21 +301,38 @@ def load_table(
                     break
 
             if year_total == 0:
-                # Same reasoning as load_crashes.py's CCRS check: these
-                # resource ids only come from the static map (hand-added
-                # once a year is confirmed live) or merged_resource_ids'
-                # discovery (datastore_active resources only), so an active
-                # resource returning 0 total records is a real regression,
-                # not a quiet weekend — CHP's weekend gap just means no NEW
-                # rows inside an otherwise non-empty year, which this full
-                # per-year re-pull would still report as its usual nonzero
-                # total.
-                logger.error(
-                    "%s year %d: resource exists but returned 0 total "
-                    "records — refusing to record a silent no-op success",
-                    table_type, year,
-                )
-                had_failure = True
+                # A resource can pass the availability check (its DataStore
+                # is "activated") days or weeks before CHP backfills rows —
+                # e.g. a just-created next-year resource. Zero total records
+                # is only a real regression when we already have rows for
+                # that year in this table; otherwise it's routine publishing
+                # lag, same distinction as load_crashes.py's CCRS check (see
+                # require_rows_unless_new_period()'s docstring). This loader
+                # re-pulls each year's FULL resource nightly (no watermark),
+                # so a quiet CHP weekend still reports the year's usual
+                # nonzero total and never reaches this branch.
+                if period_already_loaded(
+                    db,
+                    f"{model_class.__tablename__} t "
+                    "JOIN crashes c ON c.collision_id = t.collision_id",
+                    "c.crash_year = :year AND c.data_source = 'ccrs' "
+                    "AND t.data_source = 'ccrs'",
+                    {"year": year},
+                ):
+                    logger.error(
+                        "%s year %d: resource exists but returned 0 total "
+                        "records for a year we already have data for — "
+                        "refusing to record a silent regression",
+                        table_type, year,
+                    )
+                    had_failure = True
+                else:
+                    logger.info(
+                        "%s year %d: resource exists but returned 0 total "
+                        "records and we have no existing rows for this "
+                        "year — not published yet, skipping",
+                        table_type, year,
+                    )
 
             total_rows += year_rows
             logger.info("%s year %d complete: %d rows", table_type, year, year_rows)
