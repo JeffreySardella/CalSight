@@ -17,6 +17,7 @@ const MEASURE_LIST: { key: MeasureKey; label: string; description: string; group
   { key: "crashes_per_10k_drivers", label: "Per 10K Licensed Drivers", description: "Crashes per 10,000 licensed drivers a year. Exposure by who drives, not who lives there", group: "Crash Metrics" },
   { key: "fatalities_per_10k_drivers", label: "Fatalities per 10K Drivers", description: "Deaths per 10,000 licensed drivers a year", group: "Crash Metrics" },
   { key: "crashes_per_100_road_miles", label: "Per 100 Road Miles", description: "Crashes per 100 miles of road a year. Dense cities rank high, rural counties low", group: "Crash Metrics" },
+  { key: "crashes_per_100m_vmt", label: "Per 100M Vehicle Miles", description: "Crashes per 100 million miles driven a year. All-roads annual mileage modelled by CARB, not the state-highway traffic counts behind the AADT rate", group: "Crash Metrics" },
   { key: "fatality_rate", label: "Fatality Rate %", description: "What percentage of crashes are fatal", group: "Crash Metrics" },
   { key: "crashes_per_income", label: "Per $100K Income", description: "Crash rate relative to median household income", group: "Crash Metrics" },
   { key: "crashes_per_poverty", label: "Crashes per Poverty %", description: "Crash rate weighted by poverty — crashes per 1% poverty per 100K pop", group: "Crash + Demographics" },
@@ -34,7 +35,7 @@ const MEASURE_LIST: { key: MeasureKey; label: string; description: string; group
 const CRASH_MEASURES: MeasureKey[] = [
   "crashes_raw", "crashes_per_100k", "fatalities_per_100k", "injuries_per_100k",
   "crashes_per_10k_drivers", "fatalities_per_10k_drivers", "crashes_per_100_road_miles",
-  "fatality_rate", "crashes_per_income", "crashes_per_poverty",
+  "crashes_per_100m_vmt", "fatality_rate", "crashes_per_income", "crashes_per_poverty",
 ];
 
 const DEMO_MEASURES: MeasureKey[] = [

@@ -11,6 +11,7 @@ export type MeasureKey =
   | "crashes_per_10k_drivers"
   | "fatalities_per_10k_drivers"
   | "crashes_per_100_road_miles"
+  | "crashes_per_100m_vmt"
   | "crashes_raw"
   | "fatality_rate"
   | "crashes_per_income"
@@ -31,7 +32,7 @@ export type Measure = {
   /** "perCapita" needs demographics; "raw" and "rate" do not.
    *  "context" measures are sourced from external datasets
    *  (CalEnviroScreen, unemployment) rather than crash/demo queries. */
-  kind: "perCapita" | "perDriver" | "perRoadMile" | "raw" | "rate" | "perIncome" | "demographic" | "crashDemographic" | "context";
+  kind: "perCapita" | "perDriver" | "perRoadMile" | "perVmt" | "raw" | "rate" | "perIncome" | "demographic" | "crashDemographic" | "context";
   formatLabel: (n: number) => string;
 };
 
@@ -70,6 +71,12 @@ export const MEASURES: Record<MeasureKey, Measure> = {
     key: "crashes_per_100_road_miles",
     label: "Crashes per 100 road miles",
     kind: "perRoadMile",
+    formatLabel: (n) => n.toFixed(0),
+  },
+  crashes_per_100m_vmt: {
+    key: "crashes_per_100m_vmt",
+    label: "Crashes per 100M vehicle miles",
+    kind: "perVmt",
     formatLabel: (n) => n.toFixed(0),
   },
   crashes_raw: {
@@ -201,8 +208,11 @@ type ComputeOpts = {
   annualDrivers?: number | null;
   /** Total road miles in the county, all functional classes (perRoadMile). */
   roadMiles?: number | null;
-  /** Years the crash total spans, so perDriver / perRoadMile are annual rates
-   *  like the per-100k ones. */
+  /** Average millions of vehicle miles driven per year over the selected
+   *  window (perVmt). */
+  annualVmtMillions?: number | null;
+  /** Years the crash total spans, so perDriver / perRoadMile / perVmt are
+   *  annual rates like the per-100k ones. */
   yearCount?: number;
 };
 
@@ -220,6 +230,23 @@ export function annualDriverCount(rows: DriverYear[], years: Set<number>): numbe
     pick = [valid.reduce((a, b) => (Math.abs(b.year - target) < Math.abs(a.year - target) ? b : a))];
   }
   return pick.reduce((sum, r) => sum + r.driver_count!, 0) / pick.length;
+}
+
+export type VmtYear = { year: number; vmt_millions: number | null };
+
+/** Average VMT (millions) per year for the selected years (empty set = all).
+ *  EMFAC coverage starts in 2001 and stops before the current year, since
+ *  later years are forecasts; when no selected year has data the nearest
+ *  available year stands in, as with driver counts. */
+export function annualVmtMillions(rows: VmtYear[], years: Set<number>): number | null {
+  const valid = rows.filter((r) => r.vmt_millions != null && r.vmt_millions > 0);
+  if (valid.length === 0) return null;
+  let pick = years.size > 0 ? valid.filter((r) => years.has(r.year)) : valid;
+  if (pick.length === 0) {
+    const target = Math.max(...years);
+    pick = [valid.reduce((a, b) => (Math.abs(b.year - target) < Math.abs(a.year - target) ? b : a))];
+  }
+  return pick.reduce((sum, r) => sum + r.vmt_millions!, 0) / pick.length;
 }
 
 export function computeMeasureValue(
@@ -254,6 +281,16 @@ export function computeMeasureValue(
       return { value: null, hasEnoughData: false };
     }
     return { value: (stats.crash_count / (miles * years)) * 100, hasEnoughData: true };
+  }
+  if (measure === "crashes_per_100m_vmt") {
+    const vmtMillions = opts.annualVmtMillions;
+    const years = opts.yearCount ?? 1;
+    if (stats.crash_count < MIN_CRASHES_FOR_RATE || vmtMillions == null || vmtMillions <= 0 || years <= 0) {
+      return { value: null, hasEnoughData: false };
+    }
+    // vmt_millions is per year, so multiplying by the year count gives the
+    // miles driven over the whole window; 100M miles = 100 of those units.
+    return { value: (stats.crash_count / (vmtMillions * years)) * 100, hasEnoughData: true };
   }
 
   if (measure === "crashes_raw") {
