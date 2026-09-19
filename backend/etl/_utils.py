@@ -120,6 +120,30 @@ def safe_float(value: Any) -> float | None:
         return None
 
 
+def require_rows(rows: Any, source: str, what: str = "rows") -> Any:
+    """Raise if *rows* is empty — a 200 with no/malformed data must fail the
+    job, not record a silent zero-row "success".
+
+    Audit finding (M-B10): 21 of 22 upstream loaders treated an empty or
+    malformed response identically to a genuinely-empty pull, logged
+    "0 inserted/upserted", and exited 0 — which resets the freshness clock
+    as if real data had loaded. This is the single check point for every
+    loader where zero is never a legitimate outcome.
+
+    Accepts anything with ``len()`` (list, dict, ...) or a bare int count,
+    so a loader can pass either its row list or an already-computed total.
+    Returns *rows* unchanged so it composes inline:
+        rows = require_rows(fetch(...), "hospitals", "hospital records")
+    """
+    count = len(rows) if hasattr(rows, "__len__") else rows
+    if not count:
+        raise RuntimeError(
+            f"{source}: upstream returned 0 {what} — refusing to record a "
+            "silent no-op success"
+        )
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # HTTP with retry
 # ---------------------------------------------------------------------------
@@ -556,7 +580,7 @@ def _check_arcgis_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
 
 _ALLOWED_FRESHNESS_TABLES = {
     "demographics", "weather", "unemployment_rates",
-    "fars_county_year", "tract_density_county_year",
+    "fars_county_year", "tract_density_county_year", "storm_events",
 }
 
 

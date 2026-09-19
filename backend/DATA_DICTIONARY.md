@@ -1,6 +1,6 @@
 # CalSight Data Dictionary
 
-Last updated: 2026-09-12
+Last updated: 2026-09-18
 
 Column-by-column reference for every table in the CalSight database.
 
@@ -607,6 +607,7 @@ Column detail for these lives in `backend/app/models.py` (the ORM is authoritati
 |---|---|---|---|
 | `weather_daily` | county × day | `etl.nclimgrid_weather` | NOAA nClimGrid-Daily county area-averages (precip_in, avg/max/min temp F), 2001→present; missing days are absent rows |
 | `first_rain_events` | county × water year (2002+) | `etl.compute_first_rain` | First day ≥ 0.10 in after ≥ 14 dry days; `crashes_on_day`, 28-day `baseline_daily_crashes`, `lift_pct` |
+| `storm_events` | NOAA event × county (2001+) | `etl.load_storm_events` | NOAA Storm Events Dense Fog and winter rows for 32 counties — the San Joaquin Valley and Sierra, plus the Sacramento Valley and far-northern counties the transcribed NWS zones reach into; keyed to NWS forecast zones, so one event becomes one row per county its zone touches — unique on (source_event_id, county_code). Its `source` column is NOAA's own SOURCE field (who reported the event: "Trained Spotter", "Broadcast Media"), **not** CalSight provenance — unlike `etl_runs.source` everywhere else in this doc |
 | `fars_county_year` | county × year | `etl.nhtsa_fars` | NHTSA FARS fatalities, unrestrained and restraint-known killed |
 | `tract_density_county_year` | county × year | `etl.census_tract_density` | Population-weighted ("lived") density and contributing tract count |
 | `reservoirs` / `reservoir_daily` | station; station × day | `etl.load_reservoirs` | 15 major CDEC reservoirs (capacity_af, county, lat/lon) and daily `storage_af`, backfilled from 1991 |

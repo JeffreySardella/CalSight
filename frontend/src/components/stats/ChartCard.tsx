@@ -24,6 +24,7 @@ import { useCustomTheme } from "../../context/CustomThemeContext";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
 import { partialYearNote } from "../../lib/partialYear";
+import { MODE_COVERAGE_NOTE } from "../../lib/dashboard/types";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
 import type { DragHandleProps } from "../../hooks/useDragReorder";
@@ -347,6 +348,17 @@ function ChartCard({
     ? partialYearNote(data.map((d) => d.label))
     : null;
 
+  // Pedestrian/cyclist/motorcyclist/occupant come from CCRS party and victim
+  // records, which start in 2016 — say so rather than imply the earlier years
+  // had no vulnerable road users.
+  // Gated on the same condition as the footnote below: an empty mode chart
+  // (the normal result when a filter the view cannot answer is active) would
+  // otherwise show a dangling asterisk with nothing to attach it to.
+  const showModeNote = !loading && hasData && slot.dimension === "mode";
+
+  // Asterisk on the title only while the footnote is actually on screen.
+  const displayTitle = showModeNote ? `${title}*` : title;
+
   return (
     <div
       ref={cardRef}
@@ -370,7 +382,7 @@ function ChartCard({
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
             </span>
           )}
-          <h3 className={`flex-1 font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{title}</h3>
+          <h3 className={`flex-1 font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{displayTitle}</h3>
           {/* Mobile: always-visible kebab menu */}
           {!compact && (
             <MobileMenu
@@ -570,6 +582,10 @@ function ChartCard({
 
       {!loading && hasData && partialNote && (
         <p className="text-[10px] italic text-on-surface-variant mt-1.5">{partialNote}</p>
+      )}
+
+      {showModeNote && (
+        <p className="text-[10px] italic text-on-surface-variant mt-1.5">{MODE_COVERAGE_NOTE}</p>
       )}
 
       {narrativeResult && <ChartNarrative narrative={narrativeResult} />}

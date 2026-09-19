@@ -19,6 +19,11 @@ ADMIN_URL = os.environ.get(
 )
 os.environ["DATABASE_URL"] = TEST_DB_URL
 
+# Derive the database to (re)create from TEST_DATABASE_URL instead of
+# hard-coding "calsight_test", so two checkouts can run the integration
+# suite side by side without dropping each other's database mid-run.
+TEST_DB_NAME = TEST_DB_URL.rsplit("/", 1)[-1].split("?")[0]
+
 import pytest  # noqa: E402
 from alembic import command as alembic_command  # noqa: E402
 from alembic.config import Config as AlembicConfig  # noqa: E402
@@ -69,10 +74,23 @@ def _db_available(url: str) -> bool:
 
 
 def _create_test_db() -> None:
+    # Recreate the database TEST_DATABASE_URL actually points at. Hard-coding
+    # "calsight_test" here meant pointing TEST_DATABASE_URL at a private
+    # database (to run alongside another session) dropped the shared one and
+    # then migrated an empty target.
+    #
+    # This statement DROPs. It used to be safe by construction (the name was
+    # hard-coded); now that it follows TEST_DATABASE_URL, the name itself has to
+    # prove it is a test database — "calsight" would pass an alnum check alone.
+    if not TEST_DB_NAME.endswith("_test") or not TEST_DB_NAME.replace("_", "").isalnum():
+        raise ValueError(
+            f"refusing to drop {TEST_DB_NAME!r}: TEST_DATABASE_URL must name an "
+            "alphanumeric database ending in '_test'"
+        )
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
-        conn.execute(text("DROP DATABASE IF EXISTS calsight_test"))
-        conn.execute(text("CREATE DATABASE calsight_test"))
+        conn.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DB_NAME}"'))
+        conn.execute(text(f'CREATE DATABASE "{TEST_DB_NAME}"'))
     admin.dispose()
 
 
@@ -266,6 +284,7 @@ def _seed(session: Session) -> None:
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_hour"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crash_victims_by_demographics"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_at_fault_parties_by_demographics"))
+    session.execute(text("REFRESH MATERIALIZED VIEW mv_victims_by_mode"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_month"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crash_rates"))
     session.commit()

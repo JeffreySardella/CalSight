@@ -6,6 +6,7 @@ import { useDashboardData } from "../../hooks/useDashboardData";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import ChartCard from "./ChartCard";
 import FirstRainBlock from "./FirstRainBlock";
+import TuleFogBlock from "./TuleFogBlock";
 
 function resolveBody(body: string | ((ctx: StoryContext) => string), ctx: StoryContext): string {
   return typeof body === "function" ? body(ctx) : body;
@@ -216,6 +217,9 @@ function StoryBlockRenderer({
 
     case "first-rain":
       return <FirstRainBlock countySlug={block.countySlug} />;
+
+    case "tule-fog":
+      return <TuleFogBlock countySlug={block.countySlug} />;
 
     default:
       return null;

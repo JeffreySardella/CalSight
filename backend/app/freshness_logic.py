@@ -34,6 +34,8 @@ STALENESS_THRESHOLDS: dict[str, int] = {
     "matviews": 48,
     "demographics": 720,     # Census: monthly (30 days)
     "weather": 720,
+    "fars": 720,             # NHTSA: annual, lags months; same cadence as demographics
+    "tract_density": 720,
     "hospitals": 720,
     "schools": 720,
     "speed_limits": 720,
@@ -55,6 +57,10 @@ STALENESS_THRESHOLDS: dict[str, int] = {
     "drought": 48,
     "precip_indices": 48,
     "first_rain": 48,
+    # Weekly job. Listing it matters beyond the threshold itself: the summary
+    # counters in /api/freshness skip sources that aren't keys here, so an
+    # unlisted source can die without ever incrementing sources_stale.
+    "storm_events": 168,
 }
 
 
