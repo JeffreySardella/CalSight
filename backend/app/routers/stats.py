@@ -1,5 +1,7 @@
 """Aggregate crash stats, dispatched to the right materialized view."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
@@ -46,6 +48,8 @@ from app.schemas.stats import (
     SeverityRow,
     YearRow,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["stats"])
 
@@ -197,6 +201,10 @@ _PERSON_GROUPS = (
 _AGE_BRACKET_MAP = {
     (16, 21): 1, (22, 34): 2, (35, 49): 3, (50, 64): 4, (65, 200): 5,
 }
+
+# PostgreSQL object_not_in_prerequisite_state — what a SELECT against a
+# matview created WITH NO DATA raises until its first refresh.
+_PG_NOT_POPULATED = "55000"
 
 _limiter = Limiter(key_func=rate_limit_key)
 
@@ -1034,15 +1042,25 @@ def stats_batch(
             )
         except FilterError as e:
             results[group] = {"error": e.detail, "filter": e.filter}
-        except DBAPIError:
-            # One unreadable view must cost one card, not the whole dashboard.
-            # A matview created WITH NO DATA raises ObjectNotInPrerequisiteState
-            # on any SELECT until its first refresh; before this, that escaped
-            # the loop and turned the entire batch into a 500, blanking every
-            # chart on a board that merely contained one such group. The failed
-            # statement also poisons the transaction, so roll back before the
-            # remaining groups run or they all fail with InFailedSqlTransaction.
+        except DBAPIError as e:
+            # Either way the failed statement has poisoned the transaction, so
+            # roll back or every later group dies with InFailedSqlTransaction.
             db.rollback()
+            if getattr(e.orig, "pgcode", None) != _PG_NOT_POPULATED:
+                # A real outage or a botched migration is not a per-card
+                # problem. Re-raise so main.py's pgcode-discriminated handler
+                # logs it and answers 503 — degrading it to a 200 here would
+                # hide the outage behind four empty charts.
+                raise
+            # A matview created WITH NO DATA raises this on any SELECT until
+            # its first refresh. Before this it escaped the loop and turned the
+            # whole batch into a 500, blanking every chart on a board that
+            # merely contained one such group. One unreadable view costs one
+            # card instead.
+            logger.warning(
+                "stats batch group %s unavailable — matview not populated yet",
+                group,
+            )
             results[group] = {
                 "error": f"{group} data is not available right now.",
                 "filter": "unavailable",
