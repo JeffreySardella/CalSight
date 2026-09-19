@@ -19,10 +19,32 @@ interface HeatLayerInternals {
   _canvas?: HTMLCanvasElement;
   _animateZoom: (e: L.ZoomAnimEvent) => void;
   _reset: () => void;
+  /** Set by leaflet.heat's redraw() while a requestAnimationFrame-scheduled
+   *  _redraw() is in flight; see removeHeatLayer below. */
+  _frame?: number;
 }
 
 function heatInternals(layer: L.HeatLayer): HeatLayerInternals {
   return layer as unknown as HeatLayerInternals;
+}
+
+/**
+ * Remove a heat layer without leaving a scheduled redraw behind.
+ *
+ * leaflet.heat's redraw() throttles via requestAnimationFrame(this._redraw),
+ * storing the frame id on `_frame`. Its onRemove() nulls the canvas and event
+ * listeners but never cancels that frame. Leaflet's own removeLayer() then
+ * sets the layer's `_map` to null — so if a redraw was already scheduled
+ * (e.g. a setLatLngs from a streaming batch, or the zoomend handler's
+ * _reset()) and this layer is torn down before the next animation frame,
+ * _redraw() fires afterward and throws reading `_map.getSize()` on null.
+ * Cancelling here, in the one place every caller routes through, avoids
+ * patching each removal site (and there are several below).
+ */
+function removeHeatLayer(map: L.Map, layer: L.HeatLayer): void {
+  const frame = heatInternals(layer)._frame;
+  if (frame != null) L.Util.cancelAnimFrame(frame);
+  map.removeLayer(layer);
 }
 
 const BASE_RADIUS: Record<HeatmapResolution, number> = {
@@ -64,7 +86,7 @@ export function useHeatLayer(
   // Layer creation/teardown — only when style config changes
   useEffect(() => {
     if (layerRef.current) {
-      map.removeLayer(layerRef.current);
+      removeHeatLayer(map, layerRef.current);
       layerRef.current = null;
     }
 
@@ -131,7 +153,7 @@ export function useHeatLayer(
       map.off("zoomstart", onZoomStart);
       map.off("zoomend", onZoomEnd);
       if (layerRef.current) {
-        map.removeLayer(layerRef.current);
+        removeHeatLayer(map, layerRef.current);
         layerRef.current = null;
       }
     };
@@ -147,7 +169,7 @@ export function useHeatLayer(
   useEffect(() => {
     if (points.length === 0) {
       if (layerRef.current) {
-        map.removeLayer(layerRef.current);
+        removeHeatLayer(map, layerRef.current);
         layerRef.current = null;
       }
       return;
@@ -194,7 +216,7 @@ export function useFatalLayer(
 
   useEffect(() => {
     if (layerRef.current) {
-      map.removeLayer(layerRef.current);
+      removeHeatLayer(map, layerRef.current);
       layerRef.current = null;
     }
 
@@ -243,7 +265,7 @@ export function useFatalLayer(
       map.off("zoomstart", onZoomStart);
       map.off("zoomend", onZoomEnd);
       if (layerRef.current) {
-        map.removeLayer(layerRef.current);
+        removeHeatLayer(map, layerRef.current);
         layerRef.current = null;
       }
     };
