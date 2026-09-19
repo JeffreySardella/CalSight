@@ -22,4 +22,23 @@ describe("ChartConfigPanel KSI option", () => {
     expect(screen.queryByRole("option", { name: MEASURE_LABELS.ksi })).toBeNull();
     expect((screen.getByLabelText("Measure (Y Axis)") as HTMLSelectElement).value).toBe("count");
   });
+
+  it("sanitizes a tampered/legacy non-year initial slot carrying ksi", () => {
+    const onConfirm = vi.fn();
+    render(
+      <ChartConfigPanel
+        initial={{ dimension: "county", measure: "ksi", secondaryMeasure: "ksi", chartType: "line" }}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("option", { name: MEASURE_LABELS.ksi })).toBeNull();
+    // The select's DOM value falls back to the first <option> when the bound
+    // state doesn't match any of them, so check what Update actually emits —
+    // that's what an orphaned "ksi" state would silently re-send.
+    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ measure: "count", secondaryMeasure: undefined }),
+    );
+  });
 });

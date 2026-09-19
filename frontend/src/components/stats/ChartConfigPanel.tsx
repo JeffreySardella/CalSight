@@ -70,9 +70,16 @@ const SUPPORTS_OUTLIERS = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_FORECAST = new Set<ChartType>(["line", "area"]);
 
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
-  const [dimension, setDimension] = useState<Dimension>(initial?.dimension ?? "hour");
-  const [measure, setMeasure] = useState<Measure>(initial?.measure ?? "count");
-  const [secondaryMeasure, setSecondaryMeasure] = useState<Measure | undefined>(initial?.secondaryMeasure);
+  const initialDimension = initial?.dimension ?? "hour";
+  // A stale/tampered slot (legacy localStorage dashboard, decoded share URL —
+  // validateConfig allow-lists dimension and measure independently) can carry
+  // ksi on a non-year dimension, where measureOptions never renders it.
+  const initialMeasure = initialDimension !== "year" && initial?.measure === "ksi" ? "count" : (initial?.measure ?? "count");
+  const initialSecondaryMeasure = initialDimension !== "year" && initial?.secondaryMeasure === "ksi" ? undefined : initial?.secondaryMeasure;
+
+  const [dimension, setDimension] = useState<Dimension>(initialDimension);
+  const [measure, setMeasure] = useState<Measure>(initialMeasure);
+  const [secondaryMeasure, setSecondaryMeasure] = useState<Measure | undefined>(initialSecondaryMeasure);
   const [chartType, setChartType] = useState<ChartType>(initial?.chartType ?? defaultChartType("hour"));
   const [options, setOptions] = useState<ChartOptions>(initial?.options ?? {});
 
