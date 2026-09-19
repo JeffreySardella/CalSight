@@ -351,6 +351,45 @@ The Water page has no AI component; it is a direct presentation of four public f
 
 **Cadence.** CDEC has no freshness probe, so the three CDEC jobs pull a trailing window every day. USDM publishes on Thursdays; the `drought` job re-pulls the trailing eight weeks daily to absorb revisions. Upserts never delete, so a shrinking row count is treated as a failure.
 
+### 2.17 NOAA Storm Events (dense fog and winter weather)
+
+| Attribute | Value |
+|---|---|
+| **Official Name** | NOAA Storm Events Database |
+| **Source Agency** | NOAA National Centers for Environmental Information (NCEI) |
+| **Legal Authority** | Freedom of Information Act (5 U.S.C. 552); NOAA Open Data Policy |
+| **URL** | https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/ |
+| **Access** | Bulk gzipped CSV, one file per year, no API token; filenames carry a compile date resolved from the directory index |
+| **Coverage** | 2001 -- present, California rows only; event types Dense Fog, Winter Storm, Winter Weather, Heavy Snow, Blizzard, Ice Storm |
+| **Update Frequency** | Weekly job, trailing two years (NOAA reissues years in place) |
+| **Row Count** | Filled after the first prod load |
+
+**Fields Extracted:**
+NOAA event id, event type, begin and end date, NWS forecast zone id and name, direct deaths, direct injuries, and NOAA's own `SOURCE` field (who reported the event).
+
+#### Zone-to-county mapping
+
+Every California row of these event types is keyed to an **NWS forecast zone** (`CZ_TYPE='Z'`), never to a county -- measured across 2001--2025, not assumed. `CZ_FIPS` on those rows is a zone number (307 = "FRESNO - CLOVIS"), not a county FIPS, and nothing NCEI ships alongside the CSVs decomposes zones into counties.
+
+`etl/load_storm_events.py` therefore carries a hand-built map of 83 zones onto 32 counties. Zones in use today are transcribed row for row from the NWS Zone-County Correlation File `bp18mr25.dbx` (CAZ016-019, CAZ066-073, CAZ300-337, CAZ519-520). The Hanford forecast office renumbered its zones twice inside the window, so its retired numbers (CAZ089-099, used through about 2019, and CAZ180-199, used about 2019-2021) have no entry in that file and are hand-read from the zone names in the data itself; those only resolve on rows whose `WFO` is `HNX`.
+
+**A zone can straddle a county line, so one NOAA event becomes one row per county its zone touches** -- `storm_events` is unique on `(source_event_id, county_code)`, not on the event id alone. Consequently a "fog day" in this data means *an advisory covered part of this county*, not that the county was fogged in.
+
+**The county join is coordinate-independent.** No latitude, longitude, geometry or spatial join is involved -- only the zone id and the hand-built map -- so unlike the geocoded sources it cannot be cross-checked against crash coordinates.
+
+The map deliberately does **not** cover: CAZ338-339 (Kern's Mojave Desert) and every zone outside the San Joaquin Valley and the Sierra -- the north coast (CAZ101-115), Siskiyou and Modoc (CAZ080-085), the Sacramento Valley floor north of CAZ066, the Bay Area and central coast (CAZ500-530), southern California (CAZ038-062, CAZ340-383) and the southern deserts (CAZ521-570). Those zones do carry fog and winter events; they are out of this story's scope. The loader counts every row it drops for an unmapped zone and logs the totals and the top zones per year at warning level, so the omission stays visible rather than silent.
+
+#### Fog days vs baseline
+
+`/api/fog-days` (and `/stats?story=tule-fog`) computes, live from `storm_events` and `crashes`, per county and calendar year:
+
+- **fog_event_days:** distinct county-days covered by a Dense Fog event. A single event's day span is capped at 14 days.
+- **Fog season:** only November, December, January, February and March are considered, intersected with the months advisories were actually issued in. The response returns the resulting month list so the UI names it rather than asserting "winter".
+- **crashes_on_fog_days** and its daily average.
+- **Baseline:** every *other* day in those same months of that year, and the crashes on them -- so a fog day is compared against the rest of its own season, not against July. Days past the end of the crash record are excluded from both sides.
+- **lift_pct:** `(fog_avg - base_avg) / base_avg * 100`; NULL when the baseline is zero.
+- **fog_coded_crashes:** crashes whose own weather field says fog (`canonical_weather = 'fog'`), for the same months -- an *independent* signal from the advisories, not a subset of the above.
+
 ---
 
 ## 3. ETL Pipeline Architecture
@@ -726,6 +765,12 @@ The HPMS speed limit data is from 2022. Speed limits change over time due to roa
 
 County-level correlations (e.g., poverty rate vs. crash rate) describe associations between county averages, not individual-level relationships. A high correlation between county poverty and county crash rates does not mean that poor individuals are more likely to crash -- this is the ecological fallacy. CalSight's analysis is appropriate for policy-level and infrastructure-level insights, not individual risk assessment.
 
+### 7.9 Fog and Winter Events Are Zone-Keyed Judgements
+
+NOAA's Storm Events rows for dense fog and winter weather are attached to NWS forecast zones, not counties, and CalSight maps those zones onto counties by hand (see 2.17). A zone can straddle a county line, so "a fog day in Kings County" means an advisory covered part of the county on that day -- not that the county was fogged in, and not that any particular road was. Unlike the geocoded sources, nothing in this record can be checked against crash coordinates.
+
+An advisory is also a forecaster's judgement about an approaching night, not a measurement of what the roads were like: a quiet fog night and a valley-wide whiteout count the same. The fog-days comparison is therefore an association between two records that co-occur, and cannot separate fog from the traffic volumes, holidays and daylight that share the same weeks.
+
 ---
 
 ## 8. Update Schedule
@@ -734,6 +779,7 @@ County-level correlations (e.g., poverty rate vs. crash rate) describe associati
 |---|---|---|
 | **Daily** (host cron 02:00 UTC; container 11:00 UTC Mon–Sat, weekly full refresh Sun 09:00 UTC) | CCRS crashes, parties, victims; derived fields; route numbers; first rain; materialized views; coordinate validation; data quality; AI insights; reservoirs, snowpack, precipitation indices, drought | Host cron + APScheduler in `calsight-pipeline-1` (see `backend/deploy/lxc100-crontab.md`) |
 | **Monthly** | Demographics, weather, FARS, tract density, unemployment, hospitals, schools, speed limits, AADT, vehicles, CalEnviroScreen, licensed drivers, road miles | Same schedulers (monthly check) |
+| **Weekly** | NOAA Storm Events (`storm_events`), trailing two years | Same schedulers (weekly full refresh, Sun 09:00 UTC) |
 | **Static** | SWITRS (2001-2015 historical archive) | Manual trigger only (data is fixed) |
 
 The orchestrator supports freshness checking: before re-fetching a source, it queries the CKAN/ArcGIS metadata to determine if the upstream data has changed since the last successful load. If unchanged, the job is skipped (`skipped_unchanged` status).
@@ -822,24 +868,28 @@ All other data sources (data.ca.gov CKAN, Caltrans ArcGIS, FHWA ArcGIS, OEHHA Ar
 
 13. California Office of Environmental Health Hazard Assessment. *CalEnviroScreen 5.0*. https://oehha.ca.gov/calenviroscreen
 
+14. NOAA National Centers for Environmental Information. *Storm Events Database*. https://www.ncei.noaa.gov/stormevents/
+
+15. National Weather Service. *Zone-County Correlation File*. https://www.weather.gov/source/gis/Shapefiles/County/bp18mr25.dbx
+
 ### Statistical Methods
 
-14. Conover, W.J. (1999). *Practical Nonparametric Statistics*, 3rd ed. Wiley.
+16. Conover, W.J. (1999). *Practical Nonparametric Statistics*, 3rd ed. Wiley.
 
-15. Numerical Recipes in C, Chapter 6: Special Functions. Cambridge University Press.
+17. Numerical Recipes in C, Chapter 6: Special Functions. Cambridge University Press.
 
-16. NIST/SEMATECH Engineering Statistics Handbook. https://www.itl.nist.gov/div898/handbook/
+18. NIST/SEMATECH Engineering Statistics Handbook. https://www.itl.nist.gov/div898/handbook/
 
-17. Benjamini, Y. and Hochberg, Y. (1995). "Controlling the false discovery rate: a practical and powerful approach to multiple testing." *Journal of the Royal Statistical Society, Series B*, 57(1), 289-300.
+19. Benjamini, Y. and Hochberg, Y. (1995). "Controlling the false discovery rate: a practical and powerful approach to multiple testing." *Journal of the Royal Statistical Society, Series B*, 57(1), 289-300.
 
 ### Legal Authorities
 
-18. California Public Records Act, Government Code Sections 6250-6270.
+20. California Public Records Act, Government Code Sections 6250-6270.
 
-19. Freedom of Information Act, 5 U.S.C. 552.
+21. Freedom of Information Act, 5 U.S.C. 552.
 
-20. Title 13, United States Code (Census Bureau enabling legislation).
+22. Title 13, United States Code (Census Bureau enabling legislation).
 
-21. California Vehicle Code Section 20008 (mandatory crash reporting).
+23. California Vehicle Code Section 20008 (mandatory crash reporting).
 
-22. SB 535 (De Leon, 2012) and AB 1550 (Gomez, 2016) -- Disadvantaged Communities designation.
+24. SB 535 (De Leon, 2012) and AB 1550 (Gomez, 2016) -- Disadvantaged Communities designation.

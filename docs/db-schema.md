@@ -15,6 +15,7 @@ erDiagram
     counties ||--o{ weather : "county_code"
     counties ||--o{ weather_daily : "county_code"
     counties ||--o{ first_rain_events : "county_code"
+    counties ||--o{ storm_events : "county_code"
     counties ||--o{ vehicle_registrations : "county_code"
     counties ||--o{ licensed_drivers : "county_code"
     counties ||--o{ road_miles : "county_code"
@@ -141,6 +142,7 @@ erDiagram
 | `weather` | ~17,900 | NOAA nClimGrid, monthly per county |
 | `weather_daily` | ~540K | NOAA nClimGrid-Daily, one row per county-day; populated 2026-09 (2001→present) |
 | `first_rain_events` | ≤ 58 per water year, WY 2002+ | First rain of each water year vs the 28 days before it; from `etl.compute_first_rain`; populated 2026-09 |
+| `storm_events` | filled after first load | NOAA Storm Events dense-fog and winter rows, 2001+, for the 32 mapped San Joaquin Valley + Sierra counties; NWS zone-keyed, so one NOAA event becomes one row per county its zone touches (`etl.load_storm_events`) |
 | `fars_county_year` | 58 × years | NHTSA FARS fatalities per county-year (`etl.nhtsa_fars`) |
 | `tract_density_county_year` | 58 × years | Population-weighted lived density (`etl.census_tract_density`) |
 | `reservoirs` / `reservoir_daily` | 15 / ~190K | CDEC daily storage, backfilled from 1991 |
