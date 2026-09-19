@@ -21,7 +21,7 @@ from sqlalchemy import select
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, CalenviroScreen
-from etl._utils import get_with_retry, track_etl_run
+from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -214,6 +214,7 @@ def run():
         tracts = fetch_tracts()
         county_scores = aggregate_to_counties(tracts, fips_to_code)
         logger.info("Aggregated to %d counties", len(county_scores))
+        require_rows(county_scores, "calenviroscreen", "county-aggregated CES rows")
 
         inserted = 0
         updated = 0

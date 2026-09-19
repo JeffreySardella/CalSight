@@ -31,6 +31,8 @@ export interface StatsMeasures {
  * - "county" → `county_code` + `county_name`
  * - "gender"/"at_fault_gender" → `gender`;
  *   "age_bracket"/"at_fault_age_bracket" → `age_bracket`
+ * - "mode" → `mode` (counts people by road user, 2016+; shares the
+ *   victim_count / fatal_victim_count measures with the gender rows)
  * - "weather"/"lighting"/"collision_type" → `value` (or the dimension name)
  */
 export interface DimensionRow extends StatsMeasures {
@@ -44,6 +46,7 @@ export interface DimensionRow extends StatsMeasures {
   county_name?: string | null;
   gender?: string | null;
   age_bracket?: string | null;
+  mode?: string | null;
   value?: string | null;
   weather?: string | null;
   lighting?: string | null;

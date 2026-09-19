@@ -22,7 +22,9 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,webp}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,webp,geojson}'],
+        // The 1.3 MB raw counties file stays out of the precache; the
+        // 500 KB ca-counties.topo.json (in includeAssets above) covers it.
         globIgnores: ['**/ca-counties.geojson'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',

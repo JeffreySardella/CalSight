@@ -5,9 +5,15 @@ no real database, matching the other loader test suites. End-to-end
 behavior is covered by the API integration tests once data is loaded.
 """
 
+import json
 from datetime import date, timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import httpx
+import pytest
+
+from etl import cdec_api
 from etl._utils import date_windows
 from etl.cdec_api import MAJOR_RESERVOIRS, SENSOR_STORAGE, Observation
 from etl.load_reservoirs import (
@@ -15,6 +21,14 @@ from etl.load_reservoirs import (
     upsert_observations,
     upsert_reservoirs,
 )
+
+
+def _cdec_response(rows: list[dict]) -> httpx.Response:
+    return httpx.Response(
+        status_code=200,
+        content=json.dumps(rows).encode(),
+        request=httpx.Request("GET", "https://cdec.water.ca.gov"),
+    )
 
 
 def _obs(station="SHA", day=1, value=3_000_000.0):
@@ -156,3 +170,56 @@ class TestMetadataIntegrity:
             lat, lon = meta["lat"], meta["lon"]
             assert 32.5 <= lat <= 42.0, f"{station_id}: lat {lat} outside CA"
             assert -124.5 <= lon <= -114.1, f"{station_id}: lon {lon} outside CA"
+
+
+def _patch_etl_run_tracking(monkeypatch):
+    from etl import _utils
+
+    monkeypatch.setattr(_utils, "SessionLocal", lambda: MagicMock())
+    monkeypatch.setattr(
+        _utils, "EtlRun",
+        lambda **kw: SimpleNamespace(**{"id": 1, "rows_loaded": None, **kw}),
+    )
+
+
+class TestRunZeroRowGuard:
+    """M-B10: reservoirs is a single unchunked request covering all 15
+    stations for the whole window, so an empty servlet body is total
+    outage — never legitimate — and must fail the job."""
+
+    def _db(self):
+        db = MagicMock()
+        db.query.return_value = [("Shasta", 45)]
+        return db
+
+    def test_empty_servlet_body_raises(self, monkeypatch):
+        from etl import load_reservoirs as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        monkeypatch.setattr(mod, "SessionLocal", lambda: self._db())
+        monkeypatch.setattr(cdec_api, "get_with_retry", lambda *a, **k: _cdec_response([]))
+
+        with pytest.raises(RuntimeError, match="reservoirs.*0 raw CDEC rows"):
+            mod.run(date(2026, 7, 1), date(2026, 7, 7))
+
+    def test_valid_fixture_still_loads(self, monkeypatch):
+        from etl import load_reservoirs as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        db = self._db()
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        raw_row = {
+            "stationId": "SHA",
+            "SENSOR_NUM": 15,
+            "date": "2026-07-01 00:00",
+            "value": 3000000,
+            "units": "AF",
+        }
+        monkeypatch.setattr(
+            cdec_api, "get_with_retry", lambda *a, **k: _cdec_response([raw_row])
+        )
+
+        total = mod.run(date(2026, 7, 1), date(2026, 7, 1))  # must not raise
+
+        assert total == 1
+        assert db.commit.called
