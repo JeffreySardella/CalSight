@@ -24,8 +24,8 @@ function makeWrapper() {
 
 // Years must be < current year — transformRows drops the (partial) current year.
 const YEAR_ROWS = [
-  { year: 2022, crash_count: 400, total_killed: 40, total_injured: 120 },
-  { year: 2023, crash_count: 500, total_killed: 25, total_injured: 125 },
+  { year: 2022, crash_count: 400, total_killed: 40, total_injured: 120, total_severe_injured: 60 },
+  { year: 2023, crash_count: 500, total_killed: 25, total_injured: 125, total_severe_injured: 50 },
 ];
 
 function mockFetch() {
@@ -164,6 +164,16 @@ describe("useDashboardData", () => {
     // The incompatible dimension is empty, the compatible one still renders.
     expect(result.current.dataBySlot["gender:count"]).toEqual([]);
     expect(result.current.dataBySlot["year:count"].map((d) => d.value)).toEqual([400, 500]);
+  });
+
+  it("ksi = killed + seriously injured, not all injuries", async () => {
+    mockFetch();
+    const charts: ChartSlot[] = [
+      { id: "k", dimension: "year", measure: "ksi", chartType: "area", order: 0 },
+    ];
+    const { result } = renderHook(() => useDashboardData(charts, FILTERS), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.dataBySlot["year:ksi"].map((d) => d.value)).toEqual([100, 75]);
   });
 
   describe("person-level dimension measures (gender/age_bracket)", () => {

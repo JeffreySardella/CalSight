@@ -399,7 +399,13 @@ export default function AboutPage() {
         <span className="font-label text-xs uppercase tracking-[0.3em] text-on-surface-variant">
           THE TEAM
         </span>
-        <div className="flex overflow-x-auto gap-6 pb-8 snap-x no-scrollbar md:grid md:grid-cols-3">
+        <div
+          className="flex overflow-x-auto gap-6 pb-8 snap-x no-scrollbar md:grid md:grid-cols-3"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- WAI-ARIA's fix for a scrollable region (axe: scrollable-region-focusable)
+          tabIndex={0}
+          role="region"
+          aria-label="Team members, scrollable"
+        >
           <div className="min-w-[240px] snap-start space-y-4 p-6 bg-surface-container-low rounded-xl">
             <div className="w-16 h-16 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-bold text-xl font-headline">
               JS

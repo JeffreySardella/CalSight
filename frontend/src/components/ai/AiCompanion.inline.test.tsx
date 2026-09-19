@@ -52,7 +52,7 @@ describe("AiCompanion inline deep-dive", () => {
     expect(screen.queryByText("STALE ANSWER")).toBeNull();
   });
 
-  it("renders the latest assistant answer after Go deeper", () => {
+  it("renders the latest assistant answer after Go deeper", async () => {
     hoisted.state.messages = [
       { role: "user", content: "q", timestamp: 1 },
       { role: "assistant", content: "Fresh inline answer.", timestamp: 2 },
@@ -60,7 +60,9 @@ describe("AiCompanion inline deep-dive", () => {
     renderApp();
     fireEvent.click(screen.getByText("explain"));
     fireEvent.click(screen.getByText("Go deeper with AI"));
-    expect(screen.getByText("Fresh inline answer.")).toBeTruthy();
+    // Markdown is a React.lazy chunk (kept out of the eagerly-loaded bundle —
+    // see AiCompanion.tsx), so its render resolves asynchronously.
+    expect(await screen.findByText("Fresh inline answer.")).toBeTruthy();
   });
 
   it("shows a thinking state in the inline region after Go deeper is clicked", () => {

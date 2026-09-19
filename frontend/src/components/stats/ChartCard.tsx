@@ -24,6 +24,7 @@ import { useCustomTheme } from "../../context/CustomThemeContext";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
 import { partialYearNote } from "../../lib/partialYear";
+import { ksiDefinitionNote } from "../../lib/ksi";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
 import type { DragHandleProps } from "../../hooks/useDragReorder";
@@ -347,6 +348,15 @@ function ChartCard({
     ? partialYearNote(data.map((d) => d.label))
     : null;
 
+  // KSI's definition changes at 2015→2016 and 2017→2018; say so on any KSI
+  // year chart whose range crosses either.
+  const ksiNote = slot.dimension === "year" && (slot.measure === "ksi" || slot.secondaryMeasure === "ksi")
+    ? ksiDefinitionNote(data.map((d) => d.label))
+    : null;
+
+  // Append asterisk to the chart title only when the KSI footnote is shown
+  const displayTitle = ksiNote ? `${title}*` : title;
+
   return (
     <div
       ref={cardRef}
@@ -370,7 +380,7 @@ function ChartCard({
               <span className="material-symbols-outlined text-[18px]" aria-hidden="true">drag_indicator</span>
             </span>
           )}
-          <h3 className={`flex-1 font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{title}</h3>
+          <h3 className={`flex-1 font-headline font-bold text-on-surface leading-tight${compact ? " text-xs text-on-surface-variant" : " text-sm"}`}>{displayTitle}</h3>
           {/* Mobile: always-visible kebab menu */}
           {!compact && (
             <MobileMenu
@@ -570,6 +580,10 @@ function ChartCard({
 
       {!loading && hasData && partialNote && (
         <p className="text-[10px] italic text-on-surface-variant mt-1.5">{partialNote}</p>
+      )}
+
+      {!loading && hasData && ksiNote && (
+        <p className="text-[10px] italic text-on-surface-variant mt-1.5">{ksiNote}</p>
       )}
 
       {narrativeResult && <ChartNarrative narrative={narrativeResult} />}

@@ -19,6 +19,7 @@ const DIMENSION_SYNONYMS: [string, Dimension][] = [
 ];
 
 const MEASURE_SYNONYMS: [string, Measure][] = [
+  ["killed or seriously injured", "ksi"], ["seriously injured", "ksi"], ["serious injuries", "ksi"], ["ksi", "ksi"],
   ["deaths per 1,000 crashes", "fatality_rate"], ["deaths per 1000 crashes", "fatality_rate"], ["per 1,000 crashes", "fatality_rate"], ["per 1000 crashes", "fatality_rate"],
   ["fatality rate", "fatality_rate"], ["death rate", "fatality_rate"], ["kill rate", "fatality_rate"],
   ["year over year", "yoy_change"], ["yoy change", "yoy_change"], ["yoy", "yoy_change"],
@@ -98,7 +99,8 @@ export function parseNlq(input: string): NlqResult {
 
 export function resolveNlq(result: NlqResult): { dimension: Dimension; measure: Measure; chartType: ChartType; options: ChartOptions } | null {
   const dimension = result.dimension ?? "year";
-  const measure = result.measure ?? "count";
+  // KSI is year-only (see ChartConfigPanel); elsewhere show deaths instead.
+  const measure = result.measure === "ksi" && dimension !== "year" ? "killed" : result.measure ?? "count";
   const chartType = result.chartType ?? defaultChartType(dimension);
   if (result.confidence === "low") return null;
   return { dimension, measure, chartType, options: result.options };

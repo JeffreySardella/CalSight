@@ -7,7 +7,7 @@ export const DIMENSIONS = [
 export type Dimension = (typeof DIMENSIONS)[number];
 
 export const MEASURES = [
-  "count", "killed", "injured", "percentage",
+  "count", "killed", "injured", "ksi", "percentage",
   "fatality_rate", "yoy_change",
   "per_100k_population", "per_10k_licensed_drivers", "per_100_road_miles",
 ] as const;
@@ -69,6 +69,7 @@ export const MEASURE_LABELS: Record<Measure, string> = {
   count: "Crash Count",
   killed: "Fatalities",
   injured: "Injuries",
+  ksi: "Killed or Seriously Injured",
   percentage: "Percentage",
   fatality_rate: "Deaths per 1,000 Crashes",
   yoy_change: "YoY Change %",
@@ -118,7 +119,11 @@ export const CRASH_ONLY_MEASURES: readonly Measure[] = ["fatality_rate", "yoy_ch
  * this before it reaches a chart slot.
  */
 export function sanitizeMeasure(dim: Dimension, m: Measure | undefined): Measure | undefined {
-  return m && isPersonLevelDimension(dim) && CRASH_ONLY_MEASURES.includes(m) ? undefined : m;
+  if (!m) return m;
+  // KSI belongs to the year axis only; its definition footnote is written for
+  // that chart. Anywhere else it falls back like any other unrenderable measure.
+  if (m === "ksi" && dim !== "year") return undefined;
+  return isPersonLevelDimension(dim) && CRASH_ONLY_MEASURES.includes(m) ? undefined : m;
 }
 
 export function generateId(): string {
