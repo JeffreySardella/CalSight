@@ -1,8 +1,20 @@
 """Integration tests for /api/stats/highways."""
 
+from unittest.mock import patch
+
 import pytest
 
+import app.routers.stats as stats_mod
+from app.routers.stats import clear_highways_cache
+
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _fresh_highways_cache():
+    clear_highways_cache()
+    yield
+    clear_highways_cache()
 
 
 def test_highways_returns_ranked_routes(client):
@@ -121,3 +133,20 @@ def test_highways_accepts_full_network_limit(client):
 def test_highways_invalid_sort_rejected(client):
     response = client.get("/api/stats/highways?sort=bogus")
     assert response.status_code == 422
+
+
+def test_highways_cached_within_ttl(client):
+    """A repeat call with identical filters is served from the TTL cache
+    without re-running the aggregate query; a different filter tuple misses
+    and recomputes. Byte-identical result on the hit."""
+    with patch.object(
+        stats_mod, "build_crash_predicates", wraps=stats_mod.build_crash_predicates,
+    ) as spy:
+        first = client.get("/api/stats/highways").json()
+        assert spy.call_count == 1
+        second = client.get("/api/stats/highways").json()
+        assert spy.call_count == 1  # cache hit — no second query
+        assert second == first
+        # A different filter tuple is a cache miss and recomputes.
+        client.get("/api/stats/highways?county=orange")
+        assert spy.call_count == 2
