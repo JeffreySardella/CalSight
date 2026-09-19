@@ -87,6 +87,20 @@ def build_default_registry() -> JobRegistry:
         table_name="first_rain_events",
     ))
     registry.register(Job(
+        # NOAA Storm Events: CA Dense Fog + winter rows for the San Joaquin
+        # Valley and Sierra zones (etl/load_storm_events.py). Weekly because
+        # NOAA reissues yearly files on its own cadence; the default trailing
+        # 2 years picks those revisions up. Static first load / full reload:
+        #   python -m etl.load_storm_events --start 2001
+        name="storm_events",
+        module="etl.load_storm_events",
+        schedule="weekly",
+        table_name="storm_events",
+        max_drop_pct=5,
+        source_type="federal",
+        freshness_table="storm_events",
+    ))
+    registry.register(Job(
         name="fars",
         module="etl.nhtsa_fars",
         schedule="monthly",

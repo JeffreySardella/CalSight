@@ -68,10 +68,17 @@ def _db_available(url: str) -> bool:
 
 
 def _create_test_db() -> None:
+    # Recreate the database TEST_DATABASE_URL actually points at. Hard-coding
+    # "calsight_test" here meant pointing TEST_DATABASE_URL at a private
+    # database (to run alongside another session) dropped the shared one and
+    # then migrated an empty target.
+    name = TEST_DB_URL.rsplit("/", 1)[-1].split("?")[0]
+    if not name.replace("_", "").isalnum():
+        raise ValueError(f"refusing to recreate suspicious database name {name!r}")
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
-        conn.execute(text("DROP DATABASE IF EXISTS calsight_test"))
-        conn.execute(text("CREATE DATABASE calsight_test"))
+        conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
+        conn.execute(text(f'CREATE DATABASE "{name}"'))
     admin.dispose()
 
 
