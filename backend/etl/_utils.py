@@ -144,6 +144,77 @@ def require_rows(rows: Any, source: str, what: str = "rows") -> Any:
     return rows
 
 
+def period_already_loaded(
+    db_session, table: str, where: str, params: dict[str, Any]
+) -> bool:
+    """True if *table* already has at least one row matching *where*.
+
+    One cheap ``SELECT 1 ... LIMIT 1`` — the existence check that backs
+    require_rows_unless_new_period() below. *table* is usually a plain
+    table name, but can be a short FROM-clause expression (e.g. a JOIN)
+    when the period isn't a column on the target table itself — the
+    CCRS parties/victims tables key off collision_id, not year, so their
+    callers join to crashes to scope the check to CCRS rows for that year.
+
+    *table* and *where* are always literals written by the calling loader,
+    never request/user input, so this composes an f-string query the same
+    way _check_federal_freshness() above does.
+    """
+    query = text(f"SELECT 1 FROM {table} WHERE {where} LIMIT 1")  # noqa: S608
+    return db_session.execute(query, params).first() is not None
+
+
+def require_rows_unless_new_period(
+    rows: Any,
+    db_session,
+    table: str,
+    where: str,
+    params: dict[str, Any],
+    source: str,
+    what: str = "rows",
+) -> Any:
+    """Like require_rows(), but a zero-row pull is legitimate for a period
+    this loader has never loaded before.
+
+    Five loader families (fars, tract_density, vehicles, weather, and the
+    CCRS crashes/parties/victims family) fetch data scoped to one period
+    (a year, or a year-month for weather) where an empty upstream response
+    is ambiguous from the loader alone:
+
+      - We already have rows in *table* for this period and the source now
+        returns none — a real regression (upstream broke, or a temporary
+        mid-republish window also lands here by design: we hold data, the
+        source says zero, so failing loudly for one run is the safe choice
+        over silently trusting a possibly-broken pull — and nothing gets
+        deleted either way).
+      - We've never loaded this period — the upstream resource can be
+        created/activated (CCRS ``datastore_active``, days before CHP
+        backfills rows) or a trailing month's file can lag past the 1st
+        (nClimGrid) before its data is fully published. That is routine
+        publishing lag, not a bug, and must not fail the nightly run.
+
+    Malformed/unparseable bodies must still raise BEFORE this is called —
+    this only adjudicates a well-formed-but-empty response. Returns *rows*
+    unchanged (so callers can still ``if not rows: continue``) when the
+    period is legitimately new; raises when it's a regression.
+    """
+    count = len(rows) if hasattr(rows, "__len__") else rows
+    if count:
+        return rows
+    if period_already_loaded(db_session, table, where, params):
+        raise RuntimeError(
+            f"{source}: upstream returned 0 {what} for a period that "
+            "already has rows loaded — refusing to record a silent "
+            "regression"
+        )
+    logger.info(
+        "%s: upstream returned 0 %s for a period with no rows loaded yet "
+        "— not published yet, skipping",
+        source, what,
+    )
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # HTTP with retry
 # ---------------------------------------------------------------------------
