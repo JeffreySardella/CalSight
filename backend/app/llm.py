@@ -10,6 +10,8 @@ import itertools
 import logging
 import threading
 import time
+from collections.abc import Iterator
+from types import SimpleNamespace
 from typing import Any
 
 from openai import (
@@ -229,6 +231,7 @@ def _call_provider(
     tool_choice: str | None = None,
     max_tokens: int = 500,
     temperature: float = DEFAULT_TEMPERATURE,
+    stream: bool = False,
 ) -> Any:
     ptype = provider.get("type", provider["name"])
     extra_headers = {}
@@ -255,6 +258,8 @@ def _call_provider(
         kwargs["tools"] = tools
         if tool_choice:
             kwargs["tool_choice"] = tool_choice
+    if stream:
+        kwargs["stream"] = True
 
     return client.chat.completions.create(**kwargs)
 
@@ -265,7 +270,13 @@ def generate_with_fallback(
     tool_choice: str | None = None,
     max_tokens: int = 500,
     temperature: float = DEFAULT_TEMPERATURE,
+    stream: bool = False,
 ) -> tuple[Any, str]:
+    """Return ``(response, provider_name)``.
+
+    With ``stream=True`` the first element is an iterator of streaming chunks
+    instead of a completed response — feed it to :func:`consume_stream`.
+    """
     return _generate_over_chain(
         _get_provider_chain(),
         messages,
@@ -274,7 +285,63 @@ def generate_with_fallback(
         max_tokens=max_tokens,
         temperature=temperature,
         budget=settings.llm_daily_request_budget,
+        stream=stream,
     )
+
+
+def _peek_stream(chunks: Any) -> Iterator[Any]:
+    """Pull the first chunk eagerly, then re-attach it.
+
+    Called inside the chain walk's try/except so a provider that dies before
+    emitting a single token falls through to the next provider exactly like a
+    non-streaming failure. Once the first chunk is in hand the provider has
+    committed, and later errors surface to the caller instead.
+    """
+    it = iter(chunks)
+    first = next(it, None)
+    return it if first is None else itertools.chain([first], it)
+
+
+def consume_stream(chunks: Any) -> Iterator[str]:
+    """Yield content deltas from a streaming completion as they arrive.
+
+    Returns (via ``StopIteration.value``, i.e. ``yield from``) the assembled
+    message in the same shape the non-streaming path reads:
+    ``.content`` and ``.tool_calls[i].function.{name,arguments}``.
+    """
+    content: list[str] = []
+    calls: dict[int, dict[str, str]] = {}
+
+    for chunk in chunks:
+        choices = getattr(chunk, "choices", None)
+        if not choices:
+            continue
+        delta = getattr(choices[0], "delta", None)
+        if delta is None:
+            continue
+        text = getattr(delta, "content", None)
+        if text:
+            content.append(text)
+            yield text
+        for tc in getattr(delta, "tool_calls", None) or []:
+            slot = calls.setdefault(tc.index, {"id": "", "name": "", "arguments": ""})
+            if getattr(tc, "id", None):
+                slot["id"] = tc.id
+            fn = getattr(tc, "function", None)
+            if fn is None:
+                continue
+            slot["name"] += getattr(fn, "name", None) or ""
+            slot["arguments"] += getattr(fn, "arguments", None) or ""
+
+    tool_calls = [
+        SimpleNamespace(
+            id=c["id"],
+            type="function",
+            function=SimpleNamespace(name=c["name"], arguments=c["arguments"] or "{}"),
+        )
+        for _idx, c in sorted(calls.items())
+    ]
+    return SimpleNamespace(content="".join(content) or None, tool_calls=tool_calls or None)
 
 
 def _generate_over_chain(
@@ -285,6 +352,7 @@ def _generate_over_chain(
     max_tokens: int = 500,
     temperature: float = DEFAULT_TEMPERATURE,
     budget: int = 0,
+    stream: bool = False,
 ) -> tuple[Any, str]:
     """Walk ``chain`` in order, honouring cooldowns and the daily ``budget``
     (0 = unlimited), returning the first successful (response, provider name)."""
@@ -326,7 +394,10 @@ def _generate_over_chain(
                 tool_choice=tool_choice,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                stream=stream,
             )
+            if stream:
+                response = _peek_stream(response)
             _mark_success(name)
             return response, name
 
