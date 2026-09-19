@@ -41,7 +41,7 @@ PAGE_SIZE = 1000
 
 # 0.001 deg (~110m) keeps statewide highway lines visually tight at street
 # zoom; Cloudflare Pages' gzip/brotli compresses the coordinate-heavy JSON
-# ~4x, so the ~650 KB raw file still ships ~176 KB on the wire. (Was 0.005.)
+# ~3.5x, so the ~721 KB raw file still ships ~205 KB on the wire. (Was 0.005.)
 SIMPLIFY_TOLERANCE = 0.001
 
 
