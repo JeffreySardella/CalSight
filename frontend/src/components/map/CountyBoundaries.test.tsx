@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useEffect } from "react";
 import { render, waitFor } from "@testing-library/react";
 import L from "leaflet";
 import { geoJSONLayerMock, featureLayerMocks, mockMapInstance } from "../../__mocks__/leaflet";
@@ -31,6 +32,11 @@ function BucketEdgesSpy({ onEdges }: { onEdges: (e: number[] | null) => void }) 
   return null;
 }
 
+function EnableHighwayDanger() {
+  const { setOtherLayer } = useLayersState();
+  useEffect(() => setOtherLayer("highwayDanger", true), [setOtherLayer]);
+  return null;
+}
 
 describe("CountyBoundaries", () => {
   let onFocusCounty: ReturnType<typeof vi.fn<(name: string | null) => void>>;
@@ -40,6 +46,9 @@ describe("CountyBoundaries", () => {
     onFocusCounty = vi.fn<(name: string | null) => void>();
     onSelectCounty = vi.fn<(name: string) => void>();
     vi.clearAllMocks();
+    // Layer toggles persist to localStorage ("calsight-layers") — clear so the
+    // Highway Danger test below doesn't leak into other tests' default state.
+    localStorage.clear();
     // Restore eachLayer default implementation (tooltip test overrides it via mockImplementation,
     // and clearAllMocks does not restore implementations — only resetAllMocks does).
     geoJSONLayerMock.eachLayer.mockImplementation((cb: (layer: unknown) => void) => {
@@ -263,5 +272,40 @@ describe("CountyBoundaries", () => {
     // Single class spanning the one real value — not a 6-point quintile
     // split, and integer (crashes_raw is a count, never fractional).
     expect(edges).toEqual([1, 1]);
+  });
+
+  it("dims county fill opacity by ~0.4 when the Highway Danger layer is on", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <ThemeProvider>
+          <CustomThemeProvider><LayersStateProvider>
+            <EnableHighwayDanger />
+            <CountyBoundaries
+              focusedCounty={null}
+              onFocusCounty={onFocusCounty}
+              onSelectCounty={onSelectCounty}
+            />
+          </LayersStateProvider></CustomThemeProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    // Un-dimmed fills are 0.6 (no bucket edges yet) and 0.75 (bucketed);
+    // Highway Danger should scale both down to 0.24 / 0.3 (x0.4), and never
+    // let the un-dimmed values through for a colored (non-focused) county.
+    await waitFor(() => {
+      const calls = [
+        ...featureLayerMocks[0].setStyle.mock.calls,
+        ...featureLayerMocks[1].setStyle.mock.calls,
+      ] as [L.PathOptions][];
+      const fillOpacities = calls.map(([style]) => style.fillOpacity).filter((v) => v != null);
+      expect(fillOpacities.length).toBeGreaterThan(0);
+      expect(fillOpacities).not.toContain(0.6);
+      expect(fillOpacities).not.toContain(0.75);
+      expect(fillOpacities.some((v) => v === 0.24 || v === 0.3)).toBe(true);
+    });
   });
 });

@@ -34,6 +34,8 @@ STALENESS_THRESHOLDS: dict[str, int] = {
     "matviews": 48,
     "demographics": 720,     # Census: monthly (30 days)
     "weather": 720,
+    "fars": 720,             # NHTSA: annual, lags months; same cadence as demographics
+    "tract_density": 720,
     "hospitals": 720,
     "schools": 720,
     "speed_limits": 720,

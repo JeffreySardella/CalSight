@@ -153,28 +153,33 @@ export default memo(function CountyBoundaries({
       const point = code != null ? byCountyCode[code] : undefined;
       const colors = getPalette(palette, isDark);
 
+      // Highway Danger draws colored route lines over the choropleth — dim the
+      // county fill so those lines stay readable. Hover/selected (isFocused)
+      // styling above is untouched since it returns before reaching here.
+      const dimFactor = otherLayers.highwayDanger ? 0.4 : 1;
+
       if (!point || !point.hasEnoughData || point.value == null) {
         return {
           color: borderColor,
           weight: borderWeight,
           fillColor: `url(#${HATCH_PATTERN_ID})`,
-          fillOpacity: 1,
+          fillOpacity: 1 * dimFactor,
         };
       }
 
       const edges = edgesRef.current;
       if (!edges) {
-        return { color: borderColor, weight: borderWeight, fillColor: colors[0], fillOpacity: 0.6 };
+        return { color: borderColor, weight: borderWeight, fillColor: colors[0], fillOpacity: 0.6 * dimFactor };
       }
       const idx = bucketFor(point.value, edges);
       return {
         color: borderColor,
         weight: borderWeight,
         fillColor: colors[idx],
-        fillOpacity: 0.75,
+        fillOpacity: 0.75 * dimFactor,
       };
     },
-    [choroplethOn, otherLayers.countyBoundaries, otherLayers.heatmapStatewide, heatmapActive, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
+    [choroplethOn, otherLayers.countyBoundaries, otherLayers.heatmapStatewide, otherLayers.highwayDanger, heatmapActive, focusedCounty, compareCounty, hasCountyFilter, selectedCounties, byCountyCode, palette, isDark],
   );
 
   // Ref so mouseout can re-apply the *current* style (not the stale one

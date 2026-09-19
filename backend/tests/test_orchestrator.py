@@ -83,6 +83,9 @@ def test_default_registry_resolves_without_error():
     names = [j.name for j in order]
     assert names.index("crashes_ccrs") < names.index("backfill")
     assert names.index("parties") < names.index("backfill")
+    # backfill_severe_injured reads crash_victims, so today's victims must be loaded first.
+    assert "victims" in build_default_registry().get("backfill").depends_on
+    assert names.index("victims") < names.index("backfill")
     assert names.index("crashes_ccrs") < names.index("route_number")
     assert names.index("backfill") < names.index("matviews")
     assert names.index("matviews") < names.index("insights")

@@ -213,3 +213,18 @@ class TestFirstRainModels:
         assert ("county_code", "water_year") in _unique_sets(t)
         assert t.c.lift_pct.nullable is True
         assert t.c.baseline_daily_crashes.nullable is False
+
+
+class TestCrashSevereInjured:
+    def test_column_exists_and_defaults_to_zero(self):
+        from app.models import Crash
+
+        col = Crash.__table__.columns["number_severe_injured"]
+        assert col.nullable is False
+        assert str(col.server_default.arg) == "0"
+
+    def test_loader_upsert_never_overwrites_it(self):
+        # Backfills own this column; a daily CCRS re-upsert must not reset it to 0.
+        from etl.load_crashes import _UPSERT_COLUMNS
+
+        assert "number_severe_injured" not in _UPSERT_COLUMNS

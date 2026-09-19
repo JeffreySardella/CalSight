@@ -87,6 +87,14 @@ describe("generateSuggestions", () => {
     expect(ids(result)).toContain("anomaly-cause-fatality_rate");
   });
 
+  it("never suggests fatality_rate for a person-level dimension anomaly (#474)", () => {
+    // gender rows carry victim_count/fatal_victim_count, not crash_count/
+    // total_killed — fatality_rate always rendered a flat 0 for them.
+    const result = generateSuggestions([], {}, NO_FILTERS, [anomaly("gender", "count")]);
+    expect(ids(result)).toContain("anomaly-gender-killed");
+    expect(ids(result)).not.toContain("anomaly-gender-fatality_rate");
+  });
+
   it("suggests hour and day-of-week charts when the alcohol filter is on", () => {
     const result = generateSuggestions([], {}, { ...NO_FILTERS, alcohol: true }, []);
     const filterSuggestions = result.filter((s) => s.id.startsWith("filter-"));
@@ -132,6 +140,13 @@ describe("generateSuggestions", () => {
     expect(complement!.relevance).toBe(65); // base 50 + complementary 15
     expect(complement!.explanation).toContain("crash count");
     expect(complement!.explanation).toContain("fatalities");
+  });
+
+  it("never suggests fatality_rate as a complementary measure for a person-level dimension (#474)", () => {
+    const result = generateSuggestions([slot("age_bracket", "count")], {}, NO_FILTERS, []);
+    expect(ids(result)).not.toContain("complement-age_bracket-fatality_rate");
+    // count → killed is still a valid complement.
+    expect(ids(result)).toContain("complement-age_bracket-killed");
   });
 
   it("returns unique ids and at most 6 suggestions even with many candidates", () => {

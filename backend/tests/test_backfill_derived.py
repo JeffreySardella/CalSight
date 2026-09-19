@@ -569,3 +569,47 @@ class TestRunScopeWiring:
         monkeypatch.setenv("CALSIGHT_FORCE_REFRESH", "1")
         backfill_mod.main([])
         assert recorded == {"a": (), "k": {"since_year": None}}
+
+
+class TestSevereInjuredResync:
+    def _years(self, db, marker):
+        return sorted(
+            int(str(p["start"])[:4])
+            for s, p in db.updates()
+            if marker in s.lower() and "start" in p
+        )
+
+    def test_counts_both_serious_codes_and_only_ccrs(self):
+        db = _ScopeFakeDB(max_year=2016)
+        backfill_mod.backfill_severe_injured(db)
+        sets = [(s.lower(), p) for s, p in db.updates() if "set number_severe_injured = s.n" in s.lower()]
+        assert sets
+        for sql, params in sets:
+            assert params["codes"] == ["SuspectSerious", "SevereInactive"]
+            assert "injury_severity = any(:codes)" in sql
+            assert "c.data_source = 'ccrs'" in sql
+            assert "number_severe_injured is distinct from s.n" in sql
+
+    def test_reset_pass_zeroes_crashes_with_no_qualifying_victim(self):
+        db = _ScopeFakeDB(max_year=2016)
+        backfill_mod.backfill_severe_injured(db)
+        resets = [s.lower() for s, _ in db.updates() if "set number_severe_injured = 0" in s.lower()]
+        assert resets
+        for sql in resets:
+            assert "number_severe_injured > 0" in sql
+            assert "not exists" in sql
+            assert "crash_victims" in sql
+
+    def test_scoped_run_only_touches_recent_years(self):
+        scoped = _ScopeFakeDB(max_year=2025)
+        backfill_mod.backfill_severe_injured(scoped, since_year=2024)
+        assert self._years(scoped, "set number_severe_injured = s.n") == [2024, 2025]
+        assert self._years(scoped, "set number_severe_injured = 0") == [2024, 2025]
+
+        full = _ScopeFakeDB(max_year=2025)
+        backfill_mod.backfill_severe_injured(full)
+        assert self._years(full, "set number_severe_injured = s.n") == list(range(2016, 2026))
+
+    def test_returns_set_and_reset_counts(self):
+        # One CCRS year; the fake reports rowcount=1 per UPDATE.
+        assert backfill_mod.backfill_severe_injured(_ScopeFakeDB(max_year=2016)) == (1, 1)

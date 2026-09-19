@@ -902,6 +902,72 @@ def backfill_severity(db):
     logger.info("Severity: %d property damage only", r.rowcount)
 
 
+# Victim codes that count as "seriously injured" for KSI. Both are needed:
+# SevereInactive is the retired pre-KABCO code and SuspectSerious is KABCO "A".
+# Measured on prod 2026-09-18, SevereInactive is still 99.9% of serious
+# victims in 2016, 37% in 2018 and 6% in 2025. Counting either code alone
+# manufactures a trend.
+SERIOUS_INJURY_CODES = ("SuspectSerious", "SevereInactive")
+
+
+def backfill_severe_injured(db, since_year: int | None = None):
+    """Ground-truth re-sync of crashes.number_severe_injured for CCRS crashes.
+
+    Same shape as _resync_party_flag: year by year over the CCRS range,
+    commit per year, and IS DISTINCT FROM guards so a no-change run writes
+    nothing. Pass 1 sets the count of qualifying victims; pass 2 zeroes
+    crashes that no longer have one (victim amendments). SWITRS rows are
+    never touched; etl/backfill_switrs_ksi.py fills those once.
+
+    ``since_year`` bounds the years examined (the nightly scoped run);
+    None re-derives every CCRS year.
+
+    Returns (rows_set, rows_reset).
+    """
+    codes = list(SERIOUS_INJURY_CODES)
+    total_set = 0
+    total_reset = 0
+    for year in _ccrs_year_range(db):
+        if since_year is not None and year < since_year:
+            continue
+        params = {"codes": codes, "start": f"{year}-01-01", "end": f"{year + 1}-01-01"}
+        r = db.execute(text("""
+            UPDATE crashes c
+            SET number_severe_injured = s.n
+            FROM (
+                SELECT v.collision_id, count(*) AS n
+                FROM crash_victims v
+                JOIN crashes c2 ON c2.collision_id = v.collision_id
+                    AND c2.data_source = 'ccrs'
+                WHERE v.data_source = 'ccrs'
+                  AND v.injury_severity = ANY(:codes)
+                  AND c2.crash_datetime >= :start AND c2.crash_datetime < :end
+                GROUP BY v.collision_id
+            ) s
+            WHERE c.collision_id = s.collision_id
+              AND c.data_source = 'ccrs'
+              AND c.number_severe_injured IS DISTINCT FROM s.n
+        """), params)
+        total_set += r.rowcount
+        r = db.execute(text("""
+            UPDATE crashes c
+            SET number_severe_injured = 0
+            WHERE c.data_source = 'ccrs'
+              AND c.crash_datetime >= :start AND c.crash_datetime < :end
+              AND c.number_severe_injured > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM crash_victims v
+                  WHERE v.collision_id = c.collision_id
+                    AND v.data_source = 'ccrs'
+                    AND v.injury_severity = ANY(:codes)
+              )
+        """), params)
+        total_reset += r.rowcount
+        db.commit()
+    logger.info("Severe-injured resync: %d set, %d reset to 0", total_set, total_reset)
+    return total_set, total_reset
+
+
 def repair_drifted_derived(db, since_year: int | None = None) -> int:
     """Fix derived columns that disagree with the raw values they derive from.
 
@@ -1002,6 +1068,7 @@ def run(since_year: int | None = None, *, daily: bool = False):
         backfill_county_name(db)
         backfill_severity(db)
         repair_drifted_derived(db, since_year=since_year)
+        backfill_severe_injured(db, since_year=since_year)
         backfill_pedestrian_flags(db, since_year=since_year)
         backfill_alcohol_flags(db, since_year=since_year)
         backfill_distraction_flags(db, since_year=since_year)

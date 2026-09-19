@@ -26,7 +26,7 @@ from sqlalchemy import select
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, Demographic
 from app.settings import settings
-from etl._utils import track_etl_run
+from etl._utils import require_rows, track_etl_run
 from etl.census_api import fetch_county_demographics
 
 logging.basicConfig(
@@ -190,6 +190,18 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
             try:
                 # Step 3: Fetch from Census API
                 api_rows = fetch_county_demographics(year, api_key)
+                if not api_rows and year == end_year:
+                    # The newest requested vintage legitimately isn't
+                    # published yet for months at a time — treat a 0-row
+                    # response for it as "not yet published", not a failure.
+                    # Any OLDER year returning empty is a real problem.
+                    logger.warning(
+                        "Year %d: Census ACS returned 0 rows — likely not "
+                        "yet published; skipping",
+                        year,
+                    )
+                    continue
+                require_rows(api_rows, "demographics", f"ACS rows for year {year}")
 
                 # Step 4: Transform each row
                 kwargs_list = []

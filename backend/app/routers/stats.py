@@ -62,6 +62,7 @@ mv_year = Table(
     Column("crash_count", Integer),
     Column("total_killed", Integer),
     Column("total_injured", Integer),
+    Column("total_severe_injured", Integer),
 )
 
 mv_cause = Table(
@@ -73,6 +74,7 @@ mv_cause = Table(
     Column("crash_count", Integer),
     Column("total_killed", Integer),
     Column("total_injured", Integer),
+    Column("total_severe_injured", Integer),
 )
 
 mv_hour = Table(
@@ -165,6 +167,7 @@ mv_wide = Table(
     Column("crash_count", Integer),
     Column("total_killed", Integer),
     Column("total_injured", Integer),
+    Column("total_severe_injured", Integer),
 )
 
 _AGE_BRACKET_MAP = {
@@ -342,9 +345,10 @@ def _run_group_query(
                 func.coalesce(cc, 0).label("total_crashes"),
                 func.coalesce(func.sum(w.c.total_killed), 0).label("total_killed"),
                 func.coalesce(func.sum(w.c.total_injured), 0).label("total_injured"),
+                func.coalesce(func.sum(w.c.total_severe_injured), 0).label("total_severe_injured"),
             ))
             row = db.execute(stmt).one()
-            return GrandTotal(total_crashes=row.total_crashes, total_killed=row.total_killed, total_injured=row.total_injured).model_dump()
+            return GrandTotal(total_crashes=row.total_crashes, total_killed=row.total_killed, total_injured=row.total_injured, total_severe_injured=row.total_severe_injured).model_dump()
 
         if group_by == "county":
             stmt = _wide_query(
@@ -354,13 +358,14 @@ def _run_group_query(
                     func.coalesce(cc, 0).label("crash_count"),
                     func.coalesce(func.sum(w.c.total_killed), 0).label("total_killed"),
                     func.coalesce(func.sum(w.c.total_injured), 0).label("total_injured"),
+                    func.coalesce(func.sum(w.c.total_severe_injured), 0).label("total_severe_injured"),
                 )
                 .join(County, County.code == w.c.county_code)
                 .group_by(w.c.county_code, County.name)
                 .order_by(cc.desc())
             )
             rows = db.execute(stmt).all()
-            return [CountyRow(county_code=r.county_code, county_name=r.county_name, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
+            return [CountyRow(county_code=r.county_code, county_name=r.county_name, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured, total_severe_injured=r.total_severe_injured).model_dump() for r in rows]
 
         if group_by == "year":
             stmt = _wide_query(
@@ -369,12 +374,13 @@ def _run_group_query(
                     func.coalesce(cc, 0).label("crash_count"),
                     func.coalesce(func.sum(w.c.total_killed), 0).label("total_killed"),
                     func.coalesce(func.sum(w.c.total_injured), 0).label("total_injured"),
+                    func.coalesce(func.sum(w.c.total_severe_injured), 0).label("total_severe_injured"),
                 )
                 .group_by(w.c.crash_year)
                 .order_by(w.c.crash_year)
             )
             rows = db.execute(stmt).all()
-            return [YearRow(year=r.year, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
+            return [YearRow(year=r.year, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured, total_severe_injured=r.total_severe_injured).model_dump() for r in rows]
 
         if group_by == "cause":
             stmt = _wide_query(
@@ -383,12 +389,13 @@ def _run_group_query(
                     func.coalesce(cc, 0).label("crash_count"),
                     func.coalesce(func.sum(w.c.total_killed), 0).label("total_killed"),
                     func.coalesce(func.sum(w.c.total_injured), 0).label("total_injured"),
+                    func.coalesce(func.sum(w.c.total_severe_injured), 0).label("total_severe_injured"),
                 )
                 .group_by(w.c.canonical_cause)
                 .order_by(cc.desc())
             )
             rows = db.execute(stmt).all()
-            return [CauseRow(canonical_cause=r.canonical_cause, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
+            return [CauseRow(canonical_cause=r.canonical_cause, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured, total_severe_injured=r.total_severe_injured).model_dump() for r in rows]
 
         if group_by == "severity":
             stmt = _wide_query(
@@ -397,12 +404,13 @@ def _run_group_query(
                     func.coalesce(cc, 0).label("crash_count"),
                     func.coalesce(func.sum(w.c.total_killed), 0).label("total_killed"),
                     func.coalesce(func.sum(w.c.total_injured), 0).label("total_injured"),
+                    func.coalesce(func.sum(w.c.total_severe_injured), 0).label("total_severe_injured"),
                 )
                 .group_by(w.c.severity)
                 .order_by(cc.desc())
             )
             rows = db.execute(stmt).all()
-            return [SeverityRow(severity=r.severity, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured).model_dump() for r in rows]
+            return [SeverityRow(severity=r.severity, crash_count=r.crash_count, total_killed=r.total_killed, total_injured=r.total_injured, total_severe_injured=r.total_severe_injured).model_dump() for r in rows]
 
         if group_by == "weather":
             stmt = _wide_query(
@@ -492,6 +500,7 @@ def _run_group_query(
             func.coalesce(func.sum(view.c.crash_count), 0).label("total_crashes"),
             func.coalesce(func.sum(view.c.total_killed), 0).label("total_killed"),
             func.coalesce(func.sum(view.c.total_injured), 0).label("total_injured"),
+            func.coalesce(func.sum(view.c.total_severe_injured), 0).label("total_severe_injured"),
         )
         stmt = _apply_filters(stmt, view, years, county_codes, severities, causes)
         row = db.execute(stmt).one()
@@ -499,6 +508,7 @@ def _run_group_query(
             total_crashes=row.total_crashes,
             total_killed=row.total_killed,
             total_injured=row.total_injured,
+            total_severe_injured=row.total_severe_injured,
         ).model_dump()
 
     # --- group_by=county ---
@@ -510,6 +520,7 @@ def _run_group_query(
                 func.sum(view.c.crash_count).label("crash_count"),
                 func.sum(view.c.total_killed).label("total_killed"),
                 func.sum(view.c.total_injured).label("total_injured"),
+                func.sum(view.c.total_severe_injured).label("total_severe_injured"),
             )
             .select_from(view.join(County, County.code == view.c.county_code))
             .group_by(view.c.county_code, County.name)
@@ -524,6 +535,7 @@ def _run_group_query(
                 crash_count=r.crash_count,
                 total_killed=r.total_killed,
                 total_injured=r.total_injured,
+                total_severe_injured=r.total_severe_injured,
             ).model_dump()
             for r in rows
         ]
@@ -536,6 +548,7 @@ def _run_group_query(
                 func.sum(view.c.crash_count).label("crash_count"),
                 func.sum(view.c.total_killed).label("total_killed"),
                 func.sum(view.c.total_injured).label("total_injured"),
+                func.sum(view.c.total_severe_injured).label("total_severe_injured"),
             )
             .group_by(view.c.crash_year)
             .order_by(view.c.crash_year)
@@ -548,6 +561,7 @@ def _run_group_query(
                 crash_count=r.crash_count,
                 total_killed=r.total_killed,
                 total_injured=r.total_injured,
+                total_severe_injured=r.total_severe_injured,
             ).model_dump()
             for r in rows
         ]
@@ -560,6 +574,7 @@ def _run_group_query(
                 func.sum(view.c.crash_count).label("crash_count"),
                 func.sum(view.c.total_killed).label("total_killed"),
                 func.sum(view.c.total_injured).label("total_injured"),
+                func.sum(view.c.total_severe_injured).label("total_severe_injured"),
             )
             .group_by(view.c.canonical_cause)
             .order_by(func.sum(view.c.crash_count).desc())
@@ -572,6 +587,7 @@ def _run_group_query(
                 crash_count=r.crash_count,
                 total_killed=r.total_killed,
                 total_injured=r.total_injured,
+                total_severe_injured=r.total_severe_injured,
             ).model_dump()
             for r in rows
         ]
@@ -644,6 +660,7 @@ def _run_group_query(
                 func.sum(view.c.crash_count).label("crash_count"),
                 func.sum(view.c.total_killed).label("total_killed"),
                 func.sum(view.c.total_injured).label("total_injured"),
+                func.sum(view.c.total_severe_injured).label("total_severe_injured"),
             )
             .group_by(view.c.severity)
             .order_by(func.sum(view.c.crash_count).desc())
@@ -656,6 +673,7 @@ def _run_group_query(
                 crash_count=r.crash_count,
                 total_killed=r.total_killed,
                 total_injured=r.total_injured,
+                total_severe_injured=r.total_severe_injured,
             ).model_dump()
             for r in rows
         ]

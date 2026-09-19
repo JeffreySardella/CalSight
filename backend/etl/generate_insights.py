@@ -13,7 +13,9 @@ For each of the 58 California counties this script:
 3. Calls the configured LLM provider to generate a 2–3 sentence narrative
    (see ``app.llm``). If the call fails the county is skipped — the rest of
    the pipeline continues and the frontend renders ``narrative: null``
-   gracefully.
+   gracefully. Every reply goes through ``etl.fact_check.check_fact`` — the
+   same gate the fun-fact generators use — so a causal claim or an invented
+   figure gets one stricter retry and is then dropped rather than published.
 
 4. Upserts into ``county_insights`` (one row per county per year). Structured
    stats are always written. Narrative is written only when the LLM succeeds.
@@ -49,6 +51,7 @@ from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.llm import generate_narrative
 from app.models import County, CountyInsight
 from etl._utils import track_etl_run
+from etl.fact_check import check_fact
 
 logger = logging.getLogger(__name__)
 
@@ -293,7 +296,9 @@ def _query_demographics(
 # Prompt builder
 # ---------------------------------------------------------------------------
 
-def _build_prompt(county_name: str, stats: dict, demo: dict) -> str:
+def _stats_parts(stats: dict, demo: dict) -> str:
+    """The figures handed to the model — also the context ``check_fact`` scores
+    the reply against, so the prompt and the gate can never disagree."""
     parts = [
         f"total_crashes={stats['total_crashes']}",
         f"total_killed={stats['total_killed']}",
@@ -317,10 +322,11 @@ def _build_prompt(county_name: str, stats: dict, demo: dict) -> str:
     if demo.get("population_density") is not None:
         parts.append(f"pop_density={demo['population_density']:.0f}/sq mi")
 
-    return _PROMPT_TEMPLATE.format(
-        county=county_name,
-        stats=", ".join(parts),
-    )
+    return ", ".join(parts)
+
+
+def _build_prompt(county_name: str, stats_str: str) -> str:
+    return _PROMPT_TEMPLATE.format(county=county_name, stats=stats_str)
 
 
 # ---------------------------------------------------------------------------
@@ -381,13 +387,42 @@ def stats_changed(existing, stats: dict) -> bool:
     return abs(float(old) - float(new)) > _YOY_TOLERANCE
 
 
-def _fresh_narrative(prompt: str, label: str) -> str | None:
-    """LLM narrative, or None when the model returned junk — None makes
-    _build_update_dict keep the previously stored text instead of replacing it
-    with "" or a "Here is a 2-3 sentence..." preamble."""
+# Appended to the prompt for the one retry after a failed fact check. The
+# check itself is etl.fact_check.check_fact — the same gate the fun-fact
+# generators run, not a second copy of it.
+_STRICTER_PROMPT_LINE = (
+    " Describe patterns only; never state or imply that one factor caused "
+    "another. Use only the exact figures provided."
+)
+
+
+def _fresh_narrative(prompt: str, label: str, stats_str: str, year: int) -> str | None:
+    """LLM narrative that passes ``check_fact``, else None.
+
+    None makes _build_update_dict keep the previously stored text instead of
+    replacing it with "", a "Here is a 2-3 sentence..." preamble, or an
+    unpublishable claim. A reply that fails the gate ("27 (39.7%) were caused
+    by speeding" — Alpine, live 2026-09-18) gets one retry with a stricter
+    prompt line before the row is left alone.
+    """
     narrative = generate_narrative(prompt)
     if is_junk_narrative(narrative):
         logger.warning("Junk narrative for %s — keeping stored text: %r", label, (narrative or "")[:80])
+        return None
+    reasons = check_fact(narrative, stats_str, year)
+    if not reasons:
+        return narrative
+
+    logger.warning("Fact check failed for %s — %s; retrying", label, "; ".join(reasons))
+    narrative = generate_narrative(prompt + _STRICTER_PROMPT_LINE)
+    if is_junk_narrative(narrative):
+        logger.warning("Junk retry for %s — keeping stored text: %r", label, (narrative or "")[:80])
+        return None
+    if reasons := check_fact(narrative, stats_str, year):
+        logger.warning(
+            "Fact check still failed for %s — %s; keeping stored narrative",
+            label, "; ".join(reasons),
+        )
         return None
     return narrative
 
@@ -485,8 +520,11 @@ def run() -> int:
             # ---- Step 4: LLM narrative ----
             narrative: str | None = None
             try:
-                prompt = _build_prompt(county.name, stats, demo)
-                narrative = _fresh_narrative(prompt, f"{county.name} ({year})")
+                stats_str = _stats_parts(stats, demo)
+                prompt = _build_prompt(county.name, stats_str)
+                narrative = _fresh_narrative(
+                    prompt, f"{county.name} ({year})", stats_str, year
+                )
                 logger.info(
                     "Generated narrative for %s (%d)", county.name, year
                 )
@@ -584,8 +622,11 @@ def run_all_years() -> int:
 
                 narrative: str | None = None
                 try:
-                    prompt = _build_prompt(county.name, stats, demo)
-                    narrative = _fresh_narrative(prompt, f"{county.name} ({year})")
+                    stats_str = _stats_parts(stats, demo)
+                    prompt = _build_prompt(county.name, stats_str)
+                    narrative = _fresh_narrative(
+                        prompt, f"{county.name} ({year})", stats_str, year
+                    )
                     logger.info(
                         "Generated narrative for %s (%d)", county.name, year
                     )

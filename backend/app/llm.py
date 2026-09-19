@@ -10,6 +10,8 @@ import itertools
 import logging
 import threading
 import time
+from collections.abc import Iterator
+from types import SimpleNamespace
 from typing import Any
 
 from openai import (
@@ -229,6 +231,7 @@ def _call_provider(
     tool_choice: str | None = None,
     max_tokens: int = 500,
     temperature: float = DEFAULT_TEMPERATURE,
+    stream: bool = False,
 ) -> Any:
     ptype = provider.get("type", provider["name"])
     extra_headers = {}
@@ -255,6 +258,8 @@ def _call_provider(
         kwargs["tools"] = tools
         if tool_choice:
             kwargs["tool_choice"] = tool_choice
+    if stream:
+        kwargs["stream"] = True
 
     return client.chat.completions.create(**kwargs)
 
@@ -265,7 +270,13 @@ def generate_with_fallback(
     tool_choice: str | None = None,
     max_tokens: int = 500,
     temperature: float = DEFAULT_TEMPERATURE,
+    stream: bool = False,
 ) -> tuple[Any, str]:
+    """Return ``(response, provider_name)``.
+
+    With ``stream=True`` the first element is an iterator of streaming chunks
+    instead of a completed response — feed it to :func:`consume_stream`.
+    """
     return _generate_over_chain(
         _get_provider_chain(),
         messages,
@@ -274,7 +285,98 @@ def generate_with_fallback(
         max_tokens=max_tokens,
         temperature=temperature,
         budget=settings.llm_daily_request_budget,
+        stream=stream,
     )
+
+
+def _close_quietly(stream: Any) -> None:
+    """Release a provider's HTTP stream without letting teardown mask the error."""
+    close = getattr(stream, "close", None)
+    if close is None:
+        return
+    try:
+        close()
+    except Exception:
+        logger.debug("Failed to close a provider stream", exc_info=True)
+
+
+def _peek_stream(chunks: Any) -> Iterator[Any]:
+    """Pull the first chunk eagerly, then re-attach it.
+
+    Called inside the chain walk's try/except so a provider that dies before
+    emitting a single token falls through to the next provider exactly like a
+    non-streaming failure. Once the first chunk is in hand the provider has
+    committed, and later errors surface to the caller instead.
+
+    The returned generator closes the underlying provider stream on every exit
+    — exhaustion, error, or the caller being closed when the client hangs up —
+    so an abandoned response never waits on the garbage collector.
+    """
+    it = iter(chunks)
+    try:
+        first = next(it, None)
+    except BaseException:
+        _close_quietly(chunks)
+        raise
+
+    def rest() -> Iterator[Any]:
+        try:
+            if first is not None:
+                yield first
+            yield from it
+        finally:
+            _close_quietly(chunks)
+
+    return rest()
+
+
+def consume_stream(chunks: Any) -> Iterator[str]:
+    """Yield content deltas from a streaming completion as they arrive.
+
+    Returns (via ``StopIteration.value``, i.e. ``yield from``) the assembled
+    message in the same shape the non-streaming path reads:
+    ``.content`` and ``.tool_calls[i].function.{name,arguments}``.
+    """
+    content: list[str] = []
+    calls: dict[int, dict[str, str]] = {}
+
+    try:
+        for chunk in chunks:
+            choices = getattr(chunk, "choices", None)
+            if not choices:
+                continue
+            delta = getattr(choices[0], "delta", None)
+            if delta is None:
+                continue
+            text = getattr(delta, "content", None)
+            if text:
+                content.append(text)
+                yield text
+            for tc in getattr(delta, "tool_calls", None) or []:
+                # Every field is optional per provider — a missing `index`
+                # used to raise mid-stream, where there is no failover left.
+                slot = calls.setdefault(
+                    getattr(tc, "index", 0) or 0, {"id": "", "name": "", "arguments": ""}
+                )
+                if getattr(tc, "id", None):
+                    slot["id"] = tc.id
+                fn = getattr(tc, "function", None)
+                if fn is None:
+                    continue
+                slot["name"] += getattr(fn, "name", None) or ""
+                slot["arguments"] += getattr(fn, "arguments", None) or ""
+    finally:
+        _close_quietly(chunks)
+
+    tool_calls = [
+        SimpleNamespace(
+            id=c["id"],
+            type="function",
+            function=SimpleNamespace(name=c["name"], arguments=c["arguments"] or "{}"),
+        )
+        for _idx, c in sorted(calls.items())
+    ]
+    return SimpleNamespace(content="".join(content) or None, tool_calls=tool_calls or None)
 
 
 def _generate_over_chain(
@@ -285,6 +387,7 @@ def _generate_over_chain(
     max_tokens: int = 500,
     temperature: float = DEFAULT_TEMPERATURE,
     budget: int = 0,
+    stream: bool = False,
 ) -> tuple[Any, str]:
     """Walk ``chain`` in order, honouring cooldowns and the daily ``budget``
     (0 = unlimited), returning the first successful (response, provider name)."""
@@ -326,7 +429,10 @@ def _generate_over_chain(
                 tool_choice=tool_choice,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                stream=stream,
             )
+            if stream:
+                response = _peek_stream(response)
             _mark_success(name)
             return response, name
 

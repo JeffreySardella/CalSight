@@ -43,6 +43,34 @@ class TestSafeInt:
         assert _utils.safe_int(3.9) == 3
 
 
+class TestRequireRows:
+    def test_empty_list_raises(self):
+        with pytest.raises(RuntimeError, match="hospitals.*0 hospital records"):
+            _utils.require_rows([], "hospitals", "hospital records")
+
+    def test_none_raises(self):
+        with pytest.raises(RuntimeError, match="schools"):
+            _utils.require_rows(None, "schools", "records")
+
+    def test_wrong_shape_empty_dict_raises(self):
+        # A malformed body coerced to {} (e.g. missing "result" key) is just
+        # as empty as [] and must fail the same way.
+        with pytest.raises(RuntimeError, match="road_miles"):
+            _utils.require_rows({}, "road_miles", "aggregated rows")
+
+    def test_zero_count_int_raises(self):
+        # Some callers pass an already-computed total instead of a list.
+        with pytest.raises(RuntimeError, match="unemployment"):
+            _utils.require_rows(0, "unemployment", "unemployment rate rows")
+
+    def test_non_empty_list_passes_through(self):
+        rows = [{"a": 1}, {"a": 2}]
+        assert _utils.require_rows(rows, "hospitals") is rows
+
+    def test_non_zero_count_passes_through(self):
+        assert _utils.require_rows(5, "unemployment") == 5
+
+
 class TestSafeFloat:
     def test_float_passthrough(self):
         assert _utils.safe_float(3.14) == 3.14
