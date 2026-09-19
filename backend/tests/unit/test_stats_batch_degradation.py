@@ -122,3 +122,56 @@ def test_a_lost_connection_still_reaches_the_503_handler(monkeypatch, stub_db):
 
     assert response.status_code == 503
     assert response.headers.get("Retry-After") == "60"
+
+
+def _get(group_by="mode"):
+    return TestClient(app, raise_server_exceptions=False).get(
+        f"/api/stats?group_by={group_by}",
+    )
+
+
+def test_plain_get_mode_returns_an_empty_list_when_the_view_is_unpopulated(
+    monkeypatch, stub_db,
+):
+    """The GET path used to fall through to main.py and answer 503 "database
+    unavailable" — an outage message for a view simply awaiting its first ETL
+    refresh. It now matches what /stats/batch already does for the same code."""
+    monkeypatch.setattr(stats, "_run_group_query", _fail_one_group(NOT_POPULATED))
+
+    response = _get()
+
+    assert response.status_code == 200
+    assert response.json() == []
+    # The failed statement poisoned the transaction; without this every later
+    # statement on the pooled connection dies with InFailedSqlTransaction.
+    assert stub_db.rollbacks == 1
+
+
+def test_plain_get_mode_still_surfaces_a_real_outage(monkeypatch, stub_db):
+    """Only 55000 is degraded — a lost connection is still a 503."""
+    monkeypatch.setattr(stats, "_run_group_query", _fail_one_group(CONNECTION_LOST))
+
+    response = _get()
+
+    assert response.status_code == 503
+
+
+def test_plain_get_mode_still_surfaces_a_missing_table(monkeypatch, stub_db):
+    """A botched migration must not read as "no data for this dimension"."""
+    monkeypatch.setattr(stats, "_run_group_query", _fail_one_group(UNDEFINED_TABLE))
+
+    response = _get()
+
+    assert response.status_code >= 500
+
+
+def test_another_group_is_not_degraded_by_the_mode_carve_out(monkeypatch, stub_db):
+    """group_by=gender hitting 55000 keeps its old 503 — the carve-out is
+    scoped to mode, which is the view this branch adds."""
+    def run(group, *args, **kwargs):
+        raise NOT_POPULATED
+    monkeypatch.setattr(stats, "_run_group_query", run)
+
+    response = _get(group_by="gender")
+
+    assert response.status_code == 503
