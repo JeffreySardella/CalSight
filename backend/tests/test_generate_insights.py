@@ -13,10 +13,12 @@ import pytest
 import etl.generate_insights as gi
 from etl.generate_insights import (
     _EXCLUDE_CURRENT_YEAR_SQL,
+    _STRICTER_PROMPT_LINE,
     _all_years,
     _build_update_dict,
     _fresh_narrative,
     _latest_year,
+    _stats_parts,
     is_junk_narrative,
 )
 
@@ -167,16 +169,83 @@ _STATS = dict(total_crashes=1, total_killed=0, total_injured=0, crash_rate_per_c
               top_cause="dui", top_cause_pct=0.0, yoy_change_pct=None, peak_hour=0, dui_pct=0.0)
 
 
+_CTX = "total_crashes=52,310, yoy_change=-3.0%"
+
+
 @pytest.mark.parametrize("reply", ["Here is a 2-3 sentence summary", "", "**Los Angeles County**"])
 def test_junk_reply_keeps_stored_narrative(monkeypatch, reply):
     monkeypatch.setattr(gi, "generate_narrative", lambda prompt: reply)
-    narrative = _fresh_narrative("prompt", "Los Angeles (2025)")
+    narrative = _fresh_narrative("prompt", "Los Angeles (2025)", _CTX, 2011)
     assert narrative is None
     assert "narrative" not in _build_update_dict(_STATS, narrative, None)
 
 
 def test_real_reply_is_written(monkeypatch):
     monkeypatch.setattr(gi, "generate_narrative", lambda prompt: _REAL)
-    narrative = _fresh_narrative("prompt", "Los Angeles (2025)")
+    narrative = _fresh_narrative("prompt", "Los Angeles (2025)", _CTX, 2011)
     assert narrative == _REAL
     assert _build_update_dict(_STATS, narrative, None)["narrative"] == _REAL
+
+
+# ── write-time fact gate ─────────────────────────────────────────────────
+#
+# Live on 2026-09-18: Alpine's card asserted "27 (39.7%) were caused by
+# speeding". The fun-fact cards ran etl.fact_check; the narrative did not.
+
+_CAUSAL = (
+    "Alpine County recorded 68 crashes in 2011. Of those, 27 (39.7%) were "
+    "caused by speeding, and collisions clustered in the late afternoon."
+)
+
+
+def test_causal_reply_is_retried_then_accepted(monkeypatch):
+    prompts = []
+
+    def fake(prompt):
+        prompts.append(prompt)
+        return _CAUSAL if len(prompts) == 1 else _REAL
+
+    monkeypatch.setattr(gi, "generate_narrative", fake)
+    assert _fresh_narrative("prompt", "Alpine (2011)", _CTX, 2011) == _REAL
+    assert prompts[1] == "prompt" + _STRICTER_PROMPT_LINE
+    assert "never state or imply that one factor caused another" in prompts[1]
+
+
+def test_stubborn_causal_reply_is_not_written(monkeypatch):
+    monkeypatch.setattr(gi, "generate_narrative", lambda prompt: _CAUSAL)
+    narrative = _fresh_narrative("prompt", "Alpine (2011)", _CTX, 2011)
+    assert narrative is None
+    # The previously stored narrative survives — the column is left out.
+    assert "narrative" not in _build_update_dict(_STATS, narrative, None)
+
+
+def test_invented_figure_is_not_written(monkeypatch):
+    invented = (
+        "Los Angeles County recorded 52,310 crashes in 2011, well under the "
+        "national average of 431,900 for comparable metros."
+    )
+    monkeypatch.setattr(gi, "generate_narrative", lambda prompt: invented)
+    assert _fresh_narrative("prompt", "Los Angeles (2011)", _CTX, 2011) is None
+
+
+def test_category_wording_survives_the_gate(monkeypatch):
+    """The gate must not reject the crash-cause category the card is built on."""
+    text = (
+        "Los Angeles County recorded 52,310 crashes in 2011. Unsafe speed was "
+        "the leading cause, and other causes represent the rest of the total."
+    )
+    monkeypatch.setattr(gi, "generate_narrative", lambda prompt: text)
+    assert _fresh_narrative("prompt", "Los Angeles (2011)", _CTX, 2011) == text
+
+
+def test_stats_parts_feeds_both_prompt_and_gate():
+    """Every figure the prompt supplies is a figure the gate accepts."""
+    stats = dict(total_crashes=52_310, total_killed=294, yoy_change_pct=-3.0,
+                 top_cause="unsafe_speed", top_cause_pct=31.2, peak_hour=17, dui_pct=6.4)
+    parts = _stats_parts(stats, {"population": 9_800_000})
+    assert "total_crashes=52310" in parts
+    narrative = (
+        "Los Angeles County recorded 52310 crashes in 2011, 294 of them fatal; "
+        "unsafe speed accounted for 31.2% and collisions peaked at 17:00."
+    )
+    assert gi.check_fact(narrative, parts, 2011, 2026) == []
