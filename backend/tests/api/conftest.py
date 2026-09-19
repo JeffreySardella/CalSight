@@ -3,6 +3,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 # CRITICAL: override DATABASE_URL BEFORE importing anything from `app`.
 # app.settings reads it at import time (pydantic-settings), and
@@ -19,12 +20,39 @@ ADMIN_URL = os.environ.get(
 )
 os.environ["DATABASE_URL"] = TEST_DB_URL
 
+# Derived from TEST_DATABASE_URL, never hard-coded: overriding that env var to
+# point at a differently-named database used to be silently ignored here, so
+# the fixtures dropped and recreated `calsight_test` while the tests connected
+# to whatever the override named — and found it empty.
+TEST_DB_NAME = urlparse(TEST_DB_URL).path.lstrip("/") or "calsight_test"
+
+
+def require_throwaway_db_name(name: str) -> str:
+    """Refuse a database name that doesn't look disposable.
+
+    _create_test_db DROPs this database. Deriving the name from an env var
+    turned a previously inert typo into a destructive one: before, a wrong
+    TEST_DATABASE_URL dropped calsight_test (annoying); now it would drop
+    whatever it names. So the name has to look like a throwaway — alphanumeric
+    plus underscores, ending in _test. A real database is exactly one rename
+    away from passing, which is the point: the check is cheap to satisfy
+    deliberately and hard to satisfy by accident.
+    """
+    if not name.endswith("_test") or not name.replace("_", "").isalnum():
+        raise ValueError(
+            f"refusing to drop and recreate {name!r}: the test database name "
+            "must be alphanumeric/underscore and end in '_test'"
+        )
+    return name
+
+
+require_throwaway_db_name(TEST_DB_NAME)
+
 import pytest  # noqa: E402
 from alembic import command as alembic_command  # noqa: E402
 from alembic.config import Config as AlembicConfig  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine, text  # noqa: E402
-from sqlalchemy.engine import make_url  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
 from app.database import get_db  # noqa: E402
@@ -47,6 +75,7 @@ from app.models import (  # noqa: E402
     TrafficVolume,
     UnemploymentRate,
     VehicleRegistration,
+    Vmt,
 )
 
 
@@ -68,28 +97,23 @@ def _db_available(url: str) -> bool:
         return False
 
 
-def _test_db_name() -> str:
-    """The database name inside TEST_DATABASE_URL.
-
-    Derived rather than hard-coded: overriding TEST_DATABASE_URL to run against
-    a differently-named scratch DB used to still DROP and CREATE `calsight_test`,
-    so the override silently tested the wrong database (or clobbered someone
-    else's). The `_test` suffix is enforced so a typo can never drop a real DB.
-    """
-    name = make_url(TEST_DB_URL).database or ""
-    if not name.endswith("_test"):
-        raise RuntimeError(
-            f"refusing to drop/create {name!r}: the test database name must end in '_test'"
-        )
-    return name
-
-
 def _create_test_db() -> None:
-    name = _test_db_name()
+    # Recreate the database TEST_DATABASE_URL actually points at. Hard-coding
+    # "calsight_test" here meant pointing TEST_DATABASE_URL at a private
+    # database (to run alongside another session) dropped the shared one and
+    # then migrated an empty target.
+    #
+    # This statement DROPs. It used to be safe by construction (the name was
+    # hard-coded); now that it follows TEST_DATABASE_URL, the name itself has to
+    # prove it is a test database — require_throwaway_db_name, called at import
+    # above, is what rules out dropping "calsight".
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
-        conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
-        conn.execute(text(f'CREATE DATABASE "{name}"'))
+        # Identifiers can't be bound as parameters; the name comes from our own
+        # env var, and quoting it keeps a surprising name from splitting the
+        # statement.
+        conn.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DB_NAME}"'))
+        conn.execute(text(f'CREATE DATABASE "{TEST_DB_NAME}"'))
     admin.dispose()
 
 
@@ -204,6 +228,11 @@ def _seed(session: Session) -> None:
         VehicleRegistration(county_code=19, year=2023,
                             total_vehicles=6200000, ev_vehicles=310000),
         LicensedDriver(county_code=19, year=2023, driver_count=5800000),
+        # Two counties so the /api/vmt county filter has something to exclude.
+        Vmt(county_code=19, year=2023, vmt_millions=81997.43,
+            source="EMFAC2025 v2.1.1"),
+        Vmt(county_code=1, year=2023, vmt_millions=12120.14,
+            source="EMFAC2025 v2.1.1"),
         DataQualityStat(county_code=19, year=2023, total_crashes=500000,
                         crashes_with_coords=480000, coords_pct=96.0),
         DataQualityStat(county_code=19, year=None, total_crashes=4200000,
@@ -278,6 +307,7 @@ def _seed(session: Session) -> None:
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_hour"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crash_victims_by_demographics"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_at_fault_parties_by_demographics"))
+    session.execute(text("REFRESH MATERIALIZED VIEW mv_victims_by_mode"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_month"))
     session.execute(text("REFRESH MATERIALIZED VIEW mv_crash_rates"))
     session.commit()

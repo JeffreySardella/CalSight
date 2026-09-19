@@ -26,8 +26,13 @@ vi.mock("./OverlayMarkers", () => ({
 vi.mock("./CrashDotLayer", () => ({
   default: () => null,
 }));
+// Reads the filter params, which need a Router this harness doesn't provide.
+vi.mock("./TractBurdenLayer", () => ({
+  default: () => null,
+}));
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 import type { Map as LeafletMap } from "leaflet";
 import MapCanvas from "./MapCanvas";
 import { mockMapInstance } from "../../__mocks__/leaflet";
@@ -49,14 +54,18 @@ function renderWithTheme(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  // MemoryRouter: the canvas reads the year filter out of the URL
+  // (useFilterParams) to scope the school crash counts.
   return render(
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AccessibilityProvider>
-          <CustomThemeProvider><LayersStateProvider>{ui}</LayersStateProvider></CustomThemeProvider>
-        </AccessibilityProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AccessibilityProvider>
+            <CustomThemeProvider><LayersStateProvider>{ui}</LayersStateProvider></CustomThemeProvider>
+          </AccessibilityProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 

@@ -1,6 +1,6 @@
 # CalSight Data Dictionary
 
-Last updated: 2026-09-12
+Last updated: 2026-09-18
 
 Column-by-column reference for every table in the CalSight database.
 
@@ -607,6 +607,7 @@ Column detail for these lives in `backend/app/models.py` (the ORM is authoritati
 |---|---|---|---|
 | `weather_daily` | county × day | `etl.nclimgrid_weather` | NOAA nClimGrid-Daily county area-averages (precip_in, avg/max/min temp F), 2001→present; missing days are absent rows |
 | `first_rain_events` | county × water year (2002+) | `etl.compute_first_rain` | First day ≥ 0.10 in after ≥ 14 dry days; `crashes_on_day`, 28-day `baseline_daily_crashes`, `lift_pct` |
+| `storm_events` | NOAA event × county (2001+) | `etl.load_storm_events` | NOAA Storm Events Dense Fog and winter rows for 32 counties — the San Joaquin Valley and Sierra, plus the Sacramento Valley and far-northern counties the transcribed NWS zones reach into; keyed to NWS forecast zones, so one event becomes one row per county its zone touches — unique on (source_event_id, county_code). Its `source` column is NOAA's own SOURCE field (who reported the event: "Trained Spotter", "Broadcast Media"), **not** CalSight provenance — unlike `etl_runs.source` everywhere else in this doc |
 | `fars_county_year` | county × year | `etl.nhtsa_fars` | NHTSA FARS fatalities, unrestrained and restraint-known killed |
 | `tract_density_county_year` | county × year | `etl.census_tract_density` | Population-weighted ("lived") density and contributing tract count |
 | `reservoirs` / `reservoir_daily` | station; station × day | `etl.load_reservoirs` | 15 major CDEC reservoirs (capacity_af, county, lat/lon) and daily `storage_af`, backfilled from 1991 |
@@ -618,6 +619,7 @@ Column detail for these lives in `backend/app/models.py` (the ORM is authoritati
 | `mv_crashes_by_month`, `mv_at_fault_parties_by_demographics` | see migrations `g4h5i6j7k8l9`, `f8a1b2c3d4e5` | same | Seasonality; at-fault party gender / age |
 | `mv_street_aggregates` | street/intersection rollup | same | Street-level aggregates behind the intersections and corridors endpoints |
 | `mv_street_totals` | coarse street totals | same | Default-state (no filters) totals so the street endpoints skip the 11.6M-row scan; added 2026-09 |
+| `mv_school_crash_counts` | school × year | same | Crashes within 500 ft of each school (bounding box on `ix_crashes_lat_lng`, then an equirectangular distance — no PostGIS); `crashes`, `killed`, `injured`, `severe_injured`. Behind `/api/schools/crash-counts`; added 2026-09. **Counts only the ~37% of crashes that carry coordinates, and that share varies by county** |
 | `mv_crashes_by_day` | county × calendar day | same | `crashes`, `killed`, `injured`, `dui_crashes` (`canonical_cause = 'dui'`) per day — the only day-of-month grain in the schema; behind `/api/holidays`; added 2026-09 |
 
-That makes **11 materialized views** as of 2026-09-18. The two street views and `mv_crashes_by_day` are optional — the street endpoints fall back to `crashes` when they are unpopulated, and `/api/holidays` returns an empty holiday list — so they do not gate the site-wide rebuilding banner.
+That makes **13 materialized views** as of 2026-09-19. Four are optional and do not gate the site-wide rebuilding banner: the two street views, because the street endpoints fall back to `crashes` when they are unpopulated; `mv_school_crash_counts`, because `/api/schools/crash-counts` returns an empty list and the map draws every school marker in the no-data colour; and `mv_crashes_by_day`, because `/api/holidays` returns an empty holiday list.

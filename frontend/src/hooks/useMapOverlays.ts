@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
+import type { SchoolCrashCountsResponse } from "../lib/map/schoolCrashRamp";
 
 export interface Hospital {
   facility_id: string;
@@ -33,6 +34,32 @@ export function useHospitals(enabled: boolean) {
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/hospitals`);
       if (!res.ok) throw new Error(`hospitals ${res.status}`);
+      return res.json();
+    },
+    enabled,
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * Crashes within 500 ft of each school, for the marker ramp.
+ *
+ * Separate from useSchools because the school list itself never changes,
+ * while these counts follow the map's year filter. Comes back with an empty
+ * `schools` array while the matview is unpopulated (between a deploy and the
+ * next nightly refresh), which the layer renders as "no data" gray.
+ */
+export function useSchoolCrashCounts(enabled: boolean, years: Iterable<number>) {
+  // Takes the caller's Set straight from useFilterParams — the sorted, joined
+  // string is both the query param and the cache key, so nothing upstream
+  // needs to memoise an array whose identity would then have to be stable.
+  const param = [...years].sort((a, b) => a - b).join(",");
+  return useQuery<SchoolCrashCountsResponse>({
+    queryKey: ["school-crash-counts", param],
+    queryFn: async ({ signal }) => {
+      const qs = param ? `?years=${param}` : "";
+      const res = await fetch(`${API_BASE}/api/schools/crash-counts${qs}`, { signal });
+      if (!res.ok) throw new Error(`school crash counts ${res.status}`);
       return res.json();
     },
     enabled,

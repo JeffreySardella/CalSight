@@ -24,6 +24,7 @@ MATERIALIZED_VIEWS: tuple[str, ...] = (
     "mv_crashes_by_month",
     "mv_crash_victims_by_demographics",
     "mv_at_fault_parties_by_demographics",
+    "mv_victims_by_mode",
     "mv_crash_rates",
     "mv_crashes_wide",
 )
@@ -37,12 +38,18 @@ MATERIALIZED_VIEWS: tuple[str, ...] = (
 # they aren't populated. Slow is not the same as broken, so an unpopulated
 # street view shouldn't put a banner across the whole site.
 #
+# mv_school_crash_counts is the same deal one step further: /api/schools/
+# crash-counts returns an empty list when it isn't populated, and the map
+# simply draws every school marker in the no-data color. A missing overlay
+# tint is not a site outage.
+#
 # mv_crashes_by_day is optional for the same reason from the other direction:
 # /api/holidays returns an empty holiday list while it is unpopulated, so one
 # story block goes quiet rather than the whole site declaring itself broken.
 OPTIONAL_MATERIALIZED_VIEWS: tuple[str, ...] = (
     "mv_street_aggregates",
     "mv_street_totals",
+    "mv_school_crash_counts",
     "mv_crashes_by_day",
 )
 
