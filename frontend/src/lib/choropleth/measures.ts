@@ -217,36 +217,37 @@ type ComputeOpts = {
 };
 
 export type DriverYear = { year: number; driver_count: number | null };
-
-/** Average licensed drivers per year for the selected years (empty set = all).
- *  DMV coverage is 2008-2024; when no selected year has data, the nearest
- *  available year stands in, since county driver counts move slowly. */
-export function annualDriverCount(rows: DriverYear[], years: Set<number>): number | null {
-  const valid = rows.filter((r) => r.driver_count != null && r.driver_count > 0);
-  if (valid.length === 0) return null;
-  let pick = years.size > 0 ? valid.filter((r) => years.has(r.year)) : valid;
-  if (pick.length === 0) {
-    const target = Math.max(...years);
-    pick = [valid.reduce((a, b) => (Math.abs(b.year - target) < Math.abs(a.year - target) ? b : a))];
-  }
-  return pick.reduce((sum, r) => sum + r.driver_count!, 0) / pick.length;
-}
-
 export type VmtYear = { year: number; vmt_millions: number | null };
 
-/** Average VMT (millions) per year for the selected years (empty set = all).
- *  EMFAC coverage starts in 2001 and stops before the current year, since
- *  later years are forecasts; when no selected year has data the nearest
- *  available year stands in, as with driver counts. */
-export function annualVmtMillions(rows: VmtYear[], years: Set<number>): number | null {
-  const valid = rows.filter((r) => r.vmt_millions != null && r.vmt_millions > 0);
+/** Average of a yearly denominator over the selected years (empty set = all).
+ *  Both exposure denominators are published on their own schedules and
+ *  neither covers every crash year, so when no selected year has data the
+ *  nearest available year stands in — these quantities move slowly enough
+ *  that a neighbouring year beats showing nothing. One rule, so tuning it
+ *  cannot drift between the two callers. */
+function annualAverage(
+  rows: { year: number; value: number | null }[],
+  years: Set<number>,
+): number | null {
+  const valid = rows.filter((r) => r.value != null && r.value > 0);
   if (valid.length === 0) return null;
   let pick = years.size > 0 ? valid.filter((r) => years.has(r.year)) : valid;
   if (pick.length === 0) {
     const target = Math.max(...years);
     pick = [valid.reduce((a, b) => (Math.abs(b.year - target) < Math.abs(a.year - target) ? b : a))];
   }
-  return pick.reduce((sum, r) => sum + r.vmt_millions!, 0) / pick.length;
+  return pick.reduce((sum, r) => sum + r.value!, 0) / pick.length;
+}
+
+/** Average licensed drivers per year. DMV coverage is 2008-2024. */
+export function annualDriverCount(rows: DriverYear[], years: Set<number>): number | null {
+  return annualAverage(rows.map((r) => ({ year: r.year, value: r.driver_count })), years);
+}
+
+/** Average VMT (millions) per year. EMFAC coverage starts in 2001 and stops
+ *  before the current year, since later years are forecasts. */
+export function annualVmtMillions(rows: VmtYear[], years: Set<number>): number | null {
+  return annualAverage(rows.map((r) => ({ year: r.year, value: r.vmt_millions })), years);
 }
 
 export function computeMeasureValue(
