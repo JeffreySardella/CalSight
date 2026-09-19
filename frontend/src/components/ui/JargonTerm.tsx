@@ -79,7 +79,7 @@ export default function JargonTerm({ term, children }: JargonTermProps) {
     >
       <button
         type="button"
-        className="cursor-help underline decoration-dotted decoration-on-surface-variant/60 underline-offset-2 text-inherit hover:decoration-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
+        className="relative cursor-help underline decoration-dotted decoration-on-surface-variant/60 underline-offset-2 text-inherit hover:decoration-on-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm after:content-[''] after:absolute after:inset-[-6px]"
         aria-describedby={open ? tooltipId : undefined}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
