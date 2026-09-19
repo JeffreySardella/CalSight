@@ -99,12 +99,8 @@ def _create_test_db() -> None:
     #
     # This statement DROPs. It used to be safe by construction (the name was
     # hard-coded); now that it follows TEST_DATABASE_URL, the name itself has to
-    # prove it is a test database — "calsight" would pass an alnum check alone.
-    if not TEST_DB_NAME.endswith("_test") or not TEST_DB_NAME.replace("_", "").isalnum():
-        raise ValueError(
-            f"refusing to drop {TEST_DB_NAME!r}: TEST_DATABASE_URL must name an "
-            "alphanumeric database ending in '_test'"
-        )
+    # prove it is a test database — _require_test_suffix, applied where
+    # _TEST_DB_NAME is derived above, is what rules out dropping "calsight".
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
         conn.execute(text(f'DROP DATABASE IF EXISTS "{_TEST_DB_NAME}"'))
