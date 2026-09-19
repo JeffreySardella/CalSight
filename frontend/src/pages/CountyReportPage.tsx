@@ -16,7 +16,7 @@
  * Charts encode with position and length, not hue, so they survive grayscale.
  */
 
-import { useEffect, useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import MetaTags from "../components/seo/MetaTags";
 import CopyLinkButton from "../components/ui/CopyLinkButton";
@@ -32,6 +32,9 @@ import {
   formatCount,
   formatValue,
   ordinal,
+  MIN_CRASHES_FOR_CRASH_RATE,
+  MIN_DEATHS_FOR_DEATH_RATE,
+  POOLED_YEARS,
   type MetricRow,
 } from "../lib/countyReport";
 
@@ -241,7 +244,7 @@ function HourStrip({ report }: { report: CountyReport }) {
 
 /** One row of the headline table. */
 function MetricCells({ m }: { m: MetricRow }) {
-  const value = m.countyTooSmall
+  const value = m.suppressedBy
     ? "Not shown"
     : m.decimals === 0
       ? formatCount(m.county)
@@ -252,17 +255,21 @@ function MetricCells({ m }: { m: MetricRow }) {
       <td className="py-1.5 pl-2 text-right font-bold text-on-surface tabular-nums">{value}</td>
       <td className="py-1.5 pl-2 text-right text-on-surface-variant tabular-nums">{statewide}</td>
       <td className="py-1.5 pl-2 text-right text-on-surface-variant tabular-nums">
-        {m.countyTooSmall ? "—" : formatChange(m.changePct)}
+        {m.suppressedBy ? "—" : formatChange(m.changePct)}
       </td>
     </>
   );
 }
 
 function ReportBody({ report, narrative }: { report: CountyReport; narrative: string | null }) {
-  const { countyName, year, priorYear, windowStart, metrics, factors, rank } = report;
+  const { countyName, year, priorYear, windowStart, metrics, factors, rank, pooled } = report;
   const win = `${windowStart} to ${year}`;
-  const suppressed = metrics.filter((m) => m.countyTooSmall);
   const mapHref = `/?county=${slugify(countyName)}`;
+
+  const deathCount = metrics.find((m) => m.key === "deaths")?.county ?? null;
+  const crashCount = metrics.find((m) => m.key === "crashes")?.county ?? null;
+  const deathRateWithheld = metrics.find((m) => m.key === "deaths_per_1k")?.suppressedBy === "deaths";
+  const byCrashes = metrics.filter((m) => m.suppressedBy === "crashes");
 
   return (
     <>
@@ -285,20 +292,53 @@ function ReportBody({ report, narrative }: { report: CountyReport; narrative: st
           </thead>
           <tbody>
             {metrics.map((m) => (
-              <tr key={m.key} className="border-b border-outline-variant/40">
-                <th scope="row" className="text-left font-medium text-on-surface py-1.5 pr-2">
-                  {m.label}
-                </th>
-                <MetricCells m={m} />
-              </tr>
+              <Fragment key={m.key}>
+                <tr className="border-b border-outline-variant/40">
+                  <th scope="row" className="text-left font-medium text-on-surface py-1.5 pr-2">
+                    {m.label}
+                  </th>
+                  <MetricCells m={m} />
+                </tr>
+                {/* The single year is too thin to publish, so the pooled figure
+                    takes its place in the table rather than sitting beside a
+                    blank the reader has to reconcile it with. */}
+                {m.key === "deaths_per_1k" && deathRateWithheld && pooled && (
+                  <tr className="border-b border-outline-variant/40">
+                    <th scope="row" className="text-left font-medium text-on-surface py-1.5 pr-2">
+                      Deaths per 1,000 crashes, {pooled.fromYear}–{pooled.toYear} together
+                    </th>
+                    <td className="py-1.5 pl-2 text-right font-bold text-on-surface tabular-nums">
+                      {pooled.value == null ? "Not shown" : formatValue(pooled.value, 1)}
+                    </td>
+                    <td className="py-1.5 pl-2 text-right text-on-surface-variant tabular-nums">—</td>
+                    <td className="py-1.5 pl-2 text-right text-on-surface-variant tabular-nums">—</td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
-        {suppressed.length > 0 && (
+
+        {deathRateWithheld && (
           <p className="text-[10px] text-on-surface-variant mt-1.5">
-            Not shown: {suppressed.map((m) => m.label.toLowerCase()).join(", ")}. The count for{" "}
-            {countyName} County in {year} is too small for a stable rate, so the report gives the
-            counts above and leaves the rate out.
+            Deaths per 1,000 crashes is not shown for {year}: {countyName} County recorded{" "}
+            {formatCount(deathCount)} {deathCount === 1 ? "death" : "deaths"}, under the{" "}
+            {MIN_DEATHS_FOR_DEATH_RATE} this report wants before it prints that rate for a single
+            year — one more or one fewer would move it a long way.{" "}
+            {pooled && pooled.value != null
+              ? `The ${pooled.fromYear}–${pooled.toYear} figure above pools ${formatCount(pooled.deaths)} deaths across ${formatCount(pooled.crashes)} crashes and is steady enough to quote.`
+              : pooled
+                ? `Even ${pooled.fromYear} to ${pooled.toYear} together comes to ${formatCount(pooled.deaths)} deaths, still under ${MIN_DEATHS_FOR_DEATH_RATE}, so no rate is given at all.`
+                : ""}
+          </p>
+        )}
+
+        {byCrashes.length > 0 && (
+          <p className="text-[10px] text-on-surface-variant mt-1.5">
+            Not shown for {year}: {byCrashes.map((m) => m.label.toLowerCase()).join(" and ")}.{" "}
+            {countyName} County recorded {formatCount(crashCount)} crashes, under the{" "}
+            {MIN_CRASHES_FOR_CRASH_RATE} this report wants before it divides by drivers or road
+            miles. The counts above are exact; only the rates are held back.
           </p>
         )}
       </section>
@@ -341,7 +381,9 @@ function ReportBody({ report, narrative }: { report: CountyReport; narrative: st
         <p className="text-[11px] text-on-surface-variant leading-relaxed">
           {rank
             ? `On deaths per 1,000 crashes in ${year}, ${countyName} County ranks ${ordinal(rank.rank)} highest of the ${rank.of} counties with a figure for that year.`
-            : `No ranking for ${countyName} County in ${year}.`}
+            : deathRateWithheld
+              ? `No rank is given. A place in the table of 58 rests on the same deaths-per-1,000-crashes rate the report withheld above, so it would carry the same swing while reading as settled.`
+              : `No ranking for ${countyName} County in ${year}.`}
         </p>
       </section>
 
@@ -383,7 +425,22 @@ function ReportBody({ report, narrative }: { report: CountyReport; narrative: st
               Deaths per 1,000 crashes = people killed ÷ crashes × 1,000. Crashes per 10,000
               licensed drivers uses the DMV count for {year}, or the nearest year DMV publishes.
               Crashes per 100 road miles uses Caltrans centre-line mileage across all functional
-              classes. Rates are left out where a count is too small to be stable.
+              classes.
+            </dd>
+          </div>
+          <div>
+            <dt className="inline font-bold text-on-surface">When a rate is held back. </dt>
+            <dd className="inline">
+              A rate is only as steady as the count it divides. This page prints deaths per 1,000
+              crashes for a single year once the county records at least{" "}
+              {MIN_DEATHS_FOR_DEATH_RATE} deaths that year, and the two exposure rates — per
+              10,000 licensed drivers and per 100 road miles — once it records at least{" "}
+              {MIN_CRASHES_FOR_CRASH_RATE} crashes. Under either threshold the count is still
+              printed and the rate reads “Not shown”, and the county's place in the ranking of 58
+              is left out for the same reason. Where a single year is too thin, {POOLED_YEARS}{" "}
+              complete years are summed and divided once, which usually clears the same bar. These
+              thresholds belong to this report card; the interactive map uses a lower one suited to
+              comparing shaded counties.
             </dd>
           </div>
           <div>
@@ -431,15 +488,9 @@ export default function CountyReportPage() {
     ? `A one-page, printable summary of reported traffic crashes, deaths and injuries in ${countyName} County, California, with statewide figures for comparison.`
     : "That California county could not be found.";
 
-  // Layout.tsx owns document.title and, as the parent route element, its effect
-  // runs AFTER this page's — React flushes child effects first — so a title set
-  // inline here is immediately overwritten. Re-asserting it in a microtask lands
-  // once the whole effect flush is done, without a visible flicker.
-  useEffect(() => {
-    queueMicrotask(() => {
-      document.title = title;
-    });
-  }, [title]);
+  // The title is set by <MetaTags> below. Layout stands aside for this route
+  // (see lib/pageTitles.ts) because only this page knows the county name — or
+  // that the slug matched no county at all.
 
   const dataThrough = useMemo(
     () =>

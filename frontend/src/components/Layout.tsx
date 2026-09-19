@@ -6,17 +6,7 @@ import Footer from "./Footer";
 import BottomTabBar from "./BottomTabBar";
 import { OfflineIndicator } from "./ui/OfflineIndicator";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
-
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Map Explorer — CalSight",
-  "/stats": "Statistics Dashboard — CalSight",
-  "/ask": "Ask AI — CalSight",
-  "/about": "About — CalSight",
-  "/water": "Water — CalSight",
-  "/privacy": "Privacy Policy — CalSight",
-  "/terms": "Terms of Service — CalSight",
-  "/admin/etl": "ETL Admin — CalSight",
-};
+import { pageTitleFor } from "../lib/pageTitles";
 
 export default function Layout() {
   const location = useLocation();
@@ -24,7 +14,8 @@ export default function Layout() {
   const isAskPage = location.pathname === "/ask";
 
   useEffect(() => {
-    document.title = PAGE_TITLES[location.pathname] || "CalSight — California Crash Data Explorer";
+    const title = pageTitleFor(location.pathname);
+    if (title !== null) document.title = title;
   }, [location.pathname]);
 
   // Scroll to hash anchor when navigating — keyed on pathname+hash, ignoring search params

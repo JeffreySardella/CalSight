@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import CountyReportPage from "./CountyReportPage";
-import { buildMetrics } from "../lib/countyReport";
+import { buildMetrics, pooledDeathRate, type AreaInputs } from "../lib/countyReport";
 import type { CountyReport } from "../hooks/useCountyReport";
 
 const useCountyReport = vi.fn();
@@ -25,6 +25,23 @@ vi.mock("../hooks/useDataFreshness", () => ({
 
 const YEAR = 2025;
 
+const STATEWIDE: AreaInputs = {
+  now: { crashes: 401_670, killed: 3_402, injured: 250_000 },
+  then: { crashes: 374_756, killed: 4_081, injured: 240_000 },
+  drivers: 27_838_201,
+  priorDrivers: 26_000_000,
+  roadMiles: 396_000,
+};
+
+/** Big enough that every rate publishes — the default fixture. */
+const HEALTHY: AreaInputs = {
+  now: { crashes: 4_000, killed: 40, injured: 2_500 },
+  then: { crashes: 3_600, killed: 44, injured: 2_300 },
+  drivers: 300_000,
+  priorDrivers: 280_000,
+  roadMiles: 4_000,
+};
+
 function makeReport(overrides: Partial<CountyReport> = {}): CountyReport {
   return {
     countyName: "Alpine",
@@ -32,22 +49,11 @@ function makeReport(overrides: Partial<CountyReport> = {}): CountyReport {
     year: YEAR,
     priorYear: YEAR - 5,
     windowStart: YEAR - 9,
-    metrics: buildMetrics({
-      county: {
-        now: { crashes: 71, killed: 1, injured: 63 },
-        then: { crashes: 60, killed: 2, injured: 50 },
-        drivers: 1_237,
-        priorDrivers: 1_100,
-        roadMiles: 669,
-      },
-      statewide: {
-        now: { crashes: 401_670, killed: 3_402, injured: 250_000 },
-        then: { crashes: 374_756, killed: 4_081, injured: 240_000 },
-        drivers: 27_838_201,
-        priorDrivers: 26_000_000,
-        roadMiles: 396_000,
-      },
-    }),
+    metrics: buildMetrics({ county: HEALTHY, statewide: STATEWIDE }),
+    pooled: pooledDeathRate([
+      { year: YEAR - 1, crashes: 3_800, killed: 38 },
+      { year: YEAR, crashes: 4_000, killed: 40 },
+    ]),
     trend: [
       { year: YEAR - 1, crashes: 64, killed: 2 },
       { year: YEAR, crashes: 71, killed: 1 },
@@ -106,12 +112,14 @@ describe("CountyReportPage", () => {
     ).toBeTruthy();
     // The summary line names the year and the three counts, all from the hook.
     expect(screen.getByText(/In 2025, the latest complete year/)).toBeTruthy();
+    // Nothing is held back for a county this size.
+    expect(screen.queryByText("Not shown")).toBeNull();
 
     const crashRow = rowFor("Crashes");
-    expect(within(crashRow).getByText("71")).toBeTruthy();
+    expect(within(crashRow).getByText("4,000")).toBeTruthy();
     expect(within(crashRow).getByText("401,670")).toBeTruthy();
-    // 71 against 60 five years earlier.
-    expect(within(crashRow).getByText("+18.3%")).toBeTruthy();
+    // 4,000 against 3,600 five years earlier.
+    expect(within(crashRow).getByText("+11.1%")).toBeTruthy();
 
     // Rank sentence, ordinal and denominator both from the hook.
     expect(screen.getByText(/ranks 3rd highest of the 58 counties/)).toBeTruthy();
@@ -149,37 +157,101 @@ describe("CountyReportPage", () => {
     expect(screen.getByText(/Alpine recorded fewer crashes/)).toBeTruthy();
   });
 
-  it("says a rate is not shown when the county's count is too small", () => {
+  /** Alpine's real 2025 shape: 68 crashes, 2 deaths. */
+  const ALPINE: AreaInputs = {
+    now: { crashes: 68, killed: 2, injured: 44 },
+    then: { crashes: 71, killed: 4, injured: 46 },
+    drivers: 1_237,
+    priorDrivers: 1_100,
+    roadMiles: 669,
+  };
+
+  function mockCounty(county: AreaInputs, pooledYears: Array<{ year: number; crashes: number; killed: number }>) {
     useCountyReport.mockReturnValue({
       report: makeReport({
-        metrics: buildMetrics({
-          county: {
-            now: { crashes: 3, killed: 1, injured: 1 },
-            then: { crashes: 4, killed: 0, injured: 2 },
-            drivers: 1_000,
-            priorDrivers: 900,
-            roadMiles: 669,
-          },
-          statewide: {
-            now: { crashes: 401_670, killed: 3_402, injured: 250_000 },
-            then: { crashes: 374_756, killed: 4_081, injured: 240_000 },
-            drivers: 27_838_201,
-            priorDrivers: 26_000_000,
-            roadMiles: 396_000,
-          },
-        }),
+        metrics: buildMetrics({ county, statewide: STATEWIDE }),
+        pooled: pooledDeathRate(pooledYears),
+        rank: null,
       }),
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
     });
+  }
+
+  const ALPINE_FIVE = [
+    { year: 2021, crashes: 70, killed: 0 },
+    { year: 2022, crashes: 66, killed: 2 },
+    { year: 2023, crashes: 66, killed: 0 },
+    { year: 2024, crashes: 71, killed: 1 },
+    { year: 2025, crashes: 68, killed: 2 },
+  ];
+
+  it("withholds the death rate on too few deaths, keeping the count and the exposure rates", () => {
+    mockCounty(ALPINE, ALPINE_FIVE);
     renderAt("alpine");
 
-    // The counts still print…
-    expect(within(rowFor("Crashes")).getByText("3")).toBeTruthy();
-    // …and each rate row is marked, with one plain-language note explaining it.
-    expect(screen.getAllByText("Not shown").length).toBe(3);
-    expect(screen.getByText(/too small for a stable rate/)).toBeTruthy();
+    // The counts still print, exactly as reported.
+    expect(within(rowFor("Crashes")).getByText("68")).toBeTruthy();
+    expect(within(rowFor("People killed")).getByText("2")).toBeTruthy();
+
+    // Only the death rate is held back — 68 crashes clears the crash floor.
+    expect(within(rowFor("Deaths per 1,000 crashes")).getByText("Not shown")).toBeTruthy();
+    expect(within(rowFor("Crashes per 10,000 licensed drivers")).queryByText("Not shown")).toBeNull();
+    expect(within(rowFor("Crashes per 100 road miles")).queryByText("Not shown")).toBeNull();
+
+    expect(screen.getByText(/recorded 2 deaths, under the 10 this report wants/)).toBeTruthy();
+  });
+
+  it("offers the pooled five-year death rate in place of the withheld single year", () => {
+    // Same county, but one heavier year pushes the pooled deaths to 12.
+    mockCounty(ALPINE, [...ALPINE_FIVE.slice(0, 4), { year: 2025, crashes: 68, killed: 9 }]);
+    renderAt("alpine");
+
+    const pooledRow = rowFor("Deaths per 1,000 crashes, 2021–2025 together");
+    expect(within(pooledRow).getByText(((12 / 341) * 1_000).toFixed(1))).toBeTruthy();
+    expect(screen.getByText(/pools 12 deaths across 341 crashes/)).toBeTruthy();
+  });
+
+  it("says so when even five years together are too thin", () => {
+    mockCounty(ALPINE, ALPINE_FIVE);
+    renderAt("alpine");
+
+    const pooledRow = rowFor("Deaths per 1,000 crashes, 2021–2025 together");
+    expect(within(pooledRow).getByText("Not shown")).toBeTruthy();
+    expect(screen.getByText(/comes to 5 deaths, still under 10/)).toBeTruthy();
+  });
+
+  it("replaces the rank with a note rather than ranking on a withheld rate", () => {
+    mockCounty(ALPINE, ALPINE_FIVE);
+    renderAt("alpine");
+
+    expect(screen.getByText(/No rank is given\./)).toBeTruthy();
+    expect(screen.queryByText(/ranks \d+\w\w highest/)).toBeNull();
+  });
+
+  it("withholds the exposure rates on too few crashes, independently of deaths", () => {
+    // 40 crashes is under 50; 12 deaths clears 10.
+    mockCounty(
+      { ...ALPINE, now: { crashes: 40, killed: 12, injured: 20 } },
+      ALPINE_FIVE,
+    );
+    renderAt("alpine");
+
+    expect(within(rowFor("Deaths per 1,000 crashes")).queryByText("Not shown")).toBeNull();
+    expect(within(rowFor("Crashes per 10,000 licensed drivers")).getByText("Not shown")).toBeTruthy();
+    expect(within(rowFor("Crashes per 100 road miles")).getByText("Not shown")).toBeTruthy();
+    expect(
+      screen.getByText(/recorded 40 crashes, under the 50 this report wants before it divides/),
+    ).toBeTruthy();
+  });
+
+  it("states both thresholds in the footer", () => {
+    renderAt("alpine");
+    expect(
+      screen.getByText(/at least 10 deaths that year/),
+    ).toBeTruthy();
+    expect(screen.getByText(/at least 50 crashes/)).toBeTruthy();
   });
 
   it("shows a not-found state with a link home for a slug that is not a county", () => {
@@ -209,9 +281,15 @@ describe("CountyReportPage", () => {
     expect(screen.getByRole("button", { name: /Retry/i })).toBeTruthy();
   });
 
-  it("sets the document title for the county", async () => {
+  it("sets the document title itself, with no scheduling trick", () => {
+    // Layout stands aside for this route (see lib/pageTitles.test.ts), so the
+    // title is correct as soon as the page's own effects have run.
     renderAt("alpine");
-    await Promise.resolve();
     expect(document.title).toBe("Alpine County Crash Report Card — CalSight");
+  });
+
+  it("titles the not-found state too", () => {
+    renderAt("atlantis");
+    expect(document.title).toBe("County Not Found — CalSight");
   });
 });

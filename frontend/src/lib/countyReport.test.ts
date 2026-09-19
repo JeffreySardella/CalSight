@@ -3,14 +3,19 @@ import { MIN_CRASHES_FOR_RATE } from "./choropleth/measures";
 import {
   buildMetrics,
   changePct,
+  deathRate,
   factorLabel,
   formatChange,
   formatCount,
   formatValue,
   latestCompleteYear,
   ordinal,
+  pooledDeathRate,
   rankOf,
   rate,
+  MIN_CRASHES_FOR_CRASH_RATE,
+  MIN_DEATHS_FOR_DEATH_RATE,
+  POOLED_YEARS,
   type AreaInputs,
 } from "./countyReport";
 
@@ -72,20 +77,100 @@ describe("formatting", () => {
 });
 
 describe("rate — the small-county rule", () => {
-  it("computes the rate once the count clears the shared floor", () => {
-    const r = rate(1_000, 20, 1_000, 1_000);
-    expect(r).toEqual({ value: 20, tooSmall: false });
+  const gate = (count: number) => ({ count, min: 10, kind: "deaths" as const });
+
+  it("computes the rate once the gating count clears its floor", () => {
+    expect(rate(gate(20), 20, 1_000, 1_000)).toEqual({ value: 20, suppressedBy: null });
   });
 
-  it("suppresses the rate below the floor and says why", () => {
-    const r = rate(MIN_CRASHES_FOR_RATE - 1, 1, 4, 1_000);
+  it("withholds the rate below the floor and names the count that was short", () => {
+    const r = rate(gate(9), 9, 1_000, 1_000);
     expect(r.value).toBeNull();
-    expect(r.tooSmall).toBe(true);
+    expect(r.suppressedBy).toBe("deaths");
   });
 
   it("separates a missing denominator from a too-small count", () => {
-    expect(rate(1_000, 1_000, null, 10_000)).toEqual({ value: null, tooSmall: false });
-    expect(rate(1_000, 1_000, 0, 10_000)).toEqual({ value: null, tooSmall: false });
+    expect(rate(gate(20), 20, null, 10_000)).toEqual({ value: null, suppressedBy: null });
+    expect(rate(gate(20), 20, 0, 10_000)).toEqual({ value: null, suppressedBy: null });
+  });
+
+  it("sits above the map's floor, which it deliberately does not reuse", () => {
+    expect(MIN_DEATHS_FOR_DEATH_RATE).toBe(10);
+    expect(MIN_CRASHES_FOR_CRASH_RATE).toBe(50);
+    expect(MIN_CRASHES_FOR_CRASH_RATE).toBeGreaterThan(MIN_CRASHES_FOR_RATE);
+  });
+});
+
+describe("deathRate — gated on deaths, not on crashes", () => {
+  it("withholds Alpine's 2 deaths in 68 crashes", () => {
+    // 29.4 per 1,000 off two deaths: one more would read 44.1, one fewer 14.7.
+    expect(deathRate({ crashes: 68, killed: 2, injured: 44 })).toEqual({
+      value: null,
+      suppressedBy: "deaths",
+    });
+  });
+
+  it("publishes Los Angeles' 714 deaths in 104,391 crashes", () => {
+    const r = deathRate({ crashes: 104_391, killed: 714, injured: 58_185 });
+    expect(r.suppressedBy).toBeNull();
+    expect(r.value).toBeCloseTo(6.8, 1);
+  });
+
+  it("publishes exactly at the threshold, not one death above it", () => {
+    expect(deathRate({ crashes: 1_000, killed: MIN_DEATHS_FOR_DEATH_RATE, injured: 0 }).value)
+      .toBeCloseTo(10);
+    expect(deathRate({ crashes: 1_000, killed: MIN_DEATHS_FOR_DEATH_RATE - 1, injured: 0 }).value)
+      .toBeNull();
+  });
+});
+
+describe("pooledDeathRate", () => {
+  const alpineYears = [
+    { year: 2021, crashes: 70, killed: 0 },
+    { year: 2022, crashes: 66, killed: 2 },
+    { year: 2023, crashes: 66, killed: 0 },
+    { year: 2024, crashes: 71, killed: 1 },
+    { year: 2025, crashes: 68, killed: 2 },
+  ];
+
+  it("takes only the last five complete years, in order", () => {
+    const withOlder = [{ year: 2016, crashes: 101, killed: 5 }, ...alpineYears];
+    const p = pooledDeathRate(withOlder)!;
+    expect(p.fromYear).toBe(2021);
+    expect(p.toYear).toBe(2025);
+    expect(p.crashes).toBe(341);
+    expect(POOLED_YEARS).toBe(5);
+  });
+
+  it("still withholds when even five years of deaths fall short", () => {
+    // 5 deaths across 2021-2025 — an Alpine-sized county stays under the bar.
+    const p = pooledDeathRate(alpineYears)!;
+    expect(p.deaths).toBe(5);
+    expect(p.value).toBeNull();
+  });
+
+  it("publishes once the pooled deaths reach the threshold", () => {
+    const p = pooledDeathRate([
+      ...alpineYears.slice(0, 4),
+      { year: 2025, crashes: 68, killed: 9 },
+    ])!;
+    expect(p.deaths).toBe(12);
+    // Summed first, divided once: 12 / 341 × 1,000.
+    expect(p.value).toBeCloseTo((12 / 341) * 1_000, 6);
+  });
+
+  it("sums rather than averaging the annual rates", () => {
+    // A year with one crash and one death would drag an average of rates to
+    // ~200; pooling keeps it at 2 / 101 × 1,000.
+    const p = pooledDeathRate([
+      { year: 2024, crashes: 100, killed: 10 },
+      { year: 2025, crashes: 1, killed: 1 },
+    ])!;
+    expect(p.value).toBeCloseTo((11 / 101) * 1_000, 6);
+  });
+
+  it("returns null with no years at all", () => {
+    expect(pooledDeathRate([])).toBeNull();
   });
 });
 
@@ -125,6 +210,24 @@ const statewide: AreaInputs = {
   roadMiles: 400_000,
 };
 
+/** Alpine in 2025 against 2020, with its real DMV and Caltrans denominators. */
+const alpine: AreaInputs = {
+  now: { crashes: 68, killed: 2, injured: 44 },
+  then: { crashes: 71, killed: 4, injured: 46 },
+  drivers: 1_237,
+  priorDrivers: 1_100,
+  roadMiles: 669,
+};
+
+/** Los Angeles in 2025 against 2020. */
+const losAngeles: AreaInputs = {
+  now: { crashes: 104_391, killed: 714, injured: 58_185 },
+  then: { crashes: 112_126, killed: 780, injured: 64_000 },
+  drivers: 6_744_000,
+  priorDrivers: 6_500_000,
+  roadMiles: 38_150,
+};
+
 describe("buildMetrics", () => {
   it("returns the six headline measures in report order", () => {
     expect(buildMetrics({ county, statewide }).map((m) => m.key)).toEqual([
@@ -156,31 +259,61 @@ describe("buildMetrics", () => {
     expect(perMile.county).toBeCloseTo(50);
   });
 
-  it("flags only the rate rows when the county is too small, keeping the counts", () => {
-    const tiny: AreaInputs = {
-      ...county,
-      now: { crashes: MIN_CRASHES_FOR_RATE - 1, killed: 1, injured: 2 },
-    };
-    const m = buildMetrics({ county: tiny, statewide });
+  it("withholds Alpine's death rate on deaths while keeping its exposure rates", () => {
+    const m = buildMetrics({ county: alpine, statewide });
+    const by = (k: string) => m.find((r) => r.key === k)!;
 
-    expect(m.find((r) => r.key === "crashes")!.county).toBe(MIN_CRASHES_FOR_RATE - 1);
-    expect(m.find((r) => r.key === "deaths")!.county).toBe(1);
-    expect(m.find((r) => r.key === "injuries")!.county).toBe(2);
-    expect(m.filter((r) => r.countyTooSmall).map((r) => r.key)).toEqual([
-      "deaths_per_1k",
+    // Every count still prints, exactly as reported.
+    expect(by("crashes").county).toBe(68);
+    expect(by("deaths").county).toBe(2);
+    expect(by("injuries").county).toBe(44);
+
+    // 2 deaths is under 10, so the death rate and its change go.
+    expect(by("deaths_per_1k").suppressedBy).toBe("deaths");
+    expect(by("deaths_per_1k").county).toBeNull();
+    expect(by("deaths_per_1k").changePct).toBeNull();
+
+    // 68 crashes clears 50, so the exposure rates survive.
+    expect(by("per_10k_drivers").suppressedBy).toBeNull();
+    expect(by("per_10k_drivers").county).toBeCloseTo((68 / 1_237) * 10_000, 6);
+    expect(by("per_100_miles").suppressedBy).toBeNull();
+    expect(by("per_100_miles").county).toBeCloseTo((68 / 669) * 100, 6);
+
+    // The statewide column is untouched by a county-level threshold.
+    expect(by("deaths_per_1k").statewide).toBeCloseTo(10);
+    expect(by("per_10k_drivers").statewide).toBeCloseTo((400_000 / 27_000_000) * 10_000, 6);
+  });
+
+  it("withholds the exposure rates on crashes, independently of deaths", () => {
+    // 40 crashes is under 50; 12 deaths clears 10. Only the exposure rates go.
+    const thin: AreaInputs = { ...alpine, now: { crashes: 40, killed: 12, injured: 20 } };
+    const m = buildMetrics({ county: thin, statewide });
+    const by = (k: string) => m.find((r) => r.key === k)!;
+
+    expect(by("crashes").county).toBe(40);
+    expect(by("deaths_per_1k").suppressedBy).toBeNull();
+    expect(by("deaths_per_1k").county).toBeCloseTo(300);
+    expect(m.filter((r) => r.suppressedBy === "crashes").map((r) => r.key)).toEqual([
       "per_10k_drivers",
       "per_100_miles",
     ]);
-    // Suppressed county value, but the statewide column still has context.
-    expect(m.find((r) => r.key === "deaths_per_1k")!.county).toBeNull();
-    expect(m.find((r) => r.key === "deaths_per_1k")!.statewide).toBeCloseTo(10);
   });
 
-  it("leaves a rate blank without flagging it small when the denominator is missing", () => {
+  it("publishes every rate for a county the size of Los Angeles", () => {
+    const m = buildMetrics({ county: losAngeles, statewide });
+    expect(m.every((r) => r.suppressedBy === null)).toBe(true);
+    expect(m.find((r) => r.key === "deaths_per_1k")!.county).toBeCloseTo(6.8, 1);
+    expect(m.find((r) => r.key === "per_100_miles")!.county).toBeCloseTo(
+      (104_391 / 38_150) * 100,
+      6,
+    );
+  });
+
+  it("leaves a rate blank without blaming the county when the denominator is missing", () => {
     const noDmv: AreaInputs = { ...county, drivers: null, priorDrivers: null };
     const row = buildMetrics({ county: noDmv, statewide }).find((r) => r.key === "per_10k_drivers")!;
     expect(row.county).toBeNull();
-    expect(row.countyTooSmall).toBe(false);
+    expect(row.suppressedBy).toBeNull();
     expect(row.changePct).toBeNull();
   });
 });

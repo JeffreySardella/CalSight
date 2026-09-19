@@ -26,13 +26,15 @@ import { slugify } from "./useFilterParams";
 import { annualDriverCount } from "../lib/choropleth/measures";
 import {
   buildMetrics,
+  deathRate,
   factorLabel,
   latestCompleteYear,
+  pooledDeathRate,
   rankOf,
-  rate,
   CHANGE_LOOKBACK_YEARS,
   REPORT_WINDOW_YEARS,
   type MetricRow,
+  type PooledDeathRate,
   type YearTotals,
 } from "../lib/countyReport";
 
@@ -66,8 +68,12 @@ export type CountyReport = {
   trend: TrendPoint[];
   hours: HourRow[];
   factors: FactorItem[];
-  /** Where the county sits among the counties that have a deaths-per-1,000 rate. */
+  /** Where the county sits among the counties that have a deaths-per-1,000 rate.
+   *  Null when this county's own death count is under the floor for that rate. */
   rank: { rank: number; of: number } | null;
+  /** Five complete years of deaths per 1,000 crashes, for counties whose single
+   *  year is too thin to publish. Null only when there is no year series. */
+  pooled: PooledDeathRate | null;
 };
 
 async function getJson<T>(path: string): Promise<T> {
@@ -209,7 +215,9 @@ export function useCountyReport(countyName: string | null) {
       },
     });
 
-    // Rank on the same measure the table shows, with the same small-count floor.
+    // Rank on the same measure the table shows, under the same death floor: a
+    // ranking built on rates the page refuses to print would be exactly as
+    // noisy as the rates themselves, and it would read as authoritative.
     const perCounty = new Map<number, YearTotals>();
     for (const r of forYear(year)) {
       const prev = perCounty.get(r.county_code) ?? EMPTY;
@@ -223,10 +231,7 @@ export function useCountyReport(countyName: string | null) {
       countyCode == null
         ? null
         : rankOf(
-            [...perCounty].map(([code, t]) => ({
-              code,
-              value: rate(t.crashes, t.killed, t.crashes, 1_000).value,
-            })),
+            [...perCounty].map(([code, t]) => ({ code, value: deathRate(t).value })),
             countyCode,
           );
 
@@ -253,6 +258,9 @@ export function useCountyReport(countyName: string | null) {
       hours,
       factors,
       rank,
+      // The trend series is already the complete years in order, so its tail is
+      // the pooled window — no extra request for the small-county fallback.
+      pooled: pooledDeathRate(trend),
     };
   }, [countyName, year, priorYear, windowStart, yearQuery.data, rateQ.data, causeQ.data, hourQ.data, driversQ.data, milesQ.data]);
 
