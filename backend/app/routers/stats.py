@@ -976,20 +976,36 @@ def stats(
     severities = parse_severity(severity)
     causes = parse_cause(cause)
 
-    return _run_group_query(
-        group_by, years, county_codes, severities, causes, db,
-        alcohol_v=alcohol_v,
-        distracted_v=distracted_v,
-        pedestrian_v=pedestrian_v,
-        cyclist_v=cyclist_v,
-        drug_v=drug_v,
-        driver_age_v=driver_age_v,
-        weather_v=weather_v,
-        lighting_v=lighting_v,
-        collision_type_v=collision_type_v,
-        road_type_v=road_type_v,
-        hit_run_v=hit_run_v,
-    )
+    try:
+        return _run_group_query(
+            group_by, years, county_codes, severities, causes, db,
+            alcohol_v=alcohol_v,
+            distracted_v=distracted_v,
+            pedestrian_v=pedestrian_v,
+            cyclist_v=cyclist_v,
+            drug_v=drug_v,
+            driver_age_v=driver_age_v,
+            weather_v=weather_v,
+            lighting_v=lighting_v,
+            collision_type_v=collision_type_v,
+            road_type_v=road_type_v,
+            hit_run_v=hit_run_v,
+        )
+    except DBAPIError as e:
+        # mv_victims_by_mode is created WITH NO DATA, so every SELECT against
+        # it raises 55000 until the first refresh. /stats/batch already
+        # degrades that to one empty card; the plain GET used to fall through
+        # to main.py's handler and answer 503 "database unavailable", which
+        # reads as an outage when it is just a view awaiting its first ETL run.
+        # Only this one code, and only for mode: a real outage or a botched
+        # migration must still propagate.
+        if group_by != "mode" or getattr(e.orig, "pgcode", None) != _PG_NOT_POPULATED:
+            raise
+        # The failed statement poisons the transaction; later work on this
+        # session dies with InFailedSqlTransaction unless we roll back.
+        db.rollback()
+        logger.warning("stats group_by=mode unavailable — matview not populated yet")
+        return []
 
 
 ALLOWED_GROUPS = {
