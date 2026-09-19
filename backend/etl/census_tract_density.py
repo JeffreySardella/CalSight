@@ -27,7 +27,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.database import EtlSessionLocal as SessionLocal
 from app.models import County, TractDensityCountyYear
 from app.settings import settings
-from etl._utils import track_etl_run
+from etl._utils import require_rows_unless_new_period, track_etl_run
 from etl.nhtsa_fars import build_county_lookup
 
 logger = logging.getLogger(__name__)
@@ -167,8 +167,18 @@ def fetch_tract_population(year: int, api_key: str) -> list[dict]:
         logger.error("All retries failed for ACS tract pop %d", year)
         raise last_error
 
-    if not isinstance(data, list) or not data:
-        logger.warning("ACS tract pop %d returned no rows (check CENSUS_API_KEY)", year)
+    if not isinstance(data, list):
+        # The ACS API returns a JSON error object (not a list) for a bad
+        # key, a bad query shape, etc. — that's a malformed body, not "not
+        # published yet", so it must fail loudly rather than degrade to [].
+        raise RuntimeError(
+            f"ACS tract pop {year}: unexpected response shape "
+            f"({type(data).__name__}, not a list) — check CENSUS_API_KEY"
+        )
+    if not data:
+        # A genuinely empty (but well-formed) list — legitimate when this is
+        # the newest requested ACS vintage; run() decides based on the year.
+        logger.info("ACS tract pop %d returned an empty list", year)
         return []
     header = data[0]
     idx = {name: i for i, name in enumerate(header)}
@@ -211,8 +221,15 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
 
                 tract_rows = fetch_tract_population(year, api_key)
                 rows = aggregate_county_density(tract_rows, land, lookup, year)
+                # Zero rows is only legitimate ("not published yet") for a
+                # year we've never loaded before — see
+                # require_rows_unless_new_period()'s docstring. A year we
+                # already have rows for going to zero is a real regression.
+                rows = require_rows_unless_new_period(
+                    rows, db, "tract_density_county_year", "year = :year", {"year": year},
+                    "tract_density", f"county rows for year {year}",
+                )
                 if not rows:
-                    logger.info("Year %d: no rows", year)
                     continue
                 stmt = pg_insert(TractDensityCountyYear).values(rows)
                 stmt = stmt.on_conflict_do_update(

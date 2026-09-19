@@ -19,17 +19,36 @@ ADMIN_URL = os.environ.get(
 )
 os.environ["DATABASE_URL"] = TEST_DB_URL
 
-# Derive the database to (re)create from TEST_DATABASE_URL instead of
-# hard-coding "calsight_test", so two checkouts can run the integration
-# suite side by side without dropping each other's database mid-run.
-TEST_DB_NAME = TEST_DB_URL.rsplit("/", 1)[-1].split("?")[0]
-
 import pytest  # noqa: E402
 from alembic import command as alembic_command  # noqa: E402
 from alembic.config import Config as AlembicConfig  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine, text  # noqa: E402
+from sqlalchemy.engine.url import make_url  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
+
+# The DB name to DROP/CREATE must come from TEST_DATABASE_URL itself, not a
+# hardcoded literal — otherwise two worktrees/sessions pointed at different
+# TEST_DATABASE_URLs on the same Postgres instance would both DROP/CREATE
+# the same hardcoded "calsight_test" database out from under each other.
+
+
+def _require_test_suffix(db_name: str | None) -> str:
+    """Guard for _TEST_DB_NAME: refuse anything not clearly a test database.
+
+    Backs the DROP DATABASE / CREATE DATABASE calls in _create_test_db()
+    below — a typo'd or missing TEST_DATABASE_URL must never let those run
+    against a non-test database. See test_conftest_db_name_guard.py.
+    """
+    if not db_name or not db_name.endswith("_test"):
+        raise RuntimeError(
+            f"TEST_DATABASE_URL database name {db_name!r} must end with "
+            "'_test' — refusing to run DROP/CREATE DATABASE against it"
+        )
+    return db_name
+
+
+_TEST_DB_NAME = _require_test_suffix(make_url(TEST_DB_URL).database)
 
 from app.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402
@@ -88,8 +107,8 @@ def _create_test_db() -> None:
         )
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
-        conn.execute(text(f'DROP DATABASE IF EXISTS "{TEST_DB_NAME}"'))
-        conn.execute(text(f'CREATE DATABASE "{TEST_DB_NAME}"'))
+        conn.execute(text(f'DROP DATABASE IF EXISTS "{_TEST_DB_NAME}"'))
+        conn.execute(text(f'CREATE DATABASE "{_TEST_DB_NAME}"'))
     admin.dispose()
 
 

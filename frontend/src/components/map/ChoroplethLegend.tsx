@@ -275,11 +275,15 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
                   near-identical counties can land in different colours while
                   the darkest band lumps together counties an order of
                   magnitude apart. Saying so costs one line and stops the map
-                  implying differences the data doesn't support. */}
-              <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
-                Quintiles — each colour holds about a fifth of counties, not an
-                equal value range.
-              </p>
+                  implying differences the data doesn't support. Too few
+                  counties have data for real quintiles (see legendEdges) —
+                  bucketEdges is just [min, max] then, so skip the caption. */}
+              {bucketEdges.length > 2 && (
+                <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
+                  Quintiles — each colour holds about a fifth of counties, not an
+                  equal value range.
+                </p>
+              )}
             </>
           ) : (
             <div className="text-[10px] text-on-surface-variant mt-1 italic">

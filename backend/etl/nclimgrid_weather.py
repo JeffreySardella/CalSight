@@ -47,7 +47,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, Weather, WeatherDaily
-from etl._utils import track_etl_run
+from etl._utils import require_rows_unless_new_period, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -346,6 +346,19 @@ def run(year_months: list[tuple[int, int]] | None = None):
                         "precipitation_in": cols.get("precipitation_in"),
                     })
 
+                # Zero rows is only legitimate ("not yet published") for a
+                # month we've never loaded before — see
+                # require_rows_unless_new_period()'s docstring. This covers
+                # both the in-progress current month and a still-lagging
+                # trailing month (nClimGrid publishes scaled/prelim files
+                # with a lag that can cross the 1st of the new month). A
+                # month we already have rows for going to zero is a real
+                # regression.
+                rows = require_rows_unless_new_period(
+                    rows, db, "weather", "year = :year AND month = :month",
+                    {"year": year, "month": month},
+                    "weather", f"county rows for {year}-{month:02d}",
+                )
                 if rows:
                     stmt = pg_insert(Weather).values(rows)
                     stmt = stmt.on_conflict_do_update(
