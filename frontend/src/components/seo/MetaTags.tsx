@@ -45,6 +45,18 @@ export interface MetaTagsProps {
   jsonLd?: Record<string, unknown>;
   /** Twitter card type — "summary_large_image" shows the big preview */
   twitterCard?: "summary" | "summary_large_image";
+  /**
+   * Set to false when a route has handed document.title to Layout instead
+   * (src/lib/pageTitles.ts) — currently just /stats. Needed because this
+   * effect re-runs on every `description`/`ogImage`/`jsonLd` change, which
+   * for a data-driven page keeps happening long after mount as fetches
+   * resolve; each run — even with no `title` prop — stamped DEFAULT_TITLE
+   * over whatever Layout's one-time, route-change-only effect had set,
+   * since Layout can't know when a sibling child effect fires again later.
+   * og:title/twitter:title are unaffected: they still fall back to
+   * DEFAULT_TITLE without a `title` prop, same as before.
+   */
+  manageDocumentTitle?: boolean;
 }
 
 function setMeta(property: string, content: string, isName = false) {
@@ -83,6 +95,7 @@ export default function MetaTags({
   path = "/",
   jsonLd,
   twitterCard = "summary_large_image",
+  manageDocumentTitle = true,
 }: MetaTagsProps) {
   useEffect(() => {
     const fullTitle = title || DEFAULT_TITLE;
@@ -91,7 +104,7 @@ export default function MetaTags({
     const canonicalUrl = `${SITE_URL}${path}`;
 
     // Page title is set by Layout.tsx, but we can override it for specificity
-    document.title = fullTitle;
+    if (manageDocumentTitle) document.title = fullTitle;
 
     // Standard meta
     setMeta("description", fullDesc, true);
@@ -127,7 +140,7 @@ export default function MetaTags({
 
     return () => {
       // Cleanup: reset to defaults when component unmounts
-      document.title = DEFAULT_TITLE;
+      if (manageDocumentTitle) document.title = DEFAULT_TITLE;
       setMeta("og:title", DEFAULT_TITLE);
       setMeta("og:description", DEFAULT_DESCRIPTION);
       setMeta("og:image", DEFAULT_OG_IMAGE);
@@ -136,7 +149,7 @@ export default function MetaTags({
       setMeta("twitter:image", DEFAULT_OG_IMAGE, true);
       setOrRemoveJsonLd("calsight-jsonld", undefined);
     };
-  }, [title, description, ogImage, ogType, path, jsonLd, twitterCard]);
+  }, [title, description, ogImage, ogType, path, jsonLd, twitterCard, manageDocumentTitle]);
 
   return null;
 }
