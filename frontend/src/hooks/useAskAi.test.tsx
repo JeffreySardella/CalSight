@@ -3,6 +3,7 @@ import { render, renderHook, act, waitFor, screen, fireEvent } from "@testing-li
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAskAi, AskAiProvider } from "./useAskAi";
+import { stubJsonOnly } from "../__mocks__/askFetch";
 
 function okResponse(answer: string): Response {
   return {
@@ -35,7 +36,7 @@ describe("useAskAi", () => {
 
   it("allows a second question after the first completes (inFlightRef is reset)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse("hello"));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
 
@@ -58,7 +59,7 @@ describe("useAskAi", () => {
 
   it("blocks a second question while the cooldown is active (no bypass via direct sendMessage)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse("hello"));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
 
@@ -82,7 +83,7 @@ describe("useAskAi", () => {
     // after calling sendMessage. If the cooldown swallows the question the
     // caller must know, or the user's question silently disappears.
     const fetchMock = vi.fn().mockResolvedValue(okResponse("hello"));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
 
@@ -103,7 +104,7 @@ describe("useAskAi", () => {
 
   it("retry does not put the resent question in the LLM history twice (M-F6)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse("answer"));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
 
@@ -129,7 +130,7 @@ describe("useAskAi", () => {
     // The first send arms the local 15s cooldown at send-start. A naive retry
     // would be blocked by that cooldown; retry() must bypass it.
     const fetchMock = vi.fn().mockResolvedValue(okResponse("answer"));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     const { result } = renderHook(() => useAskAi(), { wrapper });
     await act(async () => { await result.current.sendMessage("q"); });
@@ -143,7 +144,7 @@ describe("useAskAi", () => {
 
   it("shares one conversation across two consumers of the provider", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse("shared answer"));
-    vi.stubGlobal("fetch", fetchMock);
+    stubJsonOnly(fetchMock);
 
     // Two independent components (mimicking AiCompanionProvider and AskAiPage)
     // both call useAskAi under a SINGLE AskAiProvider.

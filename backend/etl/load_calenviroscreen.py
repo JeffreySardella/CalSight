@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, CalenviroScreen, TractCes
-from etl._utils import get_with_retry, track_etl_run
+from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -259,6 +259,11 @@ def run():
         logger.info("Loaded %d counties", len(fips_to_code))
 
         tracts = fetch_tracts()
+        # Same zero-row guard the county aggregate gets below, but one step
+        # earlier: the tract upsert runs first, so an empty or malformed
+        # upstream has to fail here rather than log "0 tract_ces rows" and
+        # let the run look successful.
+        require_rows(tracts, "calenviroscreen", "CES tract records")
 
         # Keep the tract grain too (the equity map layer reads it). Written
         # before the county aggregate so a tract-side failure can't leave the
@@ -282,6 +287,7 @@ def run():
 
         county_scores = aggregate_to_counties(tracts, fips_to_code)
         logger.info("Aggregated to %d counties", len(county_scores))
+        require_rows(county_scores, "calenviroscreen", "county-aggregated CES rows")
 
         inserted = 0
         updated = 0

@@ -1,5 +1,5 @@
 import type { ChartSlot, ChartType, Dimension, Measure } from "./types";
-import { DIMENSION_LABELS, MEASURE_LABELS, defaultChartType } from "./types";
+import { DIMENSION_LABELS, MEASURE_LABELS, defaultChartType, sanitizeMeasure } from "./types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import type { Anomaly } from "./anomaly";
 import type { StatsFilters } from "../../hooks/useStats";
@@ -65,12 +65,15 @@ export function generateSuggestions(
 
   // 1. Suggest charts related to detected anomalies
   for (const anomaly of anomalies.slice(0, 5)) {
-    // Suggest alternative measure for same dimension
-    const altMeasures: Measure[] = anomaly.measure === "count"
+    // Suggest alternative measure for same dimension — filtered through
+    // sanitizeMeasure so a person-level dimension (gender/age_bracket/
+    // at_fault_*) is never offered fatality_rate/yoy_change (#474).
+    const rawAltMeasures: Measure[] = anomaly.measure === "count"
       ? ["killed", "fatality_rate"]
       : anomaly.measure === "killed"
         ? ["count", "injured"]
         : ["count", "killed"];
+    const altMeasures = rawAltMeasures.filter((m) => sanitizeMeasure(anomaly.dimension, m) !== undefined);
 
     for (const m of altMeasures) {
       const key = `${anomaly.dimension}:${m}`;
@@ -144,7 +147,8 @@ export function generateSuggestions(
     fatality_rate: ["killed", "count"],
   };
   for (const chart of activeCharts.slice(0, 4)) {
-    const alts = measureAlternatives[chart.measure] ?? [];
+    const alts = (measureAlternatives[chart.measure] ?? [])
+      .filter((m) => sanitizeMeasure(chart.dimension, m) !== undefined);
     for (const m of alts.slice(0, 1)) {
       const key = `${chart.dimension}:${m}`;
       if (activePairs.has(key)) continue;
