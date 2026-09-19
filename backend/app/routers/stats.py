@@ -1,5 +1,7 @@
 """Aggregate crash stats, dispatched to the right materialized view."""
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
@@ -988,6 +990,23 @@ def stats_batch(
 # highway falls back to the no-data gray.
 _HIGHWAYS_MAX_LIMIT = 300
 
+# Statewide raw-table GROUP BY on Crash.route_number, same class of cost as
+# /intersections and /crashes/heatmap — but unlike those two this had no cache,
+# so it paid the full ~2s scan on every request (2026-09-18 latency sweep).
+# Same in-process TTL cache pattern as intersections.py's _aggregate_cache /
+# heatmap.py's _heatmap_cache, keyed on the full normalized filter set. Data
+# only changes at ETL time, and — matching those siblings — there is no
+# explicit invalidation hook off the matview refresh; the TTL alone bounds
+# staleness.
+_HIGHWAYS_TTL_SECONDS = 6 * 3600
+_HIGHWAYS_CACHE_MAX = 256
+_highways_cache: dict[tuple, tuple[float, list[HighwayRow]]] = {}
+
+
+def clear_highways_cache() -> None:
+    """Drop all cached /stats/highways results (tests / manual invalidation)."""
+    _highways_cache.clear()
+
 
 @router.get("/stats/highways", response_model=list[HighwayRow])
 @_limiter.limit("1000/minute;20000/hour")
@@ -1056,6 +1075,23 @@ def stats_highways(
     county_codes = parse_county_codes(county, get_slug_map(db)) if county else None
     severities = parse_severity(severity)
     causes = parse_cause(cause)
+
+    cache_key = (
+        frozenset(years) if years else None,
+        date_range,
+        frozenset(county_codes) if county_codes else None,
+        frozenset(severities) if severities else None,
+        frozenset(causes) if causes else None,
+        alcohol_v, distracted_v, pedestrian_v, cyclist_v, drug_v,
+        driver_age_v,
+        tuple(weather_v) if weather_v else None,
+        tuple(lighting_v) if lighting_v else None,
+        tuple(collision_type_v) if collision_type_v else None,
+        road_type_v, hit_run_v, sort, limit,
+    )
+    cached = _highways_cache.get(cache_key)
+    if cached is not None and cached[0] > time.monotonic():
+        return cached[1]
 
     preds = build_crash_predicates(
         years=years,
@@ -1136,7 +1172,11 @@ def stats_highways(
         enriched = [h for h in enriched if h.crashes_per_mile is not None]
         enriched.sort(key=lambda h: h.crashes_per_mile or 0.0, reverse=True)
 
-    return enriched[:limit]
+    result = enriched[:limit]
+    if len(_highways_cache) >= _HIGHWAYS_CACHE_MAX:
+        _highways_cache.clear()
+    _highways_cache[cache_key] = (time.monotonic() + _HIGHWAYS_TTL_SECONDS, result)
+    return result
 
 
 _DISTRIBUTION_METRICS = {
