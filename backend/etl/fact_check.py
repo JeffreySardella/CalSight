@@ -14,8 +14,29 @@ import re
 
 _NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
 
+# "cause" is also the noun for a SWITRS crash-cause category, so the old
+# `caus\w*` flagged honest category sentences ("incidents classified under
+# other causes represent the largest share", "the leading cause of fatal
+# crashes"). The cause family now matches only where it reads as a verb:
+# "caused"/"caused by"/"causing" always do, while "cause"/"causes" need an
+# object-plus-infinitive ("causes drivers to slow down") and no determiner or
+# ranking adjective in front (which would make it the category noun again).
+_NOUN_MODIFIERS = ("the", "a", "an", "its", "that", "this", "other", "top",
+                   "leading", "main", "primary", "same", "common", "each")
+_NOT_THE_NOUN = "".join(rf"(?<!\b{w} )" for w in _NOUN_MODIFIERS)
+
 CAUSAL_RE = re.compile(
-    r"\b(because|due to|caus\w*|leads? to|result(s|ed)? in|likely played|driven by|thanks to)\b",
+    r"\b(?:"
+    r"because"
+    r"|due to"
+    r"|caused by|caused|causing"
+    rf"|{_NOT_THE_NOUN}caus(?:e|es)\s+(?!of\b|categor)(?:\w+\s+){{1,3}}to\b"
+    r"|leads? to|led to"
+    r"|result(?:s|ed)? in"
+    r"|likely played"
+    r"|driven by"
+    r"|thanks to"
+    r")\b",
     re.IGNORECASE,
 )
 

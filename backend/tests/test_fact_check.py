@@ -7,11 +7,12 @@ orphan Los Angeles row cited "400,000 vehicles per day at the Sepulveda Pass".
 
 import pytest
 
+import etl.audit_narratives as na
 import etl.generate_llm_cards as llm_mod
 from etl import generate_county_cards as cc
 from etl import generate_fun_facts as ff
 from etl.audit_fun_facts import COUNTY_ANGLES, STATEWIDE_ANGLES, audit_row
-from etl.fact_check import check_fact, numbers_context
+from etl.fact_check import CAUSAL_RE, check_fact, numbers_context
 
 _STATS = "total_crashes=150,000, killed=800, injured=70,000, county_share=33.33%"
 
@@ -29,7 +30,7 @@ def test_invented_external_figure_fails():
 
 
 @pytest.mark.parametrize("phrase", [
-    "because", "due to", "caused", "causes", "leads to", "lead to", "resulted in",
+    "because", "due to", "caused", "caused by", "leads to", "lead to", "resulted in",
     "results in", "likely played", "driven by", "thanks to", "Because",
 ])
 def test_causal_language_fails(phrase):
@@ -42,6 +43,42 @@ def test_causal_language_fails(phrase):
 ])
 def test_non_causal_words_pass(text):
     assert check_fact(text, "12", 2024, 2026) == []
+
+
+# ── the cause noun is a SWITRS category label, not a causal claim ─────────
+#
+# `caus\w*` flagged every sentence that named the crash-cause category, so
+# the narrative gate could never be switched on without rejecting honest
+# category prose. The cause family now has to read as a verb.
+
+@pytest.mark.parametrize("text", [
+    "27 (39.7%) were caused by speeding.",
+    "The 2020 drop was caused by the stay-at-home order.",
+    "Heavier rain causes drivers to slow down.",
+    "Congestion at 5 PM causes the evening peak to flatten.",
+    "Crash totals fell because fewer people commuted.",
+    "The rise is driven by nighttime collisions.",
+    "Wet pavement leads to more single-vehicle collisions.",
+    "Lower speeds result in fewer fatalities.",
+    "Totals dropped due to the pandemic.",
+    "The pandemic likely played a role in the 2020 dip.",
+])
+def test_causal_phrases_flagged(text):
+    assert CAUSAL_RE.search(text), text
+
+
+@pytest.mark.parametrize("text", [
+    "Incidents classified under other causes represent the largest share.",
+    "The top cause was unsafe speed at 39.7% of crashes.",
+    "Unsafe speed is the leading cause of crashes in this county.",
+    "Every crash carries a cause category from the SWITRS codebook.",
+    "Other causes and unknown causes together account for a tenth of the total.",
+    "The cause breakdown tends to look the same from year to year.",
+    "Crashes led the state that year.",
+    "The result was 12 fewer crashes.",
+])
+def test_cause_category_nouns_not_flagged(text):
+    assert CAUSAL_RE.search(text) is None, text
 
 
 def test_current_partial_year_fails():
@@ -180,3 +217,26 @@ def test_llm_other_angles_keep_numeric_gate_only(monkeypatch):
     text = "Crashes peak at 5 PM in Kern County because of commuter traffic, 150,000 in all."
     monkeypatch.setattr(llm_mod, "generate_narrative", lambda p: text)
     assert llm_mod._generate_verified("p", _STATS, 2024, "kern", "time_of_day") == text
+
+
+# ── county-narrative audit decision logic (no DB) ────────────────────────
+
+_ALPINE = (
+    "Alpine County recorded 68 crashes in 2019. Of those, 27 (39.7%) were "
+    "caused by speeding. Collisions clustered in the late afternoon."
+)
+
+
+def test_narrative_audit_flags_causal_and_reports_the_sentence():
+    ctx = lambda: "total_crashes=68, cause_count=27, top_cause_pct=39.7"  # noqa: E731
+    assert na.audit_row(_ALPINE, 2019, ctx, 2026) == ["causal language: 'caused by'"]
+    assert na.offending_phrase(_ALPINE) == "Of those, 27 (39.7%) were caused by speeding."
+
+
+def test_narrative_audit_keeps_clean_row_and_skips_null():
+    def boom():
+        raise AssertionError("context must not be built for a NULL narrative")
+
+    assert na.audit_row(None, 2019, boom, 2026) == []
+    clean = "Alpine County recorded 68 crashes in 2019; the leading cause was unsafe speed."
+    assert na.audit_row(clean, 2019, lambda: "total_crashes=68", 2026) == []
