@@ -219,7 +219,10 @@ function MapInternals({
       />
       <TopIntersectionsLayer county={focusedCounty ? focusedCounty.toLowerCase().replace(/\s+/g, "-") : null} />
       <ReservoirLayer />
-      <TractBurdenLayer />
+      <TractBurdenLayer
+        onFocusCounty={onFocusCounty}
+        onSelectCounty={onSelectCounty}
+      />
       {heatmapActive && (
         <CrashHeatmap
           points={heatmapPoints}

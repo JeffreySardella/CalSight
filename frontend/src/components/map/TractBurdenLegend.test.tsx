@@ -39,6 +39,7 @@ const BODY = {
     start_year: null,
     end_year: null,
     population_available: true,
+    tracts_without_population: 1,
   },
   tracts: [
     {
@@ -91,8 +92,10 @@ describe("TractBurdenLegend", () => {
     // The percentage must come from the API's coord_share for the selected
     // years, not a hard-coded "~37%".
     await screen.findByText("42%");
+    // "statewide" is load-bearing: the layer never sends the county filter,
+    // so the figure is not scoped to a drilled-into county.
     expect(
-      screen.getByText(/crashes in the selected years that have coordinates/i),
+      screen.getByText(/crashes statewide in the selected years that have coordinates/i),
     ).toBeInTheDocument();
   });
 
@@ -150,5 +153,36 @@ describe("TractBurdenLegend", () => {
     );
     expect(await screen.findByText("crashes")).toBeInTheDocument();
     expect(screen.queryByText("crashes per 1,000 residents")).toBeNull();
+  });
+
+  it("keys the tracts that have no population figure", async () => {
+    render(
+      <Providers>
+        <EnableLayer />
+        <TractBurdenLegend />
+      </Providers>,
+    );
+    const key = await screen.findByTestId("tract-no-population");
+    expect(key).toHaveTextContent("1 tract has no population figure");
+  });
+
+  it("drops that key when every tract has a population", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...BODY,
+        summary: { ...BODY.summary, tracts_without_population: 0 },
+      }),
+    })) as unknown as typeof fetch;
+
+    render(
+      <Providers>
+        <EnableLayer />
+        <TractBurdenLegend />
+      </Providers>,
+    );
+    await screen.findByTestId("tract-burden-legend");
+    expect(screen.queryByTestId("tract-no-population")).toBeNull();
   });
 });

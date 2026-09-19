@@ -1,11 +1,9 @@
 import { useLayersState } from "../../hooks/useLayersState";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import { useTractBurden } from "../../hooks/useTractBurden";
+import { cesHighlightColor, noDataFill } from "../../lib/map/tractBurden";
 import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
-
-/** Matches TractBurdenLayer's CES_HIGHLIGHT. */
-const CES_HIGHLIGHT = "#f59e0b";
 
 /**
  * Legend for the tract equity layer — and the place the two caveats the
@@ -31,6 +29,7 @@ export default function TractBurdenLegend() {
       ? Math.round(data.summary.coord_share * 100)
       : null;
   const rate = data?.summary.population_available ?? false;
+  const missingPop = data?.summary.tracts_without_population ?? 0;
 
   return (
     <div
@@ -58,12 +57,28 @@ export default function TractBurdenLegend() {
         <span
           aria-hidden="true"
           className="inline-block w-3.5 h-3.5 rounded-sm border-2"
-          style={{ borderColor: CES_HIGHLIGHT }}
+          style={{ borderColor: cesHighlightColor(isDark) }}
         />
         <span className="text-[10px] text-on-surface-variant leading-tight">
           Outlined: top CalEnviroScreen quartile (most environmentally burdened)
         </span>
       </div>
+
+      {rate && missingPop > 0 && (
+        <div className="flex items-center gap-1.5 mt-1.5" data-testid="tract-no-population">
+          <span
+            aria-hidden="true"
+            className="inline-block w-3.5 h-3.5 rounded-sm"
+            style={{ backgroundColor: noDataFill(isDark), opacity: 0.45 }}
+          />
+          <span className="text-[10px] text-on-surface-variant leading-tight">
+            {missingPop === 1
+              ? "1 tract has no population figure"
+              : `${missingPop.toLocaleString()} tracts have no population figure`}{" "}
+            — hover for the crash count instead
+          </span>
+        </div>
+      )}
 
       {isLoading && (
         <p className="text-[10px] text-on-surface-variant mt-2 italic">Loading tracts…</p>
@@ -78,7 +93,7 @@ export default function TractBurdenLegend() {
         {coordPct != null ? (
           <>
             Covers only the <span className="font-mono font-semibold">{coordPct}%</span> of
-            crashes in the selected years that have coordinates.
+            crashes statewide in the selected years that have coordinates.
           </>
         ) : (
           <>Covers only crashes that have coordinates.</>

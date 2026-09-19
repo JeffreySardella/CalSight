@@ -118,10 +118,13 @@ export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute
     // semi-transparent fill — when highways shared that pane the blue washed
     // over them and muddied the danger colors. A pane at 450 keeps highways on
     // top of the choropleth but still below markers (600) / popups (700).
+    // 465, not 450: the tract equity layer draws on a canvas at 460 that
+    // covers the whole viewport, so anything below it stops receiving clicks
+    // entirely. Routes are thin lines over a fill — they belong on top anyway.
     if (!map.getPane(HIGHWAY_PANE)) {
       map.createPane(HIGHWAY_PANE);
       const pane = map.getPane(HIGHWAY_PANE);
-      if (pane) pane.style.zIndex = "450";
+      if (pane) pane.style.zIndex = "465";
     }
 
     const features = buildDangerFeatures(geo, rows ?? [], highwayMetric, HIGHWAY_DANGER_COLORS, NO_DATA_COLOR);

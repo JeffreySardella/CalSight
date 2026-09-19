@@ -3,37 +3,19 @@ import { feature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import { API_BASE } from "../config";
 import { yearsInRange, type DateRangeFilter } from "./useFilterParams";
+import type { TractBurden } from "../lib/map/tractBurden";
 
-export type TractBurdenRow = {
-  geoid: string;
-  county_code: number;
-  ces_percentile: number | null;
-  crash_count: number;
-  killed: number;
-  injured: number;
-  /** Null unless CalEnviroScreen carried a population for the tract. */
-  crashes_per_1k_pop: number | null;
-};
-
-export type TractBurdenSummary = {
-  /** 0-1 share of crashes in these years that have coordinates at all. */
-  coord_share: number | null;
-  tract_count: number;
-  start_year: number | null;
-  end_year: number | null;
-  population_available: boolean;
-};
-
-export type TractBurden = {
-  summary: TractBurdenSummary;
-  tracts: TractBurdenRow[];
-};
+export type {
+  TractBurden,
+  TractBurdenRow,
+  TractBurdenSummary,
+} from "../lib/map/tractBurden";
 
 /**
- * The 9,109 CA census tract outlines, as a static TopoJSON asset (same
- * pattern as useCountyGeoJson). 1.4 MB raw / ~360 KB gzip — deliberately not
- * in the service-worker precache, and `enabled` keeps it off the wire until
- * someone actually turns the layer on.
+ * The CA census tract outlines, as a static TopoJSON asset (same pattern as
+ * useCountyGeoJson). ~1.4 MB raw / ~356 KB gzip — deliberately not in the
+ * service-worker precache, and `enabled` keeps it off the wire until someone
+ * actually turns the layer on.
  *
  * The GEOID rides on the TopoJSON `id`, not in `properties` — one string per
  * tract instead of a wrapper object saved ~250 KB.
@@ -83,21 +65,3 @@ export function useTractBurden(
     staleTime: 60 * 60 * 1000,
   });
 }
-
-/**
- * The value the map colours by: crashes per 1,000 residents when CES gave us
- * a tract population, raw crash count otherwise.
- *
- * Raw counts mostly measure how many people live (and drive) in a tract, so
- * the rate is the honest default and the count is the fallback, not a choice.
- */
-export function burdenValue(
-  row: TractBurdenRow,
-  populationAvailable: boolean,
-): number | null {
-  if (!populationAvailable) return row.crash_count;
-  return row.crashes_per_1k_pop;
-}
-
-/** CES percentile at or above which a tract counts as most-burdened. */
-export const CES_TOP_QUARTILE = 75;
