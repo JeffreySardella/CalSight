@@ -56,6 +56,14 @@ def test_non_causal_words_pass(text):
     "The 2020 drop was caused by the stay-at-home order.",
     "Heavier rain causes drivers to slow down.",
     "Congestion at 5 PM causes the evening peak to flatten.",
+    # Bare transitive "X causes Y" — no infinitive to lean on, and the most
+    # natural way for a model to assert a cause in the present tense.
+    "Speeding causes crashes.",
+    "Unsafe speed causes fatal collisions.",
+    "Speeding causes the majority of crashes.",
+    "Distraction causes more deaths than DUI.",
+    "Rain can cause more crashes on rural highways.",
+    "Poor lighting may cause the evening cluster.",
     "Crash totals fell because fewer people commuted.",
     "The rise is driven by nighttime collisions.",
     "Wet pavement leads to more single-vehicle collisions.",
@@ -74,6 +82,11 @@ def test_causal_phrases_flagged(text):
     "Every crash carries a cause category from the SWITRS codebook.",
     "Other causes and unknown causes together account for a tenth of the total.",
     "The cause breakdown tends to look the same from year to year.",
+    "The leading cause was unsafe speed.",
+    "The chart groups crashes by cause, month and hour.",
+    "Crash causes are coded by the reporting officer.",
+    "Each cause is recorded in a single field.",
+    "Traffic backs up on the causeway.",
     "Crashes led the state that year.",
     "The result was 12 fewer crashes.",
 ])

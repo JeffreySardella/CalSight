@@ -18,19 +18,32 @@ _NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
 # `caus\w*` flagged honest category sentences ("incidents classified under
 # other causes represent the largest share", "the leading cause of fatal
 # crashes"). The cause family now matches only where it reads as a verb:
-# "caused"/"caused by"/"causing" always do, while "cause"/"causes" need an
-# object-plus-infinitive ("causes drivers to slow down") and no determiner or
-# ranking adjective in front (which would make it the category noun again).
-_NOUN_MODIFIERS = ("the", "a", "an", "its", "that", "this", "other", "top",
-                   "leading", "main", "primary", "same", "common", "each")
+# "caused"/"caused by"/"causing" always do, and bare "cause"/"causes" does
+# unless it is the category noun — which it is when a determiner, quantifier,
+# ranking adjective or preposition sits in front of it ("the top cause", "by
+# cause", "unknown causes") or a noun-compound word follows it ("cause
+# category", "cause of"). Everything else is transitive: "speeding causes
+# crashes", "rain can cause a spike".
+_NOUN_MODIFIERS = (
+    "the", "a", "an", "its", "their", "our", "that", "this", "these", "those",
+    "other", "top", "leading", "main", "primary", "same", "common", "each",
+    "every", "any", "all", "no", "most", "some", "such", "many", "several",
+    "two", "three", "known", "unknown", "likely", "probable", "possible",
+    "root", "major", "minor", "frequent", "specific", "underlying",
+    "contributing", "reported", "recorded", "listed", "by", "crash",
+    "collision",
+)
 _NOT_THE_NOUN = "".join(rf"(?<!\b{w} )" for w in _NOUN_MODIFIERS)
+_NOUN_COMPOUNDS = ("of", "categor\\w*", "breakdown", "label", "labels",
+                   "code", "codes", "column", "field", "mix", "split")
+_NOT_A_COMPOUND = rf"(?!\s+(?:{'|'.join(_NOUN_COMPOUNDS)})\b)"
 
 CAUSAL_RE = re.compile(
     r"\b(?:"
     r"because"
     r"|due to"
     r"|caused by|caused|causing"
-    rf"|{_NOT_THE_NOUN}caus(?:e|es)\s+(?!of\b|categor)(?:\w+\s+){{1,3}}to\b"
+    rf"|{_NOT_THE_NOUN}caus(?:e|es)\b{_NOT_A_COMPOUND}"
     r"|leads? to|led to"
     r"|result(?:s|ed)? in"
     r"|likely played"
