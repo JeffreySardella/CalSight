@@ -70,12 +70,25 @@ function StatsPageInner() {
   const [resetKey, setResetKey] = useState(0);
   const [timelapseActive, setTimelapseActive] = useState(false);
   // `/stats?story=<id>` deep-links straight into a story (the Water page's
-  // first-storm tile uses it). Read once at mount; not written back after.
-  const [searchParams] = useSearchParams();
+  // first-storm tile uses it, and it's what Layout reads — via pageTitles.ts
+  // — to title the tab while a story is open). setActiveStory below keeps the
+  // URL and this state in lockstep in both directions, so entering a story
+  // from the card grid titles the tab correctly too, and leaving one (Back,
+  // or switching dashboard mode away from Stories) clears it again instead
+  // of leaving a stale ?story= for the next reload to pick back up.
+  const [searchParams, setSearchParams] = useSearchParams();
   const linkedStoryId = searchParams.get("story");
   const linkedStory = linkedStoryId && getStoryById(linkedStoryId) ? linkedStoryId : null;
   const [storiesMode, setStoriesMode] = useState(linkedStory !== null);
   const [activeStoryId, setActiveStoryId] = useState<string | null>(linkedStory);
+  const setActiveStory = useCallback((id: string | null) => {
+    setActiveStoryId(id);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (id) next.set("story", id); else next.delete("story");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
   // A deep-linked story mounts below the header/filter bar; on phones that is
   // below the fold, so bring it into view once (reduced motion => instant).
   const storyRef = useRef<HTMLDivElement>(null);
@@ -380,7 +393,13 @@ function StatsPageInner() {
 
   const activeStory = activeStoryId ? getStoryById(activeStoryId) ?? null : null;
 
-  const { title: pageTitle, description: pageDescription } = useMemo(
+  // <title> is Layout's job (src/lib/pageTitles.ts reads the same ?story=/
+  // ?preset= params off the URL, via this same buildStatsPageSeo). Layout is
+  // the parent route element, so its effect runs after this page's — a title
+  // set here would always lose to Layout's anyway. The description has no
+  // such conflict (Layout never touches it), so it stays here, reactive to
+  // the live activeStory/counties/totalIncidents state MetaTags needs.
+  const { description: pageDescription } = useMemo(
     () => buildStatsPageSeo({
       preset: dashboard.config.preset,
       story: activeStory,
@@ -449,12 +468,12 @@ function StatsPageInner() {
     <div className={`max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main type-scaled${printPreview ? " mt-12" : ""}`}>
       <PrintHeader filters={printFilters} />
       <MetaTags
-        title={pageTitle}
         description={pageDescription}
         ogImage={ogImage}
         path="/stats"
         jsonLd={jsonLd}
         twitterCard="summary_large_image"
+        manageDocumentTitle={false}
       />
       <h1 className="sr-only">Statistics Dashboard</h1>
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -649,7 +668,7 @@ function StatsPageInner() {
                 setStoriesMode(true);
               } else {
                 setStoriesMode(false);
-                setActiveStoryId(null);
+                setActiveStory(null);
                 dashboard.setMode(m);
               }
             }}
@@ -704,7 +723,7 @@ function StatsPageInner() {
             <div ref={storyRef}>
             <StoryReader
               story={activeStory}
-              onBack={() => setActiveStoryId(null)}
+              onBack={() => setActiveStory(null)}
             />
             </div>
           ) : (
@@ -713,7 +732,7 @@ function StatsPageInner() {
                 <button
                   key={story.id}
                   type="button"
-                  onClick={() => setActiveStoryId(story.id)}
+                  onClick={() => setActiveStory(story.id)}
                   className="text-left bg-surface-container-lowest rounded-xl p-4 sm:p-5 ambient-shadow hover:bg-surface-container-low transition-colors group"
                 >
                   <div className="flex items-center gap-2 mb-2">
