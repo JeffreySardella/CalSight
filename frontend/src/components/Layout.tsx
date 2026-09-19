@@ -14,9 +14,9 @@ export default function Layout() {
   const isAskPage = location.pathname === "/ask";
 
   useEffect(() => {
-    const title = pageTitleFor(location.pathname);
+    const title = pageTitleFor(location.pathname, location.search);
     if (title !== null) document.title = title;
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   // Scroll to hash anchor when navigating — keyed on pathname+hash, ignoring search params
   const scrollKey = location.pathname + location.hash;
