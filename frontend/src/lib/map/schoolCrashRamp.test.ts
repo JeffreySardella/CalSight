@@ -9,6 +9,7 @@ import {
   type CountyCoordCoverage,
   type SchoolCrashCount,
 } from "./schoolCrashRamp";
+import { dangerColors } from "./dangerRamp";
 
 function counts(...values: number[]): SchoolCrashCount[] {
   return values.map((crashes, i) => ({
@@ -55,6 +56,13 @@ describe("schoolCrashColor", () => {
     expect(top).toBe(SCHOOL_CRASH_COLORS[SCHOOL_CRASH_COLORS.length - 1]);
   });
 
+  it("uses the ramp it is handed, so the palette selector reaches the markers", () => {
+    const edges = schoolRampEdges(counts(1, 2, 3, 4, 5, 6, 7, 8));
+    const blues = dangerColors("colorblind", false);
+    expect(schoolCrashColor(8, edges, blues)).toBe(blues[3]);
+    expect(schoolCrashColor(8, edges, blues)).not.toBe(SCHOOL_CRASH_COLORS[3]);
+  });
+
   it("falls back to the top color when there is nothing to rank against", () => {
     // Fewer than MIN_BUCKET_SUBSET values -> no edges. A school with crashes
     // still has to read as "crashes here", not as the safe end of a scale.
@@ -77,9 +85,14 @@ describe("coverageCaveat", () => {
     expect(coverageCaveat(coverage({ coords_pct: 95.6 }))).toContain("96% of crashes");
   });
 
-  it("says nothing when the county is unknown", () => {
-    expect(coverageCaveat(undefined)).toBeNull();
-    expect(coverageCaveat(coverage({ county_name: null }))).toBeNull();
+  it("falls back to the statewide figure rather than going silent", () => {
+    // A county with no data-quality row is the LEAST trustworthy on the map,
+    // so dropping the caveat there would be exactly backwards.
+    const generic =
+      "Only crashes with map coordinates (about 37% statewide) are counted; " +
+      "schools in low-coverage counties look safer than they are.";
+    expect(coverageCaveat(undefined)).toBe(generic);
+    expect(coverageCaveat(coverage({ county_name: null }))).toBe(generic);
   });
 });
 
@@ -92,7 +105,11 @@ describe("yearsLabel", () => {
     expect(yearsLabel([2023])).toBe("2023");
   });
 
-  it("prints a range for several years, in order", () => {
-    expect(yearsLabel([2023, 2019, 2021])).toBe("2019–2023");
+  it("prints a range for a contiguous run, in order", () => {
+    expect(yearsLabel([2023, 2021, 2019, 2020, 2022])).toBe("2019–2023");
+  });
+
+  it("refuses to print a gappy set as a range", () => {
+    expect(yearsLabel([2023, 2019, 2021])).toBe("3 years");
   });
 });

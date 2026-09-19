@@ -26,6 +26,28 @@ os.environ["DATABASE_URL"] = TEST_DB_URL
 # to whatever the override named — and found it empty.
 TEST_DB_NAME = urlparse(TEST_DB_URL).path.lstrip("/") or "calsight_test"
 
+
+def require_throwaway_db_name(name: str) -> str:
+    """Refuse a database name that doesn't look disposable.
+
+    _create_test_db DROPs this database. Deriving the name from an env var
+    turned a previously inert typo into a destructive one: before, a wrong
+    TEST_DATABASE_URL dropped calsight_test (annoying); now it would drop
+    whatever it names. So the name has to look like a throwaway — alphanumeric
+    plus underscores, ending in _test. A real database is exactly one rename
+    away from passing, which is the point: the check is cheap to satisfy
+    deliberately and hard to satisfy by accident.
+    """
+    if not name.endswith("_test") or not name.replace("_", "").isalnum():
+        raise ValueError(
+            f"refusing to drop and recreate {name!r}: the test database name "
+            "must be alphanumeric/underscore and end in '_test'"
+        )
+    return name
+
+
+require_throwaway_db_name(TEST_DB_NAME)
+
 import pytest  # noqa: E402
 from alembic import command as alembic_command  # noqa: E402
 from alembic.config import Config as AlembicConfig  # noqa: E402

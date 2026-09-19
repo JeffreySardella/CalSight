@@ -618,5 +618,6 @@ Column detail for these lives in `backend/app/models.py` (the ORM is authoritati
 | `mv_crashes_by_month`, `mv_at_fault_parties_by_demographics` | see migrations `g4h5i6j7k8l9`, `f8a1b2c3d4e5` | same | Seasonality; at-fault party gender / age |
 | `mv_street_aggregates` | street/intersection rollup | same | Street-level aggregates behind the intersections and corridors endpoints |
 | `mv_street_totals` | coarse street totals | same | Default-state (no filters) totals so the street endpoints skip the 11.6M-row scan; added 2026-09 |
+| `mv_school_crash_counts` | school × year | same | Crashes within 500 ft of each school (bounding box on `ix_crashes_lat_lng`, then an equirectangular distance — no PostGIS); `crashes`, `killed`, `injured`, `severe_injured`. Behind `/api/schools/crash-counts`; added 2026-09. **Counts only the ~37% of crashes that carry coordinates, and that share varies by county** |
 
-That makes **10 materialized views** as of 2026-09-12. The two street views are optional — the street endpoints fall back to `crashes` when they are unpopulated — so they do not gate the site-wide rebuilding banner.
+That makes **11 materialized views** as of 2026-09-18. Three are optional and do not gate the site-wide rebuilding banner: the two street views, because the street endpoints fall back to `crashes` when they are unpopulated, and `mv_school_crash_counts`, because `/api/schools/crash-counts` returns an empty list and the map draws every school marker in the no-data colour.

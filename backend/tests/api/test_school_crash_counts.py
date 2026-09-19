@@ -103,6 +103,20 @@ def near_school(db_session):
                        county_code=19, city="Los Angeles", school_type="Middle",
                        status="Active", latitude=_CRASH_3[0] + 0.00110,
                        longitude=_CRASH_3[1] + 0.00110),
+        # Due north of crash 3 at 0.001372 deg = 0.09467 mi, just inside the
+        # 0.0947 mi cutoff. The bounding box must therefore be wider than
+        # 0.001372 deg; an earlier revision hard-coded 0.00136 and silently
+        # clipped the north and south caps of every school's circle.
+        SchoolLocation(cds_code="19000000000104", school_name="North Cap",
+                       county_code=19, city="Los Angeles", school_type="Middle",
+                       status="Active", latitude=_CRASH_3[0] + 0.001372,
+                       longitude=_CRASH_3[1]),
+        # Nowhere near California. cos(radians(90)) is 0 and it is a divisor in
+        # the box expression, so without the latitude bound this row alone
+        # would abort the REFRESH and fail the whole matviews ETL run.
+        SchoolLocation(cds_code="19000000000105", school_name="North Pole High",
+                       county_code=19, city="Nowhere", school_type="High",
+                       status="Active", latitude=90.0, longitude=0.0),
     ])
     # Crash 3 gets 1 seriously injured, crash 4 gets 2 — KSI lives on the
     # crashes row (migration 50bbb1251cb7), not on crash_victims.
@@ -132,6 +146,19 @@ def test_bounding_box_corner_is_outside_the_circle(client, near_school):
 
 
 @pytest.mark.integration
+def test_bounding_box_encloses_the_circle(client, near_school):
+    """A prefilter box has to be a superset of the circle, never a subset."""
+    rows = _by_cds(client.get("/api/schools/crash-counts").json())
+    assert rows["19-00000-0000104"]["crashes"] == 1
+
+
+@pytest.mark.integration
+def test_a_school_at_the_pole_does_not_abort_the_refresh(client, near_school):
+    """The fixture's REFRESH already ran; reaching here means no divide-by-zero."""
+    assert "19-00000-0000105" not in _by_cds(client.get("/api/schools/crash-counts").json())
+
+
+@pytest.mark.integration
 def test_schools_with_no_nearby_crash_are_absent(client, near_school):
     """The seeded Venice High is miles from every seeded crash."""
     assert "19-00000-0000001" not in _by_cds(client.get("/api/schools/crash-counts").json())
@@ -139,8 +166,10 @@ def test_schools_with_no_nearby_crash_are_absent(client, near_school):
 
 @pytest.mark.integration
 def test_year_filter_selects_the_matching_school(client, near_school):
+    # Both LA schools sit inside crash 3's 500 ft circle (2022); the Orange
+    # school sits on crash 4 (2023).
     only_2022 = _by_cds(client.get("/api/schools/crash-counts?years=2022").json())
-    assert set(only_2022) == {"19-00000-0000101"}
+    assert set(only_2022) == {"19-00000-0000101", "19-00000-0000104"}
 
     only_2023 = _by_cds(client.get("/api/schools/crash-counts?years=2023").json())
     assert set(only_2023) == {"30-00000-0000102"}
@@ -152,7 +181,7 @@ def test_year_filter_selects_the_matching_school(client, near_school):
 def test_multiple_years_sum_rather_than_replace(client, near_school):
     """A multi-year filter unions the schools rather than taking the last year."""
     both = _by_cds(client.get("/api/schools/crash-counts?years=2022,2023").json())
-    assert set(both) == {"19-00000-0000101", "30-00000-0000102"}
+    assert set(both) == {"19-00000-0000101", "19-00000-0000104", "30-00000-0000102"}
 
 
 @pytest.mark.integration

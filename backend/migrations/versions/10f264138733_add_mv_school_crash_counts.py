@@ -8,9 +8,11 @@ is precomputed here and refreshed nightly like the other rollups.
 Method (no PostGIS in this database):
   - Bounding box first, on the existing partial btree ix_crashes_lat_lng
     (latitude, longitude WHERE both NOT NULL). 500 ft = 0.0947 statute miles
-    = 0.00136 degrees of latitude. A degree of longitude is shorter away from
-    the equator, so the longitude half-width is divided by cos(lat). CA spans
-    32.5-42.0 degrees, where cos(lat) is 0.74-0.84 — never near zero.
+    = 0.00137 degrees of latitude; the box half-width is derived from that
+    same figure with a small margin so it always encloses the circle. A degree
+    of longitude is shorter away from the equator, so the longitude half-width
+    is divided by cos(lat) — which is also why school latitude is bounded to
+    California, since that divisor is zero at the poles.
   - Then an exact equirectangular distance inside the box, which drops the
     box corners. Haversine would be more correct over long distances; at
     500 ft the flat-earth error is far below the precision of the crash
@@ -47,11 +49,24 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-# 500 ft expressed both ways: as a latitude delta for the index-friendly
-# bounding box, and as miles for the exact cutoff.
-_HALF_BOX_DEG = "0.00136"
+# 500 ft = 500 / 5280 statute miles. This is the one cutoff; everything else
+# is derived from it so the two spellings cannot drift apart.
 _RADIUS_MILES = "0.0947"
 _MILES_PER_DEG_LAT = "69.0"
+
+# Half-width of the index-friendly prefilter box, in degrees of latitude.
+# A prefilter box has to be a SUPERSET of the circle it stands in for, so this
+# is the radius in degrees with a 0.1% margin on top — writing it out as its
+# own literal is how you end up with a box narrower than the cutoff, silently
+# clipping the north and south caps of every school's circle.
+_HALF_BOX_DEG = f"{float(_RADIUS_MILES) / float(_MILES_PER_DEG_LAT) * 1.001:.8f}"
+
+# California spans 32.5-42.0 degrees, where cos(lat) is 0.74-0.84. The bound
+# below is not about California, though: cos(radians(lat)) is a divisor, and
+# cos(radians(90)) is 0. The CDE loader does not validate latitude, so one
+# junk row would abort the whole REFRESH and fail the matviews ETL run. It
+# also trims obviously-bad geocodes.
+_MIN_LAT, _MAX_LAT = "32", "43"
 
 CREATE_VIEW = f"""
 CREATE MATERIALIZED VIEW mv_school_crash_counts AS
@@ -68,7 +83,7 @@ JOIN crashes c
                      AND s.latitude + {_HALF_BOX_DEG}
  AND c.longitude BETWEEN s.longitude - ({_HALF_BOX_DEG} / cos(radians(s.latitude)))
                      AND s.longitude + ({_HALF_BOX_DEG} / cos(radians(s.latitude)))
-WHERE s.latitude IS NOT NULL
+WHERE s.latitude BETWEEN {_MIN_LAT} AND {_MAX_LAT}
   AND s.longitude IS NOT NULL
   AND c.latitude IS NOT NULL
   AND c.longitude IS NOT NULL

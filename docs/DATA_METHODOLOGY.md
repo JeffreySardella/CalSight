@@ -586,9 +586,13 @@ many crashes happened within 500 feet of it, precomputed nightly into
 PostGIS, so the distance is computed arithmetically in two steps. First a
 bounding box on latitude and longitude, which is what the existing partial
 index `ix_crashes_lat_lng` can answer without scanning the 11.3M-row crashes
-table: 500 ft is 0.0947 statute miles, or 0.00136 degrees of latitude, and the
+table: 500 ft is 0.0947 statute miles, or 0.00137 degrees of latitude, and the
 longitude half-width is that figure divided by `cos(latitude)` because a degree
-of longitude shrinks away from the equator. Then, inside that box, an
+of longitude shrinks away from the equator. The box half-width is computed from
+the same cutoff with a 0.1% margin on top, because a prefilter box has to
+enclose the circle it stands in for rather than clip it. School latitude is
+bounded to 32-43 degrees for the same reason the longitude is scaled: that
+`cos(latitude)` is a divisor, and it reaches zero at the poles. Then, inside that box, an
 equirectangular distance — `69.0 * sqrt(dlat^2 + (dlon * cos(lat))^2)` miles —
 keeps only the points actually inside the 500 ft circle, discarding the box
 corners that sit up to 700 ft away on the diagonal. Haversine would be the more
@@ -597,6 +601,13 @@ the flat-earth error is orders of magnitude below the precision of the crash
 coordinates themselves, and the simpler form avoids `acos()` domain clamping.
 Killed and injured are summed from the crash rows; seriously injured reads
 `crashes.number_severe_injured`, the same KSI column described in 5.6.
+
+The counts honour the year filter and nothing else. Severity, cause, county and
+the involvement flags are not part of the view's grain, so a school's marker and
+popup show every crash near it in the selected years even when the rest of the
+page is filtered to, say, fatal crashes only. The popup and the legend both say
+"all crashes" for that reason. Because the year set is derived from the map's
+date range, a partial-year range widens to the whole years it touches.
 
 The load-bearing caveat is coverage, not geometry. Only about 37% of crashes
 carry coordinates, and as described in 7.1 the gap follows the reporting agency

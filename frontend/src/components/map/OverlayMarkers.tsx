@@ -12,6 +12,9 @@ import {
   yearsLabel,
   type SchoolCrashCountsResponse,
 } from "../../lib/map/schoolCrashRamp";
+import { dangerColors } from "../../lib/map/dangerRamp";
+import { useLayersState } from "../../hooks/useLayersState";
+import { useIsDark } from "../../context/ThemeContext";
 
 function useCenterOnClick() {
   const map = useMap();
@@ -110,6 +113,11 @@ export default memo(function OverlayMarkers({
     [schoolCrashCounts],
   );
   const yearsText = yearsLabel(schoolCrashCounts?.years ?? []);
+  // Follows the palette selector so the colorblind option reaches the markers,
+  // the same way the highway danger layer resolves its ramp.
+  const { palette } = useLayersState();
+  const isDark = useIsDark();
+  const rampColors = useMemo(() => dangerColors(palette, isDark), [palette, isDark]);
 
   const validHospitals = useMemo(
     () => hospitals.filter((h) => h.latitude != null && h.longitude != null),
@@ -160,7 +168,7 @@ export default memo(function OverlayMarkers({
         >
           {validSchools.map((s) => {
             const counts = countsByCds.get(s.cds_code);
-            const color = schoolCrashColor(counts?.crashes, rampEdges);
+            const color = schoolCrashColor(counts?.crashes, rampEdges, rampColors);
             const caveat = coverageCaveat(coverageByCounty.get(s.county_code));
             return (
               <Marker
@@ -179,18 +187,16 @@ export default memo(function OverlayMarkers({
                     <div style={{ color: "rgb(var(--on-surface-variant))" }}>{s.city} — {s.school_type}</div>
                     <div style={{ marginTop: 6, borderTop: "1px solid rgb(var(--outline-variant))", paddingTop: 6 }}>
                       <div style={{ fontWeight: 600, marginBottom: 2 }}>
-                        Within 500 ft ({yearsText})
+                        Within 500 ft — all crashes, {yearsText}
                       </div>
                       <div>{counts?.crashes ?? 0} crashes</div>
                       <div>
                         {counts?.killed ?? 0} killed, {counts?.injured ?? 0} injured,{" "}
                         {counts?.severe_injured ?? 0} seriously injured
                       </div>
-                      {caveat && (
-                        <div style={{ marginTop: 6, color: "rgb(var(--on-surface-variant))", lineHeight: 1.35 }}>
-                          {caveat}
-                        </div>
-                      )}
+                      <div style={{ marginTop: 6, color: "rgb(var(--on-surface-variant))", lineHeight: 1.35 }}>
+                        {caveat}
+                      </div>
                     </div>
                   </div>
                 </Popup>

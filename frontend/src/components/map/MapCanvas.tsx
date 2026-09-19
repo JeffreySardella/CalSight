@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, AttributionControl, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
@@ -169,13 +169,17 @@ function MapInternals({
   // Nearby-crash counts follow the map's year filter, so they refetch when it
   // changes while the (static) school list stays cached.
   const { selectedYears } = useFilterParams();
-  const schoolYears = useMemo(() => [...selectedYears], [selectedYears]);
-  const { data: schoolCrashCounts } = useSchoolCrashCounts(otherLayers.schools, schoolYears);
+  const { data: schoolCrashCounts, isError: schoolCountsError } =
+    useSchoolCrashCounts(otherLayers.schools, selectedYears);
   const { showToast: showLayerToast } = useToast();
   useEffect(() => {
     if (hospitalsError) showLayerToast("Couldn't load hospitals.", { variant: "error" });
     if (schoolsError) showLayerToast("Couldn't load schools.", { variant: "error" });
-  }, [hospitalsError, schoolsError, showLayerToast]);
+    // Without this a failed fetch renders as "every school gray", which looks
+    // exactly like "no crashes near any school" and like "the view isn't
+    // populated yet". Three very different things, one appearance.
+    if (schoolCountsError) showLayerToast("Couldn't load crash counts near schools.", { variant: "error" });
+  }, [hospitalsError, schoolsError, schoolCountsError, showLayerToast]);
 
   useEffect(() => {
     onMapReady(map);

@@ -49,7 +49,10 @@ export function useHospitals(enabled: boolean) {
  * `schools` array while the matview is unpopulated (between a deploy and the
  * next nightly refresh), which the layer renders as "no data" gray.
  */
-export function useSchoolCrashCounts(enabled: boolean, years: number[]) {
+export function useSchoolCrashCounts(enabled: boolean, years: Iterable<number>) {
+  // Takes the caller's Set straight from useFilterParams — the sorted, joined
+  // string is both the query param and the cache key, so nothing upstream
+  // needs to memoise an array whose identity would then have to be stable.
   const param = [...years].sort((a, b) => a - b).join(",");
   return useQuery<SchoolCrashCountsResponse>({
     queryKey: ["school-crash-counts", param],

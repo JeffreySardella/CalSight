@@ -8,6 +8,11 @@ vi.mock("react-leaflet-cluster", () => ({
   default: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
+import { ThemeProvider } from "../../context/ThemeContext";
+import { CustomThemeProvider } from "../../context/CustomThemeContext";
+import { LayersStateProvider } from "../../hooks/useLayersState";
 import OverlayMarkers from "./OverlayMarkers";
 import type { School } from "../../hooks/useMapOverlays";
 import {
@@ -52,15 +57,32 @@ const COUNTS: SchoolCrashCountsResponse = {
   ],
 };
 
-function renderSchools(counts?: SchoolCrashCountsResponse) {
+function Providers({ children }: { children: ReactNode }) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <MemoryRouter>
+      <ThemeProvider>
+        <CustomThemeProvider>
+          <QueryClientProvider client={qc}>
+            <LayersStateProvider>{children}</LayersStateProvider>
+          </QueryClientProvider>
+        </CustomThemeProvider>
+      </ThemeProvider>
+    </MemoryRouter>
+  );
+}
+
+function renderSchools(counts?: SchoolCrashCountsResponse, schools = SCHOOLS) {
   return render(
-    <OverlayMarkers
-      hospitals={[]}
-      schools={SCHOOLS}
-      showHospitals={false}
-      showSchools
-      schoolCrashCounts={counts}
-    />,
+    <Providers>
+      <OverlayMarkers
+        hospitals={[]}
+        schools={schools}
+        showHospitals={false}
+        showSchools
+        schoolCrashCounts={counts}
+      />
+    </Providers>,
   );
 }
 
@@ -92,7 +114,7 @@ describe("school popup", () => {
   it("shows the 500 ft totals for the filtered years", () => {
     renderSchools(COUNTS);
     const popup = screen.getAllByTestId("popup")[2];
-    expect(within(popup).getByText("Within 500 ft (2022–2023)")).toBeInTheDocument();
+    expect(within(popup).getByText("Within 500 ft — all crashes, 2022–2023")).toBeInTheDocument();
     expect(within(popup).getByText("9 crashes")).toBeInTheDocument();
     expect(
       within(popup).getByText(/1 killed,\s*7 injured,\s*2 seriously injured/),
@@ -116,8 +138,21 @@ describe("school popup", () => {
     expect(within(popup).getByText("0 crashes")).toBeInTheDocument();
   });
 
+  it("still shows a caveat for a county with no coverage row", () => {
+    // Narrowing the years is what makes coverage rows vanish, and that is
+    // precisely when the numbers deserve a warning rather than lose one.
+    renderSchools({ ...COUNTS, coverage: [] });
+    const popup = screen.getAllByTestId("popup")[0];
+    expect(
+      within(popup).getByText(
+        "Only crashes with map coordinates (about 37% statewide) are counted; " +
+          "schools in low-coverage counties look safer than they are.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("says 'all years' when no year filter is active", () => {
     renderSchools({ ...COUNTS, years: [] });
-    expect(screen.getAllByText("Within 500 ft (all years)").length).toBe(SCHOOLS.length);
+    expect(screen.getAllByText("Within 500 ft — all crashes, all years").length).toBe(SCHOOLS.length);
   });
 });
