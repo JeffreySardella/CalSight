@@ -45,6 +45,9 @@ _TABLES = [
     "data_quality_stats",
     "county_insights",
     "county_insight_details",
+    # Rebuilt by a full delete+reinsert of the trailing window every run,
+    # so it accumulates dead tuples on a schedule autovacuum has to chase.
+    "tract_crash_year",
     # Materialized views — VACUUM ANALYZE updates planner stats so the
     # API picks the right index when querying them.
     "mv_crashes_by_hour",
@@ -53,6 +56,7 @@ _TABLES = [
     "mv_crashes_by_month",
     "mv_crash_victims_by_demographics",
     "mv_at_fault_parties_by_demographics",
+    "mv_victims_by_mode",
     "mv_crash_rates",
     "mv_crashes_wide",
     # Street aggregation views (migrations c4f1a9b2d3e7, 77b8d6739669). Refreshed nightly with
@@ -60,6 +64,11 @@ _TABLES = [
     # gets VACUUM'd or fresh planner stats.
     "mv_street_aggregates",
     "mv_street_totals",
+    # School proximity view (migration 10f264138733), same story.
+    "mv_school_crash_counts",
+    # Per-day rollup behind /api/holidays (migration e15a88b36527) — same
+    # CONCURRENTLY refresh, same need for fresh stats on the (day) index.
+    "mv_crashes_by_day",
 ]
 
 

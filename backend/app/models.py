@@ -547,6 +547,44 @@ class WeatherDaily(Base):
     )
 
 
+class StormEvent(Base):
+    """NOAA Storm Events rows for CA fog and winter weather, per county.
+
+    Loaded by etl/load_storm_events.py. NOAA keys these events to NWS forecast
+    ZONES, not counties, and a zone can straddle a county line — so one NOAA
+    event becomes one row per county its zone touches, which is why the unique
+    key is (source_event_id, county_code) and not source_event_id alone.
+
+    `source` is NOAA's own SOURCE column (who reported it: "Trained Spotter",
+    "Broadcast Media", ...), not CalSight provenance — every row here is NOAA.
+    """
+
+    __tablename__ = "storm_events"
+
+    id = Column(Integer, primary_key=True)
+    source_event_id = Column(Integer, nullable=False)  # NOAA EVENT_ID
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    event_type = Column(String(40), nullable=False)  # "Dense Fog", "Heavy Snow", ...
+    begin_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    zone_id = Column(SmallInteger, nullable=False)   # NWS forecast zone (CZ_FIPS)
+    zone_name = Column(String(80), nullable=False)
+    deaths_direct = Column(Integer, nullable=False, server_default="0")
+    injuries_direct = Column(Integer, nullable=False, server_default="0")
+    source = Column(String(60))
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("source_event_id", "county_code",
+                         name="uq_storm_events_event_county"),
+        # The fog-days aggregate filters county + type and scans a date range.
+        Index("ix_storm_events_county_type_begin",
+              "county_code", "event_type", "begin_date"),
+    )
+
+
 class FirstRainEvent(Base):
     """First measurable rain of a water year (Oct 1–Sep 30) per county, with
     that day's crash count against the 28 preceding days. Computed by
@@ -855,6 +893,59 @@ class CalenviroScreen(Base):
     )
 
 
+class TractCes(Base):
+    """CalEnviroScreen 5.0 at its native grain — one row per census tract.
+
+    `calenviroscreen` above is the population-weighted county average of
+    these rows; this table keeps the ~9,100 tract rows the loader used to
+    discard, so the map can shade individual tracts.
+
+    Keyed by the 11-digit census GEOID (06 + 3-digit county FIPS + 6-digit
+    tract), which is what the Census cartographic boundary file joins on.
+    """
+
+    __tablename__ = "tract_ces"
+
+    geoid = Column(String(11), primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    ces_score = Column(Float)
+    ces_percentile = Column(Float)
+    pollution_burden = Column(Float)
+    pop_characteristics = Column(Float)
+    population = Column(Integer)           # CES's ACS tract population
+
+    __table_args__ = (
+        Index("ix_tract_ces_county", "county_code"),
+    )
+
+
+class TractCrashYear(Base):
+    """Crashes with coordinates, aggregated per census tract per year.
+
+    Built by etl.compute_tract_crashes: a shapely STRtree point-in-polygon
+    join of crash lat/lng against the Census tract boundaries (there is no
+    PostGIS on this server, so the join happens in Python and only its
+    ~9,100 x N-year result is stored).
+
+    Covers ONLY crashes that carry coordinates — about 37% of the 11.6M
+    statewide. Anything built on this table has to say so.
+    """
+
+    __tablename__ = "tract_crash_year"
+
+    geoid = Column(String(11), primary_key=True)
+    year = Column(SmallInteger, primary_key=True)
+    crash_count = Column(Integer, nullable=False, server_default="0")
+    killed = Column(Integer, nullable=False, server_default="0")
+    injured = Column(Integer, nullable=False, server_default="0")
+
+    __table_args__ = (
+        Index("ix_tract_crash_year_year", "year"),
+    )
+
+
 class DataQualityStat(Base):
     """Pre-computed data quality stats so the frontend can show them fast.
 
@@ -996,6 +1087,45 @@ class RoadMile(Base):
     __table_args__ = (
         UniqueConstraint("county_code", "f_system"),
         Index("ix_road_miles_county", "county_code"),
+    )
+
+
+class Vmt(Base):
+    """How many miles were actually driven in each county each year.
+
+    Vehicle miles traveled is the exposure denominator road-safety work
+    normally uses — "crashes per 100 million vehicle miles". It answers a
+    different question than the others: population counts who lives there,
+    licensed drivers count who could drive, road miles count the pavement,
+    and VMT counts the driving that actually happened.
+
+    Not the same thing as `traffic_volumes` (Caltrans AADT): AADT is a
+    point count on the state highway system only and describes one average
+    day, while this covers every road in the county for the whole year.
+
+    Statewide this runs about 275-335 billion miles a year, with a visible
+    dip in 2020.
+
+    Source: CARB EMFAC2025, a model calibrated against DMV vehicle
+    population and Caltrans travel-demand control totals rather than a raw
+    traffic count. The model version is recorded per row in `source`
+    because a future EMFAC release will restate these numbers.
+    """
+
+    __tablename__ = "vmt"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    year = Column(SmallInteger, nullable=False)
+    vmt_millions = Column(Float)
+    source = Column(String(50))
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("county_code", "year"),
+        Index("ix_vmt_county_year", "county_code", "year"),
     )
 
 

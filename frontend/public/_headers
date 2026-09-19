@@ -10,6 +10,9 @@
 /ca-counties.topo.json
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
+/ca-tracts.topo.json
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
 /sitemap.xml
   Cache-Control: public, max-age=86400
   Content-Type: application/xml

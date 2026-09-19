@@ -1,11 +1,13 @@
 """Aggregate crash stats, dispatched to the right materialized view."""
 
+import logging
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
 from sqlalchemy import Column, Float, Integer, MetaData, SmallInteger, String, Table, func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.ca_highways import miles_for
@@ -41,11 +43,14 @@ from app.schemas.stats import (
     GrandTotal,
     HighwayRow,
     HourRow,
+    ModeRow,
     MonthRow,
     RateRow,
     SeverityRow,
     YearRow,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["stats"])
 
@@ -118,6 +123,21 @@ mv_at_fault = Table(
     Column("fatal_party_count", Integer),
 )
 
+# Per-victim road-user mode. Backs ?group_by=mode. Counts PEOPLE (victims),
+# not crashes, and only people with a recorded injury outcome — person_type is
+# blank for the uninjured, so they cannot be assigned a mode at all. CCRS-only,
+# so 2016+. Columns must mirror migration bdc07f3141d1_add_mv_victims_by_mode.
+mv_mode = Table(
+    "mv_victims_by_mode", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("severity", String),
+    Column("mode", String),
+    Column("victim_count", Integer),
+    Column("fatal_victim_count", Integer),
+    Column("severe_injured_count", Integer),
+)
+
 mv_month = Table(
     "mv_crashes_by_month", _metadata,
     Column("county_code", SmallInteger),
@@ -172,9 +192,20 @@ mv_wide = Table(
     Column("total_severe_injured", Integer),
 )
 
+# group_by values served by a person-level view (victims / parties) rather
+# than a crash-level one. None of them carry canonical_cause or the
+# involvement flags, so both are rejected rather than silently ignored.
+_PERSON_GROUPS = (
+    "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket", "mode",
+)
+
 _AGE_BRACKET_MAP = {
     (16, 21): 1, (22, 34): 2, (35, 49): 3, (50, 64): 4, (65, 200): 5,
 }
+
+# PostgreSQL object_not_in_prerequisite_state — what a SELECT against a
+# matview created WITH NO DATA raises until its first refresh.
+_PG_NOT_POPULATED = "55000"
 
 _limiter = Limiter(key_func=rate_limit_key)
 
@@ -301,18 +332,18 @@ def _run_group_query(
             hit_run=hit_run_v,
         )
 
-    if has_involvement and group_by in ("gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket"):
+    if has_involvement and group_by in _PERSON_GROUPS:
         raise FilterError(
             "involvement",
             "Involvement filters cannot be combined with demographic group_by values.",
         )
 
-    if group_by in ("gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket") and causes:
+    if group_by in _PERSON_GROUPS and causes:
         raise FilterError(
             "cause",
             "cause filter is not supported with demographic group_by values "
-            "(gender, age_bracket, at_fault_gender, at_fault_age_bracket) — "
-            "those views don't carry canonical_cause.",
+            f"({', '.join(_PERSON_GROUPS)}) — those views don't carry "
+            "canonical_cause.",
         )
 
     if group_by == "rate" and causes:
@@ -782,6 +813,36 @@ def _run_group_query(
             for r in rows
         ]
 
+    # --- group_by=mode (road-user mode MV; people, 2016+) ---
+    if group_by == "mode":
+        v = mv_mode
+        stmt = (
+            select(
+                v.c.mode,
+                func.sum(v.c.victim_count).label("victim_count"),
+                func.sum(v.c.fatal_victim_count).label("fatal_victim_count"),
+                func.sum(v.c.severe_injured_count).label("severe_injured_count"),
+            )
+            .group_by(v.c.mode)
+            .order_by(func.sum(v.c.victim_count).desc())
+        )
+        if years:
+            stmt = stmt.where(v.c.crash_year.in_(years))
+        if county_codes:
+            stmt = stmt.where(v.c.county_code.in_(county_codes))
+        if severities:
+            stmt = stmt.where(v.c.severity.in_(severities))
+        rows = db.execute(stmt).all()
+        return [
+            ModeRow(
+                mode=r.mode,
+                victim_count=r.victim_count,
+                fatal_victim_count=r.fatal_victim_count,
+                severe_injured_count=r.severe_injured_count,
+            ).model_dump()
+            for r in rows
+        ]
+
     # --- group_by=at_fault_gender (at-fault-parties MV) ---
     if group_by == "at_fault_gender":
         v = mv_at_fault
@@ -866,7 +927,7 @@ def stats(
     hit_run: str | None = Query(None),
     group_by: str | None = Query(
         None,
-        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|rate|weather|lighting|collision_type)$",
+        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|mode|rate|weather|lighting|collision_type)$",
     ),
     db: Session = Depends(get_db),
 ):
@@ -880,6 +941,9 @@ def stats(
       - `at_fault_gender` / `at_fault_age_bracket` ->
         mv_at_fault_parties_by_demographics (counts AT-FAULT PARTIES —
         typically drivers — not victims and not crashes)
+      - `mode` -> mv_victims_by_mode (counts PEOPLE by road user —
+        pedestrian / cyclist / motorcyclist / occupant. CCRS-only, so 2016+
+        — see ModeRow)
       - everything else -> mv_crashes_by_year
 
     `alcohol` / `distracted` are not supported here (crash views don't carry
@@ -913,26 +977,42 @@ def stats(
     severities = parse_severity(severity)
     causes = parse_cause(cause)
 
-    return _run_group_query(
-        group_by, years, county_codes, severities, causes, db,
-        alcohol_v=alcohol_v,
-        distracted_v=distracted_v,
-        pedestrian_v=pedestrian_v,
-        cyclist_v=cyclist_v,
-        drug_v=drug_v,
-        driver_age_v=driver_age_v,
-        weather_v=weather_v,
-        lighting_v=lighting_v,
-        collision_type_v=collision_type_v,
-        road_type_v=road_type_v,
-        hit_run_v=hit_run_v,
-    )
+    try:
+        return _run_group_query(
+            group_by, years, county_codes, severities, causes, db,
+            alcohol_v=alcohol_v,
+            distracted_v=distracted_v,
+            pedestrian_v=pedestrian_v,
+            cyclist_v=cyclist_v,
+            drug_v=drug_v,
+            driver_age_v=driver_age_v,
+            weather_v=weather_v,
+            lighting_v=lighting_v,
+            collision_type_v=collision_type_v,
+            road_type_v=road_type_v,
+            hit_run_v=hit_run_v,
+        )
+    except DBAPIError as e:
+        # mv_victims_by_mode is created WITH NO DATA, so every SELECT against
+        # it raises 55000 until the first refresh. /stats/batch already
+        # degrades that to one empty card; the plain GET used to fall through
+        # to main.py's handler and answer 503 "database unavailable", which
+        # reads as an outage when it is just a view awaiting its first ETL run.
+        # Only this one code, and only for mode: a real outage or a botched
+        # migration must still propagate.
+        if group_by != "mode" or getattr(e.orig, "pgcode", None) != _PG_NOT_POPULATED:
+            raise
+        # The failed statement poisons the transaction; later work on this
+        # session dies with InFailedSqlTransaction unless we roll back.
+        db.rollback()
+        logger.warning("stats group_by=mode unavailable — matview not populated yet")
+        return []
 
 
 ALLOWED_GROUPS = {
     "year", "hour", "cause", "severity", "month", "day_of_week",
     "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket",
-    "rate", "county", "weather", "lighting", "collision_type",
+    "mode", "rate", "county", "weather", "lighting", "collision_type",
 }
 
 
@@ -979,6 +1059,29 @@ def stats_batch(
             )
         except FilterError as e:
             results[group] = {"error": e.detail, "filter": e.filter}
+        except DBAPIError as e:
+            # Either way the failed statement has poisoned the transaction, so
+            # roll back or every later group dies with InFailedSqlTransaction.
+            db.rollback()
+            if getattr(e.orig, "pgcode", None) != _PG_NOT_POPULATED:
+                # A real outage or a botched migration is not a per-card
+                # problem. Re-raise so main.py's pgcode-discriminated handler
+                # logs it and answers 503 — degrading it to a 200 here would
+                # hide the outage behind four empty charts.
+                raise
+            # A matview created WITH NO DATA raises this on any SELECT until
+            # its first refresh. Before this it escaped the loop and turned the
+            # whole batch into a 500, blanking every chart on a board that
+            # merely contained one such group. One unreadable view costs one
+            # card instead.
+            logger.warning(
+                "stats batch group %s unavailable — matview not populated yet",
+                group,
+            )
+            results[group] = {
+                "error": f"{group} data is not available right now.",
+                "filter": "unavailable",
+            }
 
     return results
 

@@ -3,3 +3,9 @@ ruff==0.15.22
 pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
+# Build-time only: etl/build_tract_topojson.py regenerates the committed
+# frontend/public/ca-tracts.topo.json from a GeoJSON FeatureCollection.
+# Not in the runtime image, and it needs no GIS stack of its own: the
+# tract join in etl/compute_tract_crashes.py runs on the already-pinned
+# shapely (STRtree), so nothing here pulls GDAL or PROJ.
+topojson==1.10

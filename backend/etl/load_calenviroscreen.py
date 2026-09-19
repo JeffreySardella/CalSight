@@ -9,6 +9,9 @@ can compare environmental burden across counties alongside crash data.
 The data lives on an ArcGIS server. We page through it 2,000 tracts
 at a time, then do the aggregation in Python.
 
+The raw tract rows are also kept, in `tract_ces` — the equity map layer
+shades individual tracts, and the county average can't be un-averaged.
+
 Source: https://oehha.ca.gov/calenviroscreen
 
 Usage:
@@ -18,9 +21,10 @@ Usage:
 import logging
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
-from app.models import County, CalenviroScreen
+from app.models import County, CalenviroScreen, TractCes
 from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
@@ -85,6 +89,57 @@ def _safe_float(value):
         return None
 
 
+def normalize_geoid(tract_code) -> str | None:
+    """Return the 11-digit census GEOID for a raw CES `tract` value.
+
+    ArcGIS hands the tract back as a number, so California's leading zero is
+    gone ("6001400100"). Pad it back — the Census boundary file joins on the
+    11-digit string form.
+    """
+    if tract_code is None:
+        return None
+    try:
+        tract_str = str(int(tract_code))
+    except (TypeError, ValueError):
+        return None
+    if len(tract_str) == 10:
+        tract_str = "0" + tract_str
+    return tract_str if len(tract_str) == 11 else None
+
+
+def build_tract_rows(
+    tracts: list[dict], fips_to_code: dict[str, int]
+) -> list[dict]:
+    """Shape the raw CES tract records into `tract_ces` rows.
+
+    Keeps the tract grain the county aggregation throws away. Tracts with an
+    unparseable GEOID, or one whose county FIPS isn't a CA county we know,
+    are dropped — county_code is a FK.
+    """
+    rows: list[dict] = []
+    seen: set[str] = set()
+    for tract in tracts:
+        geoid = normalize_geoid(tract.get("tract"))
+        if geoid is None or geoid in seen:
+            continue
+        county_code = fips_to_code.get(geoid[:5])
+        if county_code is None:
+            continue
+        seen.add(geoid)
+
+        pop = _safe_float(tract.get(POPULATION_FIELD))
+        rows.append({
+            "geoid": geoid,
+            "county_code": county_code,
+            "ces_score": _safe_float(tract.get("CIscore")),
+            "ces_percentile": _safe_float(tract.get("CIscoreP")),
+            "pollution_burden": _safe_float(tract.get("PollutionScore")),
+            "pop_characteristics": _safe_float(tract.get("PopCharScore")),
+            "population": int(pop) if pop is not None and pop >= 0 else None,
+        })
+    return rows
+
+
 def fetch_tracts() -> list[dict]:
     """Download all ~9,100 census tract records from the ArcGIS server.
 
@@ -144,16 +199,8 @@ def aggregate_to_counties(tracts: list[dict], fips_to_code: dict[str, int]) -> d
 
     for tract in tracts:
         # Extract county FIPS from census tract code
-        tract_code = tract.get("tract")
-        if tract_code is None:
-            continue
-        tract_str = str(int(tract_code))
-
-        # Tract codes are 11 digits (06CCCTTTTTTT), pad if needed
-        if len(tract_str) == 10:
-            tract_str = "0" + tract_str  # e.g., 6001400100 -> 06001400100
-
-        if len(tract_str) < 5:
+        tract_str = normalize_geoid(tract.get("tract"))
+        if tract_str is None:
             continue
 
         county_fips = tract_str[:5]  # "06001" for Alameda
@@ -212,6 +259,32 @@ def run():
         logger.info("Loaded %d counties", len(fips_to_code))
 
         tracts = fetch_tracts()
+        # Same zero-row guard the county aggregate gets below, but one step
+        # earlier: the tract upsert runs first, so an empty or malformed
+        # upstream has to fail here rather than log "0 tract_ces rows" and
+        # let the run look successful.
+        require_rows(tracts, "calenviroscreen", "CES tract records")
+
+        # Keep the tract grain too (the equity map layer reads it). Written
+        # before the county aggregate so a tract-side failure can't leave the
+        # county averages half-updated.
+        tract_rows = build_tract_rows(tracts, fips_to_code)
+        if tract_rows:
+            stmt = pg_insert(TractCes).values(tract_rows)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["geoid"],
+                set_={
+                    c: stmt.excluded[c]
+                    for c in (
+                        "county_code", "ces_score", "ces_percentile",
+                        "pollution_burden", "pop_characteristics", "population",
+                    )
+                },
+            )
+            db.execute(stmt)
+            db.commit()
+        logger.info("Upserted %d tract_ces rows", len(tract_rows))
+
         county_scores = aggregate_to_counties(tracts, fips_to_code)
         logger.info("Aggregated to %d counties", len(county_scores))
         require_rows(county_scores, "calenviroscreen", "county-aggregated CES rows")

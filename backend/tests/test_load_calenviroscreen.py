@@ -1,6 +1,11 @@
 """Tests for the CalEnviroScreen ETL (CES 5.0 field names)."""
 
-from etl.load_calenviroscreen import aggregate_to_counties, _safe_float
+from etl.load_calenviroscreen import (
+    aggregate_to_counties,
+    build_tract_rows,
+    normalize_geoid,
+    _safe_float,
+)
 
 
 class TestSafeFloat:
@@ -86,3 +91,57 @@ class TestAggregateToCounties:
 
         result = aggregate_to_counties(tracts, fips_to_code)
         assert result[1]["ces_score"] is None
+
+
+class TestNormalizeGeoid:
+    def test_pads_californias_missing_leading_zero(self):
+        # ArcGIS returns the tract as a number, so "06..." arrives as "6...".
+        assert normalize_geoid(6001400100) == "06001400100"
+
+    def test_keeps_an_already_11_digit_code(self):
+        assert normalize_geoid("06001400100") == "06001400100"
+
+    def test_rejects_garbage(self):
+        assert normalize_geoid(None) is None
+        assert normalize_geoid("not-a-tract") is None
+        assert normalize_geoid(12345) is None  # too short to be a GEOID
+
+
+class TestBuildTractRows:
+    TRACT = {
+        "tract": 6001400100,
+        "Population": 5000,
+        "CIscore": 30.0,
+        "CIscoreP": 62.5,
+        "PollutionScore": 5.0,
+        "PopCharScore": 4.0,
+    }
+
+    def test_maps_the_ces_fields_onto_tract_ces_columns(self):
+        rows = build_tract_rows([self.TRACT], {"06001": 1})
+        assert rows == [{
+            "geoid": "06001400100",
+            "county_code": 1,
+            "ces_score": 30.0,
+            "ces_percentile": 62.5,
+            "pollution_burden": 5.0,
+            "pop_characteristics": 4.0,
+            "population": 5000,
+        }]
+
+    def test_keeps_zero_population_tracts(self):
+        """Unlike the county average, the tract row survives a 0 population —
+        it just can't carry a per-capita rate."""
+        rows = build_tract_rows([{**self.TRACT, "Population": 0}], {"06001": 1})
+        assert len(rows) == 1
+        assert rows[0]["population"] == 0
+
+    def test_skips_tracts_in_unknown_counties(self):
+        # county_code is a FK; an unmappable FIPS would fail the insert.
+        rows = build_tract_rows([{**self.TRACT, "tract": 9999900100}], {"06001": 1})
+        assert rows == []
+
+    def test_dedupes_repeated_geoids(self):
+        # geoid is the PK — a duplicate in one batch would abort the upsert.
+        rows = build_tract_rows([self.TRACT, self.TRACT], {"06001": 1})
+        assert len(rows) == 1

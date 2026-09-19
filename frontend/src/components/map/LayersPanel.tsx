@@ -323,6 +323,30 @@ export default function LayersPanel() {
         </div>
       </div>
 
+      {/* Equity */}
+      <div className="space-y-4">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant font-body">
+          Equity
+        </span>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${otherLayers.tractBurden ? "text-on-surface" : "text-on-surface-variant"}`}>
+              Equity (tracts)
+            </span>
+            <Toggle
+              enabled={otherLayers.tractBurden}
+              onToggle={() => toggleOtherLayer("tractBurden")}
+              label="Equity (tracts)"
+            />
+          </div>
+          <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+            {otherLayers.tractBurden
+              ? "Shades census tracts by crash burden, outlining the most environmentally burdened quartile. Covers only crashes with coordinates."
+              : "Census-tract crash burden against CalEnviroScreen scores (loads ~1.4 MB of boundaries)"}
+          </p>
+        </div>
+      </div>
+
       {/* Water — behind WATER_PAGE_PUBLIC (public since 2026-09-12; the flag
           is kept as the rollback switch): the layer's popups link to /water. */}
       {WATER_PAGE_PUBLIC && (

@@ -45,6 +45,7 @@ describe("LayersPanel toggle accessibility", () => {
       "Highway Danger",
       "Top intersections",
       "Reservoirs",
+      "Equity (tracts)",
     ]) {
       expect(screen.getByRole("switch", { name })).toBeInTheDocument();
     }

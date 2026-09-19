@@ -16,6 +16,9 @@ const DIMENSION_SYNONYMS: [string, Dimension][] = [
   ["weather condition", "weather"], ["weather", "weather"],
   ["visibility", "lighting"], ["lighting", "lighting"],
   ["collision type", "collision_type"], ["crash type", "collision_type"], ["type of collision", "collision_type"],
+  ["mode of travel", "mode"], ["road user", "mode"], ["by mode", "mode"], ["travel mode", "mode"],
+  ["pedestrians vs cyclists", "mode"], ["pedestrian vs cyclist", "mode"], ["peds vs bikes", "mode"],
+  ["motorcyclist", "mode"], ["pedestrian", "mode"], ["cyclist", "mode"],
 ];
 
 const MEASURE_SYNONYMS: [string, Measure][] = [

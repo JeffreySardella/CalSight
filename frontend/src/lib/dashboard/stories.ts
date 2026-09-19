@@ -47,7 +47,31 @@ export type FirstRainStoryBlock = {
   countySlug: string;
 };
 
-export type StoryBlock = NarrativeBlock | ChartBlock | StatCalloutBlock | FirstRainStoryBlock;
+/** Average daily crashes on NOAA dense-fog-advisory days vs every other day
+ *  in the same months, for one county — a live chart off /api/fog-days. */
+export type TuleFogStoryBlock = {
+  type: "tule-fog";
+  id: string;
+  countySlug: string;
+};
+
+/** Holiday-period crash, death and DUI rates against ordinary days of the
+ *  same month — a live table off /api/holidays, outside the /api/stats
+ *  dimensions (nothing else in the schema carries day-of-month). */
+export type HolidayStoryBlock = {
+  type: "holidays";
+  id: string;
+  /** Omit for statewide; a slug narrows the whole table to one county. */
+  countySlug?: string;
+};
+
+export type StoryBlock =
+  | NarrativeBlock
+  | ChartBlock
+  | StatCalloutBlock
+  | FirstRainStoryBlock
+  | TuleFogStoryBlock
+  | HolidayStoryBlock;
 
 export type DataStory = {
   id: string;
@@ -608,6 +632,53 @@ export const DATA_STORIES: DataStory[] = [
         type: "narrative",
         heading: "What this does and doesn't say",
         body: "Rain here is a county-average from nClimGrid, so a storm that soaks one edge of a large county counts for all of it, and a light shower can cross the 0.10-inch line without wetting every road. Only the first qualifying storm of each water year is counted — later storms, and the days after the first one, are not. Smaller counties have small baselines, and a handful of crashes either way moves their percentages a lot; those are flagged. Above all, this is an association: crash counts rose on these days and rain is the obvious thing that changed, but the data cannot say it was the cause.",
+      },
+    ],
+  },
+  {
+    id: "tule-fog",
+    title: "The valley disappears",
+    subtitle: "Tule fog days in the San Joaquin Valley, and the crashes that land on them",
+    icon: "foggy",
+    blocks: [
+      {
+        type: "narrative",
+        heading: "A fog that sits on the floor",
+        body: "Tule fog forms on the floor of the San Joaquin Valley on still winter nights after the first soaking rains, and it does not drift — it fills the valley from Stockton to Bakersfield and stays until the sun burns it off, sometimes for days. Visibility on Highway 99 and Interstate 5 can fall to a few car lengths with no warning: the November 1991 chain-reaction pileup on Interstate 5 near Coalinga and the November 2007 pileup on Highway 99 south of Fresno both happened in it.\n\nThe charts below put two independent records side by side. The National Weather Service issues a Dense Fog Advisory when it expects visibility at or under a quarter mile; those advisories are what the red bars count. The grey bars are every other day in the same months — the fog season, named under each chart — so a fog day is compared against the rest of its own season, not against July.",
+        isThesis: true,
+      },
+      { type: "tule-fog", id: "story-tule-fog-fresno", countySlug: "fresno" },
+      { type: "tule-fog", id: "story-tule-fog-kern", countySlug: "kern" },
+      {
+        type: "narrative",
+        heading: "What this does and doesn't say",
+        body: "The Weather Service keys these advisories to forecast zones, not counties, and a zone can straddle a county line — so a fog day here means an advisory covered part of the county, not that the whole county was fogged in. Advisories are also a forecaster's judgement about an approaching night, not a measurement of what the roads were actually like; a quiet fog night and a valley-wide whiteout count the same. Crash reporting varies across a 25-year record, and the zones themselves were renumbered twice in that span.\n\nSo read this as an association: more crashes are recorded on days the valley was under a dense-fog advisory than on the other days of the same fog season. The data cannot say the fog caused them, cannot separate fog from the driving, the traffic and the holidays that share those weeks, and cannot tell you what any single morning on Highway 99 will be like.",
+      },
+    ],
+  },
+  {
+    id: "holidays-on-the-road",
+    title: "Holidays on the road",
+    subtitle: "Which holidays actually put more people in the ambulance, and which only feel that way",
+    icon: "celebration",
+    blocks: [
+      {
+        type: "narrative",
+        heading: "The holiday you are told to fear",
+        body: "Every year the same warnings go out before the same long weekends. They are rarely accompanied by a number, and almost never by the right comparison: a holiday in July is being measured against a January nobody drove in.\n\nThe table below makes the comparison the honest way. Each holiday period is set beside the ordinary days of its own month, in the same year — same season, same daylight, same weather — so what is left is the holiday itself rather than the time of year. Every figure is computed live; none of them are written into this page.",
+        isThesis: true,
+      },
+      { type: "holidays", id: "story-holidays-statewide" },
+      {
+        type: "narrative",
+        heading: "Volume and risk are two different questions",
+        body: "A holiday can move crashes and deaths in opposite directions. Long weekends empty the commute, so the crash count can fall while the DUI share climbs at the same time — fewer crashes overall, and more of the ones that do happen coded as driving under the influence. Read the crash column and the DUI column as separate findings, not as one.\n\nThe periods themselves are of different lengths — a single Sunday for the Super Bowl, nine days from Christmas Eve to New Year's Day, and a Friday-through-Monday span for Memorial Day and Labor Day, following the National Safety Council's convention of opening a holiday weekend on the Friday evening. That is why everything here is expressed per day rather than as a total, and why those four Friday-to-Monday days are held out of the month's ordinary-day baseline as well.\n\nA percentage built on very few crashes moves a long way on very little, so a lift resting on a thin baseline or a short holiday is marked rather than dropped. Treat a marked figure as a hint, not a finding.",
+      },
+      { type: "holidays", id: "story-holidays-la", countySlug: "los-angeles" },
+      {
+        type: "narrative",
+        heading: "What this cannot tell you",
+        body: "These are counts of reported crashes, not of risk per mile. Nobody records how much more or less Californians drove on a given holiday, so a period with more crashes may simply have more traffic, and one with fewer may just be a weekend when people stayed home. The DUI figure is the share of crashes whose primary cause was coded as driving under the influence, which depends on what the attending officer recorded, not on a blood test.\n\nHalloween night runs from the evening of October 31 into the early hours of November 1, but this data resolves to whole days, so both are counted in full — daylight hours included. Fatality records also catch up months after crash records, so the most recent year shown is the last complete one, and even its death counts may still rise.",
       },
     ],
   },

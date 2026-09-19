@@ -36,6 +36,7 @@ const DIMENSION_CARDINALITY: Record<string, number> = {
   hour: 24, day_of_week: 7, month: 12, year: 15,
   cause: 12, severity: 3, county: 58,
   gender: 3, age_bracket: 8, at_fault_gender: 3, at_fault_age_bracket: 8,
+  mode: 4,
   weather: 6, lighting: 5, collision_type: 8,
 };
 
@@ -49,7 +50,7 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
 ];
 
 // Two rules decide which measures a dimension offers. Person-level dimensions
-// (gender/age_bracket/at_fault_*) carry victim_count/party_count rather than a
+// (gender/age_bracket/at_fault_*/mode) carry victim_count/party_count rather than a
 // crash-level row, so fatality_rate/yoy_change never render correctly there.
 // KSI is offered on the year axis only: that is the chart its definition
 // footnote is written for. sanitizeMeasure in lib/dashboard/types enforces the

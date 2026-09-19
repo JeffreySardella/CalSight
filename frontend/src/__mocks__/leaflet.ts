@@ -106,6 +106,8 @@ export const divIconInstances: Array<Record<string, unknown>> = [];
 
 const L = {
   geoJSON: vi.fn(() => geoJSONLayerMock),
+  // TractBurdenLayer renders 9k polygons through a canvas renderer.
+  canvas: vi.fn((opts?: Record<string, unknown>) => ({ ...opts })),
   tooltip: vi.fn(() => tooltipMock),
   latLngBounds: vi.fn(() => createBoundsMock()),
   divIcon: vi.fn((opts: Record<string, unknown>) => {

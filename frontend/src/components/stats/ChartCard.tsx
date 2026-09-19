@@ -25,6 +25,7 @@ import { useIsMobile } from "../../hooks/useIsMobile";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
 import { partialYearNote } from "../../lib/partialYear";
 import { ksiDefinitionNote } from "../../lib/ksi";
+import { MODE_COVERAGE_NOTE } from "../../lib/dashboard/types";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
 import type { DragHandleProps } from "../../hooks/useDragReorder";
@@ -348,14 +349,25 @@ function ChartCard({
     ? partialYearNote(data.map((d) => d.label))
     : null;
 
+  // Pedestrian/cyclist/motorcyclist/occupant come from CCRS party and victim
+  // records, which start in 2016 — say so rather than imply the earlier years
+  // had no vulnerable road users.
+  // Gated on the same condition as the footnote below: an empty mode chart
+  // (the normal result when a filter the view cannot answer is active) would
+  // otherwise show a dangling asterisk with nothing to attach it to.
+  const showModeNote = !loading && hasData && slot.dimension === "mode";
+
   // KSI's definition changes at 2015→2016 and 2017→2018; say so on any KSI
   // year chart whose range crosses either.
   const ksiNote = slot.dimension === "year" && (slot.measure === "ksi" || slot.secondaryMeasure === "ksi")
     ? ksiDefinitionNote(data.map((d) => d.label))
     : null;
 
-  // Append asterisk to the chart title only when the KSI footnote is shown
-  const displayTitle = ksiNote ? `${title}*` : title;
+  // Asterisk on the title only while a footnote is actually on screen. An
+  // empty chart would otherwise show a dangling asterisk with nothing to
+  // attach it to. The two notes are mutually exclusive: the mode note is
+  // for the mode dimension, the KSI note only for a year axis.
+  const displayTitle = showModeNote || ksiNote ? `${title}*` : title;
 
   return (
     <div
@@ -580,6 +592,10 @@ function ChartCard({
 
       {!loading && hasData && partialNote && (
         <p className="text-[10px] italic text-on-surface-variant mt-1.5">{partialNote}</p>
+      )}
+
+      {showModeNote && (
+        <p className="text-[10px] italic text-on-surface-variant mt-1.5">{MODE_COVERAGE_NOTE}</p>
       )}
 
       {!loading && hasData && ksiNote && (

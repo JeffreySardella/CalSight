@@ -27,6 +27,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.health import REFRESHABLE_VIEWS
 from app.models import EtlRun
 from app.routers.etl import _verify_etl_key
 from app.settings import settings
@@ -204,19 +205,16 @@ def pipeline_health(
     )
 
 
-# Hardcoded allowlist of materialized view names. Only these identifiers
-# may be interpolated into SQL queries. This prevents SQL injection even if
-# the iteration source is later changed to accept external input.
-_ALLOWED_MATVIEWS = frozenset([
-    "mv_crashes_by_year",
-    "mv_crashes_by_cause",
-    "mv_crashes_by_hour",
-    "mv_crashes_by_month",
-    "mv_crash_victims_by_demographics",
-    "mv_at_fault_parties_by_demographics",
-    "mv_crash_rates",
-    "mv_crashes_wide",
-])
+# Allowlist of materialized view names. Only these identifiers may be
+# interpolated into SQL queries, which prevents SQL injection even if the
+# iteration source is later changed to accept external input.
+#
+# This used to be a second hand-maintained copy of the list, and it drifted:
+# mv_street_aggregates and mv_street_totals were never added, so the one
+# endpoint an operator checks to answer "did the refresh actually land?"
+# silently omitted them. REFRESHABLE_VIEWS is itself a hardcoded tuple in
+# app/health.py — the same guarantee, from the single source of truth.
+_ALLOWED_MATVIEWS = frozenset(REFRESHABLE_VIEWS)
 
 
 @router.get(
