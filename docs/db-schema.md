@@ -239,7 +239,7 @@ API consumers should treat NULLs in returned rows as "this scope" markers, not m
 
 ### Materialized view granularity
 
-There are 10 materialized views as of 2026-09-12 (see the row-count table). The four original StatsPage views are not interchangeable — pick the smallest one that supports your filters:
+There are 11 materialized views as of 2026-09-18 (see the row-count table). The four original StatsPage views are not interchangeable — pick the smallest one that supports your filters:
 
 - **`mv_crashes_by_year`** (4.4K rows): no `canonical_cause` column. Use when no cause filter is in play.
 - **`mv_crashes_by_cause`** (19.7K rows): adds `canonical_cause`. Use when filtering or grouping by cause.

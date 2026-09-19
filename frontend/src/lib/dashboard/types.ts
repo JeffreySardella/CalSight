@@ -92,12 +92,14 @@ const DEFAULT_CHART_TYPE: Partial<Record<Dimension, ChartType>> = {
 };
 
 /**
- * Footnote for any chart cut by mode. Party and victim records only exist
- * from CCRS onward, so the four road-user buckets have no pre-2016 history —
- * the chart has to say so rather than look like a 2016 explosion in walking.
- * Rendered by ChartCard the same way partialYearNote is.
+ * Footnote for any chart cut by mode. It has to carry both caveats, because
+ * the chart title says "Crashes by …" while every bar is a person: the values
+ * are people, and party/victim records only exist from CCRS onward, so the
+ * four road-user buckets have no pre-2016 history rather than a 2016 explosion
+ * in walking. Rendered by ChartCard the same way partialYearNote is.
  */
-export const MODE_COVERAGE_NOTE = "* Mode data starts in 2016 (CCRS).";
+export const MODE_COVERAGE_NOTE =
+  "* Counts people injured or killed, not crashes. Mode data starts in 2016 (CCRS).";
 
 /** Display names for the four road-user buckets /api/stats?group_by=mode returns. */
 export const MODE_LABELS: Record<string, string> = {

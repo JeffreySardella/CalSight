@@ -24,8 +24,10 @@ describe("mode dimension", () => {
     ]);
   });
 
-  it("says when the data starts, because CCRS has no pre-2016 people records", () => {
-    expect(MODE_COVERAGE_NOTE).toBe("* Mode data starts in 2016 (CCRS).");
+  it("says the bars are people, and when the data starts", () => {
+    expect(MODE_COVERAGE_NOTE).toBe(
+      "* Counts people injured or killed, not crashes. Mode data starts in 2016 (CCRS).",
+    );
   });
 
   it.each([
