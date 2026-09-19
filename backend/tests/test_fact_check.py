@@ -81,6 +81,20 @@ def test_cause_category_nouns_not_flagged(text):
     assert CAUSAL_RE.search(text) is None, text
 
 
+@pytest.mark.parametrize("stats, text", [
+    # The spelling the county-narrative context uses.
+    ("total_killed=96", "The county averaged about 8 deaths a month."),
+    ("total_killed=4,380, total_injured=52,000",
+     "That works out to about 365 deaths a month and roughly 1,000 injuries a week."),
+    ("total_crashes=52,310", "Roughly 143 crashes a day."),
+    # The spelling the fun-fact context uses — unchanged.
+    ("total_crashes=150,000, killed=800, injured=70,000",
+     "That is about 67 deaths a month and 1,346 injuries a week."),
+])
+def test_derivations_pass_for_both_stat_spellings(stats, text):
+    assert check_fact(text, stats, 2024, 2026) == []
+
+
 def test_current_partial_year_fails():
     text = "Crash volume dropped 38.7% compared to the prior year."
     assert check_fact(text, "yoy=-38.7", 2026, 2026) == ["year 2026 is not complete yet"]

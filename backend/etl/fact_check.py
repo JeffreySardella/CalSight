@@ -52,8 +52,12 @@ def allowed_numbers(stats_str: str, year: int) -> set[float]:
     totals, and floor/ceil of everything so "13%" passes for 12.6%.
     """
     nums = set(_numbers(stats_str)) | {float(year), 58.0}
-    for key in ("total_crashes", "killed", "injured"):
-        m = re.search(rf"\b{key}=([\d,]+)", stats_str)
+    # Both spellings: the fun-fact context writes "killed=/injured=", the
+    # county-narrative context writes "total_killed=/total_injured=". Matching
+    # only the short form silently dropped the derivations for deaths and
+    # injuries from every narrative ("about 365 deaths a month").
+    for key in ("crashes", "killed", "injured"):
+        m = re.search(rf"\b(?:total_)?{key}=([\d,]+)", stats_str)
         if m and (n := float(m.group(1).replace(",", ""))):
             nums |= {n / 365, n / 52, n / 12, n / 7, 525_600 / n, 8_760 / n}
     for n in list(nums):
