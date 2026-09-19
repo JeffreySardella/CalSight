@@ -52,6 +52,7 @@ import { useDrillDown } from "../hooks/useDrillDown";
 import DrillBreadcrumb from "../components/stats/DrillBreadcrumb";
 import { DIMENSION_LABELS } from "../lib/dashboard/types";
 import { DATA_STORIES, getStoryById } from "../lib/dashboard/stories";
+import { buildStatsPageSeo } from "../lib/dashboard/pageSeo";
 import { useCrossFilter } from "../hooks/useCrossFilter";
 import { useIsMobile } from "../hooks/useIsMobile";
 import JargonTerm from "../components/ui/JargonTerm";
@@ -377,17 +378,17 @@ function StatsPageInner() {
     trend: incidentYoYPct != null ? (incidentYoYPct >= 0 ? "up" : "down") : undefined,
   }), [dashboard.config.preset, counties, totalIncidents, incidentYoYPct]);
 
-  const seoDescription = useMemo(() => {
-    const parts = ["California crash statistics"];
-    if (counties.size > 0 && counties.size <= 3) {
-      parts.push(`for ${[...counties].join(", ")}`);
-    }
-    if (totalIncidents != null) {
-      parts.push(`— ${totalIncidents.toLocaleString()} incidents`);
-    }
-    parts.push(". Explore trends, demographics, and safety metrics on CalSight.");
-    return parts.join(" ");
-  }, [counties, totalIncidents]);
+  const activeStory = activeStoryId ? getStoryById(activeStoryId) ?? null : null;
+
+  const { title: pageTitle, description: pageDescription } = useMemo(
+    () => buildStatsPageSeo({
+      preset: dashboard.config.preset,
+      story: activeStory,
+      counties: [...counties],
+      totalIncidents: totalIncidents ?? null,
+    }),
+    [dashboard.config.preset, activeStory, counties, totalIncidents],
+  );
 
   const jsonLd = useMemo(() => ({
     "@context": "https://schema.org",
@@ -430,8 +431,6 @@ function StatsPageInner() {
     ],
   }), [counties, dateRangeLabel, severities, causes, filters.selectedAlcohol, filters.selectedDistracted, filters.selectedPedestrian, filters.selectedCyclist, filters.selectedDrug]);
 
-  const activeStory = activeStoryId ? getStoryById(activeStoryId) : null;
-
   return (
     <>
     {printPreview && (
@@ -450,8 +449,8 @@ function StatsPageInner() {
     <div className={`max-w-[1200px] mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-6 md:space-y-8 relative print-main type-scaled${printPreview ? " mt-12" : ""}`}>
       <PrintHeader filters={printFilters} />
       <MetaTags
-        title={`Statistics Dashboard — CalSight`}
-        description={seoDescription}
+        title={pageTitle}
+        description={pageDescription}
         ogImage={ogImage}
         path="/stats"
         jsonLd={jsonLd}
