@@ -48,6 +48,9 @@ function pickValue(r: DimensionRow, measure: Measure, dim: Dimension): number {
   if (measure === "injured") {
     if (r.total_injured != null) return r.total_injured;
   }
+  if (measure === "ksi") {
+    return (r.total_killed ?? 0) + (r.total_severe_injured ?? 0);
+  }
 
   if (isDemographic) return r.victim_count ?? 0;
   if (isAtFault) return r.party_count ?? 0;
