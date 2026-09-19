@@ -4,12 +4,18 @@ No network, no database: everything here runs against a CSV fixture string
 shaped exactly like NCEI's StormEvents_details files.
 """
 
+from collections import Counter
 from datetime import date
 
+import pytest
+
+from etl import load_storm_events
 from etl.load_storm_events import (
     EVENT_TYPES,
     FOG_EVENT_TYPE,
     MAPPED_COUNTY_CODES,
+    RETIRED_ZONES,
+    TRANSCRIBED_SUB_300_ZONES,
     ZONE_COUNTIES,
     parse_index,
     rows_from_csv,
@@ -118,6 +124,49 @@ def test_legacy_zone_numbers_still_map():
     assert sorted(r["county_code"] for r in era_b) == [10, 16, 54]
 
 
+def test_retired_zone_numbers_only_resolve_for_the_hanford_office():
+    """If another office ever reuses CAZ092, its advisory is not filed under Kern."""
+    unmapped: Counter = Counter()
+    other_office = list(rows_from_csv(csv_text(
+        _row(EVENT_ID="13", CZ_FIPS="92", CZ_NAME="SOMEWHERE ELSE", WFO="MTR"),
+    ), unmapped))
+    assert other_office == []
+    assert unmapped[(92, "SOMEWHERE ELSE")] == 1
+
+    # A current zone transcribed from the correlation file is not WFO-gated:
+    # CAZ072 (Greater Lake Tahoe) is issued by Reno, not Hanford.
+    tahoe = list(rows_from_csv(csv_text(
+        _row(EVENT_ID="14", CZ_FIPS="72", CZ_NAME="GREATER LAKE TAHOE AREA",
+             EVENT_TYPE="Heavy Snow", WFO="REV"),
+    )))
+    assert sorted(r["county_code"] for r in tahoe) == [2, 9, 29, 31]
+
+
+def test_unmapped_zones_are_counted_not_silently_dropped():
+    """The map is hand-built, so what it misses has to be countable."""
+    unmapped: Counter = Counter()
+    rows = list(rows_from_csv(csv_text(
+        _row(EVENT_ID="21", CZ_FIPS="43", CZ_NAME="SAN DIEGO COUNTY COASTAL AREAS"),
+        _row(EVENT_ID="22", CZ_FIPS="43", CZ_NAME="SAN DIEGO COUNTY COASTAL AREAS"),
+        _row(EVENT_ID="23", CZ_FIPS="552", CZ_NAME="ORANGE COUNTY COASTAL"),
+        _row(EVENT_ID="24"),                                  # mapped, not counted
+        _row(EVENT_ID="25", EVENT_TYPE="High Wind"),          # filtered out, not counted
+        _row(EVENT_ID="26", STATE="OREGON"),                  # filtered out, not counted
+    ), unmapped))
+    assert len(rows) == 3  # only the CAZ311 row, across its three counties
+    assert unmapped == Counter({
+        (43, "SAN DIEGO COUNTY COASTAL AREAS"): 2,
+        (552, "ORANGE COUNTY COASTAL"): 1,
+    })
+
+
+def test_transcribed_zones_are_exempt_from_the_wfo_gate():
+    assert TRANSCRIBED_SUB_300_ZONES.isdisjoint(RETIRED_ZONES)
+    assert RETIRED_ZONES == {z for z in ZONE_COUNTIES if z < 300} - TRANSCRIBED_SUB_300_ZONES
+    assert all(z >= 300 or z in TRANSCRIBED_SUB_300_ZONES or z in RETIRED_ZONES
+               for z in ZONE_COUNTIES)
+
+
 def test_zone_map_is_internally_consistent():
     assert FOG_EVENT_TYPE in EVENT_TYPES
     assert all(1 <= code <= 58 for z in ZONE_COUNTIES.values() for code in z.counties)
@@ -130,14 +179,71 @@ def test_zone_map_is_internally_consistent():
     assert {10, 15, 16, 20, 24, 39, 50, 54} <= MAPPED_COUNTY_CODES
 
 
-def test_parse_index_keeps_the_latest_compile_date_per_year():
-    html = (
-        '<a href="StormEvents_details-ftp_v1.0_d2023_c20260323.csv.gz">x</a>'
-        '<a href="StormEvents_details-ftp_v1.0_d2024_c20260323.csv.gz">x</a>'
-        '<a href="StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz">x</a>'
-        '<a href="StormEvents_locations-ftp_v1.0_d2024_c20260728.csv.gz">x</a>'
-    )
-    files = parse_index(html)
+def test_correlation_file_zones_are_transcribed_whole():
+    """Verbatim means every county the NWS file lists, not just valley ones.
+
+    Spot-checked against bp18mr25.dbx: these three each reach outside the San
+    Joaquin Valley, and truncating them to the counties the story cares about
+    is the exact bug that left CAZ016/017/066/068/070 out of the first cut.
+    """
+    assert ZONE_COUNTIES[18].counties == (34, 39, 48)          # Sacramento, San Joaquin, Solano
+    assert ZONE_COUNTIES[68].counties == (4, 18, 32, 45, 52)   # Butte, Lassen, Plumas, Shasta, Tehama
+    assert ZONE_COUNTIES[70].counties == (25,)                 # Modoc
+    assert TRANSCRIBED_SUB_300_ZONES <= set(ZONE_COUNTIES)
+
+
+ENTRIES = [
+    '<a href="StormEvents_details-ftp_v1.0_d2023_c20260323.csv.gz">x</a>',
+    '<a href="StormEvents_details-ftp_v1.0_d2024_c20260323.csv.gz">x</a>',
+    '<a href="StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz">x</a>',
+    '<a href="StormEvents_locations-ftp_v1.0_d2024_c20260728.csv.gz">x</a>',
+]
+
+
+@pytest.mark.parametrize("entries", [ENTRIES, list(reversed(ENTRIES))])
+def test_parse_index_keeps_the_latest_compile_date_per_year(entries):
+    """The compile date decides, not listing order — a descending index used to
+    silently hand back the older, stale revision of a year."""
+    files = parse_index("".join(entries))
     assert files[2023] == "StormEvents_details-ftp_v1.0_d2023_c20260323.csv.gz"
     assert files[2024] == "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"
     assert set(files) == {2023, 2024}
+
+
+def test_parse_index_returns_nothing_for_an_unrecognisable_page():
+    """run() turns this into a raise rather than a successful zero-row load."""
+    assert parse_index("<html><body>404 Not Found</body></html>") == {}
+
+
+# run() is wrapped by @track_etl_run, which writes an EtlRun row; __wrapped__ is
+# the undecorated function, so these stay DB-free unit tests.
+_run = load_storm_events.run.__wrapped__
+
+
+def test_run_raises_when_the_index_lists_no_files(monkeypatch):
+    """A 200 serving a landing page must fail, not record a zero-row success."""
+    monkeypatch.setattr(load_storm_events, "list_year_files", dict)
+    with pytest.raises(RuntimeError, match="listed no StormEvents_details files"):
+        _run()
+
+
+def test_run_raises_when_every_year_writes_nothing(monkeypatch):
+    monkeypatch.setattr(
+        load_storm_events, "list_year_files",
+        lambda: {2024: "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"},
+    )
+    monkeypatch.setattr(load_storm_events, "fetch_year", lambda _f: csv_text())
+    monkeypatch.setattr(load_storm_events, "SessionLocal", lambda: _NullSession())
+    with pytest.raises(RuntimeError, match="wrote no rows"):
+        _run(start=2024, end=2024)
+
+
+class _NullSession:
+    def execute(self, *a, **k):
+        raise AssertionError("no rows should reach the database")
+
+    def commit(self):
+        pass
+
+    def close(self):
+        pass
