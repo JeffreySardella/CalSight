@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
 from sqlalchemy import Column, Float, Integer, MetaData, SmallInteger, String, Table, func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.ca_highways import miles_for
@@ -1033,6 +1034,19 @@ def stats_batch(
             )
         except FilterError as e:
             results[group] = {"error": e.detail, "filter": e.filter}
+        except DBAPIError:
+            # One unreadable view must cost one card, not the whole dashboard.
+            # A matview created WITH NO DATA raises ObjectNotInPrerequisiteState
+            # on any SELECT until its first refresh; before this, that escaped
+            # the loop and turned the entire batch into a 500, blanking every
+            # chart on a board that merely contained one such group. The failed
+            # statement also poisons the transaction, so roll back before the
+            # remaining groups run or they all fail with InFailedSqlTransaction.
+            db.rollback()
+            results[group] = {
+                "error": f"{group} data is not available right now.",
+                "filter": "unavailable",
+            }
 
     return results
 
