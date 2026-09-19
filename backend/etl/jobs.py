@@ -185,6 +185,19 @@ def build_default_registry() -> JobRegistry:
         source_type="ckan",
         freshness_resource_id="5180390d-e323-4751-8ce9-939e62918233",
     ))
+    registry.register(Job(
+        # CARB EMFAC county VMT, 2001 through last complete year. Monthly like
+        # the other slow-moving denominators, though EMFAC only restates on a
+        # new model release. No freshness probe: the endpoint is the tool's own
+        # XHR handler, with nothing to check a last-modified against.
+        # 25 POSTs of ~5MB each, so it runs longer than its neighbours.
+        name="vmt",
+        module="etl.load_vmt",
+        schedule="monthly",
+        table_name="vmt",
+        max_drop_pct=10,
+        timeout=7200,
+    ))
 
     # --- Tier 2: Internal transforms (depend on external loads) ---
     registry.register(Job(

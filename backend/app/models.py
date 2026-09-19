@@ -999,6 +999,45 @@ class RoadMile(Base):
     )
 
 
+class Vmt(Base):
+    """How many miles were actually driven in each county each year.
+
+    Vehicle miles traveled is the exposure denominator road-safety work
+    normally uses — "crashes per 100 million vehicle miles". It answers a
+    different question than the others: population counts who lives there,
+    licensed drivers count who could drive, road miles count the pavement,
+    and VMT counts the driving that actually happened.
+
+    Not the same thing as `traffic_volumes` (Caltrans AADT): AADT is a
+    point count on the state highway system only and describes one average
+    day, while this covers every road in the county for the whole year.
+
+    Statewide this runs about 275-335 billion miles a year, with a visible
+    dip in 2020.
+
+    Source: CARB EMFAC2025, a model calibrated against DMV vehicle
+    population and Caltrans travel-demand control totals rather than a raw
+    traffic count. The model version is recorded per row in `source`
+    because a future EMFAC release will restate these numbers.
+    """
+
+    __tablename__ = "vmt"
+
+    id = Column(Integer, primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    year = Column(SmallInteger, nullable=False)
+    vmt_millions = Column(Float)
+    source = Column(String(50))
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("county_code", "year"),
+        Index("ix_vmt_county_year", "county_code", "year"),
+    )
+
+
 class EtlRun(Base):
     """Tracks ETL pipeline execution — one row per source per run."""
 

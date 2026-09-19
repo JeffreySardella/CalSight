@@ -1,4 +1,4 @@
-"""Reference data endpoints: counties, hospitals, schools, road-miles,
+"""Reference data endpoints: counties, hospitals, schools, road-miles, vmt,
 calenviroscreen, traffic-volumes, speed-limits."""
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -19,6 +19,7 @@ from app.models import (
     SchoolLocation,
     SpeedLimit,
     TrafficVolume,
+    Vmt,
 )
 from app.schemas.common import PaginatedResponse
 from app.schemas.reference import (
@@ -30,6 +31,7 @@ from app.schemas.reference import (
     SchoolOut,
     SpeedLimitOut,
     TrafficVolumeOut,
+    VmtOut,
 )
 
 router = APIRouter(tags=["reference"])
@@ -190,6 +192,25 @@ def list_road_miles(
     if f_system is not None:
         q = q.filter(RoadMile.f_system == f_system)
     return [RoadMileOut.model_validate(r) for r in q.all()]
+
+
+# Feeds the map's per-100M-vehicle-miles measure (useChoroplethData).
+@router.get("/vmt", response_model=list[VmtOut])
+@_limiter.limit("1000/minute;20000/hour")
+def list_vmt(
+    request: Request,
+    response: Response,
+    county: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """CARB EMFAC vehicle miles traveled by county and year, in millions."""
+    response.headers["Cache-Control"] = _ONE_HOUR
+    q = db.query(Vmt)
+    if county:
+        codes = parse_county_codes(county, get_slug_map(db))
+        if codes:
+            q = q.filter(Vmt.county_code.in_(codes))
+    return [VmtOut.model_validate(r) for r in q.all()]
 
 
 # deprecated (#291): no frontend callers — AADT exposure feeds /api/stats
