@@ -39,7 +39,9 @@ test.beforeEach(async ({ page }) => {
 
 const SPARKLINES = [
   { name: /Incident trend, last 10 years/i },
-  { name: /Killed and injured trend, last 10 years/i },
+  // The tile is "Killed and injured" before the KSI frontend lands and
+  // "Killed or seriously injured" after it; the partial-year rule is the same.
+  { name: /Killed (and injured|or seriously injured) trend, last 10 years/i },
   { name: /Fatality trend, last 10 years/i },
 ];
 
