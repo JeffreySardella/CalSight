@@ -39,10 +39,14 @@ logger = logging.getLogger(__name__)
 # and page through in batches of 2,000 records.
 # This is the final CES 5.0 results layer published 2026-07-01
 # ("_F_070126" = Final, July 1 2026).
-ARCGIS_BASE = (
+ARCGIS_SERVICE = (
     "https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services"
-    "/calenviroscreen50results_F_070126_gdb/FeatureServer/0/query"
+    "/calenviroscreen50results_F_070126_gdb/FeatureServer"
 )
+# The layer is looked up by name, not by id: OEHHA republished this service in
+# September 2026 and the results moved from layer 0 to layer 2, which turned
+# every query into an "Invalid URL" error body.
+LAYER_NAME = "CalEnviroScreen 5.0 Results"
 
 # The census population field used for weighting. CES 4.0 called this
 # "ACS2019TotalPop"; CES 5.0 renamed it to "Population" (ACS 2024).
@@ -140,6 +144,18 @@ def build_tract_rows(
     return rows
 
 
+def resolve_layer_id() -> int:
+    """Find the results layer's id in the feature service by its name."""
+    info = get_with_retry(f"{ARCGIS_SERVICE}?f=json", timeout=60.0).json()
+    if "error" in info:
+        raise RuntimeError(f"CalEnviroScreen service lookup failed: {info['error']}")
+    for layer in info.get("layers", []):
+        if layer.get("name") == LAYER_NAME:
+            return int(layer["id"])
+    names = [layer.get("name") for layer in info.get("layers", [])]
+    raise RuntimeError(f"CalEnviroScreen layer {LAYER_NAME!r} not found; service has {names}")
+
+
 def fetch_tracts() -> list[dict]:
     """Download all ~9,100 census tract records from the ArcGIS server.
 
@@ -147,13 +163,14 @@ def fetch_tracts() -> list[dict]:
     through using resultOffset. Usually takes 4-5 requests to get
     everything. Each request takes a couple seconds.
     """
+    query_url = f"{ARCGIS_SERVICE}/{resolve_layer_id()}/query"
     all_records = []
     offset = 0
     batch_size = 2000
 
     while True:
         url = (
-            f"{ARCGIS_BASE}?where=1%3D1"
+            f"{query_url}?where=1%3D1"
             f"&outFields={OUT_FIELDS}"
             f"&resultRecordCount={batch_size}"
             f"&resultOffset={offset}"
@@ -162,6 +179,10 @@ def fetch_tracts() -> list[dict]:
         logger.info("Fetching CES tracts (offset=%d)", offset)
         resp = get_with_retry(url, timeout=60.0)
         data = resp.json()
+        # ArcGIS reports failures as a 200 with an "error" body. Reading that
+        # as "no more features" is how a moved layer loaded zero rows silently.
+        if "error" in data:
+            raise RuntimeError(f"CalEnviroScreen query failed: {data['error']}")
 
         features = data.get("features", [])
         if not features:
