@@ -55,6 +55,10 @@ STALENESS_THRESHOLDS: dict[str, int] = {
     "drought": 48,
     "precip_indices": 48,
     "first_rain": 48,
+    # Weekly job. Listing it matters beyond the threshold itself: the summary
+    # counters in /api/freshness skip sources that aren't keys here, so an
+    # unlisted source can die without ever incrementing sources_stale.
+    "storm_events": 168,
 }
 
 

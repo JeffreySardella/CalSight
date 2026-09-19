@@ -73,8 +73,14 @@ def _create_test_db() -> None:
     # database (to run alongside another session) dropped the shared one and
     # then migrated an empty target.
     name = TEST_DB_URL.rsplit("/", 1)[-1].split("?")[0]
-    if not name.replace("_", "").isalnum():
-        raise ValueError(f"refusing to recreate suspicious database name {name!r}")
+    # This statement DROPs. Previously it was safe by construction (the name was
+    # hard-coded); now that it follows TEST_DATABASE_URL, the name itself has to
+    # prove it is a test database — "calsight" would pass an alnum check.
+    if not name.endswith("_test") or not name.replace("_", "").isalnum():
+        raise ValueError(
+            f"refusing to drop {name!r}: TEST_DATABASE_URL must name an "
+            "alphanumeric database ending in '_test'"
+        )
     admin = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
         conn.execute(text(f'DROP DATABASE IF EXISTS "{name}"'))
