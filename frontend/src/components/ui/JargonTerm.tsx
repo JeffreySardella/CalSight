@@ -1,4 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { KSI_DEFINITION } from "../../lib/ksi";
 
 /**
  * Built-in glossary of transportation-data jargon (#304).
@@ -11,8 +12,8 @@ const GLOSSARY = {
     "Statewide Integrated Traffic Records System — the CHP database of police-reported crashes. On CalSight it covers 2001–2015 and has crash-level records only (no driver demographics).",
   CCRS:
     "California Crash Reporting System — the CHP's current crash database (2016 onward), which includes party-level details such as age, gender, and sobriety.",
-  KSI:
-    "Killed or Seriously Injured — a standard traffic-safety measure counting crashes that result in a fatality or a severe injury.",
+  // People, not crashes — and the definition shifts at 2015/16 and 2017/18.
+  KSI: KSI_DEFINITION,
   AADT:
     "Annual Average Daily Traffic — the average number of vehicles passing a point on a road per day, averaged over a full year. Used to measure traffic exposure.",
   CalEnviroScreen:

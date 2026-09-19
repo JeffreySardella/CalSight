@@ -349,7 +349,7 @@ function StatsPageInner() {
   ];
 
   const heroMetrics = data?.heroMetrics ?? {};
-  const { totalIncidents, incidentYoYPct, ksiRatePer100k, yoyFatalityChangePct } = heroMetrics;
+  const { totalIncidents, incidentYoYPct, ksiRatePer100k, ksiPopEstimatedFrom, yoyFatalityChangePct } = heroMetrics;
   const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
   const fatalityUp = yoyFatalityChangePct != null && yoyFatalityChangePct > 0;
 
@@ -366,7 +366,7 @@ function StatsPageInner() {
   );
   const sparkIncidents = useMemo(() => completeYearly.map((d) => d.count), [completeYearly]);
   const sparkFatalities = useMemo(() => completeYearly.map((d) => d.killed), [completeYearly]);
-  const sparkKsi = useMemo(() => completeYearly.map((d) => d.killed + d.injured), [completeYearly]);
+  const sparkKsi = useMemo(() => completeYearly.map((d) => d.killed + d.severeInjured), [completeYearly]);
 
   // SEO: dynamic meta tags and OG image based on current dashboard state
   const ogImage = useMemo(() => buildOgImageUrl({
@@ -528,27 +528,33 @@ function StatsPageInner() {
           </p>
         </div>
 
-        {/* Killed + injured rate. Not true KSI: the injury count here includes
-            every injury, not just serious ones (true KSI is tracked separately). */}
-        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="Killed and injured per 100K population">
+        {/* KSI: people killed or seriously injured per 100K residents a year,
+            complete years only (computeHeroMetrics). The KSI term's tooltip
+            carries the definition footnote. */}
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="Killed or seriously injured per 100K population">
           <div className="flex items-start justify-between mb-3 sm:mb-4">
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest leading-tight">
-              Killed + Injured / 100K Pop.
+              <JargonTerm term="KSI" /> / 100K Pop.*
             </p>
             {!loading && sparkKsi.length >= 2 && (
-              <Sparkline data={sparkKsi} label="Killed and injured trend, last 10 years" />
+              <Sparkline data={sparkKsi} label="Killed or seriously injured trend, last 10 years" />
             )}
           </div>
           {loading ? (
             <Skeleton className="h-10 w-24" />
           ) : (
-            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`Killed and injured rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
+            <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`Killed or seriously injured rate: ${ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "unavailable"} per 100K`}>
               {ksiRatePer100k != null ? ksiRatePer100k.toFixed(1) : "—"}
             </p>
           )}
           <p className="text-on-surface-variant text-[11px] mt-2 italic">
-            Everyone killed or injured, per 100K residents
+            People killed or seriously injured, per 100K residents a year
           </p>
+          {!loading && ksiPopEstimatedFrom && (
+            <p className="text-on-surface-variant text-[10px] mt-1">
+              Population for some years estimated from the {ksiPopEstimatedFrom.length > 1 ? `${ksiPopEstimatedFrom.slice(0, -1).join(", ")} and ${ksiPopEstimatedFrom[ksiPopEstimatedFrom.length - 1]}` : ksiPopEstimatedFrom[0]} ACS
+            </p>
+          )}
         </div>
 
         {/* YoY Fatality Change */}
