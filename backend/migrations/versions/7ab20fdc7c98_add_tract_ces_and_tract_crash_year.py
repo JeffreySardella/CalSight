@@ -18,7 +18,7 @@ calsight_api_ro, which exists in neither prod nor CI (hence the guard) —
 same pattern as 50bbb1251cb7.
 
 Revision ID: 7ab20fdc7c98
-Revises: 50bbb1251cb7
+Revises: 10f264138733
 Create Date: 2026-09-18 19:38:32.900905
 """
 from typing import Sequence, Union
@@ -29,7 +29,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '7ab20fdc7c98'
-down_revision: Union[str, None] = '50bbb1251cb7'
+down_revision: Union[str, None] = '10f264138733'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
