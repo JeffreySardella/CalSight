@@ -20,7 +20,7 @@ SWITRS row, so a share built on it would be silently understated wherever
 SWITRS is the source.
 
 Revision ID: e15a88b36527
-Revises: 50bbb1251cb7
+Revises: 7ab20fdc7c98
 Create Date: 2026-09-18 21:01:48.743196
 """
 from typing import Sequence, Union
@@ -29,7 +29,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'e15a88b36527'
-down_revision: Union[str, None] = '50bbb1251cb7'
+down_revision: Union[str, None] = '7ab20fdc7c98'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
