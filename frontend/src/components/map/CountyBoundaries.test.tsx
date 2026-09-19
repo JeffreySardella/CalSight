@@ -305,7 +305,8 @@ describe("CountyBoundaries", () => {
       expect(fillOpacities.length).toBeGreaterThan(0);
       expect(fillOpacities).not.toContain(0.6);
       expect(fillOpacities).not.toContain(0.75);
-      expect(fillOpacities.some((v) => v === 0.24 || v === 0.3)).toBe(true);
+      // toBeCloseTo, not === : 0.75 * 0.4 is 0.30000000000000004 in floating point.
+      expect(fillOpacities.some((v) => Math.abs(v - 0.24) < 1e-9 || Math.abs(v - 0.3) < 1e-9)).toBe(true);
     });
   });
 });
