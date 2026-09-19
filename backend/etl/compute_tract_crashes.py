@@ -1,19 +1,27 @@
 """Assign crashes with coordinates to census tracts, aggregated per year.
 
 There is no PostGIS on this server, so the point-in-polygon join happens in
-Python: geopandas `sjoin` of the crash lat/lng against the Census
-cartographic tract boundaries (2020 vintage, which is what CalEnviroScreen
-5.0 is scored on). Only the ~9,100 x N-year aggregate is stored, in
-`tract_crash_year` — no per-crash column, no 11.6M-row backfill.
+Python — but it needs no new dependency: `shapely` is already pinned, and
+`shapely.STRtree.query(..., predicate="within")` *is* a vectorised spatial
+join. One `tree.query` call handles a whole year of crashes in a couple of
+seconds against ~9,100 tract polygons.
+
+Only the ~9,100 x N-year aggregate is stored, in `tract_crash_year` — no
+per-crash column, no 11.6M-row backfill.
 
 IMPORTANT: only about 37% of crashes carry coordinates, so this table covers
 only that subset. Every surface built on it has to say so.
 
-The boundary file is downloaded to a temp directory and deleted afterwards
-(~4.5 MB zipped); it is not committed. The frontend's tract TopoJSON comes
-from the same file via etl.build_tract_topojson.
+Boundaries come from the Census TIGERweb REST service as GeoJSON, paged the
+same way etl/load_calenviroscreen.py and etl/census_tract_density.py page
+their ArcGIS sources. Layer 6 of tigerWMS_Census2020 is "Census Tracts;
+2020 Census - January 1, 2020 vintage" — the vintage CalEnviroScreen 5.0 is
+scored on, which is what makes the GEOID join valid. `f=geojson` output is
+already WGS84, so the crash lat/lng needs no reprojection.
 
-Source: https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_06_tract_500k.zip
+Nothing is written to disk: the boundaries are fetched into memory and
+dropped when the run ends. The frontend's tract TopoJSON comes from the same
+service via etl.build_tract_topojson.
 
 Usage:
     python -m etl.compute_tract_crashes                  # trailing 2 years
@@ -24,12 +32,12 @@ from __future__ import annotations
 
 import argparse
 import logging
-import tempfile
-from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import date
-from pathlib import Path
+from typing import NamedTuple, Sequence
 
-import pandas as pd
+import shapely
+from shapely.geometry import shape
 from sqlalchemy import text
 
 from app.database import EtlSessionLocal as SessionLocal, etl_engine
@@ -38,90 +46,155 @@ from etl._utils import get_with_retry, track_etl_run
 
 logger = logging.getLogger(__name__)
 
-TRACT_SHAPEFILE_URL = (
-    "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_06_tract_500k.zip"
+TIGERWEB_TRACTS_URL = (
+    "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb"
+    "/tigerWMS_Census2020/MapServer/6/query"
 )
+CA_STATE_FIPS = "06"
+PAGE_SIZE = 1000
 
-# Trailing window for the scheduled run. Crash years only gain rows for a
-# while after the year ends (CCRS keeps trickling), so re-do the last two.
+# Degrees of boundary generalisation asked of the service. ~0.0001 deg is
+# ~11 m at California latitudes, which pulls the payload from ~48 MB to ~7 MB
+# while staying an order of magnitude finer than anything that could move a
+# crash into the wrong tract. Set to 0 for the ungeneralised geometry.
+GENERALIZE_DEGREES = 0.0001
+
+# Trailing window for the scheduled run. Crash years keep gaining rows for a
+# while after the year ends (CCRS trickles in), so re-do the last two.
 DEFAULT_TRAILING_YEARS = 2
 EARLIEST_YEAR = 2001
 
 
-@contextmanager
-def tract_boundaries():
-    """Yield the CA tract polygons as a GeoDataFrame [geoid, geometry].
+class CrashPoint(NamedTuple):
+    """One coordinate-bearing crash, as the join needs it."""
 
-    Downloads the Census boundary zip into a temp directory that is removed
-    on exit. geopandas is imported lazily so the rest of the ETL (and the
-    API) doesn't pay for it at import time.
+    latitude: float
+    longitude: float
+    crash_year: int
+    number_killed: int
+    number_injured: int
+
+
+@dataclass(frozen=True)
+class TractIndex:
+    """Tract GEOIDs and an STRtree over their polygons, positionally aligned."""
+
+    geoids: list[str]
+    tree: shapely.STRtree
+
+
+def fetch_tract_features(
+    generalize: float = GENERALIZE_DEGREES, page_size: int = PAGE_SIZE
+) -> list[dict]:
+    """Page the TIGERweb tract layer for California and return GeoJSON features.
+
+    Each feature carries a single `GEOID` property. The service caps a page
+    and flags `exceededTransferLimit` when there is more, same contract as
+    the CalEnviroScreen loader's resultOffset paging.
     """
-    import geopandas as gpd
+    features: list[dict] = []
+    offset = 0
+    while True:
+        params = {
+            "where": f"STATE='{CA_STATE_FIPS}'",
+            "outFields": "GEOID",
+            "returnGeometry": "true",
+            "f": "geojson",
+            "geometryPrecision": "6",
+            "resultOffset": str(offset),
+            "resultRecordCount": str(page_size),
+        }
+        if generalize:
+            params["maxAllowableOffset"] = str(generalize)
+        logger.info("Fetching CA tract boundaries (offset=%d)", offset)
+        resp = get_with_retry(
+            TIGERWEB_TRACTS_URL, params=params, timeout=180.0, follow_redirects=True
+        )
+        body = resp.json()
+        page = body.get("features") or []
+        if not page:
+            break
+        features.extend(page)
+        offset += len(page)
+        if not body.get("exceededTransferLimit"):
+            break
 
-    with tempfile.TemporaryDirectory(prefix="calsight-tracts-") as tmp:
-        zip_path = Path(tmp) / "cb_2020_06_tract_500k.zip"
-        logger.info("Downloading %s", TRACT_SHAPEFILE_URL)
-        resp = get_with_retry(TRACT_SHAPEFILE_URL, timeout=180.0, follow_redirects=True)
-        zip_path.write_bytes(resp.content)
-        logger.info("Boundary zip: %.1f MB", len(resp.content) / 1e6)
-
-        # /vsizip/ is GDAL's zip reader — no need to unpack the shapefile's
-        # five sidecar files ourselves.
-        gdf = gpd.read_file(f"/vsizip/{zip_path}")
-        gdf = gdf[["GEOID", "geometry"]].rename(columns={"GEOID": "geoid"})
-        # Census cartographic files are NAD83; crash lat/lng is WGS84. The
-        # two differ by ~1m in CA, but reprojecting is one line and keeps
-        # sjoin from warning about mismatched CRS.
-        gdf = gdf.to_crs("EPSG:4326")
-        logger.info("Loaded %d tract polygons", len(gdf))
-        yield gdf
+    logger.info("Fetched %d tract polygons", len(features))
+    if not features:
+        # A silent empty result would zero out every tract for the window.
+        raise RuntimeError(f"TIGERweb returned no CA tracts ({TIGERWEB_TRACTS_URL})")
+    return features
 
 
-def aggregate_crashes_to_tracts(crashes: pd.DataFrame, tracts) -> pd.DataFrame:
+def build_tract_index(features: Sequence[dict]) -> TractIndex:
+    """Turn GeoJSON tract features into a queryable STRtree."""
+    geoids: list[str] = []
+    geoms: list = []
+    for feature in features:
+        geoid = (feature.get("properties") or {}).get("GEOID")
+        geometry = feature.get("geometry")
+        if not geoid or not geometry:
+            continue
+        geoids.append(str(geoid))
+        geoms.append(shape(geometry))
+    return TractIndex(geoids=geoids, tree=shapely.STRtree(geoms))
+
+
+def aggregate_crashes_to_tracts(
+    crashes: Sequence[CrashPoint], index: TractIndex
+) -> list[dict]:
     """Point-in-polygon join, then sum per (geoid, year).
 
-    `crashes` needs columns: latitude, longitude, crash_year, number_killed,
-    number_injured. `tracts` is a GeoDataFrame with [geoid, geometry].
+    Returns [{geoid, year, crash_count, killed, injured}], sorted.
 
-    Returns a DataFrame [geoid, year, crash_count, killed, injured]. Crashes
-    that fall outside every CA tract (bad coordinates, or out of state) are
-    dropped — that is the point of the join, not an error.
+    Two kinds of crash are dropped, both deliberately:
+
+    - one whose coordinate falls outside every CA tract (bad coordinates, or
+      genuinely out of state) — that is the point of the join;
+    - one that lands exactly ON a shared tract boundary. `predicate="within"`
+      is interior-only, so a boundary point matches nothing. That is the safe
+      direction (an "intersects" join would count it in both neighbours), and
+      at the 5-decimal precision crash coordinates carry it is vanishingly
+      rare.
+
+    A point matching more than one tract — possible where the service's
+    generalised boundaries overlap by a hair — is counted once, against the
+    first match.
     """
-    import geopandas as gpd
+    if not crashes:
+        return []
 
-    empty = pd.DataFrame(
-        columns=["geoid", "year", "crash_count", "killed", "injured"]
+    points = shapely.points(
+        [c.longitude for c in crashes], [c.latitude for c in crashes]
     )
-    if crashes.empty:
-        return empty
+    point_idx, tract_idx = index.tree.query(points, predicate="within")
 
-    points = gpd.GeoDataFrame(
-        crashes,
-        geometry=gpd.points_from_xy(crashes["longitude"], crashes["latitude"]),
-        crs="EPSG:4326",
-    )
-    joined = points.sjoin(tracts, how="inner", predicate="within")
-    if joined.empty:
-        return empty
+    totals: dict[tuple[str, int], list[int]] = {}
+    claimed: set[int] = set()
+    for pi, ti in zip(point_idx.tolist(), tract_idx.tolist()):
+        if pi in claimed:
+            continue
+        claimed.add(pi)
+        crash = crashes[pi]
+        entry = totals.setdefault((index.geoids[ti], int(crash.crash_year)), [0, 0, 0])
+        entry[0] += 1
+        entry[1] += int(crash.number_killed or 0)
+        entry[2] += int(crash.number_injured or 0)
 
-    out = (
-        joined.groupby(["geoid", "crash_year"])
-        .agg(
-            crash_count=("crash_year", "size"),
-            killed=("number_killed", "sum"),
-            injured=("number_injured", "sum"),
-        )
-        .reset_index()
-        .rename(columns={"crash_year": "year"})
-    )
-    for col in ("crash_count", "killed", "injured"):
-        out[col] = out[col].fillna(0).astype(int)
-    out["year"] = out["year"].astype(int)
-    return out[["geoid", "year", "crash_count", "killed", "injured"]]
+    return [
+        {
+            "geoid": geoid,
+            "year": year,
+            "crash_count": count,
+            "killed": killed,
+            "injured": injured,
+        }
+        for (geoid, year), (count, killed, injured) in sorted(totals.items())
+    ]
 
 
-def fetch_crash_points(year: int) -> pd.DataFrame:
-    """Coordinate-bearing crashes for one year, as a DataFrame."""
+def fetch_crash_points(year: int) -> list[CrashPoint]:
+    """Coordinate-bearing crashes for one year."""
     sql = text(
         "SELECT latitude, longitude, crash_year, "
         "       COALESCE(number_killed, 0) AS number_killed, "
@@ -131,7 +204,13 @@ def fetch_crash_points(year: int) -> pd.DataFrame:
         "  AND latitude IS NOT NULL AND longitude IS NOT NULL"
     )
     with etl_engine.connect() as conn:
-        return pd.read_sql(sql, conn, params={"year": year})
+        return [
+            CrashPoint(
+                float(r.latitude), float(r.longitude), int(r.crash_year),
+                int(r.number_killed), int(r.number_injured),
+            )
+            for r in conn.execute(sql, {"year": year})
+        ]
 
 
 @track_etl_run("tract_crashes")
@@ -141,38 +220,60 @@ def run(start_year: int | None = None, end_year: int | None = None) -> int:
     start_year = start_year or (end_year - DEFAULT_TRAILING_YEARS + 1)
     if start_year > end_year:
         raise ValueError(f"--start {start_year} is after --end {end_year}")
+    if start_year < EARLIEST_YEAR:
+        # Say so rather than silently clamping: a typo'd --start would
+        # otherwise look like it worked.
+        raise ValueError(
+            f"--start {start_year} is before the first crash year {EARLIEST_YEAR}"
+        )
 
     db = SessionLocal()
     total = 0
     try:
-        with tract_boundaries() as tracts:
-            for year in range(max(start_year, EARLIEST_YEAR), end_year + 1):
-                crashes = fetch_crash_points(year)
-                logger.info("Year %d: %d crashes with coordinates", year, len(crashes))
-                rows = aggregate_crashes_to_tracts(crashes, tracts)
+        index = build_tract_index(fetch_tract_features())
+        for year in range(start_year, end_year + 1):
+            crashes = fetch_crash_points(year)
+            logger.info("Year %d: %d crashes with coordinates", year, len(crashes))
 
-                # Delete-then-insert rather than upsert: a re-run of the
-                # window has to be able to LOWER a tract's count (a crash
-                # re-geocoded into its neighbour), and an upsert can only
-                # raise it. One transaction per year, so a reader never sees
-                # the year missing.
-                db.execute(
-                    text("DELETE FROM tract_crash_year WHERE year = :year"),
-                    {"year": year},
+            if not crashes and _year_has_rows(db, year):
+                # An empty read with rows already stored means the crashes
+                # table lost the year, not that the tracts emptied. The
+                # orchestrator's max_drop_pct guard is advisory and runs after
+                # this commits, so refuse here instead.
+                logger.warning(
+                    "Year %d returned no coordinate crashes but tract rows "
+                    "exist — refusing to wipe them", year,
                 )
-                if not rows.empty:
-                    db.bulk_insert_mappings(
-                        TractCrashYear, rows.to_dict(orient="records")
-                    )
-                db.commit()
-                total += len(rows)
-                logger.info("Year %d: %d tract rows written", year, len(rows))
+                continue
+
+            rows = aggregate_crashes_to_tracts(crashes, index)
+
+            # Delete-then-insert rather than upsert: a re-run of the window
+            # has to be able to LOWER a tract's count (a crash re-geocoded
+            # into its neighbour), and an upsert can only raise it. One
+            # transaction per year, so a reader never sees the year missing.
+            db.execute(
+                text("DELETE FROM tract_crash_year WHERE year = :year"),
+                {"year": year},
+            )
+            if rows:
+                db.bulk_insert_mappings(TractCrashYear, rows)
+            db.commit()
+            total += len(rows)
+            logger.info("Year %d: %d tract rows written", year, len(rows))
 
         logger.info("Done. %d tract-year rows across %d-%d",
                     total, start_year, end_year)
         return total
     finally:
         db.close()
+
+
+def _year_has_rows(db, year: int) -> bool:
+    return db.execute(
+        text("SELECT 1 FROM tract_crash_year WHERE year = :year LIMIT 1"),
+        {"year": year},
+    ).first() is not None
 
 
 if __name__ == "__main__":

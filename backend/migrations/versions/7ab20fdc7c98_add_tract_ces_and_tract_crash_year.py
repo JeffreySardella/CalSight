@@ -8,8 +8,8 @@ CREATE TABLEs — nothing existing is touched, so this is a plain expand.
    ~9,100 CA tracts, keyed by the 11-digit census GEOID.
 
 2. tract_crash_year — crashes-with-coordinates aggregated per (tract, year)
-   by etl.compute_tract_crashes (geopandas point-in-polygon; there is no
-   PostGIS on this server). No FK to tract_ces: a tract can carry crashes
+   by etl.compute_tract_crashes (shapely STRtree point-in-polygon; there is
+   no PostGIS on this server). No FK to tract_ces: a tract can carry crashes
    without a CES score (and vice versa), and the API left-joins the two.
 
 Grants: pg_default_acl already gives calsight_team read on objects calsight

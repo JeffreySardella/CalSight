@@ -886,10 +886,10 @@ class TractCes(Base):
 class TractCrashYear(Base):
     """Crashes with coordinates, aggregated per census tract per year.
 
-    Built by etl.compute_tract_crashes: a geopandas point-in-polygon join of
-    crash lat/lng against the Census tract boundaries (there is no PostGIS on
-    this server, so the join happens in Python and only its ~9,100 x N-year
-    result is stored).
+    Built by etl.compute_tract_crashes: a shapely STRtree point-in-polygon
+    join of crash lat/lng against the Census tract boundaries (there is no
+    PostGIS on this server, so the join happens in Python and only its
+    ~9,100 x N-year result is stored).
 
     Covers ONLY crashes that carry coordinates — about 37% of the 11.6M
     statewide. Anything built on this table has to say so.

@@ -1,18 +1,22 @@
-"""Build frontend/public/ca-tracts.topo.json from the Census boundary file.
+"""Build frontend/public/ca-tracts.topo.json from the Census TIGERweb service.
 
 One-shot build script, like frontend/scripts/enrich-counties.mjs — the output
 is committed and served as a static asset, the same way ca-counties.topo.json
 is. Re-run it only when the tract vintage changes (CES 5.0 is scored on 2020
 tracts, so that is not soon).
 
-Why TopoJSON and not GeoJSON: 9,109 tract polygons share almost every
-boundary with a neighbour. TopoJSON stores each shared arc once and quantizes
+Boundaries come from the same TIGERweb layer etl.compute_tract_crashes joins
+against, so the map and the aggregate can never disagree about which polygon
+a GEOID is.
+
+Why TopoJSON and not GeoJSON: the tract polygons share almost every boundary
+with a neighbour. TopoJSON stores each shared arc once and quantizes
 coordinates to integers, which is the difference between a multi-megabyte
-download and one a phone will tolerate. Measured at the defaults below:
-1.43 MB raw / 362 KB gzip, against 4.5 MB for the source shapefile zip.
+download and one a phone will tolerate.
 
 Requires the `topojson` package (backend/requirements-dev.txt) — build-time
-only, not installed in the API or pipeline containers.
+only, not installed in the API or pipeline containers. It reads the GeoJSON
+FeatureCollection directly; no geopandas involved.
 
 Usage:
     python -m etl.build_tract_topojson
@@ -27,7 +31,7 @@ import json
 import logging
 from pathlib import Path
 
-from etl.compute_tract_crashes import tract_boundaries
+from etl.compute_tract_crashes import fetch_tract_features
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +41,10 @@ OUTPUT = (
 )
 
 # Degrees, applied AFTER the topology is built, so shared borders stay shared
-# (no slivers between neighbours). 0.0015 deg is ~165 m — below what a tract
+# (no slivers between neighbours). 0.002 deg is ~220 m — below what a tract
 # outline resolves to at the zoom levels this layer is used at, and gentle
 # enough that no tract collapses to an empty geometry (the build asserts it).
-DEFAULT_SIMPLIFY = 0.0015
+DEFAULT_SIMPLIFY = 0.002
 # Integer grid the simplified coordinates are snapped to. 3,000 steps over
 # California's ~10-degree span is ~370 m; the resulting error is dwarfed by
 # the simplification above, and it is what makes the arcs compress.
@@ -51,25 +55,31 @@ def build(simplify: float, quantize: float) -> dict:
     """Return the TopoJSON topology for the CA tracts, keyed by GEOID."""
     import topojson as tp
 
-    with tract_boundaries() as gdf:
-        topo = tp.Topology(
-            gdf,
-            object_name="tracts",
-            # High prequantize: the delta-encoding happens before
-            # simplification, so a coarse grid here would round vertices away
-            # before the simplifier gets to choose which ones matter.
-            prequantize=1e6,
-            toposimplify=simplify,
-            topoquantize=quantize,
-        )
-        topology = json.loads(topo.to_json())
+    # generalize=0 on purpose, unlike the crash join. The service's own
+    # generalisation moves each polygon's vertices independently, so
+    # neighbouring tracts stop sharing exact boundaries and TopoJSON has to
+    # store two arcs where it should store one — measured at 2,304 KB against
+    # 1,426 KB from the ungeneralised source. The download is ~48 MB and takes
+    # a couple of minutes; this runs once per tract vintage.
+    features = fetch_tract_features(generalize=0, page_size=500)
+    topo = tp.Topology(
+        {"type": "FeatureCollection", "features": list(features)},
+        object_name="tracts",
+        # High prequantize: the delta-encoding happens before simplification,
+        # so a coarse grid here would round vertices away before the
+        # simplifier gets to choose which ones matter.
+        prequantize=1e6,
+        toposimplify=simplify,
+        topoquantize=quantize,
+    )
+    topology = json.loads(topo.to_json())
 
     geometries = topology["objects"]["tracts"]["geometries"]
     for g in geometries:
         # The GEOID is the only attribute, so carry it as the TopoJSON `id`
         # (which topojson-client copies onto feature.id) rather than a
-        # one-key `properties` object. Saves ~250 KB across 9,109 tracts.
-        g["id"] = g.pop("properties")["geoid"]
+        # one-key `properties` object. Saves ~250 KB across 9,100 tracts.
+        g["id"] = g.pop("properties")["GEOID"]
 
     collapsed = [g["id"] for g in geometries if not g.get("arcs")]
     if collapsed:
