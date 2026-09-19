@@ -21,8 +21,8 @@ function makeWrapper() {
 }
 
 const YEAR_ROWS = [
-  { year: 2022, crash_count: 400_000, total_killed: 3800, total_injured: 120_000 },
-  { year: 2023, crash_count: 420_000, total_killed: 3600, total_injured: 125_000 },
+  { year: 2022, crash_count: 400_000, total_killed: 3800, total_injured: 120_000, total_severe_injured: 14_000 },
+  { year: 2023, crash_count: 420_000, total_killed: 3600, total_injured: 125_000, total_severe_injured: 15_000 },
 ];
 
 const HOUR_ROWS = Array.from({ length: 24 }, (_, h) => ({
@@ -86,6 +86,8 @@ describe("useStats", () => {
     expect(body.groups).toContain("cause");
     expect(body.start).toBe("2022-01");
     expect(body.end).toBe("2023-12");
+    const demoCall = spy.mock.calls.find(c => String(c[0]).includes("/api/demographics"));
+    expect(String(demoCall![0])).toContain("nearest=true");
   });
 
   it("maps at-fault demographic responses to chart data points", async () => {
@@ -152,7 +154,7 @@ describe("useStats", () => {
     expect(data.hourlyData[0]).toEqual({ hour: 0, count: 1000 });
 
     expect(data.yearlyData).toHaveLength(2);
-    expect(data.yearlyData[0]).toEqual({ year: 2022, count: 400_000, killed: 3800, injured: 120_000 });
+    expect(data.yearlyData[0]).toEqual({ year: 2022, count: 400_000, killed: 3800, injured: 120_000, severeInjured: 14_000 });
 
     expect(data.causesData).toHaveLength(4);
     expect(data.causesData[0]).toEqual({ label: "Speeding", count: 5000 });
@@ -172,8 +174,9 @@ describe("useStats", () => {
     expect(hero.incidentYoYPct).toBeCloseTo(5.0, 1);
     // YoY fatality %: (3600 - 3800) / 3800 * 100 = -5.3
     expect(hero.yoyFatalityChangePct).toBeCloseTo(-5.3, 1);
-    // KSI = (7400 killed + 245000 injured) / 3250000 pop * 100k = 7766.2
-    expect(hero.ksiRatePer100k).toBeCloseTo(7766.2, 0);
+    // KSI = (7,400 killed + 29,000 seriously injured) / 3,250,000 pop * 100k = 1120.0
+    expect(hero.ksiRatePer100k).toBeCloseTo(1120.0, 1);
+    expect(hero.ksiPopEstimatedFrom).toBeUndefined();
   });
 
   it("excludes current year from YoY calculations", async () => {
@@ -279,21 +282,35 @@ describe("useStats", () => {
   });
 });
 
-describe("computeHeroMetrics killed + injured rate", () => {
-  const row = (year: number, killed: number, injured: number) =>
-    ({ year, crash_count: 1, total_killed: killed, total_injured: injured });
+describe("computeHeroMetrics KSI rate", () => {
+  const CUR = new Date().getFullYear();
+  const row = (year: number, killed: number, severe: number, injured = 5_000) =>
+    ({ year, crash_count: 1, total_killed: killed, total_injured: injured, total_severe_injured: severe });
+  const demo = (year: number, population: number | null) => ({ county_code: 19, year, population });
 
-  it("divides only the crash years that have population", () => {
+  it("counts killed + seriously injured people, never all injuries", () => {
+    const hero = computeHeroMetrics([row(2022, 10, 90, 50_000)], [demo(2022, 100_000)]);
+    expect(hero.ksiRatePer100k).toBe(100); // (10 + 90) / 100,000 * 100k
+  });
+
+  it("excludes the partial current year from the rate", () => {
     const hero = computeHeroMetrics(
-      [row(2022, 100, 900), row(2023, 100, 900), row(2026, 50, 450)],
-      new Map([[2022, 1_000_000], [2023, 1_000_000]]),
+      [row(CUR - 1, 100, 900), row(CUR, 5_000, 5_000)],
+      [demo(CUR - 1, 1_000_000), demo(CUR, 1_000_000)],
     );
-    // (1000 + 1000) harmed / 2,000,000 people = 100 per 100K; 2026 has no population.
     expect(hero.ksiRatePer100k).toBe(100);
+  });
+
+  it("fills years without census population from the nearest census year and says so", () => {
+    const hero = computeHeroMetrics([row(2021, 100, 900), row(2022, 100, 900)], [demo(2021, 1_000_000)]);
+    // 2022 borrows 2021's 1,000,000 → 2,000 people / 2,000,000 = 100 per 100K
+    expect(hero.ksiRatePer100k).toBe(100);
+    expect(hero.ksiPopEstimatedFrom).toEqual([2021]);
   });
 
   it("leaves the rate unset without population", () => {
     expect(computeHeroMetrics([row(2022, 1, 1)], null).ksiRatePer100k).toBeUndefined();
-    expect(computeHeroMetrics([row(2022, 1, 1)], new Map()).ksiRatePer100k).toBeUndefined();
+    expect(computeHeroMetrics([row(2022, 1, 1)], []).ksiRatePer100k).toBeUndefined();
+    expect(computeHeroMetrics([row(2022, 1, 1)], [demo(2022, null)]).ksiRatePer100k).toBeUndefined();
   });
 });

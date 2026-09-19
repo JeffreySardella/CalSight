@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { SEVERITIES, CAUSES, formatYearMonth, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
 import { PERSISTED_QUERY_GC_TIME } from "../lib/queryPersistence";
+import { excludePartialYear } from "../lib/partialYear";
+import { fillDemographicYears } from "./useChoroplethData";
 
 export type StatsFilters = {
   dateRange: DateRangeFilter | null;
@@ -23,7 +25,7 @@ export type StatsFilters = {
 };
 
 export interface HourlyDataPoint { hour: number; count: number }
-export interface YearlyDataPoint { year: number; count: number; killed: number; injured: number }
+export interface YearlyDataPoint { year: number; count: number; killed: number; injured: number; severeInjured: number }
 export interface CauseDataPoint { label: string; count: number }
 export interface SeverityDataPoint { label: string; count: number }
 export interface GenderDataPoint { label: string; count: number }
@@ -34,6 +36,8 @@ export interface HeroMetrics {
   totalIncidents?: number;
   incidentYoYPct?: number;
   ksiRatePer100k?: number;
+  /** Census years whose population stood in for years without one (nearest year). */
+  ksiPopEstimatedFrom?: number[];
   yoyFatalityChangePct?: number;
 }
 export interface MonthlyDataPoint { month: number; label: string; count: number; killed: number; injured: number }
@@ -68,7 +72,7 @@ export interface UseStatsResult {
   refetch: () => void;
 }
 
-type YearRow = { year: number; crash_count: number; total_killed: number; total_injured: number };
+type YearRow = { year: number; crash_count: number; total_killed: number; total_injured: number; total_severe_injured?: number };
 type HourRow = { hour: number; crash_count: number };
 type CauseRow = { canonical_cause: string; crash_count: number; total_killed: number; total_injured: number };
 type SeverityRow = { severity: string; crash_count: number; total_killed: number; total_injured: number };
@@ -143,6 +147,9 @@ function buildDemoUrl(filters: StatsFilters): string {
   if (filters.dateRange) {
     if (filters.dateRange.start) p.set("start", formatYearMonth(filters.dateRange.start));
     if (filters.dateRange.end) p.set("end", formatYearMonth(filters.dateRange.end));
+    // Years past the latest ACS release come back as the nearest census year,
+    // same as the map (useChoroplethData.buildDemoUrl).
+    p.set("nearest", "true");
   }
   if (filters.counties.length) p.set("county", filters.counties.join(","));
   const qs = p.toString();
@@ -158,24 +165,32 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json();
 }
 
-const CURRENT_YEAR = new Date().getFullYear();
-
-/** Hero numbers. The killed + injured rate divides only the crash years that
- *  have census population (ACS covers fewer years than the crash data), so it
- *  is an annual average per 100K rather than several years of crashes over
- *  fewer years of people. */
-export function computeHeroMetrics(yearRows: YearRow[], popByYear: Map<number, number> | null): HeroMetrics {
+/** Hero numbers. KSI = people killed or seriously injured, per 100K residents
+ *  a year, over complete years only (the in-progress year is excluded; deaths
+ *  lag months). Crash years without census population borrow the nearest
+ *  census year, as the map does, and ksiPopEstimatedFrom names those years so
+ *  the tile can say so. */
+export function computeHeroMetrics(yearRows: YearRow[], demoRows: DemoRow[] | null): HeroMetrics {
   if (!yearRows.length) return {};
   const totalIncidents = yearRows.reduce((s, r) => s + r.crash_count, 0);
-  const complete = yearRows.filter((r) => r.year < CURRENT_YEAR).sort((a, b) => a.year - b.year);
+  const complete = excludePartialYear(yearRows).sort((a, b) => a.year - b.year);
   const hero: HeroMetrics = { totalIncidents };
 
-  if (popByYear && popByYear.size > 0) {
-    const matched = yearRows.filter((r) => popByYear.has(r.year));
+  if (demoRows && demoRows.length > 0 && complete.length > 0) {
+    const { rows, estimated } = fillDemographicYears(demoRows, new Set(complete.map((r) => r.year)));
+    const popByYear = new Map<number, number>();
+    for (const r of rows) {
+      if (r.population) popByYear.set(r.year, (popByYear.get(r.year) ?? 0) + r.population);
+    }
+    const matched = complete.filter((r) => popByYear.has(r.year));
     const pop = matched.reduce((s, r) => s + popByYear.get(r.year)!, 0);
     if (pop > 0) {
-      const harmed = matched.reduce((s, r) => s + r.total_killed + r.total_injured, 0);
-      hero.ksiRatePer100k = Math.round((harmed / pop) * 100_000 * 10) / 10;
+      const ksi = matched.reduce((s, r) => s + r.total_killed + (r.total_severe_injured ?? 0), 0);
+      hero.ksiRatePer100k = Math.round((ksi / pop) * 100_000 * 10) / 10;
+      const sources = [...new Set(
+        [...estimated].filter(([year]) => popByYear.has(year)).map(([, source]) => source),
+      )].sort((a, b) => a - b);
+      if (sources.length > 0) hero.ksiPopEstimatedFrom = sources;
     }
   }
 
@@ -283,6 +298,7 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
 
     const yearlyData: YearlyDataPoint[] = rows<YearRow>(b.year).map((r) => ({
       year: r.year, count: r.crash_count, killed: r.total_killed, injured: r.total_injured,
+      severeInjured: r.total_severe_injured ?? 0,
     }));
     const hourlyData: HourlyDataPoint[] = rows<HourRow>(b.hour).map((r) => ({
       hour: r.hour, count: r.crash_count,
@@ -322,14 +338,7 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
       per_100k_aadt: r.per_100k_aadt, per_10k_vehicles: r.per_10k_vehicles,
     }));
 
-    let popByYear: Map<number, number> | null = null;
-    if (demoQuery.data) {
-      popByYear = new Map();
-      for (const r of demoQuery.data) {
-        if (r.population) popByYear.set(r.year, (popByYear.get(r.year) ?? 0) + r.population);
-      }
-    }
-    const heroMetrics = computeHeroMetrics(rows<YearRow>(b.year), popByYear);
+    const heroMetrics = computeHeroMetrics(rows<YearRow>(b.year), demoQuery.data ?? null);
 
     return { hourlyData, yearlyData, causesData, severityData, genderData, ageBracketData, atFaultGenderData, atFaultAgeBracketData, monthlyData, dayOfWeekData, rateData, heroMetrics };
   }, [batchQuery.data, demoQuery.data]);
