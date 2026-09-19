@@ -46,6 +46,10 @@ function pickValue(r: DimensionRow, measure: Measure, dim: Dimension): number {
     if (r.total_killed != null) return r.total_killed;
   }
   if (measure === "injured") {
+    // Demographic/at-fault rows don't carry total_injured — it's the crash-level
+    // field. Injured = person-level count minus the fatal share (never negative).
+    if (isDemographic) return Math.max(0, (r.victim_count ?? 0) - (r.fatal_victim_count ?? 0));
+    if (isAtFault) return Math.max(0, (r.party_count ?? 0) - (r.fatal_party_count ?? 0));
     if (r.total_injured != null) return r.total_injured;
   }
 
