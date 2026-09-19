@@ -283,7 +283,7 @@ export default function IntersectionsPanel() {
                     {r.latitude != null && r.longitude != null ? (
                       <Link
                         to={mapHref(r.latitude, r.longitude)}
-                        className="text-primary hover:underline"
+                        className="relative text-primary hover:underline after:content-[''] after:absolute after:inset-[-6px]"
                         aria-label={`View ${roadLabel(r)} on the map`}
                       >
                         {roadLabel(r)}

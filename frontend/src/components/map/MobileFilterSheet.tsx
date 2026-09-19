@@ -48,6 +48,20 @@ export default function MobileFilterSheet({
     }
   }, [isOpen]);
 
+  // Escape closes the sheet (WCAG 2.1.1). FocusTrap's own escapeDeactivates
+  // is turned off below and this listener drives onClose instead — same
+  // split used by every other FocusTrap dialog in the app (KeyboardHelpModal,
+  // SettingsPopover, ChartConfigSheet), so a bare `escapeDeactivates: true`
+  // here doesn't silently unmoor the trap from React state.
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const currentTab = tabs.find((t) => t.key === activeTab) ?? tabs[0];
@@ -67,11 +81,16 @@ export default function MobileFilterSheet({
       />
 
       {/* Mobile: bottom sheet. Desktop: centered modal */}
-      <FocusTrap focusTrapOptions={{ allowOutsideClick: true }}>
+      {/* initialFocus/fallbackFocus target the dialog itself (tabIndex={-1}),
+          same as KeyboardHelpModal — without it, focus-trap auto-detects the
+          first tabbable descendant and throws if a tab's content ever
+          renders with nothing focusable yet (e.g. a loading state). */}
+      <FocusTrap focusTrapOptions={{ allowOutsideClick: true, escapeDeactivates: false, initialFocus: '[role="dialog"]', fallbackFocus: '[role="dialog"]' }}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={currentTab.label}
+        tabIndex={-1}
         className={`absolute bg-surface-container-lowest max-h-[80vh] flex flex-col transition-[transform,opacity] duration-300 ease-out will-change-transform
           bottom-0 left-0 right-0 rounded-t-xl
           md:bottom-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:w-[480px] md:max-w-[90vw] md:ambient-shadow

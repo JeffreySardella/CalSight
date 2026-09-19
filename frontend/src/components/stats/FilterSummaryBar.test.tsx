@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import FilterSummaryBar, { type FilterChip } from "./FilterSummaryBar";
 
 describe("FilterSummaryBar", () => {
@@ -41,5 +42,19 @@ describe("FilterSummaryBar", () => {
     render(<FilterSummaryBar chips={[]} onEditFilters={onEditFilters} />);
     fireEvent.click(screen.getByRole("button", { name: /Edit Filters/ }));
     expect(onEditFilters).toHaveBeenCalledTimes(1);
+  });
+
+  it("Edit Filters is keyboard-operable: Enter and Space both activate it (WCAG 2.1.1)", async () => {
+    const user = userEvent.setup();
+    const onEditFilters = vi.fn();
+    render(<FilterSummaryBar chips={[]} onEditFilters={onEditFilters} />);
+    const button = screen.getByRole("button", { name: /Edit Filters/ });
+
+    button.focus();
+    await user.keyboard("{Enter}");
+    expect(onEditFilters).toHaveBeenCalledTimes(1);
+
+    await user.keyboard(" ");
+    expect(onEditFilters).toHaveBeenCalledTimes(2);
   });
 });
