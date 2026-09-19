@@ -1,13 +1,29 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { safeGetItem, safeSetItem } from "../lib/safeStorage";
 import type { DashboardConfig, ChartSlot, Dimension, Measure, ChartType, ChartOptions, PresetKey } from "../lib/dashboard/types";
-import { generateId } from "../lib/dashboard/types";
+import { generateId, sanitizeMeasure } from "../lib/dashboard/types";
 import { buildPresetCharts, PRESETS } from "../lib/dashboard/presets";
 import { decodeDashboard } from "../lib/dashboard/urlCodec";
 import { isValidConfig } from "../lib/dashboard/validateConfig";
 
 const STORAGE_KEY = "calsight-dashboard-v1";
 const URL_PARAM = "dashboard";
+
+// Choke point: every chart slot — new, edited, or restored from a saved/shared
+// dashboard — runs through here so a person-level dimension (gender/age_bracket/
+// at_fault_*) can never carry fatality_rate/yoy_change, which need a crash-level
+// row those dimensions don't have (see sanitizeMeasure in lib/dashboard/types).
+function sanitizeChartMeasures<T extends { dimension: Dimension; measure: Measure; secondaryMeasure?: Measure }>(chart: T): T {
+  return {
+    ...chart,
+    measure: sanitizeMeasure(chart.dimension, chart.measure) ?? "count",
+    secondaryMeasure: sanitizeMeasure(chart.dimension, chart.secondaryMeasure),
+  };
+}
+
+function sanitizeConfigCharts(config: DashboardConfig): DashboardConfig {
+  return { ...config, charts: config.charts.map(sanitizeChartMeasures) };
+}
 
 function loadInitialConfig(): DashboardConfig {
   if (typeof window === "undefined") return { mode: "simple", preset: "overview", charts: [] };
@@ -16,14 +32,14 @@ function loadInitialConfig(): DashboardConfig {
   const urlVal = params.get(URL_PARAM);
   if (urlVal) {
     const decoded = decodeDashboard(urlVal);
-    if (decoded && isValidConfig(decoded)) return decoded;
+    if (decoded && isValidConfig(decoded)) return sanitizeConfigCharts(decoded);
   }
 
   const stored = safeGetItem(STORAGE_KEY);
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      if (isValidConfig(parsed)) return parsed;
+      if (isValidConfig(parsed)) return sanitizeConfigCharts(parsed);
     } catch { /* corrupted value */ }
   }
 
@@ -81,7 +97,7 @@ export function useDashboardConfig() {
     setConfig((prev) => {
       if (prev.charts.length >= MAX_CHARTS) return prev;
       const order = prev.charts.length;
-      const slot: ChartSlot = { ...chart, id: generateId(), order };
+      const slot: ChartSlot = { ...sanitizeChartMeasures(chart), id: generateId(), order };
       return { ...prev, charts: [...prev.charts, slot] };
     });
   }, []);
@@ -96,7 +112,7 @@ export function useDashboardConfig() {
   const updateChart = useCallback((id: string, updates: Partial<NewChart>) => {
     setConfig((prev) => ({
       ...prev,
-      charts: prev.charts.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+      charts: prev.charts.map((c) => (c.id === id ? sanitizeChartMeasures({ ...c, ...updates }) : c)),
     }));
   }, []);
 

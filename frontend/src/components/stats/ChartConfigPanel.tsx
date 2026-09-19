@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DIMENSIONS, DIMENSION_LABELS, MEASURE_LABELS, defaultChartType, isPersonLevelDimension, CRASH_ONLY_MEASURES } from "../../lib/dashboard/types";
+import { DIMENSIONS, DIMENSION_LABELS, MEASURE_LABELS, defaultChartType, isPersonLevelDimension, CRASH_ONLY_MEASURES, sanitizeMeasure } from "../../lib/dashboard/types";
 import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
 
 interface ChartConfig {
@@ -55,10 +55,6 @@ function measureOptions(dim: Dimension): { value: Measure; label: string }[] {
   return isPersonLevelDimension(dim)
     ? SUPPORTED_MEASURES.filter((m) => !CRASH_ONLY_MEASURES.includes(m.value))
     : SUPPORTED_MEASURES;
-}
-
-function sanitizeMeasure(dim: Dimension, m: Measure | undefined): Measure | undefined {
-  return m && isPersonLevelDimension(dim) && CRASH_ONLY_MEASURES.includes(m) ? undefined : m;
 }
 
 const SUPPORTS_DUAL_AXIS = new Set<ChartType>(["line", "area"]);

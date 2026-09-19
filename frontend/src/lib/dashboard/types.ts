@@ -108,6 +108,19 @@ export function isPersonLevelDimension(dim: Dimension): boolean {
 /** Measures that require a crash-level row and don't apply to person-level dimensions. */
 export const CRASH_ONLY_MEASURES: readonly Measure[] = ["fatality_rate", "yoy_change"];
 
+/**
+ * The single choke point for the person-level/crash-only-measure rule: returns
+ * `m` unchanged unless it's a CRASH_ONLY_MEASURES entry on a person-level
+ * dimension, in which case it returns undefined so the caller can fall back
+ * (usually to "count"). Every path that can create or restore a chart slot —
+ * the chart editor, addChart/updateChart, the localStorage/URL dashboard
+ * restore, and chart suggestions — must run measure/secondaryMeasure through
+ * this before it reaches a chart slot.
+ */
+export function sanitizeMeasure(dim: Dimension, m: Measure | undefined): Measure | undefined {
+  return m && isPersonLevelDimension(dim) && CRASH_ONLY_MEASURES.includes(m) ? undefined : m;
+}
+
 export function generateId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
