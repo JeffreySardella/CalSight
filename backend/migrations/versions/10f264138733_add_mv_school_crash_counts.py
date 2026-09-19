@@ -34,7 +34,7 @@ Design notes (same rules as mv_street_aggregates, c4f1a9b2d3e7):
   - No index on school_id alone — the unique index already leads with it.
 
 Revision ID: 10f264138733
-Revises: 50bbb1251cb7
+Revises: 5d8342ec4f96
 Create Date: 2026-09-18 20:07:43.354188
 """
 from typing import Sequence, Union
@@ -44,7 +44,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '10f264138733'
-down_revision: Union[str, None] = '50bbb1251cb7'
+down_revision: Union[str, None] = '5d8342ec4f96'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
