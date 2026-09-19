@@ -18,7 +18,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, SchoolLocation
-from etl._utils import get_with_retry, track_etl_run
+from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -100,6 +100,7 @@ def run():
                 break
 
         logger.info("Total active schools: %d", len(all_rows))
+        require_rows(all_rows, "schools", "active school records")
 
         # Bulk upsert in batches
         batch_size = 1000

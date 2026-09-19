@@ -23,7 +23,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, SpeedLimit
-from etl._utils import get_with_retry, track_etl_run
+from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -133,21 +133,21 @@ def run():
             })
 
         # Bulk upsert
-        if rows:
-            batch_size = 500
-            for i in range(0, len(rows), batch_size):
-                batch = rows[i : i + batch_size]
-                stmt = pg_insert(SpeedLimit).values(batch)
-                stmt = stmt.on_conflict_do_update(
-                    constraint="speed_limits_county_code_speed_limit_key",
-                    set_={
-                        "segment_count": stmt.excluded.segment_count,
-                        "avg_lanes": stmt.excluded.avg_lanes,
-                        "total_aadt": stmt.excluded.total_aadt,
-                    },
-                )
-                db.execute(stmt)
-                db.commit()
+        require_rows(rows, "speed_limits", "aggregated speed-limit rows")
+        batch_size = 500
+        for i in range(0, len(rows), batch_size):
+            batch = rows[i : i + batch_size]
+            stmt = pg_insert(SpeedLimit).values(batch)
+            stmt = stmt.on_conflict_do_update(
+                constraint="speed_limits_county_code_speed_limit_key",
+                set_={
+                    "segment_count": stmt.excluded.segment_count,
+                    "avg_lanes": stmt.excluded.avg_lanes,
+                    "total_aadt": stmt.excluded.total_aadt,
+                },
+            )
+            db.execute(stmt)
+            db.commit()
 
         logger.info("Done. %d speed limit records upserted.", len(rows))
 

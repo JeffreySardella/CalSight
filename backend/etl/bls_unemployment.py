@@ -25,7 +25,7 @@ from sqlalchemy import select
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, UnemploymentRate
 from app.settings import settings
-from etl._utils import post_with_retry, track_etl_run
+from etl._utils import post_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -208,6 +208,11 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                 f"BLS unemployment: {failed_batches} batch(es) failed; "
                 f"{total_inserted} inserted, {total_updated} updated before failing"
             )
+
+        # Every batch reported REQUEST_SUCCEEDED but the same wide year range
+        # is re-pulled every run, so ending with nothing written means BLS
+        # returned well-formed-but-empty series — not a legitimate outcome.
+        require_rows(total_inserted + total_updated, "unemployment", "unemployment rate rows")
 
         logger.info(
             "Done. %d inserted, %d updated",

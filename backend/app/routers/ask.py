@@ -1,4 +1,9 @@
-"""POST /api/ask — AI chat endpoint with function calling."""
+"""POST /api/ask — AI chat endpoint with function calling.
+
+``POST /api/ask/stream`` is the same pipeline with the final LLM call streamed
+back as Server-Sent Events. Both share the prompt builder, guardrails, tool
+loop and answer post-processing below; only the transport differs.
+"""
 
 from __future__ import annotations
 
@@ -7,10 +12,11 @@ import json
 import logging
 import re
 import time
+from collections.abc import Iterator
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
@@ -30,6 +36,7 @@ from app.llm_cache import get_ask_cache, make_cache_key
 from app.models import ChatFeedback
 from app.llm import (
     AllProvidersExhausted,
+    consume_stream,
     generate_with_fallback,
 )
 
@@ -38,6 +45,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["ask"])
 
 limiter = Limiter(key_func=rate_limit_key)
+
+# ONE bucket for every way of asking a question. slowapi scopes a plain
+# @limiter.limit to the endpoint, so giving /ask/stream its own decorator would
+# hand each caller a second 10/minute;200/day allowance of LLM calls — and the
+# client falls back from a throttled stream to /api/ask, which would then serve
+# it from that second bucket. shared_limit(scope="ask") keeps them on one.
+_ask_limit = limiter.shared_limit("10/minute;200/day", scope="ask")
 
 _MAX_TOOL_ROUNDS = 3
 _MAX_TOOL_CALLS_PER_ROUND = 3
@@ -55,6 +69,12 @@ def _apply_statement_timeout(db: Session, ms: int = _STATEMENT_TIMEOUT_MS) -> No
 
 class _AskAbandoned(Exception):
     """The HTTP request already timed out; stop burning LLM quota."""
+
+
+# Yielded by the streaming tool loop when a round it already streamed turns
+# out to be a tool call: the prose was the model narrating ("Let me check the
+# data…"), it is discarded server-side, and the client must drop it too.
+_RESET = object()
 
 
 # Control characters have no legitimate use in chat text but do show up in
@@ -198,7 +218,7 @@ def feedback(
 
 
 @router.post("/ask", response_model=AskResponse)
-@limiter.limit("10/minute;200/day")
+@_ask_limit
 async def ask(
     request: Request,
     response: Response,
@@ -247,6 +267,121 @@ async def ask(
     return result
 
 
+def _sse(event: str, data: dict[str, Any]) -> bytes:
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n".encode()
+
+
+def _sse_tokens(tokens: Iterator[Any], deadline: float) -> Iterator[bytes]:
+    """Re-frame a token generator as SSE, passing its return value through.
+
+    The deadline is re-checked per token, not just per tool round: the OpenAI
+    client's ``timeout`` is per read, so a provider trickling one token every
+    29s would otherwise hold this connection (and its DB session) open long
+    past the deadline ``/api/ask`` enforces with ``asyncio.wait_for``.
+    """
+    try:
+        while True:
+            if time.monotonic() >= deadline:
+                raise _AskAbandoned()
+            item = next(tokens)
+            yield _sse("reset", {}) if item is _RESET else _sse("token", {"t": item})
+    except StopIteration as stop:
+        return stop.value
+
+
+def _stream_ask(body: AskRequest) -> Iterator[bytes]:
+    """SSE body: `token` events while the answer is generated, then `done`.
+
+    Runs on Starlette's threadpool (a sync generator), so it owns its own DB
+    session for the same reason ``_handle_ask`` does.
+    """
+    db = None
+    try:
+        # Inside the try: the response has already started by the time this
+        # generator runs, so an exception here must become an `error` event
+        # rather than tearing down the connection with no terminal event.
+        cache = get_ask_cache()
+        history_payload = [m.model_dump() for m in body.history]
+        cache_key = make_cache_key(body.question, body.filters, history_payload)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            yield _sse("token", {"t": cached.answer})
+            yield _sse("done", {**cached.model_dump(), "cached": True})
+            return
+
+        deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
+        db = SessionLocal()
+        _apply_statement_timeout(db)
+        messages = _build_messages(body, db)
+        tools_called: list[str] = []
+        tools_succeeded: list[str] = []
+        tool_results: list[str] = []
+        degraded = False
+        try:
+            answer, provider = yield from _sse_tokens(
+                _run_with_tools_gen(
+                    db, messages, tools_called, tools_succeeded, deadline, tool_results,
+                    stream=True,
+                ),
+                deadline,
+            )
+        except AllProvidersExhausted:
+            try:
+                answer, provider = _run_simple_mode(db, body.filters, messages)
+            except Exception:
+                logger.exception("Simple-mode fallback failed after provider exhaustion")
+                yield _sse("done", {
+                    **_providers_exhausted_response(body, tools_called).model_dump(),
+                    "cached": False,
+                })
+                return
+            degraded = True
+            # Simple mode is a plain non-streamed call; deliver it in one go.
+            yield _sse("token", {"t": answer})
+
+        result, cacheable = _finalize_answer(
+            body, answer, provider, tools_called, tools_succeeded, tool_results, degraded
+        )
+        if cacheable:
+            cache.set(cache_key, result)
+        yield _sse("done", {**result.model_dump(), "cached": False})
+    except _AskAbandoned:
+        logger.warning("Ask stream abandoned after timeout; stopped tool loop early")
+        yield _sse("error", {"message": "Request timed out. Please try again."})
+    except Exception:
+        # Mid-stream provider failure lands here: the client already has
+        # partial text, so there is nobody left to fail over to.
+        logger.exception("Ask stream failed")
+        yield _sse("error", {"message": "The AI stream was interrupted. Please try again."})
+    finally:
+        if db is not None:
+            db.close()
+
+
+@router.post("/ask/stream")
+@_ask_limit
+async def ask_stream(request: Request, body: AskRequest):
+    """Same answer as POST /api/ask, delivered token by token over SSE.
+
+    POST, not GET, on purpose: a Cloudflare cache rule stores API GETs for
+    about an hour, which would serve one user's answer stream to the next.
+    ``Cache-Control: no-store`` matches /api/ask — answers depend on the POST
+    body, so no shared cache may store them (#291). ``X-Accel-Buffering: no``
+    disables proxy buffering where a reverse proxy honours it; Starlette's
+    GZipMiddleware excludes text/event-stream, which
+    ``test_sse_is_not_gzipped`` pins so an upgrade cannot silently regress it.
+    """
+    return StreamingResponse(
+        _stream_ask(body),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
 def _handle_ask(body: AskRequest) -> tuple[AskResponse, bool] | None:
     """Returns (response, cacheable) or None if the request was abandoned."""
     deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
@@ -261,7 +396,12 @@ def _handle_ask(body: AskRequest) -> tuple[AskResponse, bool] | None:
         db.close()
 
 
-def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> tuple[AskResponse, bool]:
+def _build_messages(body: AskRequest, db: Session) -> list[dict[str, Any]]:
+    """System prompt (with Quick Facts) + capped history + the question.
+
+    Shared by the JSON and SSE endpoints — the streaming path must not drift
+    from the prompt the non-streaming one sends.
+    """
     filters_summary = build_filters_summary(body.filters)
     # Quick Facts pre-queries the totals/severity-split for the active filters
     # and injects them into the system prompt. Saves a tool call for basic
@@ -279,6 +419,24 @@ def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> tuple[A
         messages.append({"role": msg.role, "content": msg.content})
 
     messages.append({"role": "user", "content": body.question})
+    return messages
+
+
+def _providers_exhausted_response(body: AskRequest, tools_called: list[str]) -> AskResponse:
+    return AskResponse(
+        answer=(
+            "AI is temporarily unavailable — all providers are busy or "
+            "rate limited right now. Please try again in a few minutes."
+        ),
+        provider="none",
+        grounded=False,
+        filters_used=body.filters,
+        tools_called=tools_called,
+    )
+
+
+def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> tuple[AskResponse, bool]:
+    messages = _build_messages(body, db)
 
     tools_called: list[str] = []
     tools_succeeded: list[str] = []
@@ -297,18 +455,29 @@ def _handle_ask_inner(body: AskRequest, db: Session, deadline: float) -> tuple[A
             # fails too, return a graceful degraded answer instead of a 500,
             # and never cache it: the very next attempt may succeed (#293).
             logger.exception("Simple-mode fallback failed after provider exhaustion")
-            return AskResponse(
-                answer=(
-                    "AI is temporarily unavailable — all providers are busy or "
-                    "rate limited right now. Please try again in a few minutes."
-                ),
-                provider="none",
-                grounded=False,
-                filters_used=body.filters,
-                tools_called=tools_called,
-            ), False
+            return _providers_exhausted_response(body, tools_called), False
         degraded = True
 
+    return _finalize_answer(
+        body, answer, provider, tools_called, tools_succeeded, tool_results, degraded
+    )
+
+
+def _finalize_answer(
+    body: AskRequest,
+    answer: str,
+    provider: str,
+    tools_called: list[str],
+    tools_succeeded: list[str],
+    tool_results: list[str],
+    degraded: bool,
+) -> tuple[AskResponse, bool]:
+    """Post-process a raw model answer into (AskResponse, cacheable).
+
+    Suggestion/chart extraction, the tool-grounding check and the cacheability
+    rules all live here so the streaming endpoint ends up with exactly the
+    payload the JSON endpoint would have returned.
+    """
     suggestions = _parse_suggestions(answer)
     chart = _parse_chart(answer)
     clean_answer = _strip_suggestions(_strip_chart(answer))
@@ -354,10 +523,35 @@ def _run_with_tools(
     deadline: float,
     tool_results: list[str] | None = None,
 ) -> tuple[str, str]:
-    """Run the tool-calling loop (max 3 rounds).
+    """Non-streaming tool loop — drains :func:`_run_with_tools_gen`."""
+    gen = _run_with_tools_gen(db, messages, tools_called, tools_succeeded, deadline, tool_results)
+    try:
+        while True:
+            next(gen)
+    except StopIteration as stop:
+        return stop.value
+
+
+def _run_with_tools_gen(
+    db: Session,
+    messages: list[dict],
+    tools_called: list[str],
+    tools_succeeded: list[str],
+    deadline: float,
+    tool_results: list[str] | None = None,
+    stream: bool = False,
+) -> Iterator[Any]:
+    """Run the tool-calling loop (max 3 rounds), returning (answer, provider).
 
     Round 0: tool_choice="required" — forces at least one tool call
     Round 1+: tool_choice="auto" — model can call more tools OR respond with text
+
+    With ``stream=True`` every round after the forced tool round is requested
+    with ``stream=True`` and its content deltas are yielded as they arrive.
+    Round 0 is never streamed: it exists to produce tool calls, not prose.
+    A streamed round that turns out to be a tool call yields ``_RESET`` so the
+    discarded preamble is dropped on the client too, instead of staying glued
+    to the front of the real answer until ``done`` replaces it.
     """
     provider = "unknown"
     for round_num in range(_MAX_TOOL_ROUNDS):
@@ -366,27 +560,28 @@ def _run_with_tools(
         if time.monotonic() >= deadline:
             raise _AskAbandoned()
         tc = "required" if round_num == 0 else "auto"
-        response, provider = generate_with_fallback(
-            messages=messages,
-            tools=TOOL_DEFINITIONS,
-            tool_choice=tc,
-            max_tokens=1200,
+        streamed_round = stream and round_num > 0
+        message, provider = yield from _complete(
+            messages, tool_choice=tc, stream=streamed_round
         )
-        choice = response.choices[0]
-        has_tools = bool(choice.message.tool_calls)
+        has_tools = bool(message.tool_calls)
         logger.info("Round %d: provider=%s tool_choice=%s has_tool_calls=%s", round_num, provider, tc, has_tools)
 
-        if not choice.message.tool_calls and round_num == 0:
+        if not message.tool_calls and round_num == 0:
             logger.warning("Round 0: no tool call despite required. Nudging model.")
-            messages.append({"role": "assistant", "content": choice.message.content or ""})
+            messages.append({"role": "assistant", "content": message.content or ""})
             messages.append({"role": "user", "content": "Please use one of your available tools to query the CalSight database and answer with real data."})
             continue
 
-        if choice.message.tool_calls:
-            capped_calls = choice.message.tool_calls[:_MAX_TOOL_CALLS_PER_ROUND]
+        if message.tool_calls:
+            if streamed_round:
+                # Anything streamed this round was a preamble to a tool call,
+                # not part of the answer — tell the reader to drop it.
+                yield _RESET
+            capped_calls = message.tool_calls[:_MAX_TOOL_CALLS_PER_ROUND]
             assistant_msg: dict[str, Any] = {
                 "role": "assistant",
-                "content": choice.message.content or "",
+                "content": message.content or "",
                 "tool_calls": [
                     {
                         "id": tc.id,
@@ -435,19 +630,44 @@ def _run_with_tools(
                     "content": serialized,
                 })
         else:
-            return choice.message.content or "", provider
+            return message.content or "", provider
 
     # Final round called tools — send one more LLM call to process results
     if messages and messages[-1].get("role") == "tool":
+        message, provider = yield from _complete(messages, tool_choice="none", stream=stream)
+
+    return message.content or "", provider
+
+
+def _complete(
+    messages: list[dict],
+    tool_choice: str,
+    stream: bool,
+) -> Iterator[Any]:
+    """One LLM round over the shared provider chain.
+
+    Yields content deltas when ``stream`` is set; returns (message, provider).
+    A provider that fails before its first token is skipped by the chain walk
+    in ``app.llm`` exactly as in the non-streaming path.
+    """
+    if not stream:
         response, provider = generate_with_fallback(
             messages=messages,
             tools=TOOL_DEFINITIONS,
-            tool_choice="none",
+            tool_choice=tool_choice,
             max_tokens=1200,
         )
-        return response.choices[0].message.content or "", provider
+        return response.choices[0].message, provider
 
-    return response.choices[0].message.content or "", provider
+    chunks, provider = generate_with_fallback(
+        messages=messages,
+        tools=TOOL_DEFINITIONS,
+        tool_choice=tool_choice,
+        max_tokens=1200,
+        stream=True,
+    )
+    message = yield from consume_stream(chunks)
+    return message, provider
 
 
 def _run_simple_mode(

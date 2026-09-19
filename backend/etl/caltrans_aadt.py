@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, TrafficVolume
-from etl._utils import get_with_retry, track_etl_run
+from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -173,23 +173,21 @@ def run():
         # Aggregate to county level
         county_rows = aggregate_by_county(segments, name_to_code)
         logger.info("Aggregated to %d counties", len(county_rows))
+        require_rows(county_rows, "aadt", "aggregated county AADT rows")
 
         # Bulk upsert
-        if county_rows:
-            stmt = pg_insert(TrafficVolume).values(county_rows)
-            stmt = stmt.on_conflict_do_update(
-                constraint="traffic_volumes_county_code_key",
-                set_={
-                    "total_aadt": stmt.excluded.total_aadt,
-                    "segment_count": stmt.excluded.segment_count,
-                    "avg_aadt_per_segment": stmt.excluded.avg_aadt_per_segment,
-                },
-            )
-            db.execute(stmt)
-            db.commit()
-            logger.info("Upserted %d county traffic volume records", len(county_rows))
-        else:
-            logger.warning("No data to upsert")
+        stmt = pg_insert(TrafficVolume).values(county_rows)
+        stmt = stmt.on_conflict_do_update(
+            constraint="traffic_volumes_county_code_key",
+            set_={
+                "total_aadt": stmt.excluded.total_aadt,
+                "segment_count": stmt.excluded.segment_count,
+                "avg_aadt_per_segment": stmt.excluded.avg_aadt_per_segment,
+            },
+        )
+        db.execute(stmt)
+        db.commit()
+        logger.info("Upserted %d county traffic volume records", len(county_rows))
 
     finally:
         db.close()

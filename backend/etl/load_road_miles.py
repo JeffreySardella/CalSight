@@ -26,7 +26,7 @@ from sqlalchemy import select
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, RoadMile
-from etl._utils import get_with_retry, track_etl_run
+from etl._utils import get_with_retry, require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -89,6 +89,7 @@ def run():
 
         records = fetch_aggregated()
         logger.info("Fetched %d aggregated rows from CKAN SQL", len(records))
+        require_rows(records, "road_miles", "aggregated CKAN SQL rows")
 
         inserted = 0
         updated = 0
