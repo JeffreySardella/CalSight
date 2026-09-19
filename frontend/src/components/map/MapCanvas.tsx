@@ -28,8 +28,9 @@ import type { ClusterPoint } from "../../hooks/useClusterHotspots";
 import type { HighwayRow } from "../../hooks/useHighwayRankings";
 import type { ViewportSeed } from "../../hooks/useViewportParams";
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
-import { useHospitals, useSchools } from "../../hooks/useMapOverlays";
+import { useHospitals, useSchoolCrashCounts, useSchools } from "../../hooks/useMapOverlays";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
+import { useFilterParams } from "../../hooks/useFilterParams";
 import { useIsDark } from "../../context/ThemeContext";
 import { useToast } from "../ui/toastContext";
 import { BASEMAPS, TILE_ERROR_LIMIT } from "../../lib/map/basemaps";
@@ -166,11 +167,20 @@ function MapInternals({
   const showMask = heatmapActive && !otherLayers.coordMismatches && !countyDrilldown;
   const { data: hospitals = [], isError: hospitalsError } = useHospitals(otherLayers.hospitals);
   const { data: schools = [], isError: schoolsError } = useSchools(otherLayers.schools);
+  // Nearby-crash counts follow the map's year filter, so they refetch when it
+  // changes while the (static) school list stays cached.
+  const { selectedYears } = useFilterParams();
+  const { data: schoolCrashCounts, isError: schoolCountsError } =
+    useSchoolCrashCounts(otherLayers.schools, selectedYears);
   const { showToast: showLayerToast } = useToast();
   useEffect(() => {
     if (hospitalsError) showLayerToast("Couldn't load hospitals.", { variant: "error" });
     if (schoolsError) showLayerToast("Couldn't load schools.", { variant: "error" });
-  }, [hospitalsError, schoolsError, showLayerToast]);
+    // Without this a failed fetch renders as "every school gray", which looks
+    // exactly like "no crashes near any school" and like "the view isn't
+    // populated yet". Three very different things, one appearance.
+    if (schoolCountsError) showLayerToast("Couldn't load crash counts near schools.", { variant: "error" });
+  }, [hospitalsError, schoolsError, schoolCountsError, showLayerToast]);
 
   useEffect(() => {
     onMapReady(map);
@@ -243,6 +253,7 @@ function MapInternals({
         schools={schools}
         showHospitals={otherLayers.hospitals}
         showSchools={otherLayers.schools}
+        schoolCrashCounts={schoolCrashCounts}
       />
       {tempMarker && <Marker position={tempMarker} />}
     </>

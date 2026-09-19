@@ -87,6 +87,20 @@ def build_default_registry() -> JobRegistry:
         table_name="first_rain_events",
     ))
     registry.register(Job(
+        # NOAA Storm Events: CA Dense Fog + winter rows for the San Joaquin
+        # Valley and Sierra zones (etl/load_storm_events.py). Weekly because
+        # NOAA reissues yearly files on its own cadence; the default trailing
+        # 2 years picks those revisions up. Static first load / full reload:
+        #   python -m etl.load_storm_events --start 2001
+        name="storm_events",
+        module="etl.load_storm_events",
+        schedule="weekly",
+        table_name="storm_events",
+        max_drop_pct=5,
+        source_type="federal",
+        freshness_table="storm_events",
+    ))
+    registry.register(Job(
         name="fars",
         module="etl.nhtsa_fars",
         schedule="monthly",
@@ -184,6 +198,19 @@ def build_default_registry() -> JobRegistry:
         max_drop_pct=20,
         source_type="ckan",
         freshness_resource_id="5180390d-e323-4751-8ce9-939e62918233",
+    ))
+    registry.register(Job(
+        # CARB EMFAC county VMT, 2001 through last complete year. Monthly like
+        # the other slow-moving denominators, though EMFAC only restates on a
+        # new model release. No freshness probe: the endpoint is the tool's own
+        # XHR handler, with nothing to check a last-modified against.
+        # 25 POSTs of ~5MB each, so it runs longer than its neighbours.
+        name="vmt",
+        module="etl.load_vmt",
+        schedule="monthly",
+        table_name="vmt",
+        max_drop_pct=10,
+        timeout=7200,
     ))
 
     # --- Tier 2: Internal transforms (depend on external loads) ---

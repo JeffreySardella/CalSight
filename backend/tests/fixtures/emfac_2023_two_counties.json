@@ -1,0 +1,2364 @@
+{
+ "header": [
+  "Region",
+  "Calendar Year",
+  "Vehicle Category",
+  "Model Year",
+  "Speed",
+  "Fuel",
+  "Population",
+  "Total VMT"
+ ],
+ "output": [
+  [
+   "Alameda",
+   2023,
+   "LDA",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   516849.3845799627,
+   5009607778.141212
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDA",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   3359503.514142767,
+   36394642521.769196
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDA",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2103.702438997714,
+   17528243.6431964
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDA",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   9058.877594170253,
+   80986164.63179223
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDA",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   56063.24804376592,
+   689970273.9632127
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDA",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   204286.59180939922,
+   2792510546.291532
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDA",
+   "Aggregate",
+   "Aggregate",
+   "Plug-in Hybrid",
+   10612.397554667661,
+   129809251.37988015
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDA",
+   "Aggregate",
+   "Aggregate",
+   "Plug-in Hybrid",
+   68720.05206071504,
+   907083597.675917
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDT1",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   55581.0474979903,
+   530421764.25724816
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDT1",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   315448.10091292305,
+   3318760380.6271305
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDT1",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   54.127889393618936,
+   297574.22049944557
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDT1",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   155.32263437860226,
+   1223929.336795739
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDT1",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   573.4058942940126,
+   8387724.743632028
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDT1",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   2831.3531817752,
+   43615431.0299419
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDT1",
+   "Aggregate",
+   "Aggregate",
+   "Plug-in Hybrid",
+   275.34671467526516,
+   4537526.5760854585
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDT1",
+   "Aggregate",
+   "Aggregate",
+   "Plug-in Hybrid",
+   1384.621896115685,
+   24498965.126698844
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDT2",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   254265.89106367508,
+   2899553301.698849
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDT2",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   1563960.6726058568,
+   19427421855.287525
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDT2",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   568.7670532266633,
+   6564691.7004314205
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDT2",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2796.687867674932,
+   35581141.51939625
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDT2",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   5748.754721435437,
+   87505923.713958
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDT2",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   26772.6635342077,
+   440179958.2997112
+  ],
+  [
+   "Alameda",
+   2023,
+   "LDT2",
+   "Aggregate",
+   "Aggregate",
+   "Plug-in Hybrid",
+   2961.3718861648176,
+   46808612.83202575
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LDT2",
+   "Aggregate",
+   "Aggregate",
+   "Plug-in Hybrid",
+   18627.83252407684,
+   313025827.8798617
+  ],
+  [
+   "Alameda",
+   2023,
+   "LHD1 Other",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   17535.07690478615,
+   197460821.11388028
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LHD1 Other",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   108299.73708992792,
+   1193247464.2391074
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LHD1 Other",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   43907.53516640842,
+   500729805.5301751
+  ],
+  [
+   "Alameda",
+   2023,
+   "LHD1 Other",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   8309.994838289756,
+   92612445.57667561
+  ],
+  [
+   "Alameda",
+   2023,
+   "LHD1 Public",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   1594.4017600303907,
+   17954405.471417375
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LHD1 Public",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   12049.130155133962,
+   132922226.5944213
+  ],
+  [
+   "Alameda",
+   2023,
+   "LHD1 Public",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   158.14248138112842,
+   1762451.3895948955
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LHD1 Public",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   974.6459167478134,
+   11143893.732926285
+  ],
+  [
+   "Alameda",
+   2023,
+   "LHD2 Other",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   2497.3637728946983,
+   30806808.602183215
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LHD2 Other",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   16647.733596024744,
+   197211616.8003705
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LHD2 Other",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   24450.143029149553,
+   347329243.10629034
+  ],
+  [
+   "Alameda",
+   2023,
+   "LHD2 Other",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   4248.923710834653,
+   59713054.343940176
+  ],
+  [
+   "Alameda",
+   2023,
+   "LHD2 Public",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   467.9815851475018,
+   5772895.1142246295
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LHD2 Public",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   3949.4293007930655,
+   46766712.027627625
+  ],
+  [
+   "Alameda",
+   2023,
+   "LHD2 Public",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   204.0890095043809,
+   2868203.560459329
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "LHD2 Public",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1348.0349641386154,
+   19215077.02234153
+  ],
+  [
+   "Alameda",
+   2023,
+   "MCY",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   25996.384451951097,
+   49688659.06390872
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "MCY",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   137635.59551699623,
+   279927782.1460695
+  ],
+  [
+   "Alameda",
+   2023,
+   "MDV",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   134348.87840822586,
+   1494297536.804398
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "MDV",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   952723.5801691338,
+   11565178362.808207
+  ],
+  [
+   "Alameda",
+   2023,
+   "MDV",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2737.4399190029285,
+   36147623.08983731
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "MDV",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   16356.974654122505,
+   235765747.55407807
+  ],
+  [
+   "Alameda",
+   2023,
+   "MDV",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   2467.2354521218176,
+   38134246.76508592
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "MDV",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   13302.16373025621,
+   217669353.78352433
+  ],
+  [
+   "Alameda",
+   2023,
+   "MDV",
+   "Aggregate",
+   "Aggregate",
+   "Plug-in Hybrid",
+   1481.6822470766538,
+   23247502.11859552
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "MDV",
+   "Aggregate",
+   "Aggregate",
+   "Plug-in Hybrid",
+   10168.974731208136,
+   168174227.13079247
+  ],
+  [
+   "Alameda",
+   2023,
+   "MH",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   2512.971290852504,
+   7456489.8734187875
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "MH",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   18872.058410404632,
+   55789301.00832125
+  ],
+  [
+   "Alameda",
+   2023,
+   "MH",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1027.3658924352233,
+   3419684.78761835
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "MH",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   6270.221122752181,
+   19809636.653626617
+  ],
+  [
+   "Alameda",
+   2023,
+   "Motor Coach",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   37.01947448403637,
+   1315345.5744526433
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "Motor Coach",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   300.51369887243607,
+   10677606.027224626
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "OBUS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   4151.190433308072,
+   47611212.65795888
+  ],
+  [
+   "Alameda",
+   2023,
+   "OBUS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   757.891181370348,
+   11409266.692147298
+  ],
+  [
+   "Alameda",
+   2023,
+   "OBUS",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   230.28817731624133,
+   3381504.2132028625
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "OBUS",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1393.7434817847773,
+   19699690.962258473
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "OBUS",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   103.86283335803499,
+   2332317.402558052
+  ],
+  [
+   "Alameda",
+   2023,
+   "OBUS",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   8.514234365522041,
+   148590.7652214206
+  ],
+  [
+   "Alameda",
+   2023,
+   "OBUS",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1.9671173951203844,
+   28330.221732701393
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "OBUS",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   393.8363524507942,
+   6089981.490010087
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "PTO",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   0,
+   29087241.52409106
+  ],
+  [
+   "Alameda",
+   2023,
+   "PTO",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   0,
+   6795839.301317266
+  ],
+  [
+   "Alameda",
+   2023,
+   "SBUS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   62.020516644460635,
+   971074.522364293
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "SBUS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   1402.5487846122055,
+   18643459.837561242
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "SBUS",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1690.1765508027754,
+   9899853.966933921
+  ],
+  [
+   "Alameda",
+   2023,
+   "SBUS",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   375.6969732694326,
+   2294575.7718196893
+  ],
+  [
+   "Alameda",
+   2023,
+   "SBUS",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   19.99999999996701,
+   202769.3138838034
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "SBUS",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   37.125904109402,
+   380408.3077450726
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "SBUS",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1462.6232387220682,
+   9822314.56851386
+  ],
+  [
+   "Alameda",
+   2023,
+   "SBUS",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   34.48232897500433,
+   216175.92953783195
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 CAIRP Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   3.3122583259195992,
+   60041.59256682394
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 CAIRP Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   32.98601976776369,
+   598943.1027949768
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 CAIRP Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   59.48279616384451,
+   1084467.4271470478
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 CAIRP Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   6.001069476254533,
+   108713.41724906123
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 CAIRP Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   14.71194921573789,
+   261515.89381175363
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 CAIRP Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   144.90823247179975,
+   2608743.9400418135
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 CAIRP Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   241.0273971922284,
+   13184651.125169799
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 CAIRP Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   24.52742441716945,
+   1322843.2314460438
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 CAIRP Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   0.2193829492523467,
+   11331.77742121165
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   3289.8547810179357,
+   31053243.715754684
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   821.8476157124983,
+   7440479.305377207
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1.4203689204112493,
+   12291.115454566168
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   5.751457128886196,
+   55791.37957051981
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   3664.8875431046818,
+   34102013.9107558
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   760.4225722256328,
+   6957112.908732457
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   3.982674123169832,
+   52415.651526402
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   5.89682758029974,
+   54689.315253132125
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1.1866727769729017,
+   11147.72021178246
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2151.428840269983,
+   19957233.993110396
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   12112.54966295689,
+   112362075.28348269
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   47.059878295702376,
+   657436.4999351959
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   0.9238576336875121,
+   9962.351421862251
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   2.756072022083908,
+   24053.022710108617
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   22.75082186306223,
+   208607.51444033088
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2835.094050922763,
+   41184891.000778735
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   456.15139067082197,
+   6484361.338486939
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   1.1742423871692027,
+   23664.497588903552
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   56.027844732129296,
+   1072304.7310885212
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Delivery Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   74.59102198105548,
+   1086211.3348466903
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Delivery Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   11.263612992773437,
+   161325.8927930011
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   749.295128043243,
+   8207501.25474388
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   3738.4258954775823,
+   40994258.85826038
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   3.3575744240652767,
+   36178.17660096837
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   0.42523702640251193,
+   4141.1456993736865
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2666.6504613086768,
+   31071294.779499587
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   11753.564258470647,
+   136486882.24121997
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   1.0401015000422196,
+   17423.373112245667
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   16.61072723532697,
+   187751.64581815858
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   2.3083736765951977,
+   23460.735386102468
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2382.50805877568,
+   27415321.72678857
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   10007.478210224146,
+   114454010.14227349
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   10.018350952404843,
+   177254.77935542635
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   17.04905050031156,
+   190513.3102090065
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1.9750401262996262,
+   19837.76244416663
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   924.6865289191004,
+   12375050.00919027
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   4112.063531622679,
+   55419237.48361526
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   19.10207959369667,
+   460568.48116569134
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   11.810162710116785,
+   259864.09667048216
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Other Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   19.06886565316662,
+   272526.4499818847
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Other Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   106.60892149683586,
+   1464570.7396968754
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Tractor Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   120.36496387942069,
+   1771210.7517836834
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Tractor Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   15.559403579185656,
+   222751.55514584595
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Tractor Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   0.03581451463515909,
+   580.4946459224938
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Tractor Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   0.25279211740827956,
+   3365.9635642764956
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Tractor Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1798.6444953444022,
+   31650156.585907962
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Tractor Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   458.51269485344847,
+   8009605.990597535
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Tractor Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   16.408458842433095,
+   506324.5095737088
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Instate Tractor Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   46.31569606917948,
+   814704.3811727152
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Instate Tractor Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   7.9545476458028785,
+   142135.53341629528
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 OOS Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1.7491446334690892,
+   31890.678206418816
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 OOS Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   18.576300125045645,
+   339253.94220340275
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 OOS Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   33.5304412487446,
+   614265.1081220155
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 OOS Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   3.1751582839005623,
+   57742.38251130185
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 OOS Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   7.783787575403623,
+   138902.3650465355
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 OOS Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   81.75022574431182,
+   1477647.3118519061
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 OOS Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   137.99670721192115,
+   8650514.708244057
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 OOS Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   13.171714001771598,
+   813168.9761644533
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   109.13362252817048,
+   937827.7543254112
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   718.3327117546378,
+   6793340.669831608
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   2.027041138208501,
+   31897.542264601572
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   1.000000000018334,
+   15238.034609053937
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   0.057082426537996465,
+   643.4753852056649
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 4",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   60.64367461242262,
+   656891.6143036936
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   515.0609736063545,
+   4871735.392812036
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   324.1231491092325,
+   3227807.3333390662
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   17.022895157629947,
+   180553.07154384587
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   60.743530890177794,
+   651986.6504949544
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   706.8836823120228,
+   5922533.327670151
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   201.9371475998633,
+   1800408.715697358
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   0.9999999999428572,
+   15642.591994788503
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   42.85913186226283,
+   327679.65660771984
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   12.671901371372298,
+   123623.16036976357
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   567.8551460776362,
+   6420551.156388655
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2681.715474529697,
+   28958610.4915878
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   18.425941137252835,
+   260129.1568022988
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Public Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   116.19513459906676,
+   1170766.1330950465
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Public Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   12.548382918811333,
+   148887.77856386013
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Utility Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   123.3549401258128,
+   1286479.4305849695
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Utility Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   632.3578199791234,
+   6582337.262303848
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Utility Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   2.5305445640526028,
+   25276.9151503414
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Utility Class 5",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1.5658679853466468,
+   15629.750383748704
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Utility Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   22.385658964141765,
+   237747.01808819248
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Utility Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   113.7876306335242,
+   1206314.418049448
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Utility Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1.299486701557523,
+   13295.778587569654
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Utility Class 6",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   0.2540740639272868,
+   2591.7170881479688
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Utility Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   21.794784198519675,
+   264158.9023495907
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Utility Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   111.59479634734483,
+   1348714.2751882006
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Utility Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   2.845366583134164,
+   62677.27396564467
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6 Utility Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1.7937260182964136,
+   19992.879114514973
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6 Utility Class 7",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   0.5090815837409344,
+   5561.166606222445
+  ],
+  [
+   "Alameda",
+   2023,
+   "T6TS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   2057.756407804732,
+   32292771.34293361
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T6TS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   18538.68973789677,
+   295953941.61561316
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 CAIRP Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   7850.043971865462,
+   444725453.867708
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 CAIRP Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1612.371655894973,
+   91060933.39982061
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 CAIRP Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   3.126451394183362,
+   173645.84840736835
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 CAIRP Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   27.030794205850412,
+   1464100.211361992
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 NNOOS Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   7057.813521207492,
+   512874891.85919034
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 NNOOS Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1489.4014959366853,
+   105122302.53645605
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 NOOS Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   580.6828238405045,
+   37575941.14972345
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 NOOS Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2779.358584109358,
+   183327003.73705506
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Other Port Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   123.11708344420836,
+   5694285.734736184
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 POAK Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   812.3409546328585,
+   21765099.337516032
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 POAK Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   1.464676794704941,
+   51979.44880721257
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 POAK Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   13.632806299520425,
+   483810.3257362792
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 POAK Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1.173976146647007,
+   31425.329388719227
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 POLA Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   7335.506414262597,
+   273941218.5230862
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 POLA Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   34.89591877923846,
+   1689402.5387128799
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 POLA Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   408.6222136642272,
+   15167612.836843228
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Public Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   4366.848418491755,
+   47104543.23703382
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Public Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   932.7042175187835,
+   10715140.29603773
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Public Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   1.0000000000087796,
+   18695.392655336604
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Public Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   1.8344999999816556,
+   27395.627507812507
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Public Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   1249.857010874714,
+   14617120.75743667
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Public Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   3.35563498054217,
+   41588.384094117515
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Single Concrete/Transit Mix Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   152.7066587184869,
+   2725270.39972857
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Single Concrete/Transit Mix Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   853.6476370464168,
+   15201468.38773786
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Single Concrete/Transit Mix Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   84.31342222275582,
+   1639992.8669851806
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Single Concrete/Transit Mix Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   7.5495506436490585,
+   137319.48709638056
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Single Dump Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   757.2845678671733,
+   12710767.96927857
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Single Dump Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   2131.5242144671424,
+   34445060.34130616
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Single Dump Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   131.27522321162783,
+   2280275.124884087
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Single Dump Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   42.72100771739662,
+   728631.8848309015
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Single Other Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   858.8576311223956,
+   15089929.894568237
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Single Other Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   4911.351339138558,
+   85787842.54783887
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Single Other Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   5.7919932336321285,
+   170262.28138563645
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Single Other Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   67.59477584602902,
+   2042133.3690205174
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Single Other Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   44.47576184332702,
+   791152.0933187089
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Single Other Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   367.45756707744266,
+   6964260.825935793
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 SWCV Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   1918.9265030042782,
+   41257000.91043553
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 SWCV Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   307.1131004922258,
+   5384902.076797539
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 SWCV Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   1.034537375132363,
+   24289.878931726173
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 SWCV Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   2403.0184860210725,
+   33039053.245141596
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 SWCV Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   269.7279328664114,
+   4422820.814636003
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Tractor Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   3060.615871027299,
+   74568593.62783548
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Tractor Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   9023.936890364033,
+   219737087.09940028
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Tractor Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   73.59012658219328,
+   2863147.396455226
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Tractor Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   2.2961257026324566,
+   88984.82952607055
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Tractor Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   321.1739808888078,
+   7737533.671922452
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Tractor Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   350.7164618914165,
+   9018854.587369015
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Tractor Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Fuel Cell Electric Vehicle",
+   0.1635426526106378,
+   2927.6053965018914
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7 Utility Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   352.56145845903393,
+   4345649.151273485
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7 Utility Class 8",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   110.38115954162275,
+   1361785.845914355
+  ],
+  [
+   "Alameda",
+   2023,
+   "T7IS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   6.702667002774243,
+   228158.9425764752
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "T7IS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   100.84960607852449,
+   1724243.4755270847
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "UBUS",
+   "Aggregate",
+   "Aggregate",
+   "Gasoline",
+   412.6993007502506,
+   8308738.518416706
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "UBUS",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   20.975552050473187,
+   534776.1039037026
+  ],
+  [
+   "Alameda",
+   2023,
+   "UBUS",
+   "Aggregate",
+   "Aggregate",
+   "Diesel",
+   643.9486889417407,
+   19753223.935110874
+  ],
+  [
+   "Alameda",
+   2023,
+   "UBUS",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   19.700315457413247,
+   392734.9050387854
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "UBUS",
+   "Aggregate",
+   "Aggregate",
+   "Electricity",
+   238.32728706624604,
+   6497021.160997552
+  ],
+  [
+   "Los Angeles",
+   2023,
+   "UBUS",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   3867.297492381683,
+   113541496.81115307
+  ],
+  [
+   "Alameda",
+   2023,
+   "UBUS",
+   "Aggregate",
+   "Aggregate",
+   "Natural Gas",
+   57.03428173724191,
+   1769315.42721075
+  ]
+ ]
+}

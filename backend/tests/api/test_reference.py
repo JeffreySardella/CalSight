@@ -142,6 +142,28 @@ def test_road_miles_f_system_filter(client):
     assert all(r["f_system"] == 1 for r in body)
 
 
+# --- vmt ---
+
+def test_vmt_returns_rows(client):
+    response = client.get("/api/vmt")
+    body = response.json()
+    assert isinstance(body, list)
+    assert all("year" in r and "vmt_millions" in r for r in body)
+
+
+def test_vmt_county_filter(client):
+    # The seed holds two counties, so an unapplied filter fails this.
+    assert len(client.get("/api/vmt").json()) == 2
+    body = client.get("/api/vmt?county=los-angeles").json()
+    assert len(body) == 1
+    assert all(r["county_code"] == 19 for r in body)
+
+
+def test_vmt_records_the_emfac_model_version(client):
+    body = client.get("/api/vmt").json()
+    assert all(r["source"] for r in body)
+
+
 # --- traffic-volumes ---
 
 def test_traffic_volumes_returns_rows(client):

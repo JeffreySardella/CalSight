@@ -24,6 +24,7 @@ MATERIALIZED_VIEWS: tuple[str, ...] = (
     "mv_crashes_by_month",
     "mv_crash_victims_by_demographics",
     "mv_at_fault_parties_by_demographics",
+    "mv_victims_by_mode",
     "mv_crash_rates",
     "mv_crashes_wide",
 )
@@ -36,7 +37,16 @@ MATERIALIZED_VIEWS: tuple[str, ...] = (
 # /api/street-concentration fall back to querying the raw crashes table when
 # they aren't populated. Slow is not the same as broken, so an unpopulated
 # street view shouldn't put a banner across the whole site.
-OPTIONAL_MATERIALIZED_VIEWS: tuple[str, ...] = ("mv_street_aggregates", "mv_street_totals")
+#
+# mv_school_crash_counts is the same deal one step further: /api/schools/
+# crash-counts returns an empty list when it isn't populated, and the map
+# simply draws every school marker in the no-data color. A missing overlay
+# tint is not a site outage.
+OPTIONAL_MATERIALIZED_VIEWS: tuple[str, ...] = (
+    "mv_street_aggregates",
+    "mv_street_totals",
+    "mv_school_crash_counts",
+)
 
 # Everything the nightly refresh job maintains.
 REFRESHABLE_VIEWS: tuple[str, ...] = MATERIALIZED_VIEWS + OPTIONAL_MATERIALIZED_VIEWS

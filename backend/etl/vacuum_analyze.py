@@ -56,6 +56,7 @@ _TABLES = [
     "mv_crashes_by_month",
     "mv_crash_victims_by_demographics",
     "mv_at_fault_parties_by_demographics",
+    "mv_victims_by_mode",
     "mv_crash_rates",
     "mv_crashes_wide",
     # Street aggregation views (migrations c4f1a9b2d3e7, 77b8d6739669). Refreshed nightly with
@@ -63,6 +64,8 @@ _TABLES = [
     # gets VACUUM'd or fresh planner stats.
     "mv_street_aggregates",
     "mv_street_totals",
+    # School proximity view (migration 10f264138733), same story.
+    "mv_school_crash_counts",
 ]
 
 

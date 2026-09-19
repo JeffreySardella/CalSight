@@ -7,17 +7,11 @@ import { useHighwayRankings, type HighwayRow } from "../../hooks/useHighwayRanki
 import { useLayersState } from "../../hooks/useLayersState";
 import { useFilterParams } from "../../hooks/useFilterParams";
 import { buildDangerFeatures } from "../../lib/map/highwayDanger";
+import { DANGER_NO_DATA_COLOR, dangerColors } from "../../lib/map/dangerRamp";
+import { useIsDark } from "../../context/ThemeContext";
 import type { StatsFilters } from "../../hooks/useStats";
 
-const NO_DATA_COLOR = "#9ca3af";
 const HIGHWAY_LIMIT = 300;
-
-// Dedicated "danger" ramp for highway lines, independent of the county
-// choropleth palette. Reusing the choropleth palette made highways the same
-// blue as the counties underneath, so they vanished into the shading. This
-// mono-danger ramp (light orange -> crimson, low..high) reads on top of any
-// choropleth in either theme and never implies a road is "safe".
-const HIGHWAY_DANGER_COLORS = ["#fdba74", "#f97316", "#dc2626", "#7f1d1d"] as const;
 
 // A white halo drawn UNDER each colored line. The danger colors (esp. the dark
 // crimson high end) muddied into the blue choropleth without it; the casing
@@ -51,8 +45,12 @@ interface HighwayDangerLayerProps {
 export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute, onSelectedRouteGone }: HighwayDangerLayerProps) {
   const map = useMap();
   const fp = useFilterParams();
-  const { otherLayers, highwayMetric } = useLayersState();
+  const { otherLayers, highwayMetric, palette } = useLayersState();
   const enabled = otherLayers.highwayDanger;
+  // The ramp follows the palette selector so the colorblind option reaches
+  // this layer too, not only the choropleth underneath it.
+  const isDark = useIsDark();
+  const rampColors = useMemo(() => dangerColors(palette, isDark), [palette, isDark]);
 
   const { data: geo, isError: geoError } = useHighwayGeoJson();
 
@@ -127,7 +125,7 @@ export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute
       if (pane) pane.style.zIndex = "465";
     }
 
-    const features = buildDangerFeatures(geo, rows ?? [], highwayMetric, HIGHWAY_DANGER_COLORS, NO_DATA_COLOR);
+    const features = buildDangerFeatures(geo, rows ?? [], highwayMetric, rampColors, DANGER_NO_DATA_COLOR);
     const fc: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: features.map((f) => ({
@@ -148,7 +146,7 @@ export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute
       const lines = L.geoJSON(fc, {
         pane: HIGHWAY_PANE,
         style: (feature) => ({
-          color: (feature?.properties?.color as string) ?? NO_DATA_COLOR,
+          color: (feature?.properties?.color as string) ?? DANGER_NO_DATA_COLOR,
           weight: 5,
           opacity: 1,
         }),
@@ -174,7 +172,7 @@ export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute
         layerRef.current = null;
       }
     };
-  }, [map, enabled, geo, rows, highwayMetric]);
+  }, [map, enabled, geo, rows, highwayMetric, rampColors]);
 
   return null;
 });

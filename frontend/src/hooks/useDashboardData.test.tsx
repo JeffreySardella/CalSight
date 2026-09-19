@@ -135,6 +135,43 @@ describe("useDashboardData", () => {
     expect(result.current.dataBySlot["year:killed"].map((d) => d.value)).toEqual([40, 25]);
   });
 
+  it("maps mode rows to labelled people counts — victim_count, not crash_count", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).includes("/api/stats/batch")) {
+        return new Response(JSON.stringify({
+          mode: [
+            { mode: "occupant", victim_count: 900, fatal_victim_count: 30 },
+            { mode: "pedestrian", victim_count: 140, fatal_victim_count: 50 },
+            { mode: "motorcyclist", victim_count: 120, fatal_victim_count: 20 },
+            { mode: "cyclist", victim_count: 90, fatal_victim_count: 5 },
+          ],
+        }));
+      }
+      return new Response(JSON.stringify({}));
+    });
+
+    const charts: ChartSlot[] = [
+      { id: "a", dimension: "mode", measure: "count", chartType: "bar", order: 0 },
+      { id: "b", dimension: "mode", measure: "killed", chartType: "bar", order: 1 },
+    ];
+
+    const { result } = renderHook(() => useDashboardData(charts, FILTERS), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.dataBySlot["mode:count"]).toEqual([
+      { label: "Vehicle Occupant", value: 900, x: 0, y: 0 },
+      { label: "Pedestrian", value: 140, x: 0, y: 0 },
+      { label: "Motorcyclist", value: 120, x: 0, y: 0 },
+      { label: "Cyclist", value: 90, x: 0, y: 0 },
+    ]);
+    // mode rows are victim rows: `killed` reads fatal_victim_count, the same
+    // field the gender rows use, not total_killed.
+    expect(result.current.dataBySlot["mode:killed"].map((d) => d.value))
+      .toEqual([30, 50, 20, 5]);
+  });
+
   it("degrades to empty when a group returns an in-band incompatibility object", async () => {
     // Regression: /api/stats/batch reports a filter that doesn't apply to a
     // dimension as `{"error": ..., "filter": ...}` INSIDE a 200. `?? []` lets

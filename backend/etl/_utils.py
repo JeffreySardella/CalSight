@@ -580,7 +580,7 @@ def _check_arcgis_freshness(job: Job, last_run: EtlRun) -> FreshnessResult:
 
 _ALLOWED_FRESHNESS_TABLES = {
     "demographics", "weather", "unemployment_rates",
-    "fars_county_year", "tract_density_county_year",
+    "fars_county_year", "tract_density_county_year", "storm_events",
 }
 
 

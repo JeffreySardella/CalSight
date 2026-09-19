@@ -266,6 +266,7 @@ from app.routers.tract_density import router as tract_density_router  # noqa: E4
 from app.routers.tract_burden import router as tract_burden_router  # noqa: E402
 from app.routers.water import router as water_router  # noqa: E402
 from app.routers.first_rain import router as first_rain_router  # noqa: E402
+from app.routers.fog_days import router as fog_days_router  # noqa: E402
 
 app.include_router(reference_router, prefix="/api")
 app.include_router(demographics_router, prefix="/api")
@@ -290,6 +291,7 @@ app.include_router(tract_density_router, prefix="/api")
 app.include_router(tract_burden_router, prefix="/api")
 app.include_router(water_router, prefix="/api")
 app.include_router(first_rain_router, prefix="/api")
+app.include_router(fog_days_router, prefix="/api")
 
 
 from pydantic import BaseModel  # noqa: E402
