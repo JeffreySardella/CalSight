@@ -48,6 +48,14 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "yoy_change", label: MEASURE_LABELS.yoy_change },
 ];
 
+// KSI is offered on the year axis only: that is the chart its definition
+// footnote is written for (the API also returns it for county/cause/severity).
+function measureOptions(dim: Dimension): { value: Measure; label: string }[] {
+  return dim === "year"
+    ? [...SUPPORTED_MEASURES, { value: "ksi", label: MEASURE_LABELS.ksi }]
+    : SUPPORTED_MEASURES;
+}
+
 const SUPPORTS_DUAL_AXIS = new Set<ChartType>(["line", "area"]);
 // scatter always draws its own regression line unconditionally — no toggle needed
 const SUPPORTS_TREND = new Set<ChartType>(["line", "area"]);
@@ -73,6 +81,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
     setChartType(defaultChartType(dim));
     setSecondaryMeasure(undefined);
     setOptions({});
+    if (dim !== "year" && measure === "ksi") setMeasure("count");
   }
 
   function toggle(key: keyof ChartOptions) {
@@ -111,7 +120,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
           onChange={(e) => setMeasure(e.target.value as Measure)}
           className="w-full rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
         >
-          {SUPPORTED_MEASURES.map((m) => (
+          {measureOptions(dimension).map((m) => (
             <option key={m.value} value={m.value}>{m.label}</option>
           ))}
         </select>
@@ -129,7 +138,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             className="w-full rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
           >
             <option value="">None (single axis)</option>
-            {SUPPORTED_MEASURES.filter((m) => m.value !== measure).map((m) => (
+            {measureOptions(dimension).filter((m) => m.value !== measure).map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>
