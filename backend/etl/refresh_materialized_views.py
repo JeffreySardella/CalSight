@@ -6,6 +6,7 @@ Views and the migrations that defined them:
   - mv_crashes_by_year                     (f3d4e5f6a7b8)
   - mv_crash_victims_by_demographics       (b5e9d3f1c8a4) — gender / age
   - mv_at_fault_parties_by_demographics    (f8a1b2c3d4e5) — at-fault party gender / age
+  - mv_victims_by_mode                     (bdc07f3141d1) — road-user mode, 2016+
   - mv_crashes_by_month                    (g4h5i6j7k8l9) — seasonality
   - mv_crash_rates                         (g4h5i6j7k8l9) — per-capita rates
   - mv_street_aggregates                   (c4f1a9b2d3e7) — street-level rollup

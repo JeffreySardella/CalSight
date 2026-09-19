@@ -170,6 +170,7 @@ erDiagram
 | `mv_at_fault_parties_by_demographics` | small | At-fault party gender / age; migration `f8a1b2c3d4e5` |
 | `mv_street_aggregates` | street rollup | Intersections / corridors; migration `c4f1a9b2d3e7`. Optional — endpoints fall back to `crashes` |
 | `mv_street_totals` | coarse totals | Default-state street totals; migration `77b8d6739669`, added 2026-09. Optional |
+| `mv_victims_by_mode` | ~2,500 | Road-user mode; migration `bdc07f3141d1`, added 2026-09. Counts **people**, CCRS-only so 2016+. Powers `/api/stats?group_by=mode`. |
 | `mv_crash_victims_by_demographics` | 26,360 | Populated 2026-04-18. JOINs `crash_victims` to `crashes` on `(collision_id, data_source)`. Aggregates by (county, year, severity, gender, age_bracket). Powers `/api/stats?group_by=gender|age_bracket`. **Counts victims, not crashes.** |
 
 ## Key constraints and gotchas
@@ -244,6 +245,7 @@ There are 10 materialized views as of 2026-09-12 (see the row-count table). The 
 - **`mv_crashes_by_cause`** (19.7K rows): adds `canonical_cause`. Use when filtering or grouping by cause.
 - **`mv_crashes_by_hour`** (307K rows): adds `crash_hour` AND drops `total_killed`/`total_injured`. Only use for hour-grouped queries; can return counts only, not casualty totals.
 - **`mv_crash_victims_by_demographics`** (26K rows): totally different dimensions — counts **victims**, not crashes, and breaks them down by `(county, year, severity, gender, age_bracket)`. Use for `?group_by=gender|age_bracket`. Source rows are `crash_victims` JOINed to `crashes` on `(collision_id, data_source)`; one fatal crash with 3 injured passengers contributes 3 to `victim_count`. Has no `canonical_cause` column, so the cause filter is rejected on these grouping paths.
+- **`mv_victims_by_mode`** (~2.5K rows): counts **people**, bucketed as `pedestrian`, `cyclist`, `motorcyclist` (motorcycles and mopeds) or `occupant`. Use for `?group_by=mode`. Mode comes from `crash_victims.person_type`, plus that victim's own party row's `vehicle_type` for the motorcyclist test — so it is party/victim data, which is CCRS-only and starts in 2016. `person_type` is blank for everyone without an injury outcome, so `victim_count` is people injured or killed, not everyone present. Carries neither `canonical_cause` nor crash `severity`; both filters are rejected rather than silently dropped.
 
 ### Extra bucket values introduced by the MVs
 

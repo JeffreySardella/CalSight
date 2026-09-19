@@ -39,6 +39,7 @@ from app.schemas.stats import (
     GrandTotal,
     HighwayRow,
     HourRow,
+    ModeRow,
     MonthRow,
     RateRow,
     SeverityRow,
@@ -116,6 +117,20 @@ mv_at_fault = Table(
     Column("fatal_party_count", Integer),
 )
 
+# Per-victim road-user mode. Backs ?group_by=mode. Counts PEOPLE (victims),
+# not crashes, and only people with a recorded injury outcome — person_type is
+# blank for the uninjured, so they cannot be assigned a mode at all. CCRS-only,
+# so 2016+. Columns must mirror migration bdc07f3141d1_add_mv_victims_by_mode.
+mv_mode = Table(
+    "mv_victims_by_mode", _metadata,
+    Column("county_code", SmallInteger),
+    Column("crash_year", SmallInteger),
+    Column("mode", String),
+    Column("victim_count", Integer),
+    Column("fatal_victim_count", Integer),
+    Column("severe_injured_count", Integer),
+)
+
 mv_month = Table(
     "mv_crashes_by_month", _metadata,
     Column("county_code", SmallInteger),
@@ -168,6 +183,13 @@ mv_wide = Table(
     Column("total_killed", Integer),
     Column("total_injured", Integer),
     Column("total_severe_injured", Integer),
+)
+
+# group_by values served by a person-level view (victims / parties) rather
+# than a crash-level one. None of them carry canonical_cause or the
+# involvement flags, so both are rejected rather than silently ignored.
+_PERSON_GROUPS = (
+    "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket", "mode",
 )
 
 _AGE_BRACKET_MAP = {
@@ -299,18 +321,28 @@ def _run_group_query(
             hit_run=hit_run_v,
         )
 
-    if has_involvement and group_by in ("gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket"):
+    if has_involvement and group_by in _PERSON_GROUPS:
         raise FilterError(
             "involvement",
             "Involvement filters cannot be combined with demographic group_by values.",
         )
 
-    if group_by in ("gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket") and causes:
+    if group_by in _PERSON_GROUPS and causes:
         raise FilterError(
             "cause",
             "cause filter is not supported with demographic group_by values "
-            "(gender, age_bracket, at_fault_gender, at_fault_age_bracket) — "
-            "those views don't carry canonical_cause.",
+            f"({', '.join(_PERSON_GROUPS)}) — those views don't carry "
+            "canonical_cause.",
+        )
+
+    if group_by == "mode" and severities:
+        # mv_victims_by_mode carries no crash severity — it is keyed on the
+        # victim's own injury outcome instead. Silently dropping the filter
+        # would present unfiltered people counts as filtered.
+        raise FilterError(
+            "severity",
+            "severity filter is not supported with group_by=mode — that view "
+            "counts people by injury outcome, not crashes by severity.",
         )
 
     if group_by == "rate" and causes:
@@ -780,6 +812,34 @@ def _run_group_query(
             for r in rows
         ]
 
+    # --- group_by=mode (road-user mode MV; people, 2016+) ---
+    if group_by == "mode":
+        v = mv_mode
+        stmt = (
+            select(
+                v.c.mode,
+                func.sum(v.c.victim_count).label("victim_count"),
+                func.sum(v.c.fatal_victim_count).label("killed"),
+                func.sum(v.c.severe_injured_count).label("severe_injured"),
+            )
+            .group_by(v.c.mode)
+            .order_by(func.sum(v.c.victim_count).desc())
+        )
+        if years:
+            stmt = stmt.where(v.c.crash_year.in_(years))
+        if county_codes:
+            stmt = stmt.where(v.c.county_code.in_(county_codes))
+        rows = db.execute(stmt).all()
+        return [
+            ModeRow(
+                mode=r.mode,
+                victim_count=r.victim_count,
+                killed=r.killed,
+                severe_injured=r.severe_injured,
+            ).model_dump()
+            for r in rows
+        ]
+
     # --- group_by=at_fault_gender (at-fault-parties MV) ---
     if group_by == "at_fault_gender":
         v = mv_at_fault
@@ -864,7 +924,7 @@ def stats(
     hit_run: str | None = Query(None),
     group_by: str | None = Query(
         None,
-        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|rate|weather|lighting|collision_type)$",
+        pattern="^(county|year|cause|hour|month|day_of_week|severity|gender|age_bracket|at_fault_gender|at_fault_age_bracket|mode|rate|weather|lighting|collision_type)$",
     ),
     db: Session = Depends(get_db),
 ):
@@ -878,6 +938,9 @@ def stats(
       - `at_fault_gender` / `at_fault_age_bracket` ->
         mv_at_fault_parties_by_demographics (counts AT-FAULT PARTIES —
         typically drivers — not victims and not crashes)
+      - `mode` -> mv_victims_by_mode (counts PEOPLE by road user —
+        pedestrian / cyclist / motorcyclist / occupant. CCRS-only, so 2016+,
+        and it rejects the severity filter: see ModeRow)
       - everything else -> mv_crashes_by_year
 
     `alcohol` / `distracted` are not supported here (crash views don't carry
@@ -930,7 +993,7 @@ def stats(
 ALLOWED_GROUPS = {
     "year", "hour", "cause", "severity", "month", "day_of_week",
     "gender", "age_bracket", "at_fault_gender", "at_fault_age_bracket",
-    "rate", "county", "weather", "lighting", "collision_type",
+    "mode", "rate", "county", "weather", "lighting", "collision_type",
 }
 
 

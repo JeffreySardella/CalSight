@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
-import { slotKey, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
+import { MODE_LABELS, slotKey, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
 import type { StatsFilters } from "./useStats";
 import { formatYearMonth } from "./useFilterParams";
 import { movingAverage } from "../lib/dashboard/stats";
@@ -41,6 +41,7 @@ function pickValue(r: DimensionRow, measure: Measure, dim: Dimension): number {
   const isAtFault = dim === "at_fault_gender" || dim === "at_fault_age_bracket";
 
   if (measure === "killed") {
+    if (dim === "mode") return r.killed ?? 0;
     if (isDemographic) return r.fatal_victim_count ?? 0;
     if (isAtFault) return r.fatal_party_count ?? 0;
     if (r.total_killed != null) return r.total_killed;
@@ -49,7 +50,8 @@ function pickValue(r: DimensionRow, measure: Measure, dim: Dimension): number {
     if (r.total_injured != null) return r.total_injured;
   }
 
-  if (isDemographic) return r.victim_count ?? 0;
+  // mode rows are people, like the demographic rows, and share victim_count.
+  if (dim === "mode" || isDemographic) return r.victim_count ?? 0;
   if (isAtFault) return r.party_count ?? 0;
   return r.crash_count ?? 0;
 }
@@ -115,6 +117,11 @@ function transformRows(dimension: Dimension, measure: Measure, rows: DimensionRo
           label: AGE_LABEL[r.age_bracket ?? ""] ?? String(r.age_bracket),
           value: val(r), ...xy(r),
         }));
+    case "mode":
+      return rows.map((r) => ({
+        label: MODE_LABELS[r.mode ?? ""] ?? String(r.mode),
+        value: val(r), ...xy(r),
+      }));
     case "weather":
     case "lighting":
     case "collision_type":

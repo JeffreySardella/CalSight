@@ -135,6 +135,42 @@ describe("useDashboardData", () => {
     expect(result.current.dataBySlot["year:killed"].map((d) => d.value)).toEqual([40, 25]);
   });
 
+  it("maps mode rows to labelled people counts — victim_count, not crash_count", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).includes("/api/stats/batch")) {
+        return new Response(JSON.stringify({
+          mode: [
+            { mode: "occupant", victim_count: 900, killed: 30, severe_injured: 120 },
+            { mode: "pedestrian", victim_count: 140, killed: 50, severe_injured: 90 },
+            { mode: "motorcyclist", victim_count: 120, killed: 20, severe_injured: 80 },
+            { mode: "cyclist", victim_count: 90, killed: 5, severe_injured: 40 },
+          ],
+        }));
+      }
+      return new Response(JSON.stringify({}));
+    });
+
+    const charts: ChartSlot[] = [
+      { id: "a", dimension: "mode", measure: "count", chartType: "bar", order: 0 },
+      { id: "b", dimension: "mode", measure: "killed", chartType: "bar", order: 1 },
+    ];
+
+    const { result } = renderHook(() => useDashboardData(charts, FILTERS), {
+      wrapper: makeWrapper(),
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.dataBySlot["mode:count"]).toEqual([
+      { label: "Vehicle Occupant", value: 900, x: 0, y: 0 },
+      { label: "Pedestrian", value: 140, x: 0, y: 0 },
+      { label: "Motorcyclist", value: 120, x: 0, y: 0 },
+      { label: "Cyclist", value: 90, x: 0, y: 0 },
+    ]);
+    // `killed` on a mode row lives in `killed`, not `total_killed`.
+    expect(result.current.dataBySlot["mode:killed"].map((d) => d.value))
+      .toEqual([30, 50, 20, 5]);
+  });
+
   it("degrades to empty when a group returns an in-band incompatibility object", async () => {
     // Regression: /api/stats/batch reports a filter that doesn't apply to a
     // dimension as `{"error": ..., "filter": ...}` INSIDE a 200. `?? []` lets

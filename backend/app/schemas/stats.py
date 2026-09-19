@@ -98,6 +98,23 @@ class AtFaultAgeBracketRow(BaseModel):
     fatal_party_count: int
 
 
+class ModeRow(BaseModel):
+    """Row from /api/stats?group_by=mode. Counts PEOPLE by road user, sourced
+    from mv_victims_by_mode: pedestrian, cyclist, motorcyclist (motorcycles
+    and mopeds) and occupant (everyone else riding in a vehicle).
+
+    Two caveats travel with these numbers. Party and victim records are
+    CCRS-only, so the series starts in 2016 — the UI carries a footnote
+    saying so. And a person's mode is only known when they have a recorded
+    injury outcome, so victim_count is people injured or killed, not everyone
+    present. There is no crash `severity` here for the same reason; the API
+    rejects that filter rather than quietly ignoring it."""
+    mode: str
+    victim_count: int
+    killed: int
+    severe_injured: int
+
+
 class MonthRow(BaseModel):
     month: int
     crash_count: int

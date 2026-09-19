@@ -36,6 +36,7 @@ const DIMENSION_CARDINALITY: Record<string, number> = {
   hour: 24, day_of_week: 7, month: 12, year: 15,
   cause: 12, severity: 3, county: 58,
   gender: 3, age_bracket: 8, at_fault_gender: 3, at_fault_age_bracket: 8,
+  mode: 4,
   weather: 6, lighting: 5, collision_type: 8,
 };
 
