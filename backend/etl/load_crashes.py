@@ -487,10 +487,12 @@ def run(
 
             for year in ccrs_years:
                 year_rows = 0
+                year_total = None
                 try:
                     logger.info("Starting CCRS year %d...", year)
 
                     for batch, offset, total in fetch_crashes_for_year(year, available):
+                        year_total = total
                         try:
                             count = upsert_crashes(db, batch, city_lookup=city_lookup)
                             db.commit()
@@ -509,6 +511,24 @@ def run(
                             db.rollback()
 
                     logger.info("CCRS year %d complete: %d rows", year, year_rows)
+
+                    if year_total == 0:
+                        # The resource passed the availability check, which
+                        # means CHP has published AND activated its DataStore
+                        # (discover_resource_ids only offers datastore_active
+                        # resources; the static fallback map is only ever
+                        # hand-added once a year is confirmed live). So an
+                        # active resource returning 0 total records is a real
+                        # upstream regression, not routine publishing lag —
+                        # unlike a missing resource entirely, which
+                        # alert_if_current_year_unpublished already covers.
+                        failed_batches += 1
+                        logger.error(
+                            "CCRS year %d: resource exists but returned 0 "
+                            "total records — refusing to record a silent "
+                            "no-op success",
+                            year,
+                        )
 
                 except Exception as exc:
                     failed_batches += 1

@@ -315,3 +315,69 @@ class TestDbFailureIsLoud:
 
         assert had_failure is True
         db.rollback.assert_called()
+
+
+class TestZeroTotalGuard:
+    """A CCRS Parties/InjuredWitnessPassengers resource that passed the
+    availability check (its DataStore is activated — merged_resource_ids'
+    discovery only offers datastore_active resources, and the static
+    fallback map is only hand-added once a year is confirmed live) but
+    returns 0 total records is a real regression. This loader re-pulls the
+    FULL year's resource every night (not a delta query), so a normal quiet
+    weekend still reports the year's usual nonzero total — only a genuinely
+    empty DataStore hits this path."""
+
+    def test_zero_total_marks_had_failure(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import load_parties_victims as mod
+
+        monkeypatch.setattr(
+            mod, "_fetch_page", lambda rid, off: {"total": 0, "records": []}
+        )
+        monkeypatch.setattr(mod, "SessionLocal", lambda: MagicMock())
+
+        had_failure = mod.load_table(
+            table_type="parties",
+            resource_ids={2026: "rid"},
+            model_class=mod.CrashParty,
+            transform_fn=mod.transform_party,
+            upsert_cols=mod._PARTY_UPSERT_COLS,
+            constraint_name="uq_parties_party_source",
+            id_field="party_id",
+            start_year=2026,
+            end_year=2026,
+            force=False,
+        )
+
+        assert had_failure is True
+
+    def test_nonzero_total_with_rows_does_not_mark_had_failure(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import load_parties_victims as mod
+
+        raw = {
+            "PartyId": "1", "CollisionId": "10", "PartyNumber": "1",
+            "PartyType": "Driver", "IsAtFault": "Y", "GenderCode": "M",
+            "StatedAge": "30",
+        }
+        pages = iter([
+            {"total": 1, "records": [raw]},
+            {"total": 1, "records": []},
+        ])
+        monkeypatch.setattr(mod, "_fetch_page", lambda rid, off: next(pages))
+        monkeypatch.setattr(mod, "SessionLocal", lambda: MagicMock())
+
+        had_failure = mod.load_table(
+            table_type="parties",
+            resource_ids={2026: "rid"},
+            model_class=mod.CrashParty,
+            transform_fn=mod.transform_party,
+            upsert_cols=mod._PARTY_UPSERT_COLS,
+            constraint_name="uq_parties_party_source",
+            id_field="party_id",
+            start_year=2026,
+            end_year=2026,
+            force=False,
+        )
+
+        assert had_failure is False

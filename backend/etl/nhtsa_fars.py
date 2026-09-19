@@ -23,7 +23,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal
 from app.models import County, FarsCountyYear
-from etl._utils import track_etl_run
+from etl._utils import require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -124,8 +124,13 @@ def fetch_year(year: int) -> list[dict]:
             (n for n in zf.namelist() if n.lower().endswith("person.csv")), None
         )
         if name is None:
-            logger.warning("No person.csv in FARS %d bundle", year)
-            return rows
+            # The zip downloaded fine (not a 404) but doesn't have the file
+            # shape we expect — a malformed/renamed bundle, not "not
+            # published yet". That case is a 404 and is handled separately
+            # in run(). Raise instead of silently returning [] (M-B10).
+            raise RuntimeError(
+                f"FARS {year}: zip has no person.csv — malformed bundle"
+            )
         with zf.open(name) as fh:
             text = io.TextIOWrapper(fh, encoding="latin-1", newline="")
             for r in csv.DictReader(text):
@@ -150,8 +155,19 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                 person_rows = fetch_year(year)
                 rows = aggregate_fars(person_rows, lookup, year)
                 if not rows:
-                    logger.info("Year %d: no rows", year)
-                    continue
+                    if year == end_year:
+                        # The newest requested vintage legitimately isn't
+                        # published for months — same carve-out as the 404
+                        # path above, extended to a 200 that parses to zero
+                        # CA fatalities. Any OLDER year returning empty is a
+                        # real problem, not a publishing lag.
+                        logger.info(
+                            "FARS %d not published yet (0 CA fatalities "
+                            "parsed), skipping",
+                            year,
+                        )
+                        continue
+                    require_rows(rows, "fars", f"county rows for year {year}")
                 stmt = pg_insert(FarsCountyYear).values(rows)
                 stmt = stmt.on_conflict_do_update(
                     constraint="fars_county_year_county_code_year_key",

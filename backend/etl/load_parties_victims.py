@@ -234,6 +234,7 @@ def load_table(
 
             resource_id = resource_ids[year]
             year_rows = 0
+            year_total = None
             offset = 0
 
             logger.info("Starting %s year %d...", table_type, year)
@@ -247,6 +248,8 @@ def load_table(
                     break
 
                 total = result["total"]
+                if year_total is None:
+                    year_total = total
                 records = result["records"]
                 if not records:
                     break
@@ -296,6 +299,23 @@ def load_table(
 
                 if offset >= total:
                     break
+
+            if year_total == 0:
+                # Same reasoning as load_crashes.py's CCRS check: these
+                # resource ids only come from the static map (hand-added
+                # once a year is confirmed live) or merged_resource_ids'
+                # discovery (datastore_active resources only), so an active
+                # resource returning 0 total records is a real regression,
+                # not a quiet weekend — CHP's weekend gap just means no NEW
+                # rows inside an otherwise non-empty year, which this full
+                # per-year re-pull would still report as its usual nonzero
+                # total.
+                logger.error(
+                    "%s year %d: resource exists but returned 0 total "
+                    "records — refusing to record a silent no-op success",
+                    table_type, year,
+                )
+                had_failure = True
 
             total_rows += year_rows
             logger.info("%s year %d complete: %d rows", table_type, year, year_rows)

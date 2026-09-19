@@ -4,6 +4,8 @@ Tests pure logic (source routing) without needing a database connection.
 The actual DB upsert is exercised in the integration test.
 """
 
+import pytest
+
 from etl.load_crashes import (
     determine_source,
     normalize_city_id,
@@ -259,3 +261,54 @@ class TestAlertCurrentYearUnpublished:
 
         assert fired is False
         alert.assert_not_called()
+
+
+class TestZeroTotalGuard:
+    """A CCRS resource that passed the availability check (its DataStore is
+    activated — see discover_resource_ids' datastore_active gate, and the
+    static fallback is only hand-added once a year is confirmed live) but
+    returns 0 total records is a real regression, not routine publishing
+    lag. That's distinct from a missing resource entirely, which
+    alert_if_current_year_unpublished already covers."""
+
+    def _patch_common(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import ckan_api
+        from etl import load_crashes as mod
+
+        monkeypatch.setattr(mod, "build_city_lookup", lambda db: {})
+        monkeypatch.setattr(mod, "get_loaded_years", lambda db: {})
+        monkeypatch.setattr(mod, "select_years_to_load", lambda *a, **k: ([], [2020], []))
+        monkeypatch.setattr(
+            mod, "alert_if_current_year_unpublished",
+            lambda available, today_year=None: False,
+        )
+        monkeypatch.setattr(ckan_api, "merged_resource_ids", lambda prefix, static: {2020: "resource-id"})
+        db = MagicMock()
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        return mod, ckan_api, db
+
+    def test_zero_total_for_active_resource_exits_nonzero(self, monkeypatch):
+        mod, ckan_api, db = self._patch_common(monkeypatch)
+
+        def fake_fetch(year, resource_ids):
+            yield [], 0, 0  # resource exists, DataStore genuinely empty
+
+        monkeypatch.setattr(ckan_api, "fetch_crashes_for_year", fake_fetch)
+
+        with pytest.raises(SystemExit) as exc_info:
+            mod.run(start_year=2020, end_year=2020, source_filter="ccrs")
+        assert exc_info.value.code == 1
+
+    def test_nonzero_total_loads_normally(self, monkeypatch):
+        mod, ckan_api, db = self._patch_common(monkeypatch)
+        monkeypatch.setattr(mod, "upsert_crashes", lambda db, batch, city_lookup=None: len(batch))
+
+        def fake_fetch(year, resource_ids):
+            yield [{"collision_id": 1}], 1, 1
+
+        monkeypatch.setattr(ckan_api, "fetch_crashes_for_year", fake_fetch)
+
+        mod.run(start_year=2020, end_year=2020, source_filter="ccrs")  # must not raise/exit
+
+        assert db.commit.called

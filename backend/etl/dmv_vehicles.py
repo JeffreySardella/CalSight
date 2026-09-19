@@ -26,7 +26,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, VehicleRegistration
-from etl._utils import track_etl_run
+from etl._utils import require_rows, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -253,19 +253,30 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                     for code, data in county_data.items()
                 ]
 
-                if rows:
-                    stmt = pg_insert(VehicleRegistration).values(rows)
-                    stmt = stmt.on_conflict_do_update(
-                        constraint="vehicle_registrations_county_code_year_key",
-                        set_={
-                            "total_vehicles": stmt.excluded.total_vehicles,
-                            "ev_vehicles": stmt.excluded.ev_vehicles,
-                        },
+                if not rows and year == end_year:
+                    # The newest requested year's DMV extract legitimately
+                    # isn't published yet — same "not yet published" carve-out
+                    # as fars/tract_density. Any OLDER year returning zero
+                    # counties is a real problem (crosswalk or upstream bug).
+                    logger.info(
+                        "DMV vehicles %d: 0 rows — not yet published, skipping",
+                        year,
                     )
-                    db.execute(stmt)
-                    db.commit()
-                    total_rows += len(rows)
-                    logger.info("Year %d: %d counties upserted", year, len(rows))
+                    continue
+                require_rows(rows, "vehicles", f"county rows for year {year}")
+
+                stmt = pg_insert(VehicleRegistration).values(rows)
+                stmt = stmt.on_conflict_do_update(
+                    constraint="vehicle_registrations_county_code_year_key",
+                    set_={
+                        "total_vehicles": stmt.excluded.total_vehicles,
+                        "ev_vehicles": stmt.excluded.ev_vehicles,
+                    },
+                )
+                db.execute(stmt)
+                db.commit()
+                total_rows += len(rows)
+                logger.info("Year %d: %d counties upserted", year, len(rows))
 
             except Exception as exc:
                 logger.error("Year %d failed: %s", year, exc)

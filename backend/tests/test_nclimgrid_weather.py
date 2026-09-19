@@ -197,3 +197,50 @@ class TestRunFailureHandling:
         # The successful month (2026-02) still upserted + committed.
         assert db.execute.called
         assert db.commit.called
+
+
+class TestPublishLagGuard:
+    """Distinguish a malformed/empty CSV for an already-complete month
+    (raise) from the current in-progress month (legitimate, log+skip)."""
+
+    def _patch_run(self, monkeypatch):
+        from etl import nclimgrid_weather as mod
+
+        _patch_etl_run_tracking(monkeypatch)
+        monkeypatch.setattr(mod.time, "sleep", lambda *_: None)
+        db = MagicMock()
+        db.query.return_value.all.return_value = [(1, "Alameda")]
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        return mod, db
+
+    def test_zero_rows_for_current_month_is_not_an_error(self, monkeypatch):
+        from datetime import date as _date
+
+        mod, db = self._patch_run(monkeypatch)
+        today = _date.today()
+        monkeypatch.setattr(mod, "fetch_variable_csv", lambda variable, year, month: "")
+
+        mod.run(year_months=[(today.year, today.month)])  # must not raise
+
+    def test_zero_rows_for_already_complete_month_raises(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch)
+        # A month far in the past is never "current" regardless of when the
+        # suite runs.
+        monkeypatch.setattr(mod, "fetch_variable_csv", lambda variable, year, month: "")
+
+        with pytest.raises(RuntimeError, match="1 month"):
+            mod.run(year_months=[(2019, 1)])
+
+    def test_valid_fixture_loads_normally(self, monkeypatch):
+        mod, db = self._patch_run(monkeypatch)
+        monkeypatch.setattr(
+            mod, "fetch_variable_csv",
+            lambda variable, year, month: (
+                f"cty,04001,CA: Alameda County,{year},{month:02d},{variable.upper()},    20.0"
+            ),
+        )
+
+        mod.run(year_months=[(2019, 1)])  # must not raise
+
+        assert db.execute.called
+        assert db.commit.called
