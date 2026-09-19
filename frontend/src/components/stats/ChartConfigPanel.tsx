@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DIMENSIONS, DIMENSION_LABELS, MEASURE_LABELS, defaultChartType } from "../../lib/dashboard/types";
+import { DIMENSIONS, DIMENSION_LABELS, MEASURE_LABELS, defaultChartType, isPersonLevelDimension, CRASH_ONLY_MEASURES } from "../../lib/dashboard/types";
 import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
 
 interface ChartConfig {
@@ -48,6 +48,19 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "yoy_change", label: MEASURE_LABELS.yoy_change },
 ];
 
+// fatality_rate/yoy_change need a crash-level row (crash_count/total_killed
+// series); person-level dimensions (gender/age_bracket/at_fault_*) carry
+// victim_count/party_count instead, so those measures never render correctly.
+function measureOptions(dim: Dimension): { value: Measure; label: string }[] {
+  return isPersonLevelDimension(dim)
+    ? SUPPORTED_MEASURES.filter((m) => !CRASH_ONLY_MEASURES.includes(m.value))
+    : SUPPORTED_MEASURES;
+}
+
+function sanitizeMeasure(dim: Dimension, m: Measure | undefined): Measure | undefined {
+  return m && isPersonLevelDimension(dim) && CRASH_ONLY_MEASURES.includes(m) ? undefined : m;
+}
+
 const SUPPORTS_DUAL_AXIS = new Set<ChartType>(["line", "area"]);
 // scatter always draws its own regression line unconditionally — no toggle needed
 const SUPPORTS_TREND = new Set<ChartType>(["line", "area"]);
@@ -62,15 +75,23 @@ const SUPPORTS_OUTLIERS = new Set<ChartType>(["line", "area"]);
 const SUPPORTS_FORECAST = new Set<ChartType>(["line", "area"]);
 
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
-  const [dimension, setDimension] = useState<Dimension>(initial?.dimension ?? "hour");
-  const [measure, setMeasure] = useState<Measure>(initial?.measure ?? "count");
-  const [secondaryMeasure, setSecondaryMeasure] = useState<Measure | undefined>(initial?.secondaryMeasure);
+  const initialDimension = initial?.dimension ?? "hour";
+  // A stale/tampered slot (legacy localStorage dashboard, decoded share URL)
+  // can carry fatality_rate/yoy_change on a person-level dimension, where
+  // measureOptions never renders them.
+  const initialMeasure = sanitizeMeasure(initialDimension, initial?.measure) ?? "count";
+  const initialSecondaryMeasure = sanitizeMeasure(initialDimension, initial?.secondaryMeasure);
+
+  const [dimension, setDimension] = useState<Dimension>(initialDimension);
+  const [measure, setMeasure] = useState<Measure>(initialMeasure);
+  const [secondaryMeasure, setSecondaryMeasure] = useState<Measure | undefined>(initialSecondaryMeasure);
   const [chartType, setChartType] = useState<ChartType>(initial?.chartType ?? defaultChartType("hour"));
   const [options, setOptions] = useState<ChartOptions>(initial?.options ?? {});
 
   function handleDimensionChange(dim: Dimension) {
     setDimension(dim);
     setChartType(defaultChartType(dim));
+    setMeasure((prev) => sanitizeMeasure(dim, prev) ?? "count");
     setSecondaryMeasure(undefined);
     setOptions({});
   }
@@ -111,7 +132,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
           onChange={(e) => setMeasure(e.target.value as Measure)}
           className="w-full rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
         >
-          {SUPPORTED_MEASURES.map((m) => (
+          {measureOptions(dimension).map((m) => (
             <option key={m.value} value={m.value}>{m.label}</option>
           ))}
         </select>
@@ -129,7 +150,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
             className="w-full rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
           >
             <option value="">None (single axis)</option>
-            {SUPPORTED_MEASURES.filter((m) => m.value !== measure).map((m) => (
+            {measureOptions(dimension).filter((m) => m.value !== measure).map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>

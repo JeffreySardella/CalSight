@@ -94,6 +94,20 @@ export function defaultChartType(dim: Dimension): ChartType {
   return DEFAULT_CHART_TYPE[dim] ?? "bar";
 }
 
+/**
+ * Person-level dimensions (one row per victim or per at-fault party) instead
+ * of one row per crash. Rows for these carry victim_count/fatal_victim_count
+ * or party_count/fatal_party_count, not crash_count/total_killed — so
+ * fatality_rate and yoy_change (which need the crash-level denominator/series)
+ * aren't meaningful for them.
+ */
+export function isPersonLevelDimension(dim: Dimension): boolean {
+  return dim === "gender" || dim === "age_bracket" || dim === "at_fault_gender" || dim === "at_fault_age_bracket";
+}
+
+/** Measures that require a crash-level row and don't apply to person-level dimensions. */
+export const CRASH_ONLY_MEASURES: readonly Measure[] = ["fatality_rate", "yoy_change"];
+
 export function generateId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
