@@ -855,6 +855,59 @@ class CalenviroScreen(Base):
     )
 
 
+class TractCes(Base):
+    """CalEnviroScreen 5.0 at its native grain — one row per census tract.
+
+    `calenviroscreen` above is the population-weighted county average of
+    these rows; this table keeps the ~9,100 tract rows the loader used to
+    discard, so the map can shade individual tracts.
+
+    Keyed by the 11-digit census GEOID (06 + 3-digit county FIPS + 6-digit
+    tract), which is what the Census cartographic boundary file joins on.
+    """
+
+    __tablename__ = "tract_ces"
+
+    geoid = Column(String(11), primary_key=True)
+    county_code = Column(
+        SmallInteger, ForeignKey("counties.code"), nullable=False
+    )
+    ces_score = Column(Float)
+    ces_percentile = Column(Float)
+    pollution_burden = Column(Float)
+    pop_characteristics = Column(Float)
+    population = Column(Integer)           # CES's ACS tract population
+
+    __table_args__ = (
+        Index("ix_tract_ces_county", "county_code"),
+    )
+
+
+class TractCrashYear(Base):
+    """Crashes with coordinates, aggregated per census tract per year.
+
+    Built by etl.compute_tract_crashes: a geopandas point-in-polygon join of
+    crash lat/lng against the Census tract boundaries (there is no PostGIS on
+    this server, so the join happens in Python and only its ~9,100 x N-year
+    result is stored).
+
+    Covers ONLY crashes that carry coordinates — about 37% of the 11.6M
+    statewide. Anything built on this table has to say so.
+    """
+
+    __tablename__ = "tract_crash_year"
+
+    geoid = Column(String(11), primary_key=True)
+    year = Column(SmallInteger, primary_key=True)
+    crash_count = Column(Integer, nullable=False, server_default="0")
+    killed = Column(Integer, nullable=False, server_default="0")
+    injured = Column(Integer, nullable=False, server_default="0")
+
+    __table_args__ = (
+        Index("ix_tract_crash_year_year", "year"),
+    )
+
+
 class DataQualityStat(Base):
     """Pre-computed data quality stats so the frontend can show them fast.
 
