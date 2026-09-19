@@ -80,3 +80,29 @@ describe("ChartCard partial-year annotation", () => {
     expect(screen.queryByText(/partial-year data/)).toBeNull();
   });
 });
+
+describe("ChartCard KSI definition footnote", () => {
+  const ksiSlot: ChartSlot = { ...yearSlot, measure: "ksi" };
+  const years = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => ({ label: String(from + i), value: 100 + i }));
+
+  it("shows the footnote on a KSI year chart crossing 2015→2016", () => {
+    renderCard(ksiSlot, years(2012, 2019));
+    expect(screen.getByText(/^\* KSI = people killed or seriously injured/)).toBeInTheDocument();
+  });
+
+  it("hides it when the range crosses neither boundary", () => {
+    renderCard(ksiSlot, years(2019, 2024));
+    expect(screen.queryByText(/KSI = people killed/)).toBeNull();
+  });
+
+  it("hides it for non-KSI measures", () => {
+    renderCard(yearSlot, years(2012, 2019));
+    expect(screen.queryByText(/KSI = people killed/)).toBeNull();
+  });
+
+  it("shows it when KSI is the secondary measure", () => {
+    renderCard({ ...yearSlot, chartType: "line", secondaryMeasure: "ksi" }, years(2012, 2019));
+    expect(screen.getByText(/^\* KSI = people killed or seriously injured/)).toBeInTheDocument();
+  });
+});
