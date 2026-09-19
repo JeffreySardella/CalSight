@@ -5,8 +5,18 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from app.models import Crash, StormEvent
+from app.routers.fog_days import clear_fog_cache
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _fresh_fog_cache():
+    """The endpoint caches per (county, year) for 6h, so without this each
+    test would be served the previous test's answer for the same key."""
+    clear_fog_cache()
+    yield
+    clear_fog_cache()
 
 COUNTY = 34  # Sacramento — in the shared seed AND in the zone map (CAZ017/018),
              # which /api/fog-days now uses to bound its crash queries.
