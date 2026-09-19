@@ -9,7 +9,7 @@ test.describe("Dashboard - Hero Metrics", () => {
 
     // Verify all three hero metric cards are visible
     await expect(page.locator("text=Total Incidents")).toBeVisible();
-    await expect(page.locator("text=Killed + Injured / 100K Pop.")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Killed or seriously injured per 100K population" })).toBeVisible();
     await expect(page.locator("text=YoY Fatality Change")).toBeVisible();
 
     // Verify hero metric elements render (values depend on API data availability)

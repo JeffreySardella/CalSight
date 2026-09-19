@@ -315,3 +315,104 @@ class TestDbFailureIsLoud:
 
         assert had_failure is True
         db.rollback.assert_called()
+
+
+class TestZeroTotalGuard:
+    """A CCRS Parties/InjuredWitnessPassengers resource that passed the
+    availability check (its DataStore is activated — merged_resource_ids'
+    discovery only offers datastore_active resources, and the static
+    fallback map is only hand-added once a year is confirmed live) can still
+    return 0 total records days or weeks before CHP backfills rows — e.g. a
+    just-activated next-year resource ("the CCRS January scenario"). That's
+    routine publishing lag, not a regression, UNLESS we already have rows
+    loaded for that year. This loader re-pulls the FULL year's resource
+    every night (not a delta query), so a normal quiet weekend still reports
+    the year's usual nonzero total and never reaches this check."""
+
+    def test_zero_total_with_no_existing_rows_does_not_mark_had_failure(self, monkeypatch):
+        """The CCRS January scenario: a just-activated, still-empty
+        next-year resource must not fail the run every night until CHP
+        backfills rows."""
+        from unittest.mock import MagicMock
+        from etl import load_parties_victims as mod
+
+        monkeypatch.setattr(
+            mod, "_fetch_page", lambda rid, off: {"total": 0, "records": []}
+        )
+        db = MagicMock()
+        db.execute.return_value.first.return_value = None  # no existing rows
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+
+        had_failure = mod.load_table(
+            table_type="parties",
+            resource_ids={2026: "rid"},
+            model_class=mod.CrashParty,
+            transform_fn=mod.transform_party,
+            upsert_cols=mod._PARTY_UPSERT_COLS,
+            constraint_name="uq_parties_party_source",
+            id_field="party_id",
+            start_year=2026,
+            end_year=2026,
+            force=False,
+        )
+
+        assert had_failure is False
+
+    def test_zero_total_with_existing_rows_marks_had_failure(self, monkeypatch):
+        """A year we already have crash_parties rows for going to zero total
+        records is a real regression."""
+        from unittest.mock import MagicMock
+        from etl import load_parties_victims as mod
+
+        monkeypatch.setattr(
+            mod, "_fetch_page", lambda rid, off: {"total": 0, "records": []}
+        )
+        db = MagicMock()
+        db.execute.return_value.first.return_value = (1,)  # existing rows found
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+
+        had_failure = mod.load_table(
+            table_type="parties",
+            resource_ids={2026: "rid"},
+            model_class=mod.CrashParty,
+            transform_fn=mod.transform_party,
+            upsert_cols=mod._PARTY_UPSERT_COLS,
+            constraint_name="uq_parties_party_source",
+            id_field="party_id",
+            start_year=2026,
+            end_year=2026,
+            force=False,
+        )
+
+        assert had_failure is True
+
+    def test_nonzero_total_with_rows_does_not_mark_had_failure(self, monkeypatch):
+        from unittest.mock import MagicMock
+        from etl import load_parties_victims as mod
+
+        raw = {
+            "PartyId": "1", "CollisionId": "10", "PartyNumber": "1",
+            "PartyType": "Driver", "IsAtFault": "Y", "GenderCode": "M",
+            "StatedAge": "30",
+        }
+        pages = iter([
+            {"total": 1, "records": [raw]},
+            {"total": 1, "records": []},
+        ])
+        monkeypatch.setattr(mod, "_fetch_page", lambda rid, off: next(pages))
+        monkeypatch.setattr(mod, "SessionLocal", lambda: MagicMock())
+
+        had_failure = mod.load_table(
+            table_type="parties",
+            resource_ids={2026: "rid"},
+            model_class=mod.CrashParty,
+            transform_fn=mod.transform_party,
+            upsert_cols=mod._PARTY_UPSERT_COLS,
+            constraint_name="uq_parties_party_source",
+            id_field="party_id",
+            start_year=2026,
+            end_year=2026,
+            force=False,
+        )
+
+        assert had_failure is False

@@ -129,4 +129,18 @@ describe("nlqParser", () => {
       expect(resolved!.chartType).toBe("bar");
     });
   });
+
+  describe("KSI", () => {
+    it("recognises KSI phrasings before the plain killed/injured words", () => {
+      expect(parseNlq("serious injuries by year").measure).toBe("ksi");
+      expect(parseNlq("killed or seriously injured over time").measure).toBe("ksi");
+      expect(parseNlq("ksi yearly").measure).toBe("ksi");
+      expect(parseNlq("injuries by year").measure).toBe("injured");
+    });
+
+    it("keeps KSI on the year axis only", () => {
+      expect(resolveNlq(parseNlq("ksi by year"))?.measure).toBe("ksi");
+      expect(resolveNlq(parseNlq("ksi by county"))?.measure).toBe("killed");
+    });
+  });
 });

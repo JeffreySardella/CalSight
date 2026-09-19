@@ -26,7 +26,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, VehicleRegistration
-from etl._utils import track_etl_run
+from etl._utils import require_rows_unless_new_period, track_etl_run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -253,19 +253,30 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
                     for code, data in county_data.items()
                 ]
 
-                if rows:
-                    stmt = pg_insert(VehicleRegistration).values(rows)
-                    stmt = stmt.on_conflict_do_update(
-                        constraint="vehicle_registrations_county_code_year_key",
-                        set_={
-                            "total_vehicles": stmt.excluded.total_vehicles,
-                            "ev_vehicles": stmt.excluded.ev_vehicles,
-                        },
-                    )
-                    db.execute(stmt)
-                    db.commit()
-                    total_rows += len(rows)
-                    logger.info("Year %d: %d counties upserted", year, len(rows))
+                # Zero counties is only legitimate ("not yet published") for
+                # a year we've never loaded before — see
+                # require_rows_unless_new_period()'s docstring. A year we
+                # already have rows for going to zero is a real problem
+                # (crosswalk or upstream bug), not publishing lag.
+                rows = require_rows_unless_new_period(
+                    rows, db, "vehicle_registrations", "year = :year", {"year": year},
+                    "vehicles", f"county rows for year {year}",
+                )
+                if not rows:
+                    continue
+
+                stmt = pg_insert(VehicleRegistration).values(rows)
+                stmt = stmt.on_conflict_do_update(
+                    constraint="vehicle_registrations_county_code_year_key",
+                    set_={
+                        "total_vehicles": stmt.excluded.total_vehicles,
+                        "ev_vehicles": stmt.excluded.ev_vehicles,
+                    },
+                )
+                db.execute(stmt)
+                db.commit()
+                total_rows += len(rows)
+                logger.info("Year %d: %d counties upserted", year, len(rows))
 
             except Exception as exc:
                 logger.error("Year %d failed: %s", year, exc)

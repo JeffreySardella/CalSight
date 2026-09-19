@@ -343,6 +343,16 @@ export default function AiInsightCard({
                     </Link>
                   );
                 })()}
+
+                {!compareMode && data && (
+                  <Link
+                    to={`/county/${countyName.toLowerCase().replace(/ /g, "-")}/report`}
+                    className="w-full bg-surface-container text-on-surface py-2 rounded-lg text-[11px] font-bold tracking-widest uppercase hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-sm">description</span>
+                    Open Report Card
+                  </Link>
+                )}
               </>
             )}
           </div>

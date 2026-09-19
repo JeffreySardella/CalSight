@@ -49,13 +49,17 @@ const SUPPORTED_MEASURES: { value: Measure; label: string }[] = [
   { value: "yoy_change", label: MEASURE_LABELS.yoy_change },
 ];
 
-// fatality_rate/yoy_change need a crash-level row (crash_count/total_killed
-// series); person-level dimensions (gender/age_bracket/at_fault_*) carry
-// victim_count/party_count instead, so those measures never render correctly.
+// Two rules decide which measures a dimension offers. Person-level dimensions
+// (gender/age_bracket/at_fault_*/mode) carry victim_count/party_count rather than a
+// crash-level row, so fatality_rate/yoy_change never render correctly there.
+// KSI is offered on the year axis only: that is the chart its definition
+// footnote is written for. sanitizeMeasure in lib/dashboard/types enforces the
+// same two rules at every other entry point.
 function measureOptions(dim: Dimension): { value: Measure; label: string }[] {
-  return isPersonLevelDimension(dim)
+  const base = isPersonLevelDimension(dim)
     ? SUPPORTED_MEASURES.filter((m) => !CRASH_ONLY_MEASURES.includes(m.value))
     : SUPPORTED_MEASURES;
+  return dim === "year" ? [...base, { value: "ksi", label: MEASURE_LABELS.ksi }] : base;
 }
 
 const SUPPORTS_DUAL_AXIS = new Set<ChartType>(["line", "area"]);
@@ -74,8 +78,8 @@ const SUPPORTS_FORECAST = new Set<ChartType>(["line", "area"]);
 export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props) {
   const initialDimension = initial?.dimension ?? "hour";
   // A stale/tampered slot (legacy localStorage dashboard, decoded share URL)
-  // can carry fatality_rate/yoy_change on a person-level dimension, where
-  // measureOptions never renders them.
+  // can carry a measure its dimension cannot render: fatality_rate/yoy_change
+  // on a person-level dimension, or ksi off the year axis.
   const initialMeasure = sanitizeMeasure(initialDimension, initial?.measure) ?? "count";
   const initialSecondaryMeasure = sanitizeMeasure(initialDimension, initial?.secondaryMeasure);
 
@@ -91,6 +95,7 @@ export default function ChartConfigPanel({ initial, onConfirm, onCancel }: Props
     setMeasure((prev) => sanitizeMeasure(dim, prev) ?? "count");
     setSecondaryMeasure(undefined);
     setOptions({});
+    if (dim !== "year" && measure === "ksi") setMeasure("count");
   }
 
   function toggle(key: keyof ChartOptions) {

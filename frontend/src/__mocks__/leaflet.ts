@@ -18,6 +18,8 @@ export function createMockMap() {
     removeLayer: vi.fn(),
     getPane: vi.fn(() => ({ style: {} })),
     createPane: vi.fn(() => ({ style: {} })),
+    // MapA11y (MapCanvas.tsx) sets role/aria-label on the real container element.
+    getContainer: vi.fn(() => document.createElement("div")),
     getZoom: vi.fn(() => 6),
     setMaxZoom: vi.fn(),
     setZoom: vi.fn(),
