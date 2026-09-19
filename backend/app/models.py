@@ -96,6 +96,12 @@ class Crash(Base):
     # Severity
     number_killed = Column(SmallInteger, default=0)
     number_injured = Column(SmallInteger, default=0)
+    # People seriously injured (the "SI" in KSI). SWITRS 2001-2015: the
+    # archive's severe_injury_count, via the one-off etl/backfill_switrs_ksi.py.
+    # CCRS 2016+: victims coded SuspectSerious or SevereInactive, via
+    # etl/backfill_derived.backfill_severe_injured (nightly). Kept out of
+    # load_crashes._UPSERT_COLUMNS on purpose so a reload never resets it.
+    number_severe_injured = Column(SmallInteger, nullable=False, default=0, server_default="0")
 
     # Conditions
     weather = Column(String(100))
@@ -277,7 +283,7 @@ class CrashVictim(Base):
     party_number = Column(SmallInteger)
     age = Column(SmallInteger)
     gender = Column(String(1))             # M, F, U
-    injury_severity = Column(String(50))   # Fatal, Severe, Possible, etc.
+    injury_severity = Column(String(50))   # Fatal, SuspectSerious, SevereInactive, SuspectMinor, PossibleInjury, OtherVisibleInactive, ComplaintOfPainInactive, or NULL
     person_type = Column(String(30))       # Driver, Passenger, Pedestrian, etc.
     seat_position = Column(String(50))
     safety_equipment = Column(String(100))

@@ -60,6 +60,7 @@ Column-by-column reference for every table in the CalSight database.
 | `motor_vehicle_involved_with` | String(100) | Y | What the vehicle hit (another vehicle, pedestrian, fixed object, etc.) |
 | `number_killed` | SmallInteger | Y | Fatalities at the scene (default 0) |
 | `number_injured` | SmallInteger | Y | Injured persons (default 0) |
+| `number_severe_injured` | SmallInteger | N | People seriously injured (the "SI" in KSI), default 0. SWITRS 2001–2015: archive `severe_injury_count` (one-off `etl.backfill_switrs_ksi`). CCRS 2016+: victims coded `SuspectSerious` or `SevereInactive` (`etl.backfill_derived`, nightly). Not overwritten by crash reloads |
 | `weather` | String(100) | Y | Weather at time of crash: "Clear", "Raining", "Fog", "Snowing", etc. |
 | `road_condition` | String(100) | Y | "Dry", "Wet", "Snowy/Icy", etc. |
 | `lighting` | String(100) | Y | "Daylight", "Dusk/Dawn", "Dark - Street Lights On", etc. |
@@ -139,7 +140,7 @@ Column-by-column reference for every table in the CalSight database.
 | `party_number` | SmallInteger | Y | Which party in the crash this victim belongs to |
 | `age` | SmallInteger | Y | Stated age |
 | `gender` | String(1) | Y | "M", "F", or "U". Indexed |
-| `injury_severity` | String(50) | Y | "Fatal", "Severe", "Visible", "Complaint of Pain", "Uninjured". Indexed |
+| `injury_severity` | String(50) | Y | "Fatal", "SuspectSerious", "SevereInactive", "SuspectMinor", "PossibleInjury", "OtherVisibleInactive", "ComplaintOfPainInactive", or null. `SuspectSerious` + `SevereInactive` = seriously injured (KSI). Indexed |
 | `person_type` | String(30) | Y | "Driver", "Passenger", "Pedestrian", etc. |
 | `seat_position` | String(50) | Y | Where the victim was seated (passengers only) |
 | `safety_equipment` | String(100) | Y | Seatbelt, airbag, helmet, none, etc. |
@@ -558,6 +559,7 @@ These are pre-aggregated SELECT results stored physically, refreshed by `etl.ref
 | `crash_count` | Integer | N |  |
 | `total_killed` | Integer | N | Sum of `number_killed` in this group |
 | `total_injured` | Integer | N | Sum of `number_injured` in this group |
+| `total_severe_injured` | Integer | N | Sum of `number_severe_injured` (people seriously injured) |
 
 ### 21. `mv_crashes_by_year`
 
@@ -572,6 +574,7 @@ These are pre-aggregated SELECT results stored physically, refreshed by `etl.ref
 | `crash_count` | Integer | N |  |
 | `total_killed` | Integer | N |  |
 | `total_injured` | Integer | N |  |
+| `total_severe_injured` | Integer | N | Sum of `number_severe_injured` (people seriously injured) |
 
 ---
 
