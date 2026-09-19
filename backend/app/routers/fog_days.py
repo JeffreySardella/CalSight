@@ -31,6 +31,7 @@ that the fog caused a crash.
 from __future__ import annotations
 
 import calendar
+import time
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -276,6 +277,43 @@ def build_fog_days(db: Session, county: str | None, year: int | None) -> FogDays
     )
 
 
+# The unfiltered request — the default state of the tule-fog story — resolves
+# to every mapped county × every year with a recorded fog event, then groups
+# `crashes` over that whole scope. That is a large fraction of an 11M-row table
+# scanned live on each cold request. The inputs only change when ETL loads rows,
+# so cache the built response in-process with a short TTL, exactly as
+# intersections.py/_aggregate_cache and tract_burden.py do. Each worker then
+# pays the scan at most once per TTL window per (county, year), not once per
+# visitor — the statement timeout alone would only convert a slow scan into a
+# 503, never amortize it.
+_FOG_TTL_SECONDS = 6 * 3600  # matches _AGGREGATE_TTL_SECONDS in intersections.py
+_FOG_CACHE_MAX = 256
+_fog_cache: dict[tuple[str | None, int | None], tuple[float, FogDaysOut]] = {}
+
+
+def clear_fog_cache() -> None:
+    """Drop all cached fog-days results (tests / invalidation)."""
+    _fog_cache.clear()
+
+
+def _cached_fog_days(db: Session, county: str | None, year: int | None) -> FogDaysOut:
+    """build_fog_days wrapped in the intersections-style TTL cache.
+
+    Keyed on the normalized inputs, so `?county=Fresno` and `?county=fresno`
+    share one entry. A miss still calls build_fog_days, so an unknown slug
+    raises FilterError as before rather than being cached as a result.
+    """
+    key = (county.strip().lower() or None if county else None, year)
+    hit = _fog_cache.get(key)
+    if hit is not None and hit[0] > time.monotonic():
+        return hit[1]
+    result = build_fog_days(db, county, year)
+    if len(_fog_cache) >= _FOG_CACHE_MAX:
+        _fog_cache.clear()
+    _fog_cache[key] = (time.monotonic() + _FOG_TTL_SECONDS, result)
+    return result
+
+
 @router.get("/fog-days", response_model=FogDaysOut)
 @_limiter.limit("120/minute;5000/hour")
 def get_fog_days(
@@ -288,4 +326,4 @@ def get_fog_days(
     """Crashes on dense-fog-advisory days vs the same months without one."""
     apply_statement_timeout(db, 30_000)
     response.headers["Cache-Control"] = _CACHE
-    return build_fog_days(db, county, year)
+    return _cached_fog_days(db, county, year)
