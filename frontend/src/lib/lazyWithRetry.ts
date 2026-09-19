@@ -69,9 +69,16 @@ export async function importWithChunkReload<T>(
   }
 }
 
-/** `React.lazy` with transient chunk-load retries. Drop-in for `lazy()`. */
-export function lazyWithRetry<T extends ComponentType<unknown>>(
-  factory: () => Promise<{ default: T }>,
-): LazyExoticComponent<T> {
+/**
+ * `React.lazy` with transient chunk-load retries. Drop-in for `lazy()`.
+ *
+ * Generic over the props `P` (not the component type itself) so this works
+ * for both prop-less page components and components with required props —
+ * constraining the component type directly to `ComponentType<unknown>` rejects
+ * any component with typed props, since function parameters are contravariant.
+ */
+export function lazyWithRetry<P>(
+  factory: () => Promise<{ default: ComponentType<P> }>,
+): LazyExoticComponent<ComponentType<P>> {
   return lazy(() => importWithChunkReload(factory));
 }
