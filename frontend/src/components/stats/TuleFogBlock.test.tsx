@@ -12,6 +12,7 @@ function year(y: number, over: Partial<FogYear> = {}): FogYear {
     crashes_on_fog_days: 200,
     fog_day_avg_crashes: 20,
     baseline_days: 100,
+    crashes_off_fog_days: 1000,
     baseline_avg_crashes: 10,
     lift_pct: 100,
     fog_coded_crashes: 40,
@@ -23,7 +24,7 @@ const FRESNO: FogDays = {
   county: "fresno",
   year: null,
   fog_event_type: "Dense Fog",
-  months: [11, 12, 1, 2],
+  months: [11, 12, 1, 2, 3],
   storm_events_through: 2024,
   totals: year(2024),
   years: [year(2022), year(2023), year(2024)],
@@ -72,8 +73,17 @@ describe("TuleFogBlock", () => {
     expect(chart.querySelectorAll("rect")).toHaveLength(6);
     expect(calls.some((u) => u.includes("county=fresno"))).toBe(true);
     expect(
-      screen.getByText(/20\.0 crashes\/day across 30 fog-advisory days vs 10\.0\/day otherwise — \+100%/),
+      screen.getByText(/20\.0 crashes\/day across 30 fog-advisory days vs 10\.0\/day/),
     ).toBeInTheDocument();
+    expect(screen.getByText(/\+100%/)).toBeInTheDocument();
+  });
+
+  it("names the months the API actually compared against, not 'winter'", async () => {
+    renderBlock();
+    const chart = await screen.findByRole("img");
+    const months = /November, December, January, February and March/;
+    expect(chart.getAttribute("aria-label")).toMatch(months);
+    expect(chart.closest("figure")?.querySelector("figcaption")?.textContent).toMatch(months);
   });
 
   it("says association, not cause", async () => {
@@ -94,6 +104,7 @@ describe("TuleFogBlock", () => {
               fog_event_days: 1,
               crashes_on_fog_days: 99,
               fog_day_avg_crashes: 99,
+              crashes_off_fog_days: 500,
             }),
           ],
         },
@@ -115,6 +126,22 @@ describe("TuleFogBlock", () => {
   it("renders nothing when the county has no fog record yet", async () => {
     renderBlock(json({ ...FRESNO, totals: null, years: [], counties: [] }));
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("renders nothing when every year is too thin to count", async () => {
+    const thin = {
+      ...FRESNO,
+      counties: [
+        {
+          ...FRESNO.counties[0],
+          years: [year(2024, { fog_event_days: 1, crashes_on_fog_days: 4, fog_day_avg_crashes: 4 })],
+        },
+      ],
+    };
+    renderBlock(json(thin));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    // Better nothing than "0.0 crashes/day across 0 fog-advisory days".
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 });

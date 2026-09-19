@@ -1,4 +1,4 @@
-import { useFogDays } from "../../hooks/useFogDays";
+import { formatMonths, useFogDays } from "../../hooks/useFogDays";
 import { formatLift } from "../../hooks/useFirstRain";
 
 const W = 600;
@@ -20,7 +20,10 @@ export default function TuleFogBlock({ countySlug }: { countySlug: string }) {
   const { data } = useFogDays(countySlug);
   const county = data?.counties?.[0] ?? null;
   const years = county?.years ?? [];
-  if (!county || years.length === 0) return null;
+  // The API decides the comparison window; name the months it actually used
+  // rather than asserting "winter" and hoping the two stay in step.
+  const monthList = formatMonths(data?.months ?? []);
+  if (!county || years.length === 0 || monthList === "") return null;
 
   const max = Math.max(
     ...years.map((y) => Math.max(y.fog_day_avg_crashes, y.baseline_avg_crashes)),
@@ -39,13 +42,15 @@ export default function TuleFogBlock({ countySlug }: { countySlug: string }) {
   const fogDays = counted.reduce((a, r) => a + r.fog_event_days, 0);
   const fogCrashes = counted.reduce((a, r) => a + r.crashes_on_fog_days, 0);
   const baseDays = counted.reduce((a, r) => a + r.baseline_days, 0);
-  const baseCrashes = counted.reduce(
-    (a, r) => a + r.baseline_avg_crashes * r.baseline_days,
-    0,
-  );
+  // Sum the raw off-fog counts; multiplying a 2dp average back out by the day
+  // count reintroduces the rounding the API already did.
+  const baseCrashes = counted.reduce((a, r) => a + r.crashes_off_fog_days, 0);
   const fogAvg = fogDays > 0 ? fogCrashes / fogDays : 0;
   const baseAvg = baseDays > 0 ? baseCrashes / baseDays : 0;
   const lift = baseAvg > 0 ? ((fogAvg - baseAvg) / baseAvg) * 100 : null;
+  // Every year too thin to count would otherwise caption a drawn chart
+  // "0.0 crashes/day across 0 fog-advisory days".
+  if (fogDays === 0 || baseDays === 0) return null;
 
   return (
     <figure className="bg-surface-container-lowest rounded-2xl p-3 sm:p-5 ambient-shadow overflow-hidden">
@@ -53,7 +58,7 @@ export default function TuleFogBlock({ countySlug }: { countySlug: string }) {
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto"
         role="img"
-        aria-label={`${county.county_name}: average daily crashes on dense-fog advisory days compared with other days in the same months, by year`}
+        aria-label={`${county.county_name}: average daily crashes on dense-fog advisory days compared with every other day in ${monthList}, by year`}
       >
         {years.map((r, i) => (
           <g key={r.year}>
@@ -76,7 +81,7 @@ export default function TuleFogBlock({ countySlug }: { countySlug: string }) {
               fill={labelFill}
             >
               <title>
-                {`${r.year}: ${r.baseline_avg_crashes.toLocaleString()} crashes/day across ${r.baseline_days} other days in the same months`}
+                {`${r.year}: ${r.baseline_avg_crashes.toLocaleString()} crashes/day across ${r.baseline_days} other days in ${monthList}`}
               </title>
             </rect>
           </g>
@@ -105,13 +110,13 @@ export default function TuleFogBlock({ countySlug }: { countySlug: string }) {
           fog-advisory days
         </text>
         <text x={W - PAD_X} y={H - 6} fontSize={11} fill={labelFill} textAnchor="end">
-          every other day, same months
+          every other day
         </text>
       </svg>
       <figcaption className="text-xs text-on-surface-variant text-center mt-3 italic font-serif">
         {county.county_name}: {fogAvg.toFixed(1)} crashes/day across {fogDays.toLocaleString()}{" "}
-        fog-advisory days vs {baseAvg.toFixed(1)}/day otherwise
-        {lift !== null && ` — ${formatLift(lift)}`}. Association, not cause.
+        fog-advisory days vs {baseAvg.toFixed(1)}/day on every other day in{" "}
+        {monthList}{lift !== null && ` — ${formatLift(lift)}`}. Association, not cause.
       </figcaption>
     </figure>
   );
