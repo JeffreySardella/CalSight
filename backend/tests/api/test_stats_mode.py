@@ -20,9 +20,18 @@ def _seed_all_modes(db_session):
     Party 2 is a motorcycle, party 3 a moped — both must land in
     `motorcyclist`. Party 4 is a car whose passenger is an `occupant`.
     Pedestrians and cyclists are keyed off person_type, not the vehicle.
+
+    Party 2 is deliberately duplicated: 32 (collision_id, data_source,
+    party_number) keys really are doubled in crash_parties, and only the
+    LATERAL's LIMIT 1 stops those victims fanning out.
     """
     db_session.add_all([
         CrashParty(party_id=9001, collision_id=400, data_source="ccrs",
+                   party_number=2, party_type="Driver", at_fault=False,
+                   vehicle_type="Motorcycle"),
+        # Same (collision_id, data_source, party_number) as 9001 — only
+        # party_id differs, which uq_parties_party_source permits.
+        CrashParty(party_id=9004, collision_id=400, data_source="ccrs",
                    party_number=2, party_type="Driver", at_fault=False,
                    vehicle_type="Motorcycle"),
         CrashParty(party_id=9002, collision_id=400, data_source="ccrs",
@@ -70,7 +79,8 @@ def test_mode_rows_count_people_by_road_user(client, db_session):
     rows = {r["mode"]: r for r in body}
 
     assert set(rows) == {"pedestrian", "cyclist", "motorcyclist", "occupant"}
-    # Motorcycle and moped riders both count as motorcyclists.
+    # Motorcycle and moped riders both count as motorcyclists — and the
+    # duplicated party 2 does NOT fan its victim out into a third person.
     assert rows["motorcyclist"] == {
         "mode": "motorcyclist", "victim_count": 2,
         "killed": 1, "severe_injured": 1,

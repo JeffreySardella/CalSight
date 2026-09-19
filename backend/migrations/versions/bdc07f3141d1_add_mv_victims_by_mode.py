@@ -54,7 +54,10 @@ a fatal crash's non-fatal victims still count as injured people within it.
 
 The LEFT JOIN LATERAL ... LIMIT 1 is not decoration: 32 (collision_id,
 data_source, party_number) keys are duplicated in crash_parties, and a plain
-JOIN would fan those victims out and inflate the counts.
+JOIN would fan those victims out and inflate the counts. ORDER BY party_id
+picks the same one of those duplicates on every refresh, so a key whose two
+rows disagree on vehicle_type can't flip between motorcyclist and occupant
+from night to night.
 
 Modeled on b5e9d3f1c8a4 (mv_crash_victims_by_demographics): WITH NO DATA,
 populated by etl/refresh_materialized_views.py, unique index for
@@ -106,6 +109,7 @@ WITH classified AS (
         WHERE p.collision_id = v.collision_id
           AND p.data_source  = v.data_source
           AND p.party_number = v.party_number
+        ORDER BY p.party_id
         LIMIT 1
     ) pv ON TRUE
     WHERE c.crash_year IS NOT NULL
