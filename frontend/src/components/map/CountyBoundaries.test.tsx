@@ -177,10 +177,14 @@ describe("CountyBoundaries", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("registers a moveend listener", async () => {
+  it("does not repaint on pan — the breaks and styles do not depend on the viewport", async () => {
     renderComponent();
     await waitFor(() => expect(L.geoJSON).toHaveBeenCalled());
-    expect(mockMapInstance.on).toHaveBeenCalledWith("moveend", expect.any(Function));
+    // legendEdges runs over ALL counties with data and computeStyle never reads
+    // the bounds, so a moveend rebucket cost a quantile pass plus 58 setStyle
+    // calls per pan to produce the styles already on screen.
+    const moveendCalls = mockMapInstance.on.mock.calls.filter(([event]) => event === "moveend");
+    expect(moveendCalls).toHaveLength(0);
   });
 
   it("paints counties via setStyle after data loads", async () => {

@@ -10,6 +10,7 @@ import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette, HATCH_PATTERN_ID, installHatchPattern } from "../../lib/choropleth/palettes";
 import { prefersReducedMotionNow } from "../../lib/a11y/motion";
 import { useIsDark } from "../../context/ThemeContext";
+import { useIsMobile } from "../../hooks/useIsMobile";
 
 interface CountyBoundariesProps {
   focusedCounty: string | null;
@@ -28,6 +29,11 @@ const OUTLINE_ONLY_STYLE: L.PathOptions = {
 
 const FOCUSED_WEIGHT = 3;
 const FOCUSED_COLOR = "#6750a4";
+
+/** Phone/narrow-tablet widths, where a finger lands on a whole county. */
+const TOUCH_MAX_WIDTH = 768;
+/** How far a tap zooms in on touch. Two steps: one felt like nothing happened. */
+const TAP_ZOOM_STEPS = 2;
 
 function getCountyName(f: GeoJSON.Feature): string {
   return (f.properties?.name ?? "").toString();
@@ -97,6 +103,35 @@ export default memo(function CountyBoundaries({
     compare: compareCounty ?? null,
   });
   focusRef.current = { focused: focusedCounty, compare: compareCounty ?? null };
+
+  // Touch tap-to-zoom (see tapZoom below). Read through a ref because the
+  // per-feature click handlers are bound once, at layer creation.
+  const isTouchWidth = useIsMobile(TOUCH_MAX_WIDTH);
+  const tapZoomRef = useRef<(latlng: L.LatLng) => boolean>(() => false);
+  /**
+   * On a phone the heat canvas has pointer-events: none, so a tap aimed at a
+   * hotspot falls straight through to whichever county polygon is underneath —
+   * and at zoom 7 most of the screen around a hotspot is *neighbouring*
+   * counties. Selecting one swaps the filter, opens the insight card, refires
+   * every query and fitBounds the camera somewhere else: a destructive answer
+   * to "I want a closer look at that red blob".
+   *
+   * So while a heat layer is on at touch widths, a tap zooms toward the point
+   * instead. County selection stays reachable through the search bar, the
+   * filter sheet's county list and the focused-county label. Desktop (where a
+   * mouse click is precise and hover previews the county) is untouched, as is
+   * the no-heatmap case.
+   */
+  tapZoomRef.current = (latlng: L.LatLng) => {
+    if (!heatmapActive || !isTouchWidth) return false;
+    const current = map.getZoom();
+    const target = Math.min(current + TAP_ZOOM_STEPS, map.getMaxZoom());
+    // Already as deep as the data goes — fall through to normal selection
+    // rather than swallowing the tap and doing nothing at all.
+    if (target <= current) return false;
+    map.setView(latlng, target, { animate: !prefersReducedMotionNow() });
+    return true;
+  };
 
 
 
@@ -236,7 +271,8 @@ export default memo(function CountyBoundaries({
         onEachFeature: (feature, featureLayer) => {
           const name = getCountyName(feature);
           featureLayer.on({
-            click: () => {
+            click: (e: L.LeafletMouseEvent) => {
+              if (tapZoomRef.current(e.latlng)) return;
               onFocusCountyRef.current(name);
               onSelectCountyRef.current(name);
             },
@@ -280,22 +316,17 @@ export default memo(function CountyBoundaries({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geojson, map]);
 
+  // Recompute breaks and repaint only when something that affects them
+  // changes — the measure, the choropleth data, the palette, the focus.
+  // There used to be a second, moveend-debounced call to the same function,
+  // but nothing it does depends on the viewport: legendEdges deliberately runs
+  // over ALL counties with data (see rebucketAndRepaint) and computeStyle never
+  // reads the bounds. Every pan therefore paid for a quantile pass plus 58
+  // setStyle calls to arrive at the styles already on screen — a third of the
+  // per-pan cost behind the "barely moving around was a pain" report.
   useEffect(() => {
     rebucketAndRepaint();
   }, [rebucketAndRepaint]);
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const onMoveEnd = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(rebucketAndRepaint, 200);
-    };
-    map.on("moveend", onMoveEnd);
-    return () => {
-      if (timer) clearTimeout(timer);
-      map.off("moveend", onMoveEnd);
-    };
-  }, [map, rebucketAndRepaint]);
 
   useEffect(() => {
     const handleMapClick = (e: L.LeafletMouseEvent) => {

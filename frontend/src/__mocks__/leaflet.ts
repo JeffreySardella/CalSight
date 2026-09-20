@@ -21,6 +21,7 @@ export function createMockMap() {
     // MapA11y (MapCanvas.tsx) sets role/aria-label on the real container element.
     getContainer: vi.fn(() => document.createElement("div")),
     getZoom: vi.fn(() => 6),
+    getMaxZoom: vi.fn(() => 18),
     setMaxZoom: vi.fn(),
     setZoom: vi.fn(),
     fitBounds: vi.fn(),
