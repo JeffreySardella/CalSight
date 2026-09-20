@@ -117,8 +117,8 @@ export default memo(function CountyBoundaries({
    * to "I want a closer look at that red blob".
    *
    * So while a heat layer is on at touch widths, a tap zooms toward the point
-   * instead. County selection stays reachable through the search bar, the
-   * filter sheet's county list and the focused-county label. Desktop (where a
+   * instead. County selection stays reachable through the search bar and the
+   * filter sheet's county list (the focused-county label only deselects). Desktop (where a
    * mouse click is precise and hover previews the county) is untouched, as is
    * the no-heatmap case.
    */
