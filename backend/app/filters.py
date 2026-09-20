@@ -29,6 +29,14 @@ class FilterError(ValueError):
 
 _FIRST_YEAR = 2001
 
+# Rough California bounding box — shared by the heatmap's blanket coordinate
+# sanity filter and by parse_bbox's validation below, so the two never drift
+# apart.
+CA_MIN_LAT, CA_MAX_LAT = 32.5, 42.05
+CA_MIN_LNG, CA_MAX_LNG = -124.5, -114.0
+
+BboxTuple = tuple[float, float, float, float]  # (min_lng, min_lat, max_lng, max_lat)
+
 
 def _split_csv(raw: str) -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip()]
@@ -282,6 +290,34 @@ def parse_road_type(raw: str | None) -> bool | None:
 
 def parse_hit_run(raw: str | None) -> bool | None:
     return parse_bool_flag(raw, "hit_run")
+
+
+def parse_bbox(raw: str | None) -> BboxTuple | None:
+    """Parse ?bbox=minLng,minLat,maxLng,maxLat. None/"" -> no filter."""
+    if raw is None or raw == "":
+        return None
+    parts = _split_csv(raw)
+    if len(parts) != 4:
+        raise FilterError(
+            "bbox",
+            f"bbox must be 4 comma-separated numbers (minLng,minLat,maxLng,maxLat); got {len(parts)}.",
+        )
+    try:
+        min_lng, min_lat, max_lng, max_lat = (float(p) for p in parts)
+    except ValueError:
+        raise FilterError("bbox", f"bbox values must be numbers; got '{raw}'.") from None
+    if min_lng >= max_lng or min_lat >= max_lat:
+        raise FilterError("bbox", "bbox min must be less than max on each axis.")
+    if not (
+        CA_MIN_LNG <= min_lng and max_lng <= CA_MAX_LNG
+        and CA_MIN_LAT <= min_lat and max_lat <= CA_MAX_LAT
+    ):
+        raise FilterError(
+            "bbox",
+            f"bbox must be within California's bounds "
+            f"(lng {CA_MIN_LNG}..{CA_MAX_LNG}, lat {CA_MIN_LAT}..{CA_MAX_LAT}).",
+        )
+    return (min_lng, min_lat, max_lng, max_lat)
 
 
 def parse_driver_age(raw: str | None) -> tuple[int, int] | None:

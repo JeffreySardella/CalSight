@@ -7,6 +7,7 @@ import pytest
 from app.filters import (
     FilterError,
     build_crash_predicates,
+    parse_bbox,
     parse_bool_flag,
     parse_cause,
     parse_county_codes,
@@ -344,3 +345,59 @@ def test_build_crash_predicates_open_ended_date_range():
     assert len(preds) == 1
     compiled = str(preds[0].compile(compile_kwargs={"literal_binds": True}))
     assert "crashes.crash_datetime >=" in compiled
+
+
+# --- bbox ---
+
+def test_parse_bbox_none_returns_none():
+    assert parse_bbox(None) is None
+
+
+def test_parse_bbox_empty_returns_none():
+    assert parse_bbox("") is None
+
+
+def test_parse_bbox_valid():
+    assert parse_bbox("-119.83,36.71,-119.74,36.76") == (-119.83, 36.71, -119.74, 36.76)
+
+
+def test_parse_bbox_rejects_wrong_count():
+    with pytest.raises(FilterError) as exc:
+        parse_bbox("-119.83,36.71,-119.74")
+    assert exc.value.filter == "bbox"
+    assert "4 comma-separated" in exc.value.detail
+
+
+def test_parse_bbox_rejects_non_numeric():
+    with pytest.raises(FilterError) as exc:
+        parse_bbox("a,b,c,d")
+    assert exc.value.filter == "bbox"
+    assert "must be numbers" in exc.value.detail
+
+
+def test_parse_bbox_rejects_min_gte_max_lng():
+    with pytest.raises(FilterError) as exc:
+        parse_bbox("-119.5,36.71,-119.6,36.76")
+    assert exc.value.filter == "bbox"
+    assert "min must be less than max" in exc.value.detail
+
+
+def test_parse_bbox_rejects_min_gte_max_lat():
+    with pytest.raises(FilterError) as exc:
+        parse_bbox("-119.83,36.9,-119.74,36.8")
+    assert exc.value.filter == "bbox"
+
+
+def test_parse_bbox_rejects_outside_california():
+    with pytest.raises(FilterError) as exc:
+        parse_bbox("-200,36.71,-119.74,36.76")
+    assert exc.value.filter == "bbox"
+    assert "California" in exc.value.detail
+
+
+def test_parse_bbox_rejects_swapped_lat_lng_order():
+    """A caller that swaps lat/lng into the minLng,minLat,maxLng,maxLat slots
+    should fail the CA-bounds check rather than silently parse as a
+    degenerate rectangle."""
+    with pytest.raises(FilterError):
+        parse_bbox("36.71,-119.83,36.76,-119.74")
