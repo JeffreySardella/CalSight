@@ -1,6 +1,7 @@
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { notifyRouteChange } from "./lib/pwa/swUpdateGate";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { ThemeProvider } from "./context/ThemeContext";
 import { CustomThemeProvider } from "./context/CustomThemeContext";
@@ -33,6 +34,24 @@ const CountyReportPage = lazyWithRetry(() => import("./pages/CountyReportPage"))
 const AdminEtlPage = lazyWithRetry(() => import("./pages/AdminEtlPage"));
 const NotFoundPage = lazyWithRetry(() => import("./pages/NotFoundPage"));
 
+/**
+ * A route change is a natural seam: the old page is already going away, so a
+ * deferred service-worker reload costs the user nothing. Skips the first
+ * render — that is the initial load, not a navigation.
+ */
+function SwUpdateOnNavigate() {
+  const { pathname } = useLocation();
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    notifyRouteChange();
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <ErrorBoundary fallback={
@@ -62,6 +81,7 @@ export default function App() {
           <MaintenanceGate />
           <RebuildingBanner />
           <BrowserRouter>
+          <SwUpdateOnNavigate />
           <AskAiProvider>
           <AiCompanionProvider>
           <Suspense fallback={<div className="flex items-center justify-center h-dvh" role="status" aria-label="Loading page"><span className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden="true" /><span className="sr-only">Loading page</span></div>}>
