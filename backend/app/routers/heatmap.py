@@ -147,16 +147,28 @@ def _compute_grid(
     )
 
 
-def _choose_agg_step(db: Session, preds: list, max_points: int) -> tuple[float, int]:
-    """Pick the finest ladder step whose bounding-box grid fits under max_points cells.
+_AGG_STEP_QUERY_BUDGET = 3
 
-    One MIN/MAX query over the indexed lat/lng columns gives the matched
-    rows' extent; `ceil(d_lat/step) * ceil(d_lng/step)` is an upper bound on
-    the resulting cell count (real data is sparse, so the actual count only
-    ever comes in at or under this estimate — never over `max_points`).
-    ponytail: geometric estimate, not an exact search — if every ladder rung
-    overshoots (a huge, dense bbox), falls back to the coarsest rung rather
-    than guaranteeing the cap; add a finer/coarser rung if that bites.
+
+def _choose_agg_step(db: Session, preds: list, max_points: int) -> tuple[float, int]:
+    """Pick the finest ladder step whose ACTUAL distinct-cell count fits max_points.
+
+    Crash data is sparse relative to its bounding box, so the cheap
+    `ceil(d_lat/step) * ceil(d_lng/step)` estimate routinely overshoots by
+    5-10x (e.g. Fresno at 0.01deg: ~35K estimated cells vs ~4.5K real ones)
+    — trusting it alone picks a needlessly coarse, visibly blocky grid. The
+    estimate is still an upper bound on the real count, though, so any rung
+    whose estimate already fits is guaranteed to fit for real with zero
+    queries; that gives a free (and often the only) upper bound for a
+    binary search that resolves the rest with actual `COUNT(DISTINCT
+    <cell>)` queries, capped at `_AGG_STEP_QUERY_BUDGET`.
+
+    ponytail: assumes actual cell count is monotonic non-decreasing as the
+    step gets finer (a coarser grid can only merge cells, never split them)
+    — true for how these buckets are built, and it's what makes a binary
+    search valid here. If no rung's actual count fits within the query
+    budget, returns the coarsest rung and accepts the overshoot (matching
+    the raw endpoint's existing "requires a county" scale ceiling).
     """
     min_lat, max_lat, min_lng, max_lng = db.query(
         func.min(Crash.latitude), func.max(Crash.latitude),
@@ -166,11 +178,39 @@ def _choose_agg_step(db: Session, preds: list, max_points: int) -> tuple[float, 
         return _RAW_AGG_LADDER[0]
     d_lat = max(max_lat - min_lat, 1e-9)
     d_lng = max(max_lng - min_lng, 1e-9)
-    for step, decimals in _RAW_AGG_LADDER:
-        cells = math.ceil(d_lat / step) * math.ceil(d_lng / step)
-        if cells <= max_points:
-            return step, decimals
-    return _RAW_AGG_LADDER[-1]
+
+    def estimate(step: float) -> int:
+        return math.ceil(d_lat / step) * math.ceil(d_lng / step)
+
+    def actual_count(step: float) -> int:
+        subq = (
+            db.query(
+                (func.round(Crash.latitude / step) * step).label("lat"),
+                (func.round(Crash.longitude / step) * step).label("lng"),
+            )
+            .filter(*preds)
+            .distinct()
+            .subquery()
+        )
+        return db.query(func.count()).select_from(subq).scalar() or 0
+
+    n = len(_RAW_AGG_LADDER)
+    # Finest rung whose estimate alone guarantees a fit; falls back to the
+    # coarsest rung (unverified) if no estimate ever clears the bar.
+    hi = next((i for i in range(n) if estimate(_RAW_AGG_LADDER[i][0]) <= max_points), n - 1)
+    if hi == 0:
+        return _RAW_AGG_LADDER[0]
+
+    lo = 0
+    queries_left = _AGG_STEP_QUERY_BUDGET
+    while lo < hi and queries_left > 0:
+        mid = (lo + hi) // 2
+        queries_left -= 1
+        if actual_count(_RAW_AGG_LADDER[mid][0]) <= max_points:
+            hi = mid
+        else:
+            lo = mid + 1
+    return _RAW_AGG_LADDER[hi]
 
 
 @router.get("/crashes/heatmap", response_model=HeatmapResponse)

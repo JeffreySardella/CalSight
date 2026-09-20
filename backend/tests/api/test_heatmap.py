@@ -1,10 +1,12 @@
 """Integration tests for /api/crashes/heatmap."""
 
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
 
 import app.routers.heatmap as heatmap_mod
+from app.models import Crash
 from app.routers.heatmap import clear_heatmap_cache
 
 pytestmark = pytest.mark.integration
@@ -260,6 +262,49 @@ def test_heatmap_max_points_ignored_for_grid_resolution(client):
     ).json()
     assert with_mp["points"] == without["points"]
     assert with_mp["grid_step"] is None
+
+
+def test_heatmap_raw_max_points_picks_finer_step_than_bbox_estimate_for_sparse_data(client, db_session):
+    """3 tight clusters of 7 crashes each (like crashes bunched on streets),
+    but the clusters themselves sit far apart (d_lat=6, d_lng=4) — like a
+    county's crashes spanning a big, sparsely-populated bounding box. The
+    geometric estimate at EVERY ladder rung, including the coarsest (1.0
+    deg: ceil(6/1)*ceil(4/1)=24), exceeds max_points=10, so a naive
+    estimate-only chooser never trusts any rung. But because each cluster's
+    spread (~0.00006 deg) is tiny next to any ladder step, the real
+    distinct-cell count is 3 (one per cluster) at every step from the
+    finest up through at least 0.02 — so the correct, fine-grained answer
+    is available and must come from actual counts, not the estimate."""
+    clusters = [(34.0, -118.0), (40.0, -120.0), (36.0, -116.0)]
+    extra = []
+    for k, (lat, lng) in enumerate((c for c in clusters for _ in range(7))):
+        extra.append(Crash(
+            id=9200 + k, collision_id=92000 + k, data_source="ccrs",
+            crash_datetime=datetime(2020, 6, 1, 10, 0), county_code=19,
+            crash_year=2020, crash_hour=10, crash_month=6, day_of_week_num=0,
+            severity="Injury", canonical_cause="other",
+            number_killed=0, number_injured=1,
+            county_name="Los Angeles",
+            latitude=lat + (k % 7) * 0.00001, longitude=lng + (k % 7) * 0.00001,
+            is_alcohol_involved=False, is_distraction_involved=False,
+        ))
+    db_session.add_all(extra)
+    db_session.commit()
+
+    response = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=raw&year=2020&max_points=10"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_crashes"] == 21
+    assert sum(p["weight"] for p in body["points"]) == 21
+    assert body["grid_step"] is not None
+    assert body["grid_step"] < 1.0, (
+        "a naive estimate-only chooser rejects every ladder rung here and "
+        "falls back to the coarsest (1.0 deg) — the real per-cluster count "
+        "fits far finer than that"
+    )
+    assert len(body["points"]) == 3  # one cell per cluster
 
 
 def test_heatmap_cache_key_separates_max_points(client):
