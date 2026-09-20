@@ -25,3 +25,4 @@ class HeatmapResponse(BaseModel):
     total_crashes: int
     batch: int | None = None
     total_batches: int | None = None
+    grid_step: float | None = None

@@ -132,6 +132,146 @@ def test_heatmap_medium_statewide_does_not_require_county(client):
     assert response.status_code == 200
 
 
+def test_heatmap_raw_default_detail_is_full(client):
+    """Backward compat: no `detail` param -> full point shape, unchanged."""
+    response = client.get("/api/crashes/heatmap?county=los-angeles&resolution=raw")
+    body = response.json()
+    assert body["points"], "expected raw points for los-angeles"
+    point = body["points"][0]
+    for field in ("severity", "collision_id", "data_source", "canonical_cause"):
+        assert field in point
+
+
+def test_heatmap_raw_detail_slim_shape(client):
+    """detail=slim -> only lat/lng/weight are populated; other keys stay in
+    the envelope (same schema) but are null, exactly like the grid branches
+    already do."""
+    response = client.get("/api/crashes/heatmap?county=los-angeles&resolution=raw&detail=slim")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["points"], "expected raw points for los-angeles"
+    for point in body["points"]:
+        assert point["lat"] is not None
+        assert point["lng"] is not None
+        assert point["weight"] == 1
+        assert point["severity"] is None
+        assert point["collision_id"] is None
+        assert point["data_source"] is None
+
+
+def test_heatmap_raw_bbox_restricts_points(client):
+    """bbox around crash 1 (34.0, -118.0) only, excluding crash 2 (34.1, -118.1)."""
+    response = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=raw"
+        "&bbox=-118.02,33.98,-117.98,34.02"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    lats = [p["lat"] for p in body["points"]]
+    assert lats, "expected at least crash 1 inside the bbox"
+    assert all(33.98 <= lat <= 34.02 for lat in lats)
+    assert 34.1 not in lats
+
+
+def test_heatmap_raw_bbox_caps_at_limit(client):
+    response = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=raw"
+        "&bbox=-119,33,-117,35&limit=1"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["points"]) <= 1
+
+
+def test_heatmap_raw_bbox_limit_over_max_is_422(client):
+    response = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=raw"
+        "&bbox=-119,33,-117,35&limit=2001"
+    )
+    assert response.status_code == 422
+
+
+def test_heatmap_bbox_rejects_bad_input(client):
+    response = client.get("/api/crashes/heatmap?bbox=not,a,valid,bbox")
+    assert response.status_code == 422
+    assert response.json()["filter"] == "bbox"
+
+
+def test_heatmap_bbox_narrows_grid_resolution(client):
+    """bbox is honored for grid resolutions too, as a plain extra predicate."""
+    all_la = client.get("/api/crashes/heatmap?county=los-angeles&resolution=medium").json()
+    narrowed = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=medium"
+        "&bbox=-118.02,33.98,-117.98,34.02"
+    ).json()
+    assert narrowed["total_crashes"] < all_la["total_crashes"]
+
+
+def test_heatmap_cache_key_separates_detail_and_bbox(client):
+    """A slim request must not be served from a full-detail cache entry (or
+    vice versa), and a bboxed grid request must not share a cache slot with
+    the unscoped one."""
+    with patch.object(heatmap_mod, "_compute_grid", wraps=heatmap_mod._compute_grid) as spy:
+        client.get("/api/crashes/heatmap?county=los-angeles&resolution=medium")
+        assert spy.call_count == 1
+        client.get("/api/crashes/heatmap?county=los-angeles&resolution=medium")
+        assert spy.call_count == 1, "identical request should hit the cache"
+        client.get(
+            "/api/crashes/heatmap?county=los-angeles&resolution=medium"
+            "&bbox=-118.02,33.98,-117.98,34.02"
+        )
+        assert spy.call_count == 2, "bbox must not share a cache entry with the unscoped request"
+
+
+def test_heatmap_raw_max_points_aggregates_when_exceeded(client):
+    """With max_points below the raw row count, the response collapses to a
+    grid (lat/lng/weight only) and echoes the chosen grid_step; total_crashes
+    (the summed weight) is preserved exactly."""
+    raw = client.get("/api/crashes/heatmap?county=los-angeles&resolution=raw").json()
+    assert raw["total_crashes"] == 3  # crashes 1-3 seeded for Los Angeles
+    assert raw["grid_step"] is None
+
+    aggregated = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=raw&max_points=1"
+    ).json()
+    assert aggregated["grid_step"] is not None
+    assert aggregated["total_crashes"] == raw["total_crashes"]
+    assert sum(p["weight"] for p in aggregated["points"]) == raw["total_crashes"]
+    for p in aggregated["points"]:
+        assert p["severity"] is None  # aggregated points are always slim-shaped
+
+
+def test_heatmap_raw_max_points_not_exceeded_is_unaggregated(client):
+    """Comfortably above the row count: no aggregation, grid_step stays null."""
+    response = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=raw&max_points=100000"
+    )
+    body = response.json()
+    assert body["grid_step"] is None
+    assert len(body["points"]) == body["total_crashes"] == 3
+
+
+def test_heatmap_max_points_ignored_for_grid_resolution(client):
+    """max_points only applies to raw; passing it with a grid resolution is a
+    no-op (grid output is already bounded)."""
+    without = client.get("/api/crashes/heatmap?county=los-angeles&resolution=medium").json()
+    with_mp = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=medium&max_points=1"
+    ).json()
+    assert with_mp["points"] == without["points"]
+    assert with_mp["grid_step"] is None
+
+
+def test_heatmap_cache_key_separates_max_points(client):
+    with patch.object(heatmap_mod, "_compute_grid", wraps=heatmap_mod._compute_grid) as spy:
+        client.get("/api/crashes/heatmap?county=los-angeles&resolution=raw&max_points=1")
+        assert spy.call_count == 1
+        client.get("/api/crashes/heatmap?county=los-angeles&resolution=raw&max_points=1")
+        assert spy.call_count == 1, "identical max_points request should hit the cache"
+        client.get("/api/crashes/heatmap?county=los-angeles&resolution=raw&max_points=2")
+        assert spy.call_count == 2, "a different max_points must not share a cache entry"
+
+
 def test_heatmap_medium_statewide_uses_coarser_step_than_county_scoped(client):
     """Unscoped medium groups the full crashes table — 9.3 MB of JSON for one
     statewide year in the 2026-09-18 sweep. Guard the size at the source with
