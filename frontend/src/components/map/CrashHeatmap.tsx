@@ -126,18 +126,18 @@ export function useHeatLayer(
       internals._canvas.style.pointerEvents = "none";
     }
 
-    map.off("zoomanim", internals._animateZoom, layer);
-
-    const onZoomStart = () => {
-      if (!layerRef.current) return;
-      const c = heatInternals(layerRef.current)._canvas;
-      if (c) c.style.display = "none";
-    };
-
+    // Keep leaflet.heat's own `zoomanim` handler bound. There are two ways to
+    // survive a zoom: hide the canvas until zoomend (what this used to do), or
+    // let _animateZoom CSS-transform it the way Leaflet transforms its own tile
+    // layers. Only the second one holds position during a *pinch*: a touch
+    // pinch drives map._animateZoom continuously, firing `zoomanim` on every
+    // frame, so the transformed canvas tracks the gesture. Hiding it instead
+    // showed an empty map for the whole gesture and then a redraw lag — the
+    // "blanks during zoom" report. zoomend still calls _reset() below to
+    // reproject at the settled zoom and clear the transform.
     const onZoomEnd = () => {
       if (!layerRef.current) return;
       const current = heatInternals(layerRef.current);
-      if (current._canvas) current._canvas.style.display = "";
       if (!isRaw) {
         const z = map.getZoom();
         const newR = radiusForZoom(base, z);
@@ -146,11 +146,9 @@ export function useHeatLayer(
       current._reset();
     };
 
-    map.on("zoomstart", onZoomStart);
     map.on("zoomend", onZoomEnd);
 
     return () => {
-      map.off("zoomstart", onZoomStart);
       map.off("zoomend", onZoomEnd);
       if (layerRef.current) {
         removeHeatLayer(map, layerRef.current);
@@ -206,6 +204,13 @@ function buildFatalGradient(fatalLow: string, fatalMid: string, fatalHigh: strin
   };
 }
 
+/**
+ * Fatal-crash emphasis layer. `points` must already be fatal-only — the heat
+ * points it used to filter are now fetched with `detail=slim` (lat/lng/weight
+ * and nothing else), so severity is no longer on them. MapPage runs a separate
+ * `severity=Fatal` query instead; it is small enough to be cheaper than the
+ * fifteen-field payload this used to sift through.
+ */
 export function useFatalLayer(
   points: HeatmapPoint[],
   resolution: HeatmapResolution,
@@ -221,11 +226,9 @@ export function useFatalLayer(
     }
 
     if (resolution !== "raw") return;
+    if (points.length === 0) return;
 
-    const fatal = points.filter((p) => p.severity === "Fatal");
-    if (fatal.length === 0) return;
-
-    const latlngs: [number, number, number][] = fatal.map((p) => [p.lat, p.lng, 1]);
+    const latlngs: [number, number, number][] = points.map((p) => [p.lat, p.lng, 1]);
 
     const layer = L.heatLayer(latlngs, {
       radius: 8,
@@ -244,25 +247,16 @@ export function useFatalLayer(
       internals._canvas.style.pointerEvents = "none";
     }
 
-    map.off("zoomanim", internals._animateZoom, layer);
-
-    const onZoomStart = () => {
-      if (!layerRef.current) return;
-      const c = heatInternals(layerRef.current)._canvas;
-      if (c) c.style.display = "none";
-    };
+    // Same as useHeatLayer: leave `zoomanim` bound so the canvas is transformed
+    // with the map during a pinch instead of being hidden for the gesture.
     const onZoomEnd = () => {
       if (!layerRef.current) return;
-      const current = heatInternals(layerRef.current);
-      if (current._canvas) current._canvas.style.display = "";
-      current._reset();
+      heatInternals(layerRef.current)._reset();
     };
 
-    map.on("zoomstart", onZoomStart);
     map.on("zoomend", onZoomEnd);
 
     return () => {
-      map.off("zoomstart", onZoomStart);
       map.off("zoomend", onZoomEnd);
       if (layerRef.current) {
         removeHeatLayer(map, layerRef.current);
@@ -274,23 +268,26 @@ export function useFatalLayer(
 
 interface CrashHeatmapProps {
   points: HeatmapPoint[];
+  /** Fatal-only points for the emphasis layer; see useFatalLayer. */
+  fatalPoints?: HeatmapPoint[];
   resolution: HeatmapResolution;
   palette: PaletteKey;
 }
 
-export default memo(function CrashHeatmap({ points, resolution, palette }: CrashHeatmapProps) {
+const NO_POINTS: HeatmapPoint[] = [];
+
+export default memo(function CrashHeatmap({ points, fatalPoints = NO_POINTS, resolution, palette }: CrashHeatmapProps) {
   const isDark = useIsDark();
   const tokens = useDesignTokens();
   // Memoize on the token strings the gradient derives from (mirrors how
   // useHeatLayer depends only on primitives like isDark/palette). Without this,
   // a fresh object literal every render would make useFatalLayer's effect deps
-  // change on each render, tearing down + re-filtering up to 600K points and
-  // rebuilding the Leaflet heat layer on every render.
+  // change on each render, rebuilding the Leaflet heat layer every render.
   const fatalGradient = useMemo(
     () => buildFatalGradient(tokens.map.fatalLow, tokens.map.fatalMid, tokens.map.fatalHigh),
     [tokens.map.fatalLow, tokens.map.fatalMid, tokens.map.fatalHigh],
   );
   useHeatLayer(points, resolution, palette, isDark);
-  useFatalLayer(points, resolution, fatalGradient);
+  useFatalLayer(fatalPoints, resolution, fatalGradient);
   return null;
 });

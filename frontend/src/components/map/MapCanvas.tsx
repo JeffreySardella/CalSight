@@ -31,6 +31,7 @@ import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersSta
 import { useHospitals, useSchoolCrashCounts, useSchools } from "../../hooks/useMapOverlays";
 import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { useFilterParams } from "../../hooks/useFilterParams";
+import { heatmapMaxZoom } from "../../lib/map/heatmapLod";
 import { useIsDark } from "../../context/ThemeContext";
 import { useToast } from "../ui/toastContext";
 import { BASEMAPS, TILE_ERROR_LIMIT } from "../../lib/map/basemaps";
@@ -139,7 +140,13 @@ interface MapCanvasProps {
   onSelectedClusterGone?: () => void;
   onMapReady: (map: LeafletMap) => void;
   heatmapPoints: HeatmapPoint[];
+  /** Full-detail crashes for the current viewport — see CrashDotLayer. */
+  dotPoints?: HeatmapPoint[];
+  /** Fatal-only points for the emphasis heat layer. */
+  fatalPoints?: HeatmapPoint[];
   heatmapActive: boolean;
+  /** True when the heatmap query is scoped to one or two counties. */
+  heatmapScoped?: boolean;
   heatmapResolution: HeatmapResolution;
   heatmapPalette: PaletteKey;
   countyDrilldown?: boolean;
@@ -150,13 +157,6 @@ interface MapCanvasProps {
   /** Called (debounced) whenever the user pans/zooms, to mirror into the URL. */
   onViewportChange?: (center: [number, number], zoom: number) => void;
 }
-
-const HEATMAP_MAX_ZOOM: Record<string, number> = {
-  raw: 18,
-  low: 8,
-  medium: 9,
-  high: 10,
-};
 
 function MapInternals({
   focusedCounty,
@@ -171,7 +171,10 @@ function MapInternals({
   onSelectedClusterGone,
   onMapReady,
   heatmapPoints,
+  dotPoints = [],
+  fatalPoints = [],
   heatmapActive,
+  heatmapScoped = false,
   heatmapResolution,
   heatmapPalette,
   countyDrilldown,
@@ -215,14 +218,19 @@ function MapInternals({
     }
   }, [map]);
 
+  // The ceiling is the *ladder's* limit, not the current rung's: MapPage steps
+  // the resolution finer as the zoom crosses each rung (see lib/map/heatmapLod),
+  // so clamping to the rung in hand would stop the zoom two pinches in — the
+  // "zoom stops at 9" report. Unscoped selections still stop where the coarsest
+  // statewide grid runs out, because the API can't serve high/raw without a
+  // county filter.
   useLayoutEffect(() => {
-    const effectiveResolution = countyDrilldown ? "raw" : heatmapResolution;
-    const maxZ = heatmapActive ? (HEATMAP_MAX_ZOOM[effectiveResolution] ?? 12) : 14;
+    const maxZ = heatmapActive ? heatmapMaxZoom(heatmapScoped || !!countyDrilldown) : 14;
     map.setMaxZoom(maxZ);
     if (map.getZoom() > maxZ) {
       map.setZoom(maxZ);
     }
-  }, [map, heatmapActive, heatmapResolution, countyDrilldown]);
+  }, [map, heatmapActive, heatmapScoped, countyDrilldown]);
 
   return (
     <>
@@ -252,6 +260,7 @@ function MapInternals({
       {heatmapActive && (
         <CrashHeatmap
           points={heatmapPoints}
+          fatalPoints={fatalPoints}
           resolution={heatmapResolution}
           palette={heatmapPalette}
         />
@@ -262,7 +271,10 @@ function MapInternals({
           compareCounty={countyDrilldown ? (compareCounty ?? null) : null}
         />
       )}
-      <CrashDotLayer points={heatmapPoints} enabled={heatmapActive && heatmapResolution === "raw"} palette={heatmapPalette} />
+      {/* Dots come from their own viewport-scoped fetch (bbox + limit), not
+          from the heat layer's points — those are slim (no severity, no
+          popup fields) and, past the point budget, grid-aggregated. */}
+      <CrashDotLayer points={dotPoints} enabled={heatmapActive} palette={heatmapPalette} />
       {mismatchPoints.length > 0 && <CoordMismatchLayer points={mismatchPoints} palette={heatmapPalette} />}
       <OverlayMarkers
         hospitals={hospitals}
@@ -289,7 +301,10 @@ export default function MapCanvas({
   onSelectedClusterGone,
   onMapReady,
   heatmapPoints,
+  dotPoints,
+  fatalPoints,
   heatmapActive,
+  heatmapScoped,
   heatmapResolution,
   heatmapPalette,
   countyDrilldown,
@@ -397,7 +412,10 @@ export default function MapCanvas({
         onSelectedClusterGone={onSelectedClusterGone}
         onMapReady={onMapReady}
         heatmapPoints={heatmapPoints}
+        dotPoints={dotPoints}
+        fatalPoints={fatalPoints}
         heatmapActive={heatmapActive}
+        heatmapScoped={heatmapScoped}
         heatmapResolution={heatmapResolution}
         heatmapPalette={heatmapPalette}
         countyDrilldown={countyDrilldown}

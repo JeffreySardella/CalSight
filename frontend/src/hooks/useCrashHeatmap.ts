@@ -43,6 +43,21 @@ export interface HeatmapParams {
   includeRivers?: boolean;
   batch?: number;
   batchSize?: number;
+  /**
+   * `slim` drops every field but lat/lng/weight. The heat layer uses nothing
+   * else, and at raw resolution the other twelve fields are ~90% of the bytes.
+   */
+  detail?: "slim";
+  /**
+   * Cap on returned points. Over it the API aggregates onto a grid, sums
+   * `weight` per cell and reports the step it chose in `grid_step`. This is
+   * the per-pan reprojection budget — see lib/map/heatmapLod.ts.
+   */
+  maxPoints?: number;
+  /** [minLng, minLat, maxLng, maxLat] — full-detail points inside a rectangle. */
+  bbox?: [number, number, number, number] | null;
+  /** Row cap for a bbox request (API default 800, max 2000). */
+  limit?: number;
   _retryKey?: number;
 }
 
@@ -56,6 +71,8 @@ interface HeatmapApiResponse {
   total_crashes: number;
   batch: number | null;
   total_batches: number | null;
+  /** Grid step the API aggregated onto to honour `max_points`; null if it didn't. */
+  grid_step?: number | null;
 }
 
 function buildUrl(params: HeatmapParams): string {
@@ -81,6 +98,10 @@ function buildUrl(params: HeatmapParams): string {
   if (params.includeRivers) sp.set("include_rivers", "true");
   if (params.batch) sp.set("batch", String(params.batch));
   if (params.batchSize) sp.set("batch_size", String(params.batchSize));
+  if (params.detail) sp.set("detail", params.detail);
+  if (params.maxPoints) sp.set("max_points", String(params.maxPoints));
+  if (params.bbox) sp.set("bbox", params.bbox.join(","));
+  if (params.limit) sp.set("limit", String(params.limit));
   return `${API_BASE}/api/crashes/heatmap?${sp.toString()}`;
 }
 
@@ -124,6 +145,10 @@ export function heatmapQueryOptions(params: HeatmapParams) {
       params.includeRivers ?? false,
       params.batch ?? null,
       params.batchSize ?? null,
+      params.detail ?? null,
+      params.maxPoints ?? null,
+      params.bbox ?? null,
+      params.limit ?? null,
       params._retryKey ?? 0,
     ],
     queryFn: () => fetchHeatmap(params),
@@ -146,6 +171,7 @@ export function useCrashHeatmap(params: HeatmapParams) {
     totalCrashes: data?.total_crashes ?? 0,
     batch: data?.batch ?? null,
     totalBatches: data?.total_batches ?? null,
+    gridStep: data?.grid_step ?? null,
     isLoading,
     error,
     refetch,
@@ -174,14 +200,14 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
   const [retryKey, setRetryKey] = useState(0);
   const capped = allPoints.length >= MAX_HEATMAP_POINTS;
 
-  const { points, totalCrashes, batch, totalBatches, isLoading, error } = useCrashHeatmap({
+  const { points, totalCrashes, batch, totalBatches, gridStep, isLoading, error } = useCrashHeatmap({
     ...params,
     batch: currentBatch,
     batchSize: size,
     _retryKey: retryKey,
   });
 
-  const filterKey = `${params.county}|${dateRangeKey(params.dateRange)}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}|${params.alcohol ?? ""}|${params.distracted ?? ""}|${params.pedestrian ?? ""}|${params.cyclist ?? ""}|${params.drug ?? ""}|${params.driverAge ?? ""}|${(params.weather ?? []).join(",")}|${(params.lighting ?? []).join(",")}|${(params.collisionType ?? []).join(",")}|${params.roadType ?? ""}|${params.hitRun ?? ""}`;
+  const filterKey = `${params.county}|${dateRangeKey(params.dateRange)}|${params.severities.join(",")}|${params.causes.join(",")}|${params.resolution}|${params.mismatchOnly ?? ""}|${params.includeRivers ?? ""}|${params.alcohol ?? ""}|${params.distracted ?? ""}|${params.pedestrian ?? ""}|${params.cyclist ?? ""}|${params.drug ?? ""}|${params.driverAge ?? ""}|${(params.weather ?? []).join(",")}|${(params.lighting ?? []).join(",")}|${(params.collisionType ?? []).join(",")}|${params.roadType ?? ""}|${params.hitRun ?? ""}|${params.detail ?? ""}|${params.maxPoints ?? ""}`;
   useEffect(() => {
     setCurrentBatch(1);
     setAllPoints([]);
@@ -233,6 +259,8 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
     totalCrashes,
     currentBatch,
     totalBatches,
+    /** Non-null when the API aggregated onto a grid to honour `max_points`. */
+    gridStep,
     // Once capped we stop advancing, so there's no "more" to load.
     hasMore: !capped && totalBatches != null && currentBatch < totalBatches,
     capped,

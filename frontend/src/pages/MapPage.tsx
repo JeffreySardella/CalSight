@@ -6,6 +6,13 @@ import { useFilterParams, CA_COUNTIES, YEARS } from "../hooks/useFilterParams";
 import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
 import { useHeatmapSuppression } from "../hooks/useHeatmapSuppression";
 import { selectHeatmapDetailSlugs } from "../lib/map/heatmapDetail";
+import {
+  resolutionForZoom,
+  heatPointBudget,
+  DOT_MIN_ZOOM,
+  DOT_LIMIT,
+} from "../lib/map/heatmapLod";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { useViewportParams } from "../hooks/useViewportParams";
 import { useLayerParams } from "../hooks/useLayerParams";
 import type { CoordCoverage } from "../hooks/useCoordCoverage";
@@ -66,6 +73,9 @@ const PANEL_META: Record<string, { title: string; subtitle: string }> = {
 };
 
 const VALID_PANELS = new Set(Object.keys(PANEL_META));
+
+/** Trailing-edge debounce for camera-driven refetches, matching ViewportSync. */
+const VIEWPORT_DEBOUNCE_MS = 250;
 
 
 function MapPageInner() {
@@ -137,6 +147,35 @@ function MapPageInner() {
     return hasFilters;
   });
   const mapRef = useRef<LeafletMap | null>(null);
+  // The live camera, mirrored into state because the data layer depends on it:
+  // the zoom picks the heatmap resolution, the bounds scope the crash-dot
+  // fetch. Debounced on the trailing edge of a gesture (same idea as
+  // MapCanvas's ViewportSync) so a pan fires one refetch, not one per frame.
+  const [mapInstance, setMapInstance] = useState<LeafletMap | null>(null);
+  const [mapZoom, setMapZoom] = useState(initialViewport?.zoom ?? 6);
+  const [viewportBbox, setViewportBbox] = useState<[number, number, number, number] | null>(null);
+
+  useEffect(() => {
+    if (!mapInstance) return;
+    let timer: number | undefined;
+    const sync = () => {
+      setMapZoom(mapInstance.getZoom());
+      const b = mapInstance.getBounds();
+      setViewportBbox([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
+    };
+    const onMoveEnd = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(sync, VIEWPORT_DEBOUNCE_MS);
+    };
+    sync();
+    mapInstance.on("moveend", onMoveEnd);
+    mapInstance.on("zoomend", onMoveEnd);
+    return () => {
+      window.clearTimeout(timer);
+      mapInstance.off("moveend", onMoveEnd);
+      mapInstance.off("zoomend", onMoveEnd);
+    };
+  }, [mapInstance]);
 
   const countyNames = CA_COUNTIES.map((c) => String(c)).sort();
   usePrefetchFacets();
@@ -170,11 +209,20 @@ function MapPageInner() {
     && otherLayers.heatmapCounty
     && (!compareMode || !!compareCounty);
 
-  const heatmapCountySlugs = useCountyDetail ? heatmapDetailSlugs.join(",") || null : null;
+  // The county scope applies to BOTH heatmap layers. The statewide layer used
+  // to send county: null unconditionally, so `?county=fresno` still drew the
+  // whole state's blobs — and unscoped `medium` is a 0.03deg (~2mi) grid, where
+  // scoped `medium` is 0.01deg. Scoping it makes the request finer *and*
+  // smaller, and unlocks high/raw (the API rejects those without a county).
+  const heatmapCountySlugs = heatmapDetailSlugs.length > 0 ? heatmapDetailSlugs.join(",") : null;
+  const heatmapScoped = heatmapCountySlugs !== null;
+
+  const isTouch = useIsMobile(768);
+  const pointBudget = heatPointBudget(isTouch);
 
   const effectiveResolution = useCountyDetail
     ? "raw" as const
-    : (heatmapResolution === "high" || heatmapResolution === "raw" ? "low" : heatmapResolution);
+    : resolutionForZoom(heatmapResolution, mapZoom, heatmapScoped);
 
   const heatmapEnabled = useCountyDetail || (otherLayers.heatmapStatewide && !heatmapSuppressed);
 
@@ -259,7 +307,10 @@ function MapPageInner() {
 
   const statewideHeatmap = useCrashHeatmap({
     enabled: heatmapEnabled && !useCountyDetail,
-    county: null,
+    // The timelapse branch must stay byte-identical to timelapseFrameParams
+    // above, or prefetched frames land under a different query key and every
+    // frame refetches.
+    county: timelapseDriving ? null : heatmapCountySlugs,
     dateRange: timelapseDriving ? timelapseRange : selectedDateRange,
     severities: [...selectedSeverities],
     causes: [...selectedCauses],
@@ -267,6 +318,8 @@ function MapPageInner() {
     // Lock resolution to "low" during animation: each frame is a fresh query,
     // and low keeps frame payloads small enough to keep up with playback.
     resolution: timelapseDriving ? "low" : effectiveResolution,
+    detail: timelapseDriving ? undefined : "slim",
+    maxPoints: timelapseDriving ? undefined : pointBudget,
   });
 
   const countyHeatmap = useBatchedHeatmap({
@@ -277,6 +330,43 @@ function MapPageInner() {
     causes: [...selectedCauses],
     ...involvementFilters,
     resolution: "raw",
+    // The heat layer reads lat/lng/weight and nothing else; `max_points` caps
+    // what a pan has to reproject (the API grid-aggregates past it).
+    detail: "slim",
+    maxPoints: pointBudget,
+  });
+
+  // Fatal-crash emphasis layer. Its own query now that the heat points are
+  // slim — a `severity=Fatal` slice is a small fraction of the county and
+  // costs far less than the fifteen-field payload it used to filter.
+  const fatalAllowed = selectedSeverities.size === 0 || selectedSeverities.has("Fatal");
+  const fatalHeatmap = useCrashHeatmap({
+    enabled: heatmapEnabled && useCountyDetail && fatalAllowed,
+    county: heatmapCountySlugs,
+    dateRange: selectedDateRange,
+    severities: ["Fatal"],
+    causes: [...selectedCauses],
+    ...involvementFilters,
+    resolution: "raw",
+    detail: "slim",
+    maxPoints: pointBudget,
+  });
+
+  // Individual crash dots: full detail (popup fields), but only for the
+  // rectangle on screen and only once zoomed past the dot threshold. Replaces
+  // filtering the whole 100k+ point array down to 800 on every pan.
+  // `heatmapScoped` is required, not optional: the API rejects raw resolution
+  // without a county filter even when a bbox narrows it.
+  const viewportDots = useCrashHeatmap({
+    enabled: heatmapEnabled && heatmapScoped && mapZoom >= DOT_MIN_ZOOM && viewportBbox !== null,
+    county: heatmapCountySlugs,
+    dateRange: selectedDateRange,
+    severities: [...selectedSeverities],
+    causes: [...selectedCauses],
+    ...involvementFilters,
+    resolution: "raw",
+    bbox: viewportBbox,
+    limit: DOT_LIMIT,
   });
 
   // True while heatmap data is still arriving — a single batch in flight for
@@ -379,6 +469,7 @@ function MapPageInner() {
 
   const handleMapReady = useCallback((map: LeafletMap) => {
     mapRef.current = map;
+    setMapInstance(map);
   }, []);
 
   // After the side panel animates open/closed (300 ms CSS transition), tell
@@ -788,7 +879,10 @@ function MapPageInner() {
           onSelectedClusterGone={handleSelectedClusterGone}
           onMapReady={handleMapReady}
           heatmapPoints={heatmap.points}
+          dotPoints={viewportDots.points}
+          fatalPoints={fatalHeatmap.points}
           heatmapActive={heatmapEnabled}
+          heatmapScoped={heatmapScoped}
           heatmapResolution={timelapseDriving ? "low" : effectiveResolution}
           heatmapPalette={palette}
           countyDrilldown={useCountyDetail}
@@ -1115,12 +1209,14 @@ function MapPageInner() {
         )}
         {/* Desktop-only like the streaming pill above: on phones the legend already
             shows "N mapped (x%)". top-28 clears the breadcrumb + legend row at md. */}
-        {heatmapEnabled && useCountyDetail && countyHeatmap.capped && !countyHeatmap.error && (
+        {heatmapEnabled && useCountyDetail && !countyHeatmap.error
+          && (countyHeatmap.capped || countyHeatmap.gridStep != null) && (
           <div className="hidden md:block absolute top-28 left-1/2 -translate-x-1/2 z-20">
             <div className="bg-surface-container-lowest/95 backdrop-blur-md px-4 py-2 rounded-xl ghost-border shadow-lg min-w-[220px]">
               <p className="text-[10px] text-on-surface-variant text-center">
-                Showing a {countyHeatmap.points.length.toLocaleString()}-point sample
-                of {countyHeatmap.totalCrashes.toLocaleString()} crashes
+                {countyHeatmap.gridStep != null
+                  ? `All ${countyHeatmap.totalCrashes.toLocaleString()} crashes, grouped into ${countyHeatmap.points.length.toLocaleString()} cells so the map stays responsive`
+                  : `Showing a ${countyHeatmap.points.length.toLocaleString()}-point sample of ${countyHeatmap.totalCrashes.toLocaleString()} crashes`}
               </p>
             </div>
           </div>

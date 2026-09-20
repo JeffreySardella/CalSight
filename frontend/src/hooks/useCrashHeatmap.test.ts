@@ -158,6 +158,91 @@ describe("useCrashHeatmap", () => {
     await waitFor(() => expect(result.current.error).toBeFalsy());
     expect(result.current.points).toEqual(MOCK_RESPONSE.points);
   });
+
+  // Spellings are the endpoint's, not ours — see backend/app/routers/heatmap.py
+  // (detail / max_points / bbox / limit, bbox ordered minLng,minLat,maxLng,maxLat).
+  it("encodes the slim + max_points heat-layer request", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ...MOCK_RESPONSE, grid_step: 0.002 })),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useCrashHeatmap({
+          enabled: true,
+          county: "fresno",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+          detail: "slim",
+          maxPoints: 25_000,
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const url = String(spy.mock.calls[0][0]);
+    expect(url).toContain("detail=slim");
+    expect(url).toContain("max_points=25000");
+    expect(result.current.gridStep).toBe(0.002);
+  });
+
+  it("encodes the viewport bbox dot request", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(MOCK_RESPONSE)),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useCrashHeatmap({
+          enabled: true,
+          county: "fresno",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+          bbox: [-119.9, 36.6, -119.6, 36.8],
+          limit: 800,
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const url = new URL(String(spy.mock.calls[0][0]), "http://x");
+    expect(url.searchParams.get("bbox")).toBe("-119.9,36.6,-119.6,36.8");
+    expect(url.searchParams.get("limit")).toBe("800");
+    expect(result.current.gridStep).toBeNull();
+  });
+
+  it("omits the new params entirely when they are not set", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(MOCK_RESPONSE)),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useCrashHeatmap({
+          enabled: true,
+          county: null,
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "low",
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const url = String(spy.mock.calls[0][0]);
+    expect(url).not.toContain("detail=");
+    expect(url).not.toContain("max_points=");
+    expect(url).not.toContain("bbox=");
+    expect(url).not.toContain("limit=");
+  });
 });
 
 describe("heatmapQueryOptions (timelapse prefetch parity)", () => {
