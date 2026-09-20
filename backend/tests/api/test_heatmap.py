@@ -243,6 +243,26 @@ def test_heatmap_raw_max_points_aggregates_when_exceeded(client):
         assert p["severity"] is None  # aggregated points are always slim-shaped
 
 
+def test_heatmap_raw_aggregated_response_echoes_the_requested_batch(client):
+    """The batched client asks for batch=1 and only accepts a response whose
+    `batch` matches, stopping when batch == total_batches. An aggregated answer
+    is complete in one response, so it must say batch 1 of 1 — a null batch
+    would leave the client waiting forever with an empty heat layer."""
+    url = "/api/crashes/heatmap?county=los-angeles&resolution=raw&detail=slim&max_points=1&batch=1&batch_size=150000"
+    first = client.get(url).json()
+    assert first["grid_step"] is not None
+    assert first["batch"] == 1
+    assert first["total_batches"] == 1
+
+    # Served from the TTL cache the second time: same echo, cache not mutated.
+    assert client.get(url).json()["batch"] == 1
+    unbatched = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=raw&detail=slim&max_points=1"
+    ).json()
+    assert unbatched["batch"] is None
+    assert unbatched["total_batches"] is None
+
+
 def test_heatmap_raw_max_points_not_exceeded_is_unaggregated(client):
     """Comfortably above the row count: no aggregation, grid_step stays null."""
     response = client.get(

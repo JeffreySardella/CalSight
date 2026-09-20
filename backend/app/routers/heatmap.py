@@ -415,9 +415,21 @@ def crash_heatmap(
         collision_type, road_type, hit_run, mismatch_only, include_rivers,
         resolution, detail, bbox, max_points,
     )
+
+    def _answer(result: HeatmapResponse) -> HeatmapResponse:
+        # A raw request that asked for a batch and got aggregated instead is
+        # complete in one response. Say so in the terms the caller asked in:
+        # the batched client only accepts a response whose `batch` matches the
+        # one it requested, and stops when `batch == total_batches`. Without
+        # this echo it would wait forever on an aggregated county and draw
+        # nothing. Built per request so the cached object is never mutated.
+        if resolution == Resolution.raw and batch is not None:
+            return result.model_copy(update={"batch": batch, "total_batches": 1})
+        return result
+
     cached = _heatmap_cache.get(cache_key)
     if cached is not None and cached[0] > time.monotonic():
-        return cached[1]
+        return _answer(cached[1])
 
     if resolution == Resolution.raw:
         # Got here because total_q > max_points (max_points is not None).
@@ -432,4 +444,4 @@ def crash_heatmap(
     if len(_heatmap_cache) >= _HEATMAP_CACHE_MAX:
         _heatmap_cache.clear()
     _heatmap_cache[cache_key] = (time.monotonic() + _HEATMAP_CACHE_TTL_SECONDS, result)
-    return result
+    return _answer(result)
