@@ -156,9 +156,9 @@ def test_heatmap_raw_detail_slim_shape(client):
         assert point["lat"] is not None
         assert point["lng"] is not None
         assert point["weight"] == 1
-        assert point["severity"] is None
-        assert point["collision_id"] is None
-        assert point["data_source"] is None
+        # Slim points carry nothing but the three fields the heat layer uses;
+        # the detail fields are absent, not shipped as nulls.
+        assert set(point) == {"lat", "lng", "weight"}
 
 
 def test_heatmap_raw_bbox_restricts_points(client):
@@ -240,7 +240,7 @@ def test_heatmap_raw_max_points_aggregates_when_exceeded(client):
     assert aggregated["total_crashes"] == raw["total_crashes"]
     assert sum(p["weight"] for p in aggregated["points"]) == raw["total_crashes"]
     for p in aggregated["points"]:
-        assert p["severity"] is None  # aggregated points are always slim-shaped
+        assert set(p) == {"lat", "lng", "weight"}  # aggregated points are always slim-shaped
 
 
 def test_heatmap_raw_aggregated_response_echoes_the_requested_batch(client):
@@ -361,3 +361,22 @@ def test_heatmap_medium_statewide_uses_coarser_step_than_county_scoped(client):
     for pt in scoped["points"]:
         bucket = round(pt["lat"] / fine_step)
         assert pt["lat"] == pytest.approx(bucket * fine_step, abs=1e-6)
+
+
+def test_heatmap_full_detail_points_keep_their_values_and_drop_only_empty_ones(client):
+    """Dropping empty fields must not drop real ones: a full-detail raw point
+    still carries its severity and ids, and never an explicit null."""
+    body = client.get("/api/crashes/heatmap?county=los-angeles&resolution=raw").json()
+    assert body["points"]
+    for point in body["points"]:
+        assert point["severity"] is not None
+        assert point["collision_id"] is not None
+        assert None not in point.values()
+    # The envelope keeps its keys, null or not: clients read them by name.
+    assert {"batch", "total_batches", "grid_step"} <= set(body)
+
+
+def test_heatmap_grid_points_are_three_fields_only(client):
+    body = client.get("/api/crashes/heatmap?county=los-angeles&resolution=low").json()
+    assert body["points"]
+    assert all(set(p) == {"lat", "lng", "weight"} for p in body["points"])
