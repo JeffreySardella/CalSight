@@ -219,7 +219,11 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
   // isn't stalled. `batch === currentBatch` ensures the response belongs to
   // the batch we asked for.
   useEffect(() => {
-    if (!isLoading && !error && batch === currentBatch && loadedUpTo < currentBatch) {
+    // An aggregated response (gridStep set) is the whole answer in one go. The
+    // API echoes batch 1 of 1 for it, but accept a null batch too: refusing it
+    // would leave the heat layer empty for every county over the point budget.
+    const isOurs = batch === currentBatch || (gridStep != null && batch == null && currentBatch === 1);
+    if (!isLoading && !error && isOurs && loadedUpTo < currentBatch) {
       if (points.length > 0) {
         setAllPoints((prev) => {
           if (currentBatch === 1) return points.slice(0, MAX_HEATMAP_POINTS);
@@ -232,7 +236,7 @@ export function useBatchedHeatmap(params: Omit<HeatmapParams, "batch" | "batchSi
       }
       setLoadedUpTo(currentBatch);
     }
-  }, [points, batch, currentBatch, loadedUpTo, isLoading, error]);
+  }, [points, batch, gridStep, currentBatch, loadedUpTo, isLoading, error]);
 
   // Auto-advance once the current batch is folded in and batches remain. Stop
   // on error, completion, or once we've hit the accumulation cap (fetching

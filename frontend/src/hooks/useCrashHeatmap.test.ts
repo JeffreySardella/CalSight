@@ -293,6 +293,50 @@ describe("useBatchedHeatmap", () => {
     total_batches: 3,
   };
 
+  // When a county has more points than the budget, the API aggregates onto a
+  // grid and the whole answer arrives in one response. The hook must draw it.
+  it.each([
+    ["echoing batch 1 of 1", { batch: 1, total_batches: 1 }],
+    ["with a null batch", { batch: null, total_batches: null }],
+  ])("accepts an aggregated response %s and requests nothing further", async (_label, envelope) => {
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            points: [
+              { lat: 36.7, lng: -119.8, weight: 40 },
+              { lat: 36.8, lng: -119.7, weight: 2 },
+            ],
+            total_crashes: 42,
+            grid_step: 0.002,
+            ...envelope,
+          }),
+        ),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useBatchedHeatmap({
+          enabled: true,
+          county: "fresno",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+          detail: "slim",
+          maxPoints: 25000,
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.points).toHaveLength(2));
+    expect(result.current.points[0].weight).toBe(40);
+    expect(result.current.hasMore).toBe(false);
+    // Give any runaway auto-advance a chance to fire before counting calls.
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("defaults to 150K batch size", async () => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify(BATCH_1)),
