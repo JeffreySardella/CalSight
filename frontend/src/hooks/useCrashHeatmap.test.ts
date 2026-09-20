@@ -158,6 +158,91 @@ describe("useCrashHeatmap", () => {
     await waitFor(() => expect(result.current.error).toBeFalsy());
     expect(result.current.points).toEqual(MOCK_RESPONSE.points);
   });
+
+  // Spellings are the endpoint's, not ours — see backend/app/routers/heatmap.py
+  // (detail / max_points / bbox / limit, bbox ordered minLng,minLat,maxLng,maxLat).
+  it("encodes the slim + max_points heat-layer request", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ...MOCK_RESPONSE, grid_step: 0.002 })),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useCrashHeatmap({
+          enabled: true,
+          county: "fresno",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+          detail: "slim",
+          maxPoints: 25_000,
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const url = String(spy.mock.calls[0][0]);
+    expect(url).toContain("detail=slim");
+    expect(url).toContain("max_points=25000");
+    expect(result.current.gridStep).toBe(0.002);
+  });
+
+  it("encodes the viewport bbox dot request", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(MOCK_RESPONSE)),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useCrashHeatmap({
+          enabled: true,
+          county: "fresno",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+          bbox: [-119.9, 36.6, -119.6, 36.8],
+          limit: 800,
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const url = new URL(String(spy.mock.calls[0][0]), "http://x");
+    expect(url.searchParams.get("bbox")).toBe("-119.9,36.6,-119.6,36.8");
+    expect(url.searchParams.get("limit")).toBe("800");
+    expect(result.current.gridStep).toBeNull();
+  });
+
+  it("omits the new params entirely when they are not set", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(MOCK_RESPONSE)),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useCrashHeatmap({
+          enabled: true,
+          county: null,
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "low",
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const url = String(spy.mock.calls[0][0]);
+    expect(url).not.toContain("detail=");
+    expect(url).not.toContain("max_points=");
+    expect(url).not.toContain("bbox=");
+    expect(url).not.toContain("limit=");
+  });
 });
 
 describe("heatmapQueryOptions (timelapse prefetch parity)", () => {
@@ -207,6 +292,50 @@ describe("useBatchedHeatmap", () => {
     batch: 2,
     total_batches: 3,
   };
+
+  // When a county has more points than the budget, the API aggregates onto a
+  // grid and the whole answer arrives in one response. The hook must draw it.
+  it.each([
+    ["echoing batch 1 of 1", { batch: 1, total_batches: 1 }],
+    ["with a null batch", { batch: null, total_batches: null }],
+  ])("accepts an aggregated response %s and requests nothing further", async (_label, envelope) => {
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            points: [
+              { lat: 36.7, lng: -119.8, weight: 40 },
+              { lat: 36.8, lng: -119.7, weight: 2 },
+            ],
+            total_crashes: 42,
+            grid_step: 0.002,
+            ...envelope,
+          }),
+        ),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useBatchedHeatmap({
+          enabled: true,
+          county: "fresno",
+          dateRange: null,
+          severities: [],
+          causes: [],
+          resolution: "raw",
+          detail: "slim",
+          maxPoints: 25000,
+        }),
+      { wrapper: makeWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.points).toHaveLength(2));
+    expect(result.current.points[0].weight).toBe(40);
+    expect(result.current.hasMore).toBe(false);
+    // Give any runaway auto-advance a chance to fire before counting calls.
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
 
   it("defaults to 150K batch size", async () => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
