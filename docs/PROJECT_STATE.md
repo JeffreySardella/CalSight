@@ -37,17 +37,30 @@ No day-to-day attention required:
   React error boundaries, loud partial-failure handling in loaders,
   stale-source alerts, single-scheduler advisory lock, ETL run tracking.
 
-## Current state (2026-09-12)
+## Current state (2026-09-21)
 
 - **Live and healthy** — site 200, API ok, **11.60M** crash rows (94,804
-  killed / 6.51M injured), freshness `fresh` (re-verified 2026-09-12; the
-  ETL has run unattended throughout).
-- **Zero open PRs.** `main` @ `a735ac9`.
-- **Water module** is **public as of 2026-09-12** (`WATER_PAGE_PUBLIC = true` in
-  `frontend/src/config.ts`): in the nav, sitemap and prefetch list at
-  https://calsight.org/water. Data is loaded and backfilled (reservoirs,
-  snowpack, drought, precip indices); the first-storm crash tile at the top
-  reads `/api/first-rain` and hides itself until that endpoint is live.
+  killed / 6.51M injured), unchanged since 2026-09-12 (nothing in this
+  window reloaded crash totals). `main` @ `03ea9b3`, **zero open PRs**.
+- **True KSI is live end to end.** The backend gained a per-crash
+  `number_severe_injured` count, backfilled from both SWITRS (2001–2015)
+  and CCRS (2016–present); the Stats hero tile and the year dashboard's
+  new KSI measure now count people killed **or** seriously injured
+  instead of every injury, with a definition footnote wherever a charted
+  range crosses the 2015→2016 or 2017→2018 boundary.
+- **A second feature wave shipped 2026-09-14 through 2026-09-21** on top
+  of the water launch: a mode-of-travel dimension, the tule-fog and
+  "Holidays on the road" stories, a VMT denominator, a school-proximity
+  layer, a census-tract equity layer, streaming Ask AI, a printable
+  county report card, and a build-time sitemap. Full list in "Shipped
+  2026-09-14 to 2026-09-21" below.
+- **The map is usable on a phone now.** Server-side heat aggregation,
+  tap-to-zoom instead of a county switch, and a service-worker update
+  that no longer reloads mid-gesture — all found and fixed against a
+  real link the owner sent from his phone.
+- **Water module** is unchanged from 2026-09-12: still **public**
+  (`WATER_PAGE_PUBLIC = true` in `frontend/src/config.ts`), in the nav,
+  sitemap and prefetch list at https://calsight.org/water.
 
 ## Operator checklist — the only things left
 
@@ -111,6 +124,90 @@ redacted crontabs and the verbatim script: `backend/deploy/lxc100-crontab.md`.
 - [ ] **Roadmap** — issues #293 / #256 / #304 are a post-launch feature backlog,
   not unfinished work. The "first-rain-after-a-dry-spell" crash story shipped
   with the Water launch (`/stats?story=first-storm`, fed by `/api/first-rain`).
+
+## Shipped 2026-09-14 to 2026-09-21
+
+- **True KSI, backend and frontend.** A per-crash `number_severe_injured`
+  count, a matview swap, and backfills from both SWITRS and CCRS; the
+  hero tile and a new year-chart measure read people killed or
+  seriously injured instead of every injury. Deaths per 1,000 crashes
+  replaced the old fatality-rate percent on the default year view.
+- **Mode of travel.** A new dimension splits people into pedestrian /
+  cyclist / motorcyclist / occupant. It counts people, not crashes (a
+  crash-level flag can't tell a pedestrian-only crash from one that also
+  hit a cyclist), and only covers 2016+ — CCRS has no mode data for
+  SWITRS years.
+- **Tule fog story.** A NOAA Storm Events loader maps 83 NWS forecast
+  zones onto 32 counties (fog and winter-storm rows carry a zone, never
+  a county) and powers `/api/fog-days` and a new tule-fog story for the
+  San Joaquin Valley.
+- **"Holidays on the road" story.** A new daily matview backs a
+  comparison of seven holiday periods (Thanksgiving, Christmas/New
+  Year, July 4th, Memorial Day, Labor Day, Super Bowl Sunday, Halloween)
+  against the ordinary days of their own month and year.
+- **VMT denominator.** County vehicle-miles-traveled from CARB EMFAC2025
+  backs a new "crashes per 100M vehicle miles" choropleth measure — the
+  exposure metric the safety literature actually uses, versus
+  population or road miles.
+- **Crashes within 500 ft of schools.** A new matview and a bounding-box
+  distance query color the existing school marker layer by nearby crash
+  counts, with the per-county coordinate-coverage caveat stated in the
+  popup (only ~37% of crashes statewide carry coordinates).
+- **Census-tract equity layer.** `tract_ces` + `tract_crash_year` put
+  recorded crash burden next to CalEnviroScreen's environmental-justice
+  score at the tract level, joined with shapely's `STRtree` since the
+  DB host has no PostGIS.
+- **Streaming Ask AI.** `POST /api/ask/stream` renders the answer token
+  by token over SSE; any failure before the first token falls back to
+  the existing `/api/ask` call, so nothing gets worse for a client that
+  can't stream.
+- **Printable county report card** at `/county/:slug/report` — one
+  Letter page per county with headline numbers, a ten-year chart, top
+  collision factors, and a small-county rule that withholds a rate
+  below its reliability threshold (10 deaths or 50 crashes a year) in
+  favor of a pooled five-year figure.
+- **SEO.** `sitemap.xml` now generates at build time from the same
+  preset/story lists the app uses (27 URLs; the old hand-maintained
+  file was missing 4 of 9 presets), plus static `WebSite`/`Dataset`
+  JSON-LD and a distinct title per preset and story.
+- **Causal-language gate reaches the AI county narratives**, not just
+  the fun facts (prod QA caught a county card claiming speeding
+  "caused" a share of crashes SWITRS can't support), and a follow-up
+  fixed the gate rejecting its own honest sentences — a crash-outcome
+  tally like "52.1% resulted in no injuries" is descriptive, not
+  causal.
+- **Zero-row loader guards.** 13 reference-table loaders now hard-fail
+  on an empty upstream body instead of recording a clean zero-row
+  success and resetting the freshness clock; five lagging-publication
+  sources (FARS, tract density, DMV vehicles, weather, the CCRS crash
+  family) got a period-aware version of the same guard so ordinary
+  publishing lag isn't mistaken for an outage.
+- **Data-story audit.** All ten Stats-page data stories were checked
+  against production; five had the wrong number, three had none. Fixed
+  in place — the Two Californias gap is 4.1x, not 3.1x; the DUI peak is
+  10 PM, not 2 AM; the environmental-justice correlation is 0.14, not
+  0.52.
+- **Accessibility, bundle size, highways cache.** An axe + manual WCAG
+  2.2 pass across every route found zero remaining serious/critical
+  violations; the Ask AI popover's markdown/chart renderers moved out
+  of the entry chunk (about 52 KB gzip off it, measured against the
+  pre-branch baseline); `/api/stats/highways` picked up the same
+  6-hour cache its sibling endpoints already had (median request time
+  was ~1.95s before).
+- **Mobile map made usable on a phone.** A service-worker update was
+  reloading the page mid-gesture; a tap on a hotspot below zoom 14 was
+  switching counties instead of zooming; and the heat layer was
+  shipping full-detail JSON for a canvas that only ever needed
+  lat/lng/weight. Now: server-side heat aggregation (`max_points`)
+  bounded to what a phone can reproject in one frame, a slim point
+  shape, viewport-scoped dot queries, tap-to-zoom, and a deferred SW
+  update. A same-week follow-up fixed a regression where a tapped
+  crash dot's popup vanished on the pan that centers it.
+- **Dependency bumps** across backend (uvicorn, SQLAlchemy, Alembic,
+  boto3, sentry-sdk) and frontend (TanStack Query, react-router-dom,
+  autoprefixer) via Dependabot. Merged branches keep getting deleted at
+  merge time — `origin` currently holds only the last few, from PRs
+  merged this week.
 
 ## Shipped 2026-09-12
 
