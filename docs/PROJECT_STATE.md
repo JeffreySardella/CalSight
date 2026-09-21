@@ -57,7 +57,7 @@ No day-to-day attention required:
 - **The map is usable on a phone now.** Server-side heat aggregation,
   tap-to-zoom instead of a county switch, and a service-worker update
   that no longer reloads mid-gesture — all found and fixed against a
-  real link the owner sent from his phone.
+  real link the owner sent from their phone.
 - **Water module** is unchanged from 2026-09-12: still **public**
   (`WATER_PAGE_PUBLIC = true` in `frontend/src/config.ts`), in the nav,
   sitemap and prefetch list at https://calsight.org/water.
@@ -205,9 +205,9 @@ redacted crontabs and the verbatim script: `backend/deploy/lxc100-crontab.md`.
   crash dot's popup vanished on the pan that centers it.
 - **Dependency bumps** across backend (uvicorn, SQLAlchemy, Alembic,
   boto3, sentry-sdk) and frontend (TanStack Query, react-router-dom,
-  autoprefixer) via Dependabot. Merged branches keep getting deleted at
-  merge time — `origin` currently holds only the last few, from PRs
-  merged this week.
+  autoprefixer) via Dependabot. The 32 stale
+  branches left on `origin` by earlier merges were deleted; it now holds
+  only `main` and the branches of open PRs.
 
 ## Shipped 2026-09-12
 

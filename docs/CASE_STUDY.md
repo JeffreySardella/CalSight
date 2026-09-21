@@ -32,7 +32,7 @@ a printable per-county report card. Started 2026-03-26; live since May;
   since has been verified in a real browser against the accessibility tree —
   a September mobile-map fix (heat aggregation, tap-to-zoom, a deferred
   service-worker update) came from testing an actual link the owner sent
-  from his phone, not a simulated viewport.
+  from their phone, not a simulated viewport.
 - **The fabricated-YoY bug family.** Three separate surfaces compared a
   partial current year against a full prior year and published −50% to −64%
   county "declines". Fix was one rule applied everywhere: exclude any year
