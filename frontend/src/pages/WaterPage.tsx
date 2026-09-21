@@ -1,8 +1,9 @@
+import { useState } from "react";
 import MetaTags from "../components/seo/MetaTags";
 import DroughtSection from "../components/water/DroughtSection";
 import FirstStormTile from "../components/water/FirstStormTile";
 import PrecipSection from "../components/water/PrecipSection";
-import ReservoirCard from "../components/water/ReservoirCard";
+import ReservoirCard, { cardId } from "../components/water/ReservoirCard";
 import SnowpackSection from "../components/water/SnowpackSection";
 import {
   baselineFootnote,
@@ -14,6 +15,16 @@ import {
 export default function WaterPage() {
   const { data, isLoading, isError } = useReservoirConditions();
   const summary = data ? summarize(data) : null;
+  // Which card the drought map last sent us to. The card owns its own
+  // expand/collapse; this only asks it to open.
+  const [listedStation, setListedStation] = useState<string | null>(null);
+
+  const showInList = (stationId: string) => {
+    setListedStation(stationId);
+    document
+      .getElementById(cardId(stationId))
+      ?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  };
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 pb-24">
@@ -102,7 +113,11 @@ export default function WaterPage() {
           <h2 id="reservoirs-heading" className="sr-only">Reservoirs</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {data.map((r) => (
-              <ReservoirCard key={r.station_id} reservoir={r} />
+              <ReservoirCard
+                key={r.station_id}
+                reservoir={r}
+                expandRequested={listedStation === r.station_id}
+              />
             ))}
           </div>
         </section>
@@ -118,7 +133,7 @@ export default function WaterPage() {
 
       <PrecipSection />
 
-      <DroughtSection />
+      <DroughtSection reservoirs={data} onShowInList={showInList} />
     </div>
   );
 }

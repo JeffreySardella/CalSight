@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sparkline from "../charts/Sparkline";
 import {
   formatAcreFeet,
@@ -6,8 +6,16 @@ import {
   type ReservoirCondition,
 } from "../../hooks/useWaterData";
 
+/** Anchor id so the drought map's "Show in list" can scroll here. */
+export function cardId(stationId: string): string {
+  return `reservoir-${stationId}`;
+}
+
 interface ReservoirCardProps {
   reservoir: ReservoirCondition;
+  /** Set by "Show in list" on the map. Opens the card from outside without
+   *  taking ownership of the expand/collapse state. */
+  expandRequested?: boolean;
 }
 
 /**
@@ -15,9 +23,16 @@ interface ReservoirCardProps {
  * tick marking the historical average for this day of year. Expands to a
  * one-year storage sparkline on demand.
  */
-export default function ReservoirCard({ reservoir }: ReservoirCardProps) {
+export default function ReservoirCard({
+  reservoir,
+  expandRequested,
+}: ReservoirCardProps) {
   const [expanded, setExpanded] = useState(false);
   const series = useReservoirSeries(expanded ? reservoir.station_id : null);
+
+  useEffect(() => {
+    if (expandRequested) setExpanded(true);
+  }, [expandRequested]);
 
   const pctCapacity = Math.min(reservoir.pct_of_capacity, 100);
   const avgPctOfCapacity =
@@ -26,7 +41,10 @@ export default function ReservoirCard({ reservoir }: ReservoirCardProps) {
       : null;
 
   return (
-    <article className="bg-surface-container-lowest rounded-2xl p-6">
+    <article
+      id={cardId(reservoir.station_id)}
+      className="bg-surface-container-lowest rounded-2xl p-6 scroll-mt-24"
+    >
       <div className="flex items-baseline justify-between gap-4">
         <h3 className="font-headline font-bold text-on-surface text-lg leading-tight">
           {reservoir.name}

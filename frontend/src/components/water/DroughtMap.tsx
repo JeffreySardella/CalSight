@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCountyGeoJson } from "../../hooks/useCountyGeoJson";
 import { inDroughtPct, type DroughtCounty } from "../../hooks/useDroughtData";
+import { formatAcreFeet, type ReservoirCondition } from "../../hooks/useWaterData";
 
 /** Bins for percent-of-county-in-drought (D1+), reusing the validated
  * sequential ramp. A magnitude scale, light→dark. */
@@ -26,6 +27,34 @@ export function fillForDroughtShare(pct: number): string {
     if (pct >= bin.min && pct < bin.max) return bin.color;
   }
   return BIN_UNDER_20.color;
+}
+
+/** Reservoir fullness ramp — a blue hue family, deliberately unrelated to
+ * the orange/brown drought ramp so the two overlaid layers never read as
+ * one scale. Four steps, empty→full. */
+const RESERVOIR_BINS = [
+  { min: 0, max: 25, color: "rgb(var(--reservoir-r0))", label: "<25%" },
+  { min: 25, max: 50, color: "rgb(var(--reservoir-r1))", label: "25–50%" },
+  { min: 50, max: 75, color: "rgb(var(--reservoir-r2))", label: "50–75%" },
+  { min: 75, max: Infinity, color: "rgb(var(--reservoir-r3))", label: "75%+" },
+] as const;
+
+export function fillForReservoirPct(pct: number): string {
+  for (const bin of RESERVOIR_BINS) {
+    if (pct >= bin.min && pct < bin.max) return bin.color;
+  }
+  return RESERVOIR_BINS[0].color;
+}
+
+// Area (not radius) carries capacity, so the radius is a sqrt scale. The
+// floor keeps the smallest reservoirs above a finger-sized tap target even
+// though that breaks strict proportionality down there.
+const MIN_R = 6;
+const MAX_R = 16;
+
+export function radiusForCapacity(capacityAf: number, maxCapacityAf: number): number {
+  if (maxCapacityAf <= 0) return MIN_R;
+  return Math.max(MIN_R, MAX_R * Math.sqrt(capacityAf / maxCapacityAf));
 }
 
 const WIDTH = 400;
@@ -92,24 +121,41 @@ function featurePath(
 interface DroughtMapProps {
   counties: DroughtCounty[];
   weekStart: string;
+  /** Optional overlay. Undefined while the reservoir query loads or after
+   *  it fails — the choropleth renders on its own either way. */
+  reservoirs?: ReservoirCondition[];
+  /** Jumps to (and expands) the selected reservoir's card up the page. */
+  onShowInList?: (stationId: string) => void;
 }
 
 /**
- * Inline-SVG choropleth of drought share (D1+) per county. Tile-free and
- * dependency-free: counties come from the same topojson the main map
- * ships, projected with a simple state-scale approximation.
+ * Inline-SVG choropleth of drought share (D1+) per county, with an
+ * optional reservoir layer on top. Tile-free and dependency-free:
+ * counties come from the same topojson the main map ships, projected with
+ * a simple state-scale approximation, and reservoirs ride the very same
+ * projector so the two layers cannot drift apart.
  */
-export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
+export default function DroughtMap({
+  counties,
+  weekStart,
+  reservoirs,
+  onShowInList,
+}: DroughtMapProps) {
   const { data: geojson } = useCountyGeoJson();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const byCode = useMemo(
     () => new Map(counties.map((c) => [c.county_code, c])),
     [counties],
   );
 
+  const project = useMemo(
+    () => (geojson ? buildProjector(geojson.features) : null),
+    [geojson],
+  );
+
   const paths = useMemo(() => {
-    if (!geojson) return null;
-    const project = buildProjector(geojson.features);
+    if (!geojson || !project) return null;
     return geojson.features.map((f) => {
       const code = Number(f.properties?.county_code);
       const name = String(f.properties?.name ?? "");
@@ -128,19 +174,43 @@ export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
               : `${name} — ${drought.toFixed(0)}% in drought (D1+)`,
       };
     });
-  }, [geojson, byCode]);
+  }, [geojson, byCode, project]);
+
+  const dots = useMemo(() => {
+    if (!project || !reservoirs?.length) return [];
+    // Rows loaded before the coordinate columns existed have no lat/lon.
+    const located = reservoirs.filter((r) => r.lat !== null && r.lon !== null);
+    const maxCapacity = Math.max(...located.map((r) => r.capacity_af), 0);
+    return located
+      .map((r) => {
+        const [cx, cy] = project([r.lon as number, r.lat as number]);
+        return { r: radiusForCapacity(r.capacity_af, maxCapacity), cx, cy, reservoir: r };
+      })
+      // Biggest first so the small ones land on top and stay tappable.
+      .sort((a, b) => b.r - a.r);
+  }, [project, reservoirs]);
+
+  const selected = dots.find((d) => d.reservoir.station_id === selectedId)?.reservoir;
+
+  // Escape must clear the selection from anywhere — the detail panel takes
+  // focus off the circle, so a key handler on the circle alone wouldn't do.
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selectedId]);
 
   if (!paths) return null;
   const hasNoData = paths.some((p) => p.noData);
+  const toggle = (stationId: string) =>
+    setSelectedId((cur) => (cur === stationId ? null : stationId));
 
   return (
     <figure className="flex flex-col items-center mt-12">
-      <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="w-full max-w-[400px]"
-        role="img"
-        aria-label={`Map of California counties shaded by share of land in drought for the week of ${weekStart}. Details per county are in the hardest-hit list below.`}
-      >
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full max-w-[400px]">
         <defs>
           <pattern
             id={NO_DATA_PATTERN_ID}
@@ -153,18 +223,110 @@ export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
             <line x1={0} y1={0} x2={0} y2={5} stroke={NO_DATA_STRIPE} strokeWidth={1.5} />
           </pattern>
         </defs>
-        {paths.map((p) => (
-          <path
-            key={p.key}
-            d={p.d}
-            fill={p.fill}
-            stroke="rgb(var(--surface))"
-            strokeWidth={1}
-          >
-            <title>{p.title}</title>
-          </path>
-        ))}
+        {/* The choropleth is one labeled image; the role lives on the group
+            rather than the <svg> so the reservoir buttons below it stay in
+            the accessibility tree (role="img" makes descendants
+            presentational). */}
+        <g
+          role="img"
+          aria-label={`Map of California counties shaded by share of land in drought for the week of ${weekStart}. Details per county are in the hardest-hit list below.`}
+        >
+          {paths.map((p) => (
+            <path
+              key={p.key}
+              d={p.d}
+              fill={p.fill}
+              stroke="rgb(var(--surface))"
+              strokeWidth={1}
+            >
+              <title>{p.title}</title>
+            </path>
+          ))}
+        </g>
+        {dots.map((d) => {
+          const isSelected = d.reservoir.station_id === selectedId;
+          return (
+            <g key={d.reservoir.station_id}>
+              {/* Halo: whichever theme/county fill kills the ring's
+                  contrast, the surface-colored halo under it survives. */}
+              <circle
+                cx={d.cx}
+                cy={d.cy}
+                r={d.r}
+                fill="none"
+                stroke="rgb(var(--surface))"
+                strokeWidth={3}
+                pointerEvents="none"
+              />
+              <circle
+                cx={d.cx}
+                cy={d.cy}
+                r={d.r}
+                fill={fillForReservoirPct(d.reservoir.pct_of_capacity)}
+                fillOpacity={0.92}
+                stroke="rgb(var(--inverse-surface))"
+                strokeWidth={isSelected ? 3 : 1.25}
+                className="cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
+                aria-label={`${d.reservoir.name}, ${d.reservoir.pct_of_capacity.toFixed(0)}% of capacity`}
+                onClick={() => toggle(d.reservoir.station_id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggle(d.reservoir.station_id);
+                  }
+                }}
+              />
+            </g>
+          );
+        })}
       </svg>
+
+      {selected && (
+        <div
+          role="group"
+          aria-label={`${selected.name} detail`}
+          className="w-full max-w-[400px] mt-4 bg-surface-container-lowest rounded-2xl p-4"
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <h4 className="font-headline font-bold text-on-surface leading-tight">
+              {selected.name}
+            </h4>
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="text-xs text-on-surface-variant hover:text-on-surface transition-colors shrink-0"
+            >
+              Close
+            </button>
+          </div>
+          <p className="text-2xl font-headline font-bold text-on-surface tracking-tight mt-2">
+            {selected.pct_of_capacity.toFixed(0)}
+            <span className="text-base text-on-surface-variant">% of capacity</span>
+          </p>
+          <p className="text-xs text-on-surface-variant mt-1">
+            {formatAcreFeet(selected.storage_af)} of{" "}
+            {formatAcreFeet(selected.capacity_af)} acre-feet · {selected.latest_date}
+          </p>
+          {selected.pct_of_average !== null && (
+            <p className="text-xs text-on-surface-variant mt-1">
+              {selected.pct_of_average.toFixed(0)}% of average for this date
+            </p>
+          )}
+          {onShowInList && (
+            <button
+              type="button"
+              onClick={() => onShowInList(selected.station_id)}
+              className="mt-2 min-h-[44px] inline-flex items-center text-xs font-medium text-primary hover:opacity-80 transition-opacity"
+            >
+              Show in list
+            </button>
+          )}
+        </div>
+      )}
+
       <figcaption className="mt-4">
         <ul
           aria-label="Map legend: share of county in drought"
@@ -194,6 +356,32 @@ export default function DroughtMap({ counties, weekStart }: DroughtMapProps) {
         <p className="text-[10px] text-on-surface-variant uppercase tracking-widest text-center mt-2">
           % of county in drought (D1+)
         </p>
+
+        {dots.length > 0 && (
+          <>
+            <ul
+              aria-label="Map legend: reservoirs"
+              className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-4"
+            >
+              {RESERVOIR_BINS.map((bin) => (
+                <li
+                  key={bin.label}
+                  className="flex items-center gap-1.5 text-[10px] text-on-surface-variant uppercase tracking-wider"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="inline-block w-2.5 h-2.5 rounded-full border border-inverse-surface"
+                    style={{ background: bin.color }}
+                  />
+                  {bin.label}
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] text-on-surface-variant uppercase tracking-widest text-center mt-2">
+              Reservoirs · circle size = capacity, color = % full
+            </p>
+          </>
+        )}
       </figcaption>
     </figure>
   );
