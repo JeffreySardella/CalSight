@@ -19,6 +19,7 @@ interface HeatLayerInternals {
   _canvas?: HTMLCanvasElement;
   _animateZoom: (e: L.ZoomAnimEvent) => void;
   _reset: () => void;
+  _redraw: () => void;
   /** Set by leaflet.heat's redraw() while a requestAnimationFrame-scheduled
    *  _redraw() is in flight; see removeHeatLayer below. */
   _frame?: number;
@@ -26,6 +27,31 @@ interface HeatLayerInternals {
 
 function heatInternals(layer: L.HeatLayer): HeatLayerInternals {
   return layer as unknown as HeatLayerInternals;
+}
+
+/**
+ * Add a heat layer that skips drawing while the map has no size.
+ *
+ * simpleheat's draw() ends in `ctx.getImageData(0, 0, width, height)`, which
+ * throws IndexSizeError when either is 0 — the map container before its first
+ * layout, or while the Map tab is hidden on mobile. `_frame` has to be cleared
+ * on the skipped draw: leaflet.heat's redraw() refuses to schedule another
+ * frame while it is set, so leaving it would freeze the layer for good. The
+ * next `moveend` (Leaflet fires one from invalidateSize) draws it for real.
+ * Wrapped before addTo() because onAdd() itself redraws.
+ */
+function addHeatLayer(map: L.Map, layer: L.HeatLayer): void {
+  const internals = heatInternals(layer);
+  const draw = internals._redraw;
+  internals._redraw = function guardedRedraw(this: HeatLayerInternals) {
+    const size = map.getSize();
+    if (size.x === 0 || size.y === 0) {
+      this._frame = undefined;
+      return;
+    }
+    draw.call(this);
+  };
+  layer.addTo(map);
 }
 
 /**
@@ -117,7 +143,7 @@ export function useHeatLayer(
       gradient,
     });
 
-    layer.addTo(map);
+    addHeatLayer(map, layer);
     layerRef.current = layer;
 
     const internals = heatInternals(layer);
@@ -238,7 +264,7 @@ export function useFatalLayer(
       gradient: fatalGradient,
     });
 
-    layer.addTo(map);
+    addHeatLayer(map, layer);
     layerRef.current = layer;
 
     const internals = heatInternals(layer);

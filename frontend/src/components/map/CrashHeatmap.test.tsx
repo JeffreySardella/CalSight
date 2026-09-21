@@ -110,6 +110,36 @@ describe("CrashHeatmap", () => {
     expect(mockMap.removeLayer).toHaveBeenCalledWith(layer);
     cancelSpy.mockRestore();
   });
+
+  it("skips drawing while the map has no size, and frees the frame slot", async () => {
+    // simpleheat's draw() calls getImageData(0, 0, w, h), which throws
+    // IndexSizeError at w or h of 0 (map not laid out yet / hidden mobile tab).
+    vi.mocked(L.heatLayer).mockClear();
+    const { useHeatLayer } = await import("./CrashHeatmap");
+    const realDraw = vi.fn();
+    const size = { x: 0, y: 0 };
+    (mockMap as unknown as { getSize: () => typeof size }).getSize = () => size;
+    vi.mocked(L.heatLayer).mockImplementationOnce(() => ({
+      setLatLngs: vi.fn().mockReturnThis(),
+      addTo: vi.fn().mockReturnThis(),
+      setOptions: vi.fn().mockReturnThis(),
+      _redraw: realDraw,
+      _frame: 7,
+    }) as unknown as L.HeatLayer);
+
+    renderHook(() => useHeatLayer([{ lat: 34, lng: -118, weight: 1 }], "medium", "default", false));
+    const layer = vi.mocked(L.heatLayer).mock.results[0].value as { _redraw: () => void; _frame?: number };
+
+    layer._redraw();
+    expect(realDraw).not.toHaveBeenCalled();
+    // A frame id left behind would make leaflet.heat's redraw() a no-op forever.
+    expect(layer._frame).toBeUndefined();
+
+    size.x = 375;
+    size.y = 708;
+    layer._redraw();
+    expect(realDraw).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("useFatalLayer", () => {

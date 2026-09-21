@@ -126,6 +126,16 @@ export function isPersonLevelDimension(dim: Dimension): boolean {
     || dim === "at_fault_age_bracket" || dim === "mode";
 }
 
+/**
+ * What a measure is called on a given dimension. On person-level dimensions
+ * `count` tallies people (victims or at-fault parties), not crashes — a chart
+ * headed "Crashes by Mode of Travel" overstated the crash total, since one
+ * crash with three victims contributes three.
+ */
+export function measureLabel(dim: Dimension, m: Measure): string {
+  return m === "count" && isPersonLevelDimension(dim) ? "People" : MEASURE_LABELS[m];
+}
+
 /** Measures that require a crash-level row and don't apply to person-level dimensions. */
 export const CRASH_ONLY_MEASURES: readonly Measure[] = ["fatality_rate", "yoy_change"];
 

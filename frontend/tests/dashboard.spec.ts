@@ -51,10 +51,10 @@ test.describe("Dashboard Builder - Preset Switching", () => {
     await expect(demoBtn).toBeVisible();
 
     // Check for demographic-specific chart headings
-    await expect(page.locator("h3", { hasText: "Crashes by Victim Gender" })).toBeVisible();
-    await expect(page.locator("h3", { hasText: "Crashes by Victim Age" })).toBeVisible();
-    await expect(page.locator("h3", { hasText: "Crashes by At-Fault Gender" })).toBeVisible();
-    await expect(page.locator("h3", { hasText: "Crashes by At-Fault Age" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "People by Victim Gender" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "People by Victim Age" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "People by At-Fault Gender" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "People by At-Fault Age" })).toBeVisible();
   });
 });
 
@@ -183,7 +183,7 @@ test.describe("Dashboard Builder - localStorage Persistence", () => {
     await expect(demoBtnAfter).toBeVisible();
 
     // Verify demographic charts are still shown
-    await expect(page.locator("h3", { hasText: "Crashes by Victim Gender" })).toBeVisible();
+    await expect(page.locator("h3", { hasText: "People by Victim Gender" })).toBeVisible();
   });
 });
 
