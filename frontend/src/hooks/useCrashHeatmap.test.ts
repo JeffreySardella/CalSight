@@ -55,6 +55,30 @@ describe("useCrashHeatmap", () => {
     expect(url).toContain("resolution=medium");
   });
 
+  it("keeps the previous dots while a moved viewport loads, but not across a filter change", async () => {
+    // Going to [] between rectangles unmounted every crash dot, and with it
+    // the popup the user had just opened by tapping one.
+    const first = { points: [{ lat: 36.7, lng: -119.7, weight: 1, collision_id: 1 }], total_crashes: 1 };
+    let release: (r: Response) => void = () => {};
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(first)))
+      .mockImplementation(() => new Promise<Response>((resolve) => { release = resolve; }));
+
+    const base = { enabled: true, county: "fresno", dateRange: null, severities: [] as string[], causes: [] as string[], resolution: "raw" as const, limit: 2000 };
+    const { result, rerender } = renderHook(
+      (p: { bbox: [number, number, number, number]; severities: string[] }) => useCrashHeatmap({ ...base, ...p }),
+      { wrapper: makeWrapper(), initialProps: { bbox: [-119.8, 36.7, -119.7, 36.8], severities: [] } },
+    );
+    await waitFor(() => expect(result.current.points).toEqual(first.points));
+
+    rerender({ bbox: [-119.7, 36.7, -119.6, 36.8], severities: [] });
+    expect(result.current.points).toEqual(first.points);
+
+    rerender({ bbox: [-119.7, 36.7, -119.6, 36.8], severities: ["Fatal"] });
+    expect(result.current.points).toEqual([]);
+    release(new Response(JSON.stringify({ points: [], total_crashes: 0 })));
+  });
+
   it("does not fetch when disabled", () => {
     const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify(MOCK_RESPONSE)),
