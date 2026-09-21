@@ -1,5 +1,5 @@
 import type { ChartSlot, ChartType, Dimension, Measure } from "./types";
-import { DIMENSION_LABELS, MEASURE_LABELS, defaultChartType, sanitizeMeasure } from "./types";
+import { DIMENSION_LABELS, MEASURE_LABELS, defaultChartType, measureLabel, sanitizeMeasure } from "./types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import type { Anomaly } from "./anomaly";
 import type { StatsFilters } from "../../hooks/useStats";
@@ -84,7 +84,7 @@ export function generateSuggestions(
         dimension: anomaly.dimension,
         measure: m,
         chartType,
-        title: `${MEASURE_LABELS[m]} by ${DIMENSION_LABELS[anomaly.dimension]}`,
+        title: `${measureLabel(anomaly.dimension, m)} by ${DIMENSION_LABELS[anomaly.dimension]}`,
         explanation: `Anomaly in ${DIMENSION_LABELS[anomaly.dimension]} — explore with ${MEASURE_LABELS[m].toLowerCase()}`,
         relevance: RELEVANCE_BOOST.base + RELEVANCE_BOOST.anomalyRelated,
         icon: CHART_TYPE_ICONS[chartType],
@@ -132,7 +132,7 @@ export function generateSuggestions(
       dimension: dim,
       measure,
       chartType,
-      title: `${MEASURE_LABELS[measure]} by ${DIMENSION_LABELS[dim]}`,
+      title: `${measureLabel(dim, measure)} by ${DIMENSION_LABELS[dim]}`,
       explanation: `Add ${DIMENSION_LABELS[dim].toLowerCase()} to see a new angle`,
       relevance,
       icon: CHART_TYPE_ICONS[chartType],
@@ -159,7 +159,7 @@ export function generateSuggestions(
         dimension: chart.dimension,
         measure: m,
         chartType,
-        title: `${MEASURE_LABELS[m]} by ${DIMENSION_LABELS[chart.dimension]}`,
+        title: `${measureLabel(chart.dimension, m)} by ${DIMENSION_LABELS[chart.dimension]}`,
         explanation: `You're viewing ${MEASURE_LABELS[chart.measure].toLowerCase()} — compare with ${MEASURE_LABELS[m].toLowerCase()}`,
         relevance: RELEVANCE_BOOST.base + RELEVANCE_BOOST.complementary,
         icon: CHART_TYPE_ICONS[chartType],
@@ -194,7 +194,7 @@ function addIfMissing(
     dimension,
     measure,
     chartType,
-    title: `${MEASURE_LABELS[measure]} by ${DIMENSION_LABELS[dimension]}`,
+    title: `${measureLabel(dimension, measure)} by ${DIMENSION_LABELS[dimension]}`,
     explanation,
     relevance: RELEVANCE_BOOST.base + RELEVANCE_BOOST.filterRelated,
     icon: CHART_TYPE_ICONS[chartType],

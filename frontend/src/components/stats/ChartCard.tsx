@@ -17,7 +17,7 @@ import ChartSkeleton from "../charts/ChartSkeleton";
 import ChartNarrative from "./ChartNarrative";
 import type { ChartNarrativeResult } from "../../hooks/useNarrativeInsights";
 import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
-import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
+import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import { useFilterParams, buildFilterQS } from "../../hooks/useFilterParams";
 import { useCustomTheme } from "../../context/CustomThemeContext";
@@ -55,7 +55,7 @@ interface Props {
 }
 
 function buildTitle(slot: ChartSlot): string {
-  const measure = MEASURE_LABELS[slot.measure];
+  const measure = measureLabel(slot.dimension, slot.measure);
   const dim = DIMENSION_LABELS[slot.dimension];
   const primary = measure === "Crash Count" ? "Crashes" : measure;
   if (slot.secondaryMeasure) {
@@ -291,7 +291,7 @@ function ChartCard({
 
   const hasData = data.length > 0 && data.some((d) => d.value > 0);
   const isScatter = slot.chartType === "scatter";
-  const valueLabel = MEASURE_LABELS[slot.measure];
+  const valueLabel = measureLabel(slot.dimension, slot.measure);
   const hasDualAxis = !!slot.secondaryMeasure && !!secondaryData && secondaryData.length > 0;
 
   const forecastData = useMemo<ForecastPoint[] | undefined>(() => {
@@ -466,13 +466,13 @@ function ChartCard({
           data={dualAxisData}
           height={220}
           showArea={slot.chartType === "area"}
-          primaryLabel={MEASURE_LABELS[slot.measure]}
+          primaryLabel={measureLabel(slot.dimension, slot.measure)}
           secondaryLabel={MEASURE_LABELS[slot.secondaryMeasure!]}
           renderTooltip={(item) => item ? (
             <>
               <p className="font-headline font-bold text-on-surface">{item.label}</p>
               <p className="text-on-surface-variant mt-0.5">
-                <span style={{ color: "rgb(var(--primary))" }}>{MEASURE_LABELS[slot.measure]}:</span>{" "}
+                <span style={{ color: "rgb(var(--primary))" }}>{measureLabel(slot.dimension, slot.measure)}:</span>{" "}
                 {fmtValue(item.primary)}
               </p>
               <p className="text-on-surface-variant">

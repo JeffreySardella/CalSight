@@ -84,6 +84,20 @@ describe("visibleAnswer", () => {
     expect(visibleAnswer("Kern saw 12 crashes.\n**Chart:** {")).toBe("Kern saw 12 crashes.");
   });
 
+  it("holds back a trailer that is still arriving token by token", () => {
+    const answer = "Kern saw 12 crashes.";
+    for (const partial of ["\n\n---", "\n\n---\nSugg", "\n\n**Sugges", "\nC", "\nChart", "\nSuggested ["]) {
+      expect(visibleAnswer(answer + partial)).toBe(answer);
+    }
+  });
+
+  it("shows a held-back line again once it turns out to be prose", () => {
+    expect(visibleAnswer("Totals fell.\nSu")).toBe("Totals fell.");
+    expect(visibleAnswer("Totals fell.\nSunday was worst.")).toBe("Totals fell.\nSunday was worst.");
+    expect(visibleAnswer("Two causes:\n- Ch")).toBe("Two causes:");
+    expect(visibleAnswer("Two causes:\n- Changing lanes")).toBe("Two causes:\n- Changing lanes");
+  });
+
   it("leaves the word chart alone mid-sentence", () => {
     expect(visibleAnswer("The chart: below shows it")).toBe("The chart: below shows it");
   });
