@@ -24,7 +24,7 @@ test.describe("Dashboard - Preset Switching", () => {
   const presets = [
     { label: "Safety Overview", expectedChart: "Crashes by Severity" },
     { label: "Time Patterns", expectedChart: "Crashes by Hour" },
-    { label: "Demographics", expectedChart: "Crashes by Victim Gender" },
+    { label: "Demographics", expectedChart: "People by Victim Gender" },
     { label: "Fatality Focus", expectedChart: "Fatalities by Primary Cause" },
     { label: "DUI Deep Dive", expectedChart: "Crashes by Hour" },
     { label: "Injury Analysis", expectedChart: "Injuries by Month" },

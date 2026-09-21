@@ -98,6 +98,15 @@ describe("visibleAnswer", () => {
     expect(visibleAnswer("Two causes:\n- Changing lanes")).toBe("Two causes:\n- Changing lanes");
   });
 
+  it("stays linear on a long run of blank lines (no regex backtracking)", () => {
+    const started = performance.now();
+    expect(visibleAnswer("Totals fell." + "\n".repeat(50_000) + "x\nSugg")).toBe(
+      "Totals fell." + "\n".repeat(50_000) + "x",
+    );
+    expect(visibleAnswer("Totals fell." + "\n \t".repeat(50_000) + "Sugg")).toBe("Totals fell.");
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   it("leaves the word chart alone mid-sentence", () => {
     expect(visibleAnswer("The chart: below shows it")).toBe("The chart: below shows it");
   });
