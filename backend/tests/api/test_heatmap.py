@@ -185,6 +185,23 @@ def test_heatmap_raw_bbox_caps_at_limit(client):
     assert len(body["points"]) <= 1
 
 
+def test_heatmap_raw_bbox_returns_newest_crashes_first(client):
+    """When the limit bites, the viewport gets its most recent crashes.
+
+    Oldest-first (ORDER BY id) filled the cap with 2001-era SWITRS rows, which
+    are geocoded to the city centroid: near downtown Fresno all 2,000 dots sat
+    on one point. Of the three LA crashes (2014, 2015, 2022) the 2022 one at
+    34.05 must win a limit of 1."""
+    response = client.get(
+        "/api/crashes/heatmap?county=los-angeles&resolution=raw"
+        "&bbox=-119,33,-117,35&limit=1"
+    )
+    assert response.status_code == 200
+    points = response.json()["points"]
+    assert [p["lat"] for p in points] == [34.05]
+    assert points[0]["crash_datetime"].startswith("2022-03-10")
+
+
 def test_heatmap_raw_bbox_limit_over_max_is_422(client):
     response = client.get(
         "/api/crashes/heatmap?county=los-angeles&resolution=raw"
