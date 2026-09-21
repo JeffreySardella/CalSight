@@ -30,7 +30,7 @@ from sqlalchemy import text
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CountyInsight
 from etl import generate_insights as gi
-from etl.fact_check import CAUSAL_RE, check_fact, numbers_context
+from etl.fact_check import check_fact, find_causal, numbers_context
 
 # Figures the stored card itself shows — the fallback context for a county-year
 # whose crashes have since been reloaded away.
@@ -51,7 +51,7 @@ def offending_phrase(narrative: str) -> str:
     the connective, which reads as nonsense without its sentence.
     """
     s = (narrative or "").strip()
-    m = CAUSAL_RE.search(s)
+    m = find_causal(s)
     if not m:
         return s[:160]
     for sentence in _SENTENCE_RE.finditer(s):

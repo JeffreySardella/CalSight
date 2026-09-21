@@ -54,6 +54,28 @@ CAUSAL_RE = re.compile(
 )
 
 
+# "1,204 crashes resulted in injuries" tallies an outcome; it is not a claim
+# about why anything happened. It only counts as a tally when a crash noun is
+# the subject AND a harm is the object — "speeding resulted in 27 deaths" and
+# "more crashes resulted in higher premiums" both stay causal.
+_OUTCOME_TALLY_RE = re.compile(
+    r"\b(?:crash(?:es)?|collisions?|incidents?|wrecks?|accidents?)"
+    r"(?:\s*\([^)]*\))?\s+(?:(?:that|which)\s+)?result(?:s|ed)? in\s+"
+    r"(?:[\w,.%-]+\s+){0,4}?"
+    r"(?:injur\w*|deaths?|fatalit\w*|damage|bent metal)\b",
+    re.IGNORECASE,
+)
+
+
+def find_causal(text: str) -> re.Match | None:
+    """First causal connective in ``text``, ignoring crash-outcome tallies.
+
+    Tallies are blanked rather than removed so the match offsets still point
+    into the original text.
+    """
+    return CAUSAL_RE.search(_OUTCOME_TALLY_RE.sub(lambda m: " " * len(m.group(0)), text))
+
+
 def _numbers(s: str) -> list[float]:
     return [float(m.replace(",", "")) for m in _NUM_RE.findall(s)]
 
@@ -100,7 +122,7 @@ def check_fact(
         reasons.append(f"year {year} is not complete yet")
     if bad := unsupported_numbers(text, stats_str, year):
         reasons.append(f"figures not in stats: {bad}")
-    if m := CAUSAL_RE.search(text):
+    if m := find_causal(text):
         reasons.append(f"causal language: {m.group(0)!r}")
     return reasons
 

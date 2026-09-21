@@ -12,7 +12,7 @@ import etl.generate_llm_cards as llm_mod
 from etl import generate_county_cards as cc
 from etl import generate_fun_facts as ff
 from etl.audit_fun_facts import COUNTY_ANGLES, STATEWIDE_ANGLES, audit_row
-from etl.fact_check import CAUSAL_RE, check_fact, numbers_context
+from etl.fact_check import CAUSAL_RE, check_fact, find_causal, numbers_context
 
 _STATS = "total_crashes=150,000, killed=800, injured=70,000, county_share=33.33%"
 
@@ -92,6 +92,37 @@ def test_causal_phrases_flagged(text):
 ])
 def test_cause_category_nouns_not_flagged(text):
     assert CAUSAL_RE.search(text) is None, text
+
+
+# ── "crashes resulted in injuries" reports an outcome, not a cause ────────
+#
+# 2026-09-19: the gate rejected 32 narratives (7 stayed NULL after the retry)
+# for sentences like our own severity template's "incidents (52.1%) resulted
+# in bent metal but no injuries". A crash noun as the subject and a harm as
+# the object is a tally of what happened, so it passes; anything else keeps
+# failing.
+
+@pytest.mark.parametrize("text", [
+    "1,204 crashes resulted in injuries.",
+    "12 collisions resulted in at least one death.",
+    "9,100 incidents (52.1%) resulted in bent metal but no injuries.",
+    "Most crashes that resulted in a fatality happened after dark.",
+    "Only 3 crashes resulted in serious injury.",
+    "Each crash results in property damage, injury or death.",
+])
+def test_crash_outcome_tallies_pass(text):
+    assert find_causal(text) is None, text
+
+
+@pytest.mark.parametrize("text", [
+    "Lower speeds result in fewer fatalities.",
+    "Speeding resulted in 27 deaths.",
+    "The stay-at-home order resulted in fewer crashes.",
+    "More crashes resulted in higher insurance premiums.",
+    "12 crashes resulted in deaths because of speeding.",
+])
+def test_causal_result_in_still_flagged(text):
+    assert find_causal(text), text
 
 
 @pytest.mark.parametrize("stats, text", [
