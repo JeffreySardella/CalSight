@@ -1,8 +1,9 @@
+import { useState } from "react";
 import MetaTags from "../components/seo/MetaTags";
 import DroughtSection from "../components/water/DroughtSection";
 import FirstStormTile from "../components/water/FirstStormTile";
 import PrecipSection from "../components/water/PrecipSection";
-import ReservoirCard from "../components/water/ReservoirCard";
+import ReservoirCard, { cardId } from "../components/water/ReservoirCard";
 import SnowpackSection from "../components/water/SnowpackSection";
 import {
   baselineFootnote,
@@ -14,6 +15,17 @@ import {
 export default function WaterPage() {
   const { data, isLoading, isError } = useReservoirConditions();
   const summary = data ? summarize(data) : null;
+  // Which card the drought map last sent us to. The card owns its own
+  // expand/collapse; this only asks it to open. `request` counts up so that
+  // asking for the same card again, after the user collapsed it, reopens it.
+  const [listed, setListed] = useState<{ stationId: string; request: number } | null>(null);
+
+  const showInList = (stationId: string) => {
+    setListed((cur) => ({ stationId, request: (cur?.request ?? 0) + 1 }));
+    document
+      .getElementById(cardId(stationId))
+      ?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  };
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 pb-24">
@@ -102,7 +114,11 @@ export default function WaterPage() {
           <h2 id="reservoirs-heading" className="sr-only">Reservoirs</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {data.map((r) => (
-              <ReservoirCard key={r.station_id} reservoir={r} />
+              <ReservoirCard
+                key={r.station_id}
+                reservoir={r}
+                expandRequest={listed?.stationId === r.station_id ? listed.request : 0}
+              />
             ))}
           </div>
         </section>
@@ -118,7 +134,7 @@ export default function WaterPage() {
 
       <PrecipSection />
 
-      <DroughtSection />
+      <DroughtSection reservoirs={data} onShowInList={showInList} />
     </div>
   );
 }

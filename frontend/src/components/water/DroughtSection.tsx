@@ -10,6 +10,7 @@ import {
   useDroughtSnapshot,
   type DroughtPcts,
 } from "../../hooks/useDroughtData";
+import type { ReservoirCondition } from "../../hooks/useWaterData";
 
 /** USDM severity classes in draw order. "None" wears a neutral surface
  * tone; D0–D4 climb the validated sequential ramp. Identity is never
@@ -57,7 +58,17 @@ export function SeverityBar({ pcts, label, height = "h-2" }: SeverityBarProps) {
   );
 }
 
-export default function DroughtSection() {
+interface DroughtSectionProps {
+  /** Passed straight through to the map's reservoir layer. The page
+   *  already holds this query for the cards — no second fetch. */
+  reservoirs?: ReservoirCondition[];
+  onShowInList?: (stationId: string) => void;
+}
+
+export default function DroughtSection({
+  reservoirs,
+  onShowInList,
+}: DroughtSectionProps = {}) {
   const { data: snapshot, isLoading, isError } = useDroughtSnapshot();
   const countyNames = useCountyNames();
   // Fetch the trend only once we know the section will render.
@@ -143,7 +154,12 @@ export default function DroughtSection() {
         </div>
       )}
 
-      <DroughtMap counties={snapshot.counties} weekStart={snapshot.week_start} />
+      <DroughtMap
+        counties={snapshot.counties}
+        weekStart={snapshot.week_start}
+        reservoirs={reservoirs}
+        onShowInList={onShowInList}
+      />
 
       {hardestHit.length > 0 && (
         <div className="max-w-2xl mx-auto mt-12">
