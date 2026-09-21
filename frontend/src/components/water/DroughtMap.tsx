@@ -52,7 +52,7 @@ export function fillForReservoirPct(pct: number): string {
 const MIN_R = 6;
 const MAX_R = 16;
 
-export function radiusForCapacity(capacityAf: number, maxCapacityAf: number): number {
+function radiusForCapacity(capacityAf: number, maxCapacityAf: number): number {
   if (maxCapacityAf <= 0) return MIN_R;
   return Math.max(MIN_R, MAX_R * Math.sqrt(capacityAf / maxCapacityAf));
 }

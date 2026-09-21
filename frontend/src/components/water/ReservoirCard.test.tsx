@@ -3,7 +3,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import ReservoirCard from "./ReservoirCard";
+import ReservoirCard, { cardId } from "./ReservoirCard";
 import {
   formatAcreFeet,
   type ReservoirCondition,
@@ -23,14 +23,17 @@ const FOLSOM: ReservoirCondition = {
   pct_of_average: 114.3,
 };
 
-function renderCard(reservoir: ReservoirCondition) {
+function renderCard(reservoir: ReservoirCondition, expandRequested?: boolean) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
-  return render(<ReservoirCard reservoir={reservoir} />, { wrapper });
+  return render(
+    <ReservoirCard reservoir={reservoir} expandRequested={expandRequested} />,
+    { wrapper },
+  );
 }
 
 afterEach(() => {
@@ -97,6 +100,30 @@ describe("ReservoirCard", () => {
     expect(
       await screen.findByLabelText(/storage over the past year/i),
     ).toBeInTheDocument();
+  });
+
+  it("carries the anchor id the map's Show in list scrolls to", () => {
+    const { container } = renderCard(FOLSOM);
+    expect(container.querySelector("article")).toHaveAttribute(
+      "id",
+      cardId("FOL"),
+    );
+  });
+
+  it("opens when the map asks for it, and stays collapsible afterwards", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ station_id: "FOL", points: [] }), {
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    renderCard(FOLSOM, true);
+    const toggle = screen.getByRole("button", { name: /hide past year/i });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    // The request only opens the card — the card still owns the state.
+    await userEvent.click(toggle);
+    expect(
+      screen.getByRole("button", { name: /show past year/i }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 });
 

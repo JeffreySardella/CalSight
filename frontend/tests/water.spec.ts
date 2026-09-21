@@ -12,6 +12,8 @@ const RESERVOIRS = [
     name: "Shasta Lake",
     capacity_af: 4_552_000,
     county_code: 45,
+    lat: 40.718,
+    lon: -122.42,
     latest_date: "2026-07-09",
     storage_af: 3_414_000,
     pct_of_capacity: 75.0,
@@ -23,6 +25,8 @@ const RESERVOIRS = [
     name: "Folsom Lake",
     capacity_af: 977_000,
     county_code: 34,
+    lat: 38.683,
+    lon: -121.183,
     latest_date: "2026-07-09",
     storage_af: 488_500,
     pct_of_capacity: 50.0,
@@ -164,6 +168,24 @@ test("drought section shows weighted headline, choropleth, and hardest-hit count
   const list = page.locator("ul", { hasText: "Kern" }).last();
   await expect(list).toContainText("Kern");
   await expect(page.getByText("95%", { exact: true })).toBeVisible();
+});
+
+test("tapping a reservoir circle on the drought map opens its detail panel", async ({ page }) => {
+  await page.goto(`${BASE_URL}/water`);
+
+  const shasta = page.getByRole("button", { name: /Shasta Lake, 75% of capacity/ });
+  await expect(shasta).toBeVisible();
+  await shasta.click();
+
+  const panel = page.getByRole("group", { name: /Shasta Lake detail/i });
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("3.41M of 4.55M acre-feet");
+  await expect(panel).toContainText("110% of average for this date");
+
+  // "Show in list" jumps to the card up the page and expands it.
+  await panel.getByRole("button", { name: /show in list/i }).click();
+  const card = page.locator("article", { hasText: "Shasta Lake" });
+  await expect(card.getByRole("button", { name: /hide past year/i })).toBeVisible();
 });
 
 test("snowpack section shows statewide headline and per-region bars", async ({ page }) => {
