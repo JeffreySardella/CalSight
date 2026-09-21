@@ -377,10 +377,19 @@ def crash_heatmap(
 
             slim = detail == "slim"
             columns = _RAW_SLIM_COLUMNS if slim else _RAW_FULL_COLUMNS
+            # Batches page by id so every batch is stable and disjoint. A
+            # viewport query is one capped shot, so which rows fill the cap
+            # matters: id order handed it the oldest SWITRS rows, which are
+            # geocoded to city centroids (all 2,000 Fresno dots on one point).
+            # Newest first shows recent crashes with surveyed coordinates.
+            ordering = (
+                (Crash.crash_datetime.desc().nulls_last(), Crash.id.desc())
+                if bbox_v is not None else (Crash.id,)
+            )
             rows = (
                 db.query(*columns)
                 .filter(*preds)
-                .order_by(Crash.id)
+                .order_by(*ordering)
                 .limit(page_size)
                 .offset(offset)
                 .all()
