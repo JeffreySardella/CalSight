@@ -23,7 +23,7 @@ const FOLSOM: ReservoirCondition = {
   pct_of_average: 114.3,
 };
 
-function renderCard(reservoir: ReservoirCondition, expandRequested?: boolean) {
+function renderCard(reservoir: ReservoirCondition, expandRequest?: number) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -31,7 +31,7 @@ function renderCard(reservoir: ReservoirCondition, expandRequested?: boolean) {
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
   return render(
-    <ReservoirCard reservoir={reservoir} expandRequested={expandRequested} />,
+    <ReservoirCard reservoir={reservoir} expandRequest={expandRequest} />,
     { wrapper },
   );
 }
@@ -116,7 +116,7 @@ describe("ReservoirCard", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    renderCard(FOLSOM, true);
+    const { rerender } = renderCard(FOLSOM, 1);
     const toggle = screen.getByRole("button", { name: /hide past year/i });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     // The request only opens the card — the card still owns the state.
@@ -124,6 +124,12 @@ describe("ReservoirCard", () => {
     expect(
       screen.getByRole("button", { name: /show past year/i }),
     ).toHaveAttribute("aria-expanded", "false");
+    // Asking for the same card again reopens it: a boolean prop could not,
+    // because it never changes between the first and second ask.
+    rerender(<ReservoirCard reservoir={FOLSOM} expandRequest={2} />);
+    expect(
+      screen.getByRole("button", { name: /hide past year/i }),
+    ).toHaveAttribute("aria-expanded", "true");
   });
 });
 

@@ -16,11 +16,12 @@ export default function WaterPage() {
   const { data, isLoading, isError } = useReservoirConditions();
   const summary = data ? summarize(data) : null;
   // Which card the drought map last sent us to. The card owns its own
-  // expand/collapse; this only asks it to open.
-  const [listedStation, setListedStation] = useState<string | null>(null);
+  // expand/collapse; this only asks it to open. `request` counts up so that
+  // asking for the same card again, after the user collapsed it, reopens it.
+  const [listed, setListed] = useState<{ stationId: string; request: number } | null>(null);
 
   const showInList = (stationId: string) => {
-    setListedStation(stationId);
+    setListed((cur) => ({ stationId, request: (cur?.request ?? 0) + 1 }));
     document
       .getElementById(cardId(stationId))
       ?.scrollIntoView?.({ behavior: "smooth", block: "center" });
@@ -116,7 +117,7 @@ export default function WaterPage() {
               <ReservoirCard
                 key={r.station_id}
                 reservoir={r}
-                expandRequested={listedStation === r.station_id}
+                expandRequest={listed?.stationId === r.station_id ? listed.request : 0}
               />
             ))}
           </div>

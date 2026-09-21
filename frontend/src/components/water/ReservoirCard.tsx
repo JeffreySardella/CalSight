@@ -13,9 +13,10 @@ export function cardId(stationId: string): string {
 
 interface ReservoirCardProps {
   reservoir: ReservoirCondition;
-  /** Set by "Show in list" on the map. Opens the card from outside without
-   *  taking ownership of the expand/collapse state. */
-  expandRequested?: boolean;
+  /** Bumped by "Show in list" on the map (0 = never asked). Each new value
+   *  opens the card from outside without taking ownership of the
+   *  expand/collapse state, so the user can still collapse it afterwards. */
+  expandRequest?: number;
 }
 
 /**
@@ -25,14 +26,14 @@ interface ReservoirCardProps {
  */
 export default function ReservoirCard({
   reservoir,
-  expandRequested,
+  expandRequest = 0,
 }: ReservoirCardProps) {
   const [expanded, setExpanded] = useState(false);
   const series = useReservoirSeries(expanded ? reservoir.station_id : null);
 
   useEffect(() => {
-    if (expandRequested) setExpanded(true);
-  }, [expandRequested]);
+    if (expandRequest > 0) setExpanded(true);
+  }, [expandRequest]);
 
   const pctCapacity = Math.min(reservoir.pct_of_capacity, 100);
   const avgPctOfCapacity =
