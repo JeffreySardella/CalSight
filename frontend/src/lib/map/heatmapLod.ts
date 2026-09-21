@@ -27,8 +27,52 @@ export const RESOLUTION_MAX_ZOOM: Record<HeatmapResolution, number> = {
 /** Zoom at which individual crash dots take over from the heat field. */
 export const DOT_MIN_ZOOM = 14;
 
-/** Full-detail crash points fetched for the visible rectangle at DOT_MIN_ZOOM+. */
-export const DOT_LIMIT = 800;
+/**
+ * Full-detail crash points fetched per dot request at DOT_MIN_ZOOM+. The API's
+ * ceiling: the request covers four times the screen (see nextDotFetch), so this
+ * keeps roughly the old 800-dot density inside the part that is visible.
+ */
+export const DOT_LIMIT = 2000;
+
+/** [west, south, east, north] */
+export type Bbox = [number, number, number, number];
+
+/** A dot request: the rectangle asked for, and the zoom it was sized for. */
+export interface DotFetch {
+  bbox: Bbox;
+  zoom: number;
+}
+
+/** Fraction of the view added on every side of a dot request. */
+const DOT_BBOX_PAD = 0.5;
+
+/**
+ * The dot request that serves this camera — `fetched` itself (same object)
+ * while it still does, so the query key and the dots on screen do not change.
+ *
+ * Fetching exactly the visible rectangle meant every pan, however small,
+ * replaced the dots. Tapping a dot on a phone pans the map to centre its
+ * popup, so the tap itself refetched, unmounted the marker and took the popup
+ * with it: dots could not be opened at all. A padded rectangle survives that
+ * pan and ordinary nudging; a zoom change still refetches because the API caps
+ * the count, and the sample for a wider view is too thin for a closer one.
+ *
+ * Pure on purpose: it is used as a React state updater, which StrictMode runs
+ * twice. Tracking the zoom in a ref beside the state made the second run keep
+ * a stale rectangle.
+ */
+export function nextDotFetch(fetched: DotFetch | null, view: Bbox, zoom: number): DotFetch {
+  const [w, s, e, n] = view;
+  if (fetched && fetched.zoom === zoom) {
+    const [fw, fs, fe, fn] = fetched.bbox;
+    if (fw <= w && fs <= s && fe >= e && fn >= n) return fetched;
+  }
+  const dx = (e - w) * DOT_BBOX_PAD;
+  const dy = (n - s) * DOT_BBOX_PAD;
+  // 4 decimals is about 11 m: shorter URLs, and no float noise in the cache key.
+  const r = (v: number) => Math.round(v * 1e4) / 1e4;
+  return { bbox: [r(w - dx), r(s - dy), r(e + dx), r(n + dy)], zoom };
+}
 
 // `raw` and `high` are rejected by the API without a county filter (the
 // statewide query would group the whole crashes table on an unindexed

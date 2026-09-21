@@ -5,6 +5,8 @@ import {
   heatPointBudget,
   HEAT_POINT_BUDGET_TOUCH,
   HEAT_POINT_BUDGET_DESKTOP,
+  nextDotFetch,
+  type Bbox,
 } from "./heatmapLod";
 
 describe("resolutionForZoom", () => {
@@ -56,5 +58,45 @@ describe("heatPointBudget", () => {
     expect(heatPointBudget(true)).toBe(HEAT_POINT_BUDGET_TOUCH);
     expect(heatPointBudget(false)).toBe(HEAT_POINT_BUDGET_DESKTOP);
     expect(HEAT_POINT_BUDGET_TOUCH).toBeLessThan(HEAT_POINT_BUDGET_DESKTOP);
+  });
+});
+
+describe("nextDotFetch", () => {
+  const view: Bbox = [-119.8, 36.7, -119.76, 36.78];
+
+  it("fetches half a screen beyond the view on every side", () => {
+    expect(nextDotFetch(null, view, 15)).toEqual({ bbox: [-119.82, 36.66, -119.74, 36.82], zoom: 15 });
+  });
+
+  it("returns the same request while the camera stays inside it", () => {
+    // The pan that centres a tapped dot's popup: a fraction of a screen. A new
+    // rectangle here refetched the dots and closed the popup just opened.
+    const fetched = nextDotFetch(null, view, 15);
+    const nudged: Bbox = [-119.79, 36.72, -119.75, 36.8];
+    expect(nextDotFetch(fetched, nudged, 15)).toBe(fetched);
+  });
+
+  it("refetches once the view crosses the fetched edge", () => {
+    const fetched = nextDotFetch(null, view, 15);
+    const away: Bbox = [-119.75, 36.7, -119.71, 36.78];
+    const next = nextDotFetch(fetched, away, 15);
+    expect(next).not.toBe(fetched);
+    expect(next.bbox[2]).toBeGreaterThan(fetched.bbox[2]);
+  });
+
+  it("refetches on a zoom change even inside the rectangle", () => {
+    // The API caps the count, so dots sampled for a wide view are too sparse
+    // for a closer one.
+    const fetched = nextDotFetch(null, view, 15);
+    const closer: Bbox = [-119.79, 36.73, -119.77, 36.75];
+    expect(nextDotFetch(fetched, closer, 16)).not.toBe(fetched);
+  });
+
+  it("is pure: running it twice on the same input gives the same answer", () => {
+    // React StrictMode runs state updaters twice. Zooming in from a wide view
+    // must produce the new rectangle on both runs, not the stale wide one.
+    const wide = nextDotFetch(null, [-123, 33, -117, 40], 7);
+    expect(nextDotFetch(wide, view, 15)).toEqual(nextDotFetch(wide, view, 15));
+    expect(nextDotFetch(wide, view, 15).zoom).toBe(15);
   });
 });

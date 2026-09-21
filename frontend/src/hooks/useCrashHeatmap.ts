@@ -147,9 +147,11 @@ export function heatmapQueryOptions(params: HeatmapParams) {
       params.batchSize ?? null,
       params.detail ?? null,
       params.maxPoints ?? null,
-      params.bbox ?? null,
       params.limit ?? null,
       params._retryKey ?? 0,
+      // Last on purpose: useCrashHeatmap compares everything before it to tell
+      // "the camera moved" from "the filters changed".
+      params.bbox ?? null,
     ],
     queryFn: () => fetchHeatmap(params),
     staleTime: 5 * 60 * 1000,
@@ -161,9 +163,19 @@ export function heatmapQueryOptions(params: HeatmapParams) {
 }
 
 export function useCrashHeatmap(params: HeatmapParams) {
+  const options = heatmapQueryOptions(params);
   const { data, isLoading, error, refetch } = useQuery({
-    ...heatmapQueryOptions(params),
+    ...options,
     enabled: params.enabled,
+    // A viewport (bbox) query keeps showing the last rectangle's dots while the
+    // next one loads. Dropping to [] in between unmounted every marker — and
+    // any open popup — on each camera move. Only when nothing but the bbox
+    // changed: dots from other filters must not linger.
+    placeholderData: (previous, previousQuery) => {
+      if (!params.bbox || !previousQuery) return undefined;
+      const sameFilters = JSON.stringify(previousQuery.queryKey.slice(0, -1)) === JSON.stringify(options.queryKey.slice(0, -1));
+      return sameFilters ? previous : undefined;
+    },
   });
 
   return {

@@ -11,6 +11,8 @@ import {
   heatPointBudget,
   DOT_MIN_ZOOM,
   DOT_LIMIT,
+  nextDotFetch,
+  type DotFetch,
 } from "../lib/map/heatmapLod";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useViewportParams } from "../hooks/useViewportParams";
@@ -153,7 +155,8 @@ function MapPageInner() {
   // MapCanvas's ViewportSync) so a pan fires one refetch, not one per frame.
   const [mapInstance, setMapInstance] = useState<LeafletMap | null>(null);
   const [mapZoom, setMapZoom] = useState(initialViewport?.zoom ?? 6);
-  const [viewportBbox, setViewportBbox] = useState<[number, number, number, number] | null>(null);
+  const [dotFetch, setDotFetch] = useState<DotFetch | null>(null);
+  const viewportBbox = dotFetch?.bbox ?? null;
 
   useEffect(() => {
     if (!mapInstance) return;
@@ -161,7 +164,10 @@ function MapPageInner() {
     const sync = () => {
       setMapZoom(mapInstance.getZoom());
       const b = mapInstance.getBounds();
-      setViewportBbox([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
+      const zoom = mapInstance.getZoom();
+      // Returns the previous request (same object, so no refetch) while the
+      // camera is still inside it — see nextDotFetch for why that matters.
+      setDotFetch((prev) => nextDotFetch(prev, [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], zoom));
     };
     const onMoveEnd = () => {
       window.clearTimeout(timer);
