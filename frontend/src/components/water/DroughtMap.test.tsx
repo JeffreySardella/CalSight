@@ -159,10 +159,17 @@ describe("DroughtMap", () => {
 });
 
 describe("DroughtMap reservoir layer", () => {
-  /** The circles are the only role=button elements until a panel opens. */
+  /** The transparent hit circles are the only role=button elements until a
+   *  panel opens; they carry the labels and the keyboard handling. */
   async function findCircles() {
     await screen.findByRole("img", { name: /map of california/i });
     return screen.getAllByRole("button");
+  }
+
+  /** The visible dot behind a hit circle — this is what carries size and
+   *  color, in the same big-first draw order. */
+  function visibleDots() {
+    return [...document.querySelectorAll("[data-testid^='reservoir-dot-']")];
   }
 
   it("draws no circles when the reservoir query has not resolved", async () => {
@@ -187,7 +194,7 @@ describe("DroughtMap reservoir layer", () => {
   it("sizes circles by capacity and draws the biggest first", async () => {
     renderMap(COUNTIES, [FOLSOM, SHASTA]);
     const circles = await findCircles();
-    const radii = circles.map((c) => Number(c.getAttribute("r")));
+    const radii = visibleDots().map((c) => Number(c.getAttribute("r")));
     // Shasta (4.55M AF) is the largest, so it is drawn first and Folsom
     // (977K AF) lands on top of it.
     expect(circles[0]).toHaveAttribute("aria-label", expect.stringContaining("Shasta"));
@@ -197,10 +204,20 @@ describe("DroughtMap reservoir layer", () => {
     expect(radii[1]).toBeCloseTo(7.41, 1);
   });
 
-  it("encodes percent of capacity with the blue ramp, not the drought ramp", async () => {
+  it("keeps a finger-sized hit target under the smallest dot", async () => {
     renderMap(COUNTIES, [FOLSOM, SHASTA]);
     const circles = await findCircles();
-    const fills = circles.map((c) => c.getAttribute("fill"));
+    // Folsom's visible dot is ~7.4 units; its hit circle is floored at 15,
+    // which is ~24 CSS px once the map shrinks to a 375px phone.
+    expect(Number(circles[1].getAttribute("r"))).toBe(15);
+    // The big one is already past the floor — no inflation.
+    expect(Number(circles[0].getAttribute("r"))).toBeCloseTo(16, 5);
+  });
+
+  it("encodes percent of capacity with the blue ramp, not the drought ramp", async () => {
+    renderMap(COUNTIES, [FOLSOM, SHASTA]);
+    await findCircles();
+    const fills = visibleDots().map((c) => c.getAttribute("fill"));
     expect(fills).toEqual([
       "rgb(var(--reservoir-r3))", // Shasta at 75%
       "rgb(var(--reservoir-r1))", // Folsom at 30%

@@ -51,6 +51,10 @@ export function fillForReservoirPct(pct: number): string {
 // though that breaks strict proportionality down there.
 const MIN_R = 6;
 const MAX_R = 16;
+// The map shrinks to ~327px on a 375px phone, so a 6-unit dot renders at
+// ~11px across — far under a finger. A transparent hit circle carries the
+// interaction instead, leaving the visible radius free to mean capacity.
+const MIN_HIT_R = 15;
 
 function radiusForCapacity(capacityAf: number, maxCapacityAf: number): number {
   if (maxCapacityAf <= 0) return MIN_R;
@@ -259,6 +263,7 @@ export default function DroughtMap({
                 pointerEvents="none"
               />
               <circle
+                data-testid={`reservoir-dot-${d.reservoir.station_id}`}
                 cx={d.cx}
                 cy={d.cy}
                 r={d.r}
@@ -266,7 +271,16 @@ export default function DroughtMap({
                 fillOpacity={0.92}
                 stroke="rgb(var(--inverse-surface))"
                 strokeWidth={isSelected ? 3 : 1.25}
-                className="cursor-pointer"
+                pointerEvents="none"
+              />
+              <circle
+                cx={d.cx}
+                cy={d.cy}
+                r={Math.max(d.r, MIN_HIT_R)}
+                fill="transparent"
+                // The default ring also fires on a mouse click, which looks
+                // like a stuck selection; keyboard focus still rings.
+                className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
                 role="button"
                 tabIndex={0}
                 aria-pressed={isSelected}
