@@ -1,7 +1,8 @@
 # CalSight — a one-page case study
 
-*Written 2026-09-13, after the project entered maintenance mode. Numbers are
-from production on that date.*
+*Written 2026-09-13, updated 2026-09-21 after a second feature wave. Crash
+totals are from production on 2026-09-13; PR and commit counts are current
+as of the update.*
 
 ## What it is
 
@@ -9,8 +10,9 @@ from production on that date.*
 California traffic crash since 2001: **11.6 million crashes**, ~9 million
 parties, 6.5 million victims, joined to weather, demographics, road inventory,
 equity indices, and a water-conditions module. Map, stats dashboard builder,
-plain-English "Ask AI", and pre-computed per-county AI narratives. Started
-2026-03-26; live since May; **459 merged PRs, 679 commits** as of this writing.
+a streaming plain-English "Ask AI", pre-computed per-county AI narratives, and
+a printable per-county report card. Started 2026-03-26; live since May;
+**276 merged PRs, 883 commits** as of this writing.
 
 ## Stack, and why
 
@@ -27,13 +29,26 @@ plain-English "Ask AI", and pre-computed per-county AI narratives. Started
 
 - **Trust the DOM, not the screenshot.** A polish audit shipped a "fixed"
   mobile layout that a real browser pass proved was still broken. Every UI fix
-  since has been verified in a real browser against the accessibility tree.
+  since has been verified in a real browser against the accessibility tree —
+  a September mobile-map fix (heat aggregation, tap-to-zoom, a deferred
+  service-worker update) came from testing an actual link the owner sent
+  from their phone, not a simulated viewport.
 - **The fabricated-YoY bug family.** Three separate surfaces compared a
   partial current year against a full prior year and published −50% to −64%
   county "declines". Fix was one rule applied everywhere: exclude any year
   under a coverage threshold from every comparison. A later audit found the
   same class again in the AI insight cards; the ETL now regenerates any card
   whose underlying stats changed and verifies every number the LLM writes.
+- **The over-claiming kept recurring.** A September audit checked all ten
+  Stats-page data stories against production: five had the wrong number,
+  three had none — a "3.1x" that was really 4.1x, a correlation stated as
+  0.52 that was 0.14. The same week, a causal-language gate that had only
+  ever checked the AI fun facts was extended to the county narratives after
+  one asserted a cause SWITRS records can't support, and then needed its own
+  fix so it stopped rejecting honest sentences — a crash-outcome tally like
+  "52.1% resulted in no injuries" is descriptive, not causal. Same root
+  cause each time: nothing had checked what got published against what the
+  data actually said.
 - **SWITRS 2001 was short 211k crashes for months.** Case IDs from that year
   overflowed `bigint` and were silently dropped. Folding the IDs recovered
   them and moved the statewide total from 11.34M to 11.60M.
