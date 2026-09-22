@@ -4,6 +4,7 @@
  */
 
 import { triggerDownload, todayStamp } from "./download";
+import { buildCaptionLines, type CaptionLineKind, type ChartCaptionInput } from "./chartCaption";
 
 // ---------------------------------------------------------------------------
 // PNG export
@@ -25,22 +26,78 @@ function resolveVarColors(svgString: string): string {
   });
 }
 
+// Caption block drawn under the chart image — see buildCaptionLines for the
+// text; this is just the layout/typography (matches the on-screen title's
+// headline font and the footnote's small italic body font, see ChartCard.tsx).
+const CAPTION_PADDING_X = 12;
+const CAPTION_PADDING_TOP = 10;
+const CAPTION_PADDING_BOTTOM = 10;
+const CAPTION_STYLES: Record<CaptionLineKind, { font: string; color: string; lineHeight: number }> = {
+  title: { font: "bold 14px 'Public Sans Variable', 'Public Sans', sans-serif", color: "#1a1a1a", lineHeight: 18 },
+  filter: { font: "12px 'Inter Variable', Inter, sans-serif", color: "#3f3f3f", lineHeight: 16 },
+  footnote: { font: "italic 11px 'Inter Variable', Inter, sans-serif", color: "#666666", lineHeight: 15 },
+  attribution: { font: "10px 'Inter Variable', Inter, sans-serif", color: "#8a8a8a", lineHeight: 14 },
+};
+
+/** Greedy word-wrap of `text` to `maxWidth` using `ctx`'s current font. */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : [text];
+}
+
+/** Wrap every caption line to `maxWidth`, keeping each sub-line's style kind. */
+function wrapCaptionLines(
+  ctx: CanvasRenderingContext2D,
+  lines: { text: string; kind: CaptionLineKind }[],
+  maxWidth: number,
+): { text: string; kind: CaptionLineKind }[] {
+  const wrapped: { text: string; kind: CaptionLineKind }[] = [];
+  for (const line of lines) {
+    ctx.font = CAPTION_STYLES[line.kind].font;
+    for (const sub of wrapText(ctx, line.text, maxWidth)) {
+      wrapped.push({ text: sub, kind: line.kind });
+    }
+  }
+  return wrapped;
+}
+
 /**
  * Export an SVG element as a retina-quality PNG.
  *
  * Approach: serialize the SVG with resolved CSS vars, load as an Image onto a
- * scaled canvas with a white background, then trigger download.
+ * scaled canvas with a white background, draw a caption block underneath
+ * (title, active filters, on-screen footnotes, source attribution — so the
+ * image isn't misleading once it's shared on its own), then trigger download.
  *
  * @param svgEl  - The SVG element to export
- * @param title  - Used for the filename
+ * @param title  - Used for the filename and as the caption's title line
  * @param options - Optional settings:
  *   - printQuality: when true, renders at 3x (300 DPI equivalent at 100% zoom)
  *     instead of the default 2x (retina). Use for print-ready exports.
+ *   - filterSummary: active-filters one-liner (e.g. FilterScope.oneLine).
+ *     Omitted/null when unfiltered — no line is drawn.
+ *   - footnotes: the on-screen footnote(s) verbatim, in display order.
  */
 export async function exportChartPng(
   svgEl: SVGSVGElement,
   title: string,
-  options?: { printQuality?: boolean },
+  options?: {
+    printQuality?: boolean;
+    filterSummary?: ChartCaptionInput["filterSummary"];
+    footnotes?: ChartCaptionInput["footnotes"];
+  },
 ): Promise<void> {
   const serializer = new XMLSerializer();
   let svgString = serializer.serializeToString(svgEl);
@@ -71,13 +128,24 @@ export async function exportChartPng(
     : Math.min(window.devicePixelRatio || 1, 2);
 
   const canvas = document.createElement("canvas");
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
   const ctx = canvas.getContext("2d")!;
+
+  // Measure & wrap the caption before sizing the canvas — measureText is
+  // unaffected by any transform, so this can happen before canvas.width/
+  // height (and thus ctx.scale) are set.
+  const captionLines = buildCaptionLines({ title, filterSummary: options?.filterSummary, footnotes: options?.footnotes });
+  const maxTextWidth = w - CAPTION_PADDING_X * 2;
+  const wrappedCaption = wrapCaptionLines(ctx, captionLines, maxTextWidth);
+  const captionHeight = CAPTION_PADDING_TOP + CAPTION_PADDING_BOTTOM
+    + wrappedCaption.reduce((sum, line) => sum + CAPTION_STYLES[line.kind].lineHeight, 0);
+
+  canvas.width = w * dpr;
+  canvas.height = (h + captionHeight) * dpr;
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.scale(dpr, dpr);
+  ctx.textBaseline = "top";
 
   const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -87,6 +155,16 @@ export async function exportChartPng(
     img.onload = () => {
       ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
+
+      let y = h + CAPTION_PADDING_TOP;
+      for (const line of wrappedCaption) {
+        const style = CAPTION_STYLES[line.kind];
+        ctx.font = style.font;
+        ctx.fillStyle = style.color;
+        ctx.fillText(line.text, CAPTION_PADDING_X, y);
+        y += style.lineHeight;
+      }
+
       canvas.toBlob((pngBlob) => {
         if (!pngBlob) {
           reject(new Error("Canvas toBlob returned null"));
