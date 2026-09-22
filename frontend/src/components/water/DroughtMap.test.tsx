@@ -3,8 +3,13 @@ import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import DroughtMap, { fillForDroughtShare, fillForReservoirPct } from "./DroughtMap";
+import DroughtMap, {
+  fillForDroughtShare,
+  fillForReservoirPct,
+  fillForSnowPct,
+} from "./DroughtMap";
 import type { DroughtCounty } from "../../hooks/useDroughtData";
+import type { SnowStationCondition } from "../../hooks/useSnowpackData";
 import type { ReservoirCondition } from "../../hooks/useWaterData";
 
 // Minimal non-quantized topology: two triangular "counties".
@@ -77,10 +82,46 @@ const NO_COORDS: ReservoirCondition = {
   lon: null,
 };
 
+/** Snow stations, positioned inside the fixture "counties" like the
+ *  reservoirs above so the shared projector keeps them on canvas. */
+const CSL: SnowStationCondition = {
+  station_id: "CSL",
+  name: "Central Sierra Snow Lab",
+  region: "Central Sierra",
+  elevation_ft: 6900,
+  lat: 37.4,
+  lon: -121.4,
+  latest_date: "2026-03-01",
+  swe_in: 24.6,
+  pct_of_average: 112.0,
+};
+
+const GIN: SnowStationCondition = {
+  station_id: "GIN",
+  name: "Gin Flat",
+  region: "Southern Sierra",
+  elevation_ft: 7050,
+  lat: 35.5,
+  lon: -118.7,
+  latest_date: "2026-03-01",
+  swe_in: 6.0,
+  pct_of_average: null,
+};
+
+/** Pre-coordinate row: the layer must skip it, not crash on the nulls. */
+const SNOW_NO_COORDS: SnowStationCondition = {
+  ...GIN,
+  station_id: "ZZZ",
+  name: "Nowhere Meadow",
+  lat: null,
+  lon: null,
+};
+
 function renderMap(
   counties: DroughtCounty[] = COUNTIES,
   reservoirs?: ReservoirCondition[],
   onShowInList?: (stationId: string) => void,
+  snowStations?: SnowStationCondition[],
 ) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     if (String(input).includes("ca-counties.topo.json")) {
@@ -99,6 +140,7 @@ function renderMap(
       counties={counties}
       weekStart="2026-06-30"
       reservoirs={reservoirs}
+      snowStations={snowStations}
       onShowInList={onShowInList}
     />,
     { wrapper },
@@ -292,6 +334,168 @@ describe("DroughtMap reservoir layer", () => {
     renderMap(COUNTIES, undefined);
     await screen.findByRole("img", { name: /map of california/i });
     expect(screen.queryByRole("list", { name: /legend: reservoirs/i })).toBeNull();
+  });
+});
+
+describe("DroughtMap snow-station layer", () => {
+  /** The transparent hit circles carry the labels and keyboard handling. */
+  async function findSnowButtons() {
+    await screen.findByRole("img", { name: /map of california/i });
+    return screen.getAllByRole("button", { name: /snow station/i });
+  }
+
+  function snowMarks() {
+    return [...document.querySelectorAll("[data-testid^='snow-mark-']")];
+  }
+
+  it("draws nothing when the snowpack query has not resolved", async () => {
+    renderMap(COUNTIES, undefined, undefined, undefined);
+    const svg = await screen.findByRole("img", { name: /map of california/i });
+    expect(snowMarks()).toHaveLength(0);
+    expect(svg.closest("svg")!.querySelectorAll("polygon")).toHaveLength(0);
+    expect(screen.queryByRole("button")).toBeNull();
+    // The choropleth is untouched by the missing layer.
+    expect(svg.querySelectorAll("path")).toHaveLength(2);
+    expect(screen.queryByRole("list", { name: /legend: snow stations/i })).toBeNull();
+  });
+
+  it("renders only stations that have coordinates", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL, SNOW_NO_COORDS]);
+    const buttons = await findSnowButtons();
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAttribute(
+      "aria-label",
+      "Central Sierra Snow Lab snow station, 112% of average snowpack",
+    );
+    expect(snowMarks().map((m) => m.getAttribute("data-testid"))).toEqual([
+      "snow-mark-CSL",
+    ]);
+  });
+
+  it("uses diamonds and the snow ramp, not the reservoir circles", async () => {
+    renderMap(COUNTIES, [SHASTA], undefined, [CSL, GIN]);
+    await screen.findByRole("img", { name: /map of california/i });
+    const marks = snowMarks();
+    // Diamond marks are polygons, so shape distinguishes them from the
+    // reservoir circles even before color.
+    expect(marks.every((m) => m.tagName.toLowerCase() === "polygon")).toBe(true);
+    expect(marks.map((m) => m.getAttribute("fill"))).toEqual([
+      "rgb(var(--snow-s2))", // CSL at 112%
+      "rgb(var(--surface-container-highest))", // GIN has no percent
+    ]);
+  });
+
+  it("selects a station and shows its reading in a detail panel", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL]);
+    const buttons = await findSnowButtons();
+    await userEvent.click(buttons[0]);
+
+    const panel = screen.getByRole("group", { name: /central sierra snow lab detail/i });
+    expect(panel).toHaveTextContent("112");
+    expect(panel).toHaveTextContent("% of average");
+    expect(panel).toHaveTextContent("24.6″ snow water equivalent");
+    expect(panel).toHaveTextContent("2026-03-01");
+    expect(panel).toHaveTextContent("Central Sierra");
+    expect(panel).toHaveTextContent("6,900 ft");
+    expect(buttons[0]).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("says so rather than inventing a percent when there is no baseline", async () => {
+    renderMap(COUNTIES, undefined, undefined, [GIN]);
+    const buttons = await findSnowButtons();
+    await userEvent.click(buttons[0]);
+    const panel = screen.getByRole("group", { name: /gin flat detail/i });
+    expect(panel).toHaveTextContent(/not enough history/i);
+    expect(panel).not.toHaveTextContent("% of average");
+  });
+
+  it("activates on Enter and on Space from the keyboard", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL]);
+    const buttons = await findSnowButtons();
+    buttons[0].focus();
+    await userEvent.keyboard("{Enter}");
+    expect(
+      screen.getByRole("group", { name: /central sierra snow lab detail/i }),
+    ).toBeInTheDocument();
+    await userEvent.keyboard(" ");
+    expect(
+      screen.queryByRole("group", { name: /central sierra snow lab detail/i }),
+    ).toBeNull();
+  });
+
+  it("clears the selection on Escape and on Close", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL]);
+    const buttons = await findSnowButtons();
+    await userEvent.click(buttons[0]);
+    await userEvent.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("group", { name: /central sierra snow lab detail/i }),
+    ).toBeNull();
+
+    await userEvent.click(buttons[0]);
+    await userEvent.click(screen.getByRole("button", { name: /^close$/i }));
+    expect(
+      screen.queryByRole("group", { name: /central sierra snow lab detail/i }),
+    ).toBeNull();
+  });
+
+  it("keeps one selection across the two layers", async () => {
+    renderMap(COUNTIES, [SHASTA], undefined, [CSL]);
+    await screen.findByRole("img", { name: /map of california/i });
+    const reservoir = screen.getByRole("button", { name: /shasta lake, 75%/i });
+    const station = screen.getByRole("button", { name: /snow station/i });
+
+    await userEvent.click(reservoir);
+    expect(screen.getByRole("group", { name: /shasta lake detail/i })).toBeInTheDocument();
+
+    // Selecting the snow station replaces the reservoir selection.
+    await userEvent.click(station);
+    expect(
+      screen.getByRole("group", { name: /central sierra snow lab detail/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /shasta lake detail/i })).toBeNull();
+    expect(reservoir).toHaveAttribute("aria-pressed", "false");
+
+    // ... and back the other way.
+    await userEvent.click(reservoir);
+    expect(screen.getByRole("group", { name: /shasta lake detail/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /central sierra snow lab detail/i }),
+    ).toBeNull();
+    expect(station).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("adds a snow legend only when marks are drawn", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL, GIN]);
+    const legend = await screen.findByRole("list", { name: /legend: snow stations/i });
+    for (const label of ["<50%", "50–100%", "100–150%", "150%+", "No average"]) {
+      expect(legend).toHaveTextContent(label);
+    }
+    cleanup();
+    renderMap(COUNTIES, [SHASTA], undefined, undefined);
+    await screen.findByRole("img", { name: /map of california/i });
+    expect(screen.queryByRole("list", { name: /legend: snow stations/i })).toBeNull();
+    // The reservoir legend is unaffected by the snow layer's absence.
+    expect(screen.getByRole("list", { name: /legend: reservoirs/i })).toBeInTheDocument();
+  });
+});
+
+describe("fillForSnowPct", () => {
+  it("bins percent of average pale to deep", () => {
+    expect(fillForSnowPct(10)).toBe("rgb(var(--snow-s0))");
+    expect(fillForSnowPct(70)).toBe("rgb(var(--snow-s1))");
+    expect(fillForSnowPct(120)).toBe("rgb(var(--snow-s2))");
+    expect(fillForSnowPct(300)).toBe("rgb(var(--snow-s3))");
+  });
+
+  it("puts bin edges in the deeper bin", () => {
+    expect(fillForSnowPct(50)).toBe("rgb(var(--snow-s1))");
+    expect(fillForSnowPct(100)).toBe("rgb(var(--snow-s2))");
+    expect(fillForSnowPct(150)).toBe("rgb(var(--snow-s3))");
+  });
+
+  it("uses the neutral fill when there is no percent to show", () => {
+    expect(fillForSnowPct(null)).toBe("rgb(var(--surface-container-highest))");
   });
 });
 
