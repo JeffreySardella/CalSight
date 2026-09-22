@@ -607,10 +607,14 @@ export default function DroughtMap({
               </p>
             );
           })()}
+          {/* The API's station_count is how many reported on the latest
+              date, which in late summer is a fraction of the marks drawn
+              (32 mapped, 14 reporting on 2026-09-21) — so it is the
+              numerator here, clamped in case a reporting station has no
+              coordinates to plot. */}
           <p className="text-xs text-on-surface-variant mt-1">
-            {selectedRegion.located} of{" "}
-            {selectedRegion.api?.station_count ?? selectedRegion.located} stations
-            reporting
+            {Math.min(selectedRegion.api?.station_count ?? selectedRegion.located, selectedRegion.located)}{" "}
+            of {selectedRegion.located} stations reporting
             {selectedRegion.api && ` · ${selectedRegion.api.latest_date}`}
           </p>
           {onShowRegionInList && (

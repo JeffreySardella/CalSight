@@ -58,7 +58,9 @@ const SNOWPACK = {
   latest_date: "2026-03-01",
   statewide_pct_of_average: 112,
   regions: [
-    { region: "Central Sierra", station_count: 5, latest_date: "2026-03-01", swe_in: 24.6, avg_swe_in: 22.0, pct_of_average: 112 },
+    // station_count is how many reported on latest_date — a subset of the
+    // two Central Sierra marks the map draws, as the live API behaves.
+    { region: "Central Sierra", station_count: 1, latest_date: "2026-03-01", swe_in: 24.6, avg_swe_in: 22.0, pct_of_average: 112 },
     { region: "Northern Sierra / Trinity", station_count: 5, latest_date: "2026-03-01", swe_in: 30.1, avg_swe_in: 24.0, pct_of_average: 125 },
     { region: "Southern Sierra", station_count: 5, latest_date: "2026-03-01", swe_in: 18.0, avg_swe_in: 20.0, pct_of_average: 90 },
   ],
@@ -245,7 +247,7 @@ test("tapping a snow cluster on the drought map opens its region panel", async (
   const panel = page.getByRole("group", { name: /Central Sierra detail/i });
   await expect(panel).toBeVisible();
   await expect(panel).toContainText("112");
-  await expect(panel).toContainText("2 of 5 stations reporting");
+  await expect(panel).toContainText("1 of 2 stations reporting");
   await expect(panel).toContainText("2026-03-01");
 
   // "Show in list" highlights the region's row up in the snowpack section.

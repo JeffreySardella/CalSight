@@ -111,6 +111,17 @@ const GIN: SnowStationCondition = {
   pct_of_average: null,
 };
 
+/** A second Central Sierra mark, so one region covers more than one
+ *  station and the panel's coverage line has something to say. */
+const CASTLE: SnowStationCondition = {
+  ...CSL,
+  station_id: "CAS",
+  name: "Castle Peak",
+  lat: 37.3,
+  lon: -121.3,
+  pct_of_average: 40,
+};
+
 /** Pre-coordinate row: the layer must skip it, not crash on the nulls. */
 const SNOW_NO_COORDS: SnowStationCondition = {
   ...GIN,
@@ -122,11 +133,13 @@ const SNOW_NO_COORDS: SnowStationCondition = {
 
 /** The API's regional figures. The percentages here deliberately differ
  *  from the stations' own values so a test can tell which one the panel
- *  quotes: Central Sierra is 88% here but CSL, its only station, is 112%. */
+ *  quotes: Central Sierra is 88% here but CSL, one of its stations, reads
+ *  112%. `station_count` is how many reported on `latest_date`, which is a
+ *  subset of the marks on the map — exactly as the live API behaves. */
 const REGIONS: RegionSnowpack[] = [
   {
     region: "Central Sierra",
-    station_count: 38,
+    station_count: 1,
     latest_date: "2026-03-02",
     swe_in: 24.6,
     avg_swe_in: 28.0,
@@ -434,13 +447,15 @@ describe("DroughtMap snow layer", () => {
     }
   });
 
-  it("labels a region with the API percent and its station count", async () => {
-    renderMap(COUNTIES, undefined, undefined, [CSL], REGIONS);
+  it("labels a region with the API percent and its mark count", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL, CASTLE, GIN], REGIONS);
     const buttons = await findRegionButtons();
-    // 88% is the API's regional figure; CSL, its only mark, reads 112%.
-    expect(buttons[0]).toHaveAttribute(
-      "aria-label",
-      "Central Sierra snowpack, 88% of average, 1 station",
+    // 88% is the API's regional figure; CSL reads 112% and Castle 40%.
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(
+      expect.arrayContaining([
+        "Central Sierra snowpack, 88% of average, 2 stations",
+        "Southern Sierra snowpack, 50% of average, 1 station",
+      ]),
     );
   });
 
@@ -495,16 +510,17 @@ describe("DroughtMap snow layer", () => {
   });
 
   it("shows the API region figure, station coverage and reading date", async () => {
-    renderMap(COUNTIES, undefined, undefined, [CSL], REGIONS);
+    renderMap(COUNTIES, undefined, undefined, [CSL, CASTLE], REGIONS);
     const buttons = await findRegionButtons();
     await userEvent.click(buttons[0]);
 
     const panel = screen.getByRole("group", { name: /central sierra detail/i });
     expect(panel).toHaveTextContent("88");
     expect(panel).toHaveTextContent("% of average");
-    // Never the station's own 112%.
+    // Never the stations' own 112% / 40%.
     expect(panel).not.toHaveTextContent("112");
-    expect(panel).toHaveTextContent("1 of 38 stations reporting");
+    // Only one of the two mapped stations reported on the latest date.
+    expect(panel).toHaveTextContent("1 of 2 stations reporting");
     expect(panel).toHaveTextContent("2026-03-02");
     expect(buttons[0]).toHaveAttribute("aria-pressed", "true");
   });
