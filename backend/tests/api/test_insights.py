@@ -11,11 +11,12 @@ test here depends on the ``seed_insights`` fixture below, which adds rows to
 the per-test transactional session (rolled back at teardown).
 """
 
-from datetime import date
+from datetime import date, datetime
 
 import pytest
+from sqlalchemy import text
 
-from app.models import CountyInsight, CountyInsightCard, StatewideInsight
+from app.models import CountyInsight, CountyInsightCard, Crash, StatewideInsight
 
 pytestmark = pytest.mark.integration
 
@@ -44,16 +45,21 @@ def seed_insights(db_session):
             total_injured=248_000, data_source="ccrs",
         ),
     ])
+    # Cards carry the county-year totals they were written from; the shared
+    # seed gives LA 2022 one crash / one death and LA 2015 the same, so these
+    # two match mv_crashes_by_year and are servable.
     db_session.add_all([
         CountyInsightCard(
-            county_code=19, county_name="Los Angeles", year=2023,
+            county_code=19, county_name="Los Angeles", year=2022,
             angle="overview",
             narrative="Los Angeles County saw a slight drop in crashes.",
+            total_crashes=1, total_killed=1,
         ),
         CountyInsightCard(
-            county_code=19, county_name="Los Angeles", year=2022,
+            county_code=19, county_name="Los Angeles", year=2015,
             angle="dui",
-            narrative="DUI crashes remained a top concern in 2022.",
+            narrative="DUI crashes remained a top concern in 2015.",
+            total_crashes=1, total_killed=1,
         ),
     ])
     db_session.add_all([
@@ -123,11 +129,87 @@ def test_insight_card_returns_row(client, seed_insights):
 
 
 def test_insight_card_year_filter(client, seed_insights):
-    response = client.get("/api/insight-cards/random?county=los-angeles&year=2022")
+    response = client.get("/api/insight-cards/random?county=los-angeles&year=2015")
     assert response.status_code == 200
     body = response.json()
-    assert body["year"] == 2022
+    assert body["year"] == 2015
     assert body["angle"] == "dui"
+
+
+def _card(county_code, name, year, angle, tc, tk):
+    return CountyInsightCard(
+        county_code=county_code, county_name=name, year=year, angle=angle,
+        narrative=f"{name} card for {year}.", total_crashes=tc, total_killed=tk,
+    )
+
+
+def test_insight_card_with_stale_deaths_is_not_served(client, seed_insights, db_session):
+    """The live Fresno 2025 card said 126 deaths / 10,493 crashes, written
+    while 2025 was still filling in; the report card says 142 / 10,546.
+    Orange 2023 is seeded with 1 crash and 0 deaths — a card built when it
+    had 1 death must not be served."""
+    db_session.add(_card(30, "Orange", 2023, "cause_focus", 1, 1))
+    db_session.flush()
+    assert client.get("/api/insight-cards/random?county=orange").status_code == 404
+
+
+def test_insight_card_with_stale_crash_count_is_not_served(client, seed_insights, db_session):
+    db_session.add(_card(30, "Orange", 2023, "cause_focus", 2, 0))
+    db_session.flush()
+    assert client.get("/api/insight-cards/random?county=orange").status_code == 404
+
+
+def test_insight_card_without_a_snapshot_is_not_served(client, seed_insights, db_session):
+    """Cards written before totals were stored can't be verified."""
+    db_session.add(_card(30, "Orange", 2023, "cause_focus", None, None))
+    db_session.flush()
+    assert client.get("/api/insight-cards/random?county=orange").status_code == 404
+
+
+def test_insight_card_matching_live_totals_is_served_with_its_year(client, seed_insights, db_session):
+    db_session.add(_card(30, "Orange", 2023, "cause_focus", 1, 0))
+    db_session.flush()
+    response = client.get("/api/insight-cards/random?county=orange")
+    assert response.status_code == 200
+    assert response.json()["year"] == 2023
+
+
+def test_stale_card_never_chosen_beside_a_current_one(client, seed_insights, db_session):
+    db_session.add(_card(19, "Los Angeles", 2022, "cause_focus", 1, 0))
+    db_session.flush()
+    for _ in range(15):
+        body = client.get("/api/insight-cards/random?county=los-angeles&year=2022").json()
+        assert body["angle"] == "overview"
+
+
+def test_current_year_card_is_not_served_even_if_totals_match(client, seed_insights, db_session):
+    """A partial year's totals change daily; a match today is luck."""
+    year = date.today().year
+    db_session.add(Crash(
+        id=900, collision_id=900, data_source="ccrs",
+        crash_datetime=datetime(year, 1, 2, 8, 0), county_code=30,
+        crash_year=year, crash_hour=8, crash_month=1, day_of_week_num=0,
+        severity="Injury", number_killed=0, number_injured=1, county_name="Orange",
+    ))
+    db_session.flush()
+    db_session.execute(text("REFRESH MATERIALIZED VIEW mv_crashes_by_year"))
+    db_session.add(_card(30, "Orange", year, "overview", 1, 0))
+    db_session.flush()
+    assert client.get(f"/api/insight-cards/random?county=orange&year={year}").status_code == 404
+
+
+def test_fun_facts_skip_stale_county_facts(client, seed_insights, db_session):
+    db_session.add(_card(30, "Orange", 2023, "fun_fact_timing", 1, 1))
+    db_session.flush()
+    assert client.get("/api/fun-facts?county=orange").status_code == 404
+
+
+def test_fun_facts_serve_current_county_facts(client, seed_insights, db_session):
+    db_session.add(_card(30, "Orange", 2023, "fun_fact_timing", 1, 0))
+    db_session.flush()
+    body = client.get("/api/fun-facts?county=orange&n=1").json()
+    assert body[0]["county_name"] == "Orange"
+    assert body[0]["year"] == 2023
 
 
 def test_insight_card_unknown_county_404(client, seed_insights):

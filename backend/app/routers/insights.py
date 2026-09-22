@@ -40,12 +40,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, select
+from sqlalchemy.orm import Query as OrmQuery, Session
 
 from app.county_slug_map import get_code, get_slug_map
 from app.database import get_db
 from app.models import County, CountyInsight, CountyInsightCard, StatewideInsight
+from app.routers.stats import mv_year
 from app.schemas.context import CountyInsightCardOut, StatewideInsightOut
 
 router = APIRouter(tags=["insights"])
@@ -78,6 +79,38 @@ class CountyInsightPayload(BaseModel):
     dui_pct: float | None
     narrative: str | None
     generated_at: str | None  # ISO 8601
+
+
+def _current_cards(q: OrmQuery) -> OrmQuery:
+    """Only cards that still agree with the numbers the rest of the site shows.
+
+    A card stores the county-year totals it was written from; it is served
+    only while they equal mv_crashes_by_year (the source of /api/stats and the
+    county report card). The live Fresno 2025 card said "126 fatalities from
+    10,493 crashes", written while 2025 deaths were still filling in; the
+    report card says 142 / 10,546. NULL totals (cards written before the
+    snapshot existed) never match, and the current calendar year is partial
+    by definition, so neither is served.
+    """
+    live = (
+        select(
+            mv_year.c.county_code,
+            mv_year.c.crash_year,
+            func.sum(mv_year.c.crash_count).label("tc"),
+            func.sum(mv_year.c.total_killed).label("tk"),
+        )
+        .group_by(mv_year.c.county_code, mv_year.c.crash_year)
+        .subquery()
+    )
+    return q.join(
+        live,
+        and_(
+            live.c.county_code == CountyInsightCard.county_code,
+            live.c.crash_year == CountyInsightCard.year,
+            live.c.tc == CountyInsightCard.total_crashes,
+            live.c.tk == CountyInsightCard.total_killed,
+        ),
+    ).filter(CountyInsightCard.year < date.today().year)
 
 
 @router.get("/insights/statewide", response_model=StatewideInsightOut)
@@ -124,7 +157,7 @@ def get_fun_facts(
         code = get_code(county, slug_map)
         if code is not None:
             county_facts = (
-                db.query(CountyInsightCard)
+                _current_cards(db.query(CountyInsightCard))
                 .filter(
                     CountyInsightCard.county_code == code,
                     CountyInsightCard.angle.like("fun_fact%"),
@@ -174,13 +207,16 @@ def get_random_county_insight_card(
     year: int | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    """Return one random insight card for a county."""
+    """Return one random insight card for a county that matches today's data.
+
+    404 when none does; the map then shows /api/insights/{slug}'s narrative.
+    """
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     slug_map = get_slug_map(db)
     code = get_code(county, slug_map)
     if code is None:
         raise HTTPException(status_code=404, detail=f"County '{county}' not found")
-    q = db.query(CountyInsightCard).filter(CountyInsightCard.county_code == code)
+    q = _current_cards(db.query(CountyInsightCard)).filter(CountyInsightCard.county_code == code)
     if year is not None:
         q = q.filter(CountyInsightCard.year == year)
     row = q.order_by(func.random()).first()
