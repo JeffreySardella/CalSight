@@ -1,10 +1,11 @@
 import { useSnowpack, type RegionSnowpack } from "../../hooks/useSnowpackData";
-import { slugify } from "../../hooks/useFilterParams";
 import { baselineNote } from "../../hooks/useWaterData";
 
-/** Anchor id so the drought map's "Show in list" can scroll to a region. */
+/** Anchor id so the drought map's "Show in list" can scroll to a region.
+ * Not the shared `slugify`: that only replaces spaces, and DWR region
+ * names contain slashes ("Northern Sierra / Trinity"). */
 export function regionRowId(region: string): string {
-  return `snowpack-${slugify(region)}`;
+  return `snowpack-${region.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 }
 
 /** Percent-of-average → a bar fill fraction, capped at 200% so a huge

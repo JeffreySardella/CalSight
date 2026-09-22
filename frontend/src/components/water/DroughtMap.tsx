@@ -101,10 +101,12 @@ function regionPct(api: RegionSnowpack | undefined): {
   label: string;
 } {
   if (!api) return { pct: null, label: "average" };
-  const melt = isMeltSeason(api.latest_date) && api.apr1_pct_of_average !== null;
+  // Loose != null on purpose: a payload cached from before the April-1
+  // fields shipped has them undefined, not null.
+  const melt = isMeltSeason(api.latest_date) && api.apr1_pct_of_average != null;
   return melt
-    ? { pct: api.apr1_pct_of_average, label: "April 1 average" }
-    : { pct: api.pct_of_average, label: "average" };
+    ? { pct: api.apr1_pct_of_average ?? null, label: "April 1 average" }
+    : { pct: api.pct_of_average ?? null, label: "average" };
 }
 
 /** Diamond centred on (cx, cy) with half-diagonal r. */
