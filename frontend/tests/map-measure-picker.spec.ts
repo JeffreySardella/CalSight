@@ -31,6 +31,16 @@ const LICENSED_DRIVERS = COUNTIES.flatMap((c) =>
   YEARS.map((year) => ({ county_code: c.county_code, year, driver_count: 300_000 })),
 );
 const ROAD_MILES = COUNTIES.map((c) => ({ county_code: c.county_code, total_miles: 2_000 }));
+// /api/data-quality — per county x year fill rates behind coord_coverage.
+// Coverage rises with the county index so the counties land in different bands.
+const DATA_QUALITY = COUNTIES.flatMap((c, i) =>
+  YEARS.map((year) => ({
+    county_code: c.county_code,
+    year,
+    total_crashes: 1_000,
+    crashes_with_coords: 100 + i * 250,
+  })),
+);
 
 async function mockChoroplethApi(page: Page) {
   await page.route("**/api/**", (route) => route.fulfill({ status: 404, body: "not mocked" }));
@@ -44,6 +54,7 @@ async function mockChoroplethApi(page: Page) {
   await page.route("**/api/demographics**", (route) => route.fulfill({ json: DEMOGRAPHICS }));
   await page.route("**/api/licensed-drivers**", (route) => route.fulfill({ json: LICENSED_DRIVERS }));
   await page.route("**/api/road-miles**", (route) => route.fulfill({ json: ROAD_MILES }));
+  await page.route("**/api/data-quality**", (route) => route.fulfill({ json: DATA_QUALITY }));
 }
 
 test.beforeEach(async ({ page }) => {
@@ -91,4 +102,25 @@ test("switching to per-licensed-driver and per-road-mile measures updates the le
   await selectMeasure("Crashes per 100k residents");
   await expect(triggerLabel).toHaveText("Crashes per 100k residents");
   await expect.poll(() => stableLegendText()).toBe(initialLegendText);
+});
+
+test("the coordinate-coverage measure bands 0-100% and says what the point layers miss", async ({ page }) => {
+  await page.goto(`${BASE_URL}/?measure=coord_coverage`);
+
+  const legend = page.locator('[data-testid="choropleth-legend"]');
+  await expect(legend).toBeVisible();
+  // Deep link: the measure comes straight from the URL, no clicking.
+  await expect(page.locator('button[aria-haspopup="listbox"]').locator("span").first())
+    .toHaveText("Share of crashes with coordinates");
+
+  await expect(legend).not.toContainText("Loading data…");
+  // Absolute bands, not quantiles over the four fixture counties.
+  await expect(legend).toContainText("0%");
+  await expect(legend).toContainText("100%");
+  await expect(legend).toContainText("Fixed 20-point bands");
+  await expect(legend).not.toContainText("Quintiles");
+
+  const note = legend.locator('[data-testid="coord-coverage-note"]');
+  await expect(note).toContainText("only plot crashes");
+  await expect(note).toContainText("CCRS");
 });
