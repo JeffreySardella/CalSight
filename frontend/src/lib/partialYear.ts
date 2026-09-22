@@ -17,6 +17,12 @@ export function isPartialYear(year: number | string): boolean {
   return Number.isInteger(y) && y === new Date().getFullYear();
 }
 
+/** A year as a chip or option label: "2026 so far" for the in-progress year,
+ *  so its count doesn't read as a full year that fell off a cliff. */
+export function yearLabel(year: number): string {
+  return isPartialYear(year) ? `${year} so far` : String(year);
+}
+
 /**
  * Returns the shared annotation string when any of `labels` is the current
  * (partial) year, or null when the note isn't needed.

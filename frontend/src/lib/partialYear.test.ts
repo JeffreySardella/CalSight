@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { excludePartialYear, isPartialYear, partialYearNote } from "./partialYear";
+import { excludePartialYear, isPartialYear, partialYearNote, yearLabel } from "./partialYear";
 
 const CURRENT = new Date().getFullYear();
 
@@ -34,6 +34,13 @@ describe("partialYearNote", () => {
   it("returns null when only complete years are present", () => {
     expect(partialYearNote(["2018", "2019", "2020"])).toBeNull();
     expect(partialYearNote([])).toBeNull();
+  });
+});
+
+describe("yearLabel", () => {
+  it("marks only the in-progress year", () => {
+    expect(yearLabel(CURRENT)).toBe(`${CURRENT} so far`);
+    expect(yearLabel(CURRENT - 1)).toBe(String(CURRENT - 1));
   });
 });
 
