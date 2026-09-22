@@ -238,11 +238,16 @@ export default memo(function CountyBoundaries({
         if (!point || !point.hasEnoughData || point.value == null) return;
         allValues.push(point.value);
       });
-      // legendEdges never freezes a stale array from a previous, larger
-      // selection: with too few values for real quantiles it collapses to a
-      // single class spanning the current data, and integer measures (raw
-      // counts) round to whole-number breaks.
-      const edges = legendEdges(allValues, 5, { integer: MEASURES[measure]?.kind === "raw" });
+      // A measure with a fixed domain (a 0-100% share) declares its own
+      // absolute edges — quantiles would re-scale it on every filter change.
+      // Otherwise legendEdges, which never freezes a stale array from a
+      // previous, larger selection: with too few values for real quantiles it
+      // collapses to a single class spanning the current data, and integer
+      // measures (raw counts) round to whole-number breaks.
+      const fixed = MEASURES[measure]?.fixedEdges;
+      const edges = fixed
+        ? [...fixed]
+        : legendEdges(allValues, 5, { integer: MEASURES[measure]?.kind === "raw" });
       edgesRef.current = edges;
       setBucketEdges(edges);
     }

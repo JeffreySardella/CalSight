@@ -278,10 +278,17 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
                   implying differences the data doesn't support. Too few
                   counties have data for real quintiles (see legendEdges) —
                   bucketEdges is just [min, max] then, so skip the caption. */}
-              {bucketEdges.length > 2 && (
+              {bucketEdges.length > 2 && !activeMeasure.fixedEdges && (
                 <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
                   Quintiles — each colour holds about a fifth of counties, not an
                   equal value range.
+                </p>
+              )}
+              {/* Fixed-domain measures (a 0-100% share) are banded on absolute
+                  edges, so the quintile caption above would be wrong. */}
+              {activeMeasure.fixedEdges && (
+                <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
+                  Fixed 20-point bands, comparable across filters.
                 </p>
               )}
             </>
@@ -293,6 +300,15 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         </div>
       )}
 
+
+      {!countyActive && activeMeasure.kind === "coverage" && (
+        <p data-testid="coord-coverage-note" className="text-[10px] text-on-surface-variant mt-1.5 leading-snug">
+          Point layers — heat map, dots, schools, tracts — only plot crashes
+          that carry coordinates. Coverage climbs from 0% in 2001-2005 to about
+          78% in the CCRS years, so a short early-year selection maps far fewer
+          crashes than the county totals suggest.
+        </p>
+      )}
       {!countyActive && activeMeasure.kind === "perCapita" && (dataSummary.missingDemoYears.length > 0 || dataSummary.partialDemoYears.length > 0) && (
         <div role="alert" className="bg-red-500/15 rounded-md px-2 py-1.5 mt-1.5 text-[10px] text-red-600 dark:text-red-400 font-semibold">
           {dataSummary.missingDemoYears.length > 0 && (
