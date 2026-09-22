@@ -23,6 +23,15 @@ it("loads the highway geojson", async () => {
   await waitFor(() => expect(result.current.data).toEqual(fc));
 });
 
+it("does not fetch while the Highways layer is off", async () => {
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const { result } = renderHook(() => useHighwayGeoJson(false), { wrapper });
+  await new Promise((r) => setTimeout(r, 20));
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(result.current.fetchStatus).toBe("idle");
+});
+
 it("errors when the fetch fails", async () => {
   vi.stubGlobal(
     "fetch",

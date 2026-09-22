@@ -68,8 +68,12 @@ describe("HighwayDangerLayer", () => {
         <HighwayDangerLayer onSelectHighway={() => {}} />
       </Providers>,
     );
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    // Give any stray query a tick to fire before asserting on the negative.
+    await new Promise((r) => setTimeout(r, 50));
     expect(L.geoJSON).not.toHaveBeenCalled();
+    // The 219 KB geometry file waits for the layer to be switched on.
+    const urls = vi.mocked(globalThis.fetch).mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes("ca-highways.geojson"))).toBe(false);
   });
 
   it("draws a line layer when highwayDanger is enabled", async () => {
