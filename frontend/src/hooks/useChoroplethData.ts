@@ -14,6 +14,7 @@ import {
   type MeasureResult,
 } from "../lib/choropleth/measures";
 import type { CalEnviroScreenData, UnemploymentData } from "./useContextData";
+import { DATA_QUALITY_QUERY, coordCoverageByCounty, type DataQualityRow } from "./useCoordCoverage";
 import {
   CA_COUNTIES,
   SEVERITIES,
@@ -296,16 +297,25 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
           return res.json();
         },
       },
+      {
+        // Pre-computed fill rates per county x year — feeds coord_coverage.
+        // Same query as useCoordCoverage (the legend's statewide figure), so
+        // this is a cache hit rather than a second fetch.
+        ...DATA_QUALITY_QUERY,
+        gcTime: PERSISTED_QUERY_GC_TIME,
+        enabled: MEASURES[measure]?.kind === "coverage",
+      },
     ],
   });
 
-  const [statsQ, demoQ, yearStatsQ, cesQ, unempQ, driversQ, vmtQ, roadMilesQ] = queries;
+  const [statsQ, demoQ, yearStatsQ, cesQ, unempQ, driversQ, vmtQ, roadMilesQ, dataQualityQ] = queries;
   const stats = statsQ.data;
   const demos = demoQ.data;
   const yearStats = yearStatsQ.data;
   const cesData = cesQ.data as CalEnviroScreenData[] | undefined;
   const unempData = unempQ.data as UnemploymentData[] | undefined;
   const driverRows = driversQ.data as DriverRow[] | undefined;
+  const dataQualityRows = dataQualityQ.data as DataQualityRow[] | undefined;
 
   // Years the crash totals span: the date filter's years, else every year the
   // identically filtered year query returned. Population is filled for all of
@@ -361,6 +371,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       arr.push(r);
       vmtByCounty.set(r.county_code, arr);
     }
+    const coverageByCounty = coordCoverageByCounty(dataQualityRows, filters.dateRange);
     const milesByCounty = new Map<number, number>();
     for (const r of roadMileRows ?? []) {
       milesByCounty.set(r.county_code, (milesByCounty.get(r.county_code) ?? 0) + (r.total_miles ?? 0));
@@ -392,12 +403,13 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
         roadMiles: milesByCounty.get(s.county_code) ?? null,
         annualVmtMillions: annualVmtMillions(vmtByCounty.get(s.county_code) ?? [], selectedYears),
         yearCount,
+        coordCoverage: coverageByCounty.get(s.county_code) ?? null,
       });
       out[s.county_code] = { ...result, rawCount: s.crash_count, totalKilled: s.total_killed, totalInjured: s.total_injured };
       ntc[s.county_name] = s.county_code;
     }
     return { byCountyCode: out, nameToCode: ntc };
-  }, [stats, filledDemo, measure, cesData, unempData, driverRows, vmtRows, roadMileRows, yearStats, filters.dateRange]);
+  }, [stats, filledDemo, measure, cesData, unempData, driverRows, vmtRows, roadMileRows, dataQualityRows, yearStats, filters.dateRange]);
 
   const dataSummary = useMemo<DataSummary>(() => {
     const totalCrashes = yearStats?.reduce((s, r) => s + r.crash_count, 0) ?? 0;
@@ -433,7 +445,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
     return { totalCrashes, missingDemoYears, partialDemoYears, estimatedDemoYears, estimatedFromYears, sparseYears };
   }, [filters.dateRange, demos, filledDemo, yearStats]);
 
-  const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error ?? cesQ.error ?? unempQ.error ?? driversQ.error ?? vmtQ.error ?? roadMilesQ.error) as (Error & { status?: number }) | null;
+  const rawError = (statsQ.error ?? demoQ.error ?? yearStatsQ.error ?? cesQ.error ?? unempQ.error ?? driversQ.error ?? vmtQ.error ?? roadMilesQ.error ?? dataQualityQ.error) as (Error & { status?: number }) | null;
 
   return {
     byCountyCode,
