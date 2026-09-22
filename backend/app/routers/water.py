@@ -481,7 +481,10 @@ def snowpack(
     conditions = latest_with_doy_average(db, SnowDaily, SnowDaily.swe_in)
     if not conditions:
         raise HTTPException(status_code=404, detail="No snowpack data loaded")
-    region_of = dict(db.query(SnowStation.station_id, SnowStation.region).all())
+    # Whole rows, not just the region: the per-station block below needs
+    # name/elevation/coordinates too, and 110 rows is one cheap query.
+    stations = {s.station_id: s for s in db.query(SnowStation).all()}
+    region_of = {sid: st.region for sid, st in stations.items()}
 
     # Drop stations whose latest reading is stale (offline sensor) — they
     # must not contribute a years-old value to the "current" snowpack.
@@ -566,6 +569,27 @@ def snowpack(
 
     regions = [summarize(region, cs) for region, cs in sorted(by_region.items())]
 
+    # The per-station detail behind those means — the water map's snow
+    # layer. Same set as the regional figures (recency-filtered), so the
+    # map can never show a station the cards left out of their totals.
+    station_rows = [
+        SnowStationSnowpack(
+            station_id=c.station_id,
+            name=st.name,
+            region=st.region,
+            elevation_ft=st.elevation_ft,
+            lat=st.lat,
+            lon=st.lon,
+            latest_date=c.latest_date,
+            swe_in=round(c.value, 1),
+            pct_of_average=(
+                round(c.value / c.avg * 100, 1) if is_comparable(c) else None
+            ),
+        )
+        for c in sorted(current, key=lambda c: c.station_id)
+        if (st := stations.get(c.station_id)) is not None
+    ]
+
     # Statewide percent from every comparable station (mean SWE / mean avg).
     comparable_state = [c for c in current if is_comparable(c)]
     statewide_pct = (
@@ -588,4 +612,5 @@ def snowpack(
         apr1_station_count=statewide_apr1_n or None,
         baseline_period=baseline_period(current, list(region_of)),
         regions=regions,
+        stations=station_rows,
     )
