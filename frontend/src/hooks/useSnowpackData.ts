@@ -14,6 +14,20 @@ export interface RegionSnowpack {
   baseline_period?: string | null;
 }
 
+export interface SnowStationCondition {
+  station_id: string;
+  name: string;
+  region: string;
+  elevation_ft: number | null;
+  /** Station coordinates (CDEC staMeta). Null for rows loaded before the
+   *  coordinate columns existed — the map layer skips those. */
+  lat: number | null;
+  lon: number | null;
+  latest_date: string;
+  swe_in: number;
+  pct_of_average: number | null;
+}
+
 export interface Snowpack {
   latest_date: string;
   statewide_pct_of_average: number | null;
@@ -22,6 +36,9 @@ export interface Snowpack {
   /** Normal period behind every percent-of-average, e.g. "1991-2020". */
   baseline_period?: string | null;
   regions: RegionSnowpack[];
+  /** Per-station detail behind the regional means — the map layer's input.
+   *  Optional: a cached payload from before the field shipped has none. */
+  stations?: SnowStationCondition[];
 }
 
 export function useSnowpack() {
