@@ -176,7 +176,12 @@ export default memo(function CountyBoundaries({
           : base;
       }
 
-      if (heatmapActive && focusedCounty) {
+      // The heat layer is the picture while it is on. The county pane (z 450)
+      // sits above the heat canvas (overlay pane, z 400), so any fill here
+      // covers it: outlines only. This used to apply only with one focused
+      // county, so the statewide heat map and multi-county selections drew a
+      // 0.75 choropleth over the heat.
+      if (heatmapActive) {
         return {
           color: borderColor,
           weight: borderWeight,

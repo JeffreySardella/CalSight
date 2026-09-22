@@ -313,4 +313,37 @@ describe("CountyBoundaries", () => {
       expect(fillOpacities.some((v) => Math.abs(v - 0.24) < 1e-9 || Math.abs(v - 0.3) < 1e-9)).toBe(true);
     });
   });
+  it("does not shade counties over an active heat layer, with or without a focused county", async () => {
+    // The county pane (z 450) sits above the heat canvas in the overlay pane
+    // (z 400), so any fill hides the heat under it. Only the one-county case
+    // used to clear the fill: the statewide heat map, or two selected
+    // counties, drew a 0.75 choropleth over the heat (reported on a phone).
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <ThemeProvider>
+          <CustomThemeProvider><LayersStateProvider>
+            <CountyBoundaries
+              focusedCounty={null}
+              heatmapActive
+              onFocusCounty={onFocusCounty}
+              onSelectCounty={onSelectCounty}
+            />
+          </LayersStateProvider></CustomThemeProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      const calls = [
+        ...featureLayerMocks[0].setStyle.mock.calls,
+        ...featureLayerMocks[1].setStyle.mock.calls,
+      ] as [L.PathOptions][];
+      expect(calls.length).toBeGreaterThan(0);
+      for (const [style] of calls) expect(style.fillOpacity ?? 0).toBe(0);
+    });
+  });
+
 });
