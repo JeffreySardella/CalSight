@@ -390,10 +390,21 @@ jobs:
         # for exactly what the map asks for (both point budgets, plus the
         # fatal slice) so the first visitor after a deploy gets the cached
         # answer. The key ignores batch numbers, so one request per budget is
-        # enough. Best effort: a slow or failed warm never fails the deploy.
+        # enough. Best effort: a slow or failed warm never fails the deploy
+        # (curl failures are ignored; nothing here exits non-zero).
         run: |
           base="http://127.0.0.1:8000/api/crashes/heatmap"
-          warm() { curl -s --max-time 90 -o /dev/null -w "$1 %{http_code} %{time_total}s\n" "$base?$1" || true; }
+          # gunicorn runs 4 workers (Dockerfile), each with its own in-process
+          # cache, and one request lands on one worker: after a single warm a
+          # public probe still took 13.4 s. Eight parallel copies reach every
+          # worker (measured: six follow-up probes all ~1.7 s); a worker that
+          # gets two computes once, the sync query serialises them.
+          warm() {
+            for i in 1 2 3 4 5 6 7 8; do
+              ( curl -s --max-time 90 -o /dev/null -w "$1 %{http_code} %{time_total}s" "$base?$1"; echo ) &
+            done
+            wait
+          }
           for county in los-angeles san-diego orange san-bernardino riverside santa-clara alameda sacramento; do
             for q in "max_points=25000" "max_points=80000" "severity=fatal&max_points=25000"; do
               warm "county=$county&resolution=raw&detail=slim&$q"
