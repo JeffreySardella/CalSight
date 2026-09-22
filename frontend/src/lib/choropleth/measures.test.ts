@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { computeMeasureValue, MEASURES, MIN_CRASHES_FOR_RATE, type MeasureKey } from "./measures";
+import { bucketFor } from "./binning";
 
 const tenCrashes = {
   county_code: 19,
@@ -68,11 +69,70 @@ describe("computeMeasureValue", () => {
     expect(MIN_CRASHES_FOR_RATE).toBe(5);
   });
 
-  it("MEASURES exposes 20 measures including default", () => {
+  it("MEASURES exposes 21 measures including default", () => {
     const keys: MeasureKey[] = Object.keys(MEASURES) as MeasureKey[];
-    expect(keys).toHaveLength(20);
+    expect(keys).toHaveLength(21);
     expect(keys).toContain("crashes_per_100k");
     expect(keys).toContain("crashes_per_income");
+    expect(keys).toContain("coord_coverage");
+  });
+});
+
+// --- coord_coverage --------------------------------------------------------
+//
+// Share of a county's crashes that carry coordinates, so the gap behind every
+// point layer is visible. Its numbers come from the pre-computed data-quality
+// stats (opts.coordCoverage), not from the filtered crash stats, so the
+// numerator/denominator deliberately ignore `stats`.
+describe("coord_coverage", () => {
+  const anyStats = { ...tenCrashes, crash_count: 0 };
+
+  it("is the located share of the data-quality total, as a percentage", () => {
+    const r = computeMeasureValue("coord_coverage", anyStats, [], {
+      coordCoverage: { withCoords: 3_000, total: 8_000 },
+    });
+    expect(r.hasEnoughData).toBe(true);
+    expect(r.value).toBeCloseTo(37.5, 10);
+  });
+
+  it("reaches the full range", () => {
+    const none = computeMeasureValue("coord_coverage", anyStats, [], {
+      coordCoverage: { withCoords: 0, total: 500 },
+    });
+    const all = computeMeasureValue("coord_coverage", anyStats, [], {
+      coordCoverage: { withCoords: 500, total: 500 },
+    });
+    expect(none.value).toBe(0);
+    expect(all.value).toBe(100);
+  });
+
+  it("returns no-data without coverage rows, or below the crash floor", () => {
+    expect(computeMeasureValue("coord_coverage", anyStats, [], {}).hasEnoughData).toBe(false);
+    expect(
+      computeMeasureValue("coord_coverage", anyStats, [], {
+        coordCoverage: { withCoords: 1, total: MIN_CRASHES_FOR_RATE - 1 },
+      }).hasEnoughData,
+    ).toBe(false);
+  });
+
+  it("formats as a whole percentage", () => {
+    expect(MEASURES.coord_coverage.formatLabel(37.5)).toBe("38%");
+    expect(MEASURES.coord_coverage.formatLabel(0)).toBe("0%");
+    expect(MEASURES.coord_coverage.formatLabel(100)).toBe("100%");
+  });
+
+  it("bands the full 0-100% domain on absolute edges", () => {
+    const edges = MEASURES.coord_coverage.fixedEdges;
+    expect(edges).toEqual([0, 20, 40, 60, 80, 100]);
+
+    // The observed statewide spread (~16% to ~62% per county all-time) has to
+    // land in different bands, and the ends have to clamp rather than throw.
+    const e = [...edges!];
+    expect(bucketFor(16, e)).toBe(0);
+    expect(bucketFor(30, e)).toBe(1);
+    expect(bucketFor(62, e)).toBe(3);
+    expect(bucketFor(0, e)).toBe(0);
+    expect(bucketFor(100, e)).toBe(4);
   });
 });
 
