@@ -12,11 +12,11 @@ pytestmark = pytest.mark.integration
 @pytest.fixture()
 def snow_data(db_session):
     """Two regions. North (CSL) has 3 years of March-1 history: avg 10,
-    latest 15 → 150% of average. South (BSH) has a single reading (no
+    latest 15 → 150% of average. South (SLK) has a single reading (no
     usable history)."""
     db_session.add_all([
         SnowStation(station_id="CSL", name="Central Sierra Snow Lab", elevation_ft=6900, region="Central Sierra"),
-        SnowStation(station_id="BSH", name="Bishop Pass", elevation_ft=11200, region="Southern Sierra"),
+        SnowStation(station_id="SLK", name="South Lake", elevation_ft=9600, region="Southern Sierra"),
     ])
     db_session.flush()
     db_session.add_all([
@@ -25,7 +25,7 @@ def snow_data(db_session):
         SnowDaily(station_id="CSL", date=date(2026, 3, 1), swe_in=15.0),  # latest
         # An off-cycle reading that must not pollute the March-1 average.
         SnowDaily(station_id="CSL", date=date(2026, 2, 28), swe_in=99.0),
-        SnowDaily(station_id="BSH", date=date(2026, 3, 1), swe_in=30.0),
+        SnowDaily(station_id="SLK", date=date(2026, 3, 1), swe_in=30.0),
     ])
     db_session.commit()
     return db_session
@@ -97,7 +97,7 @@ def test_snowpack_exposes_per_station_coordinates(client, db_session):
         ),
         # No lat/lon — the pre-migration state of every row in production.
         SnowStation(
-            station_id="BSH", name="Bishop Pass", elevation_ft=11200,
+            station_id="SLK", name="South Lake", elevation_ft=9600,
             region="Southern Sierra",
         ),
     ])
@@ -105,13 +105,13 @@ def test_snowpack_exposes_per_station_coordinates(client, db_session):
     db_session.add_all([
         SnowDaily(station_id="CSL", date=date(2025, 3, 1), swe_in=10.0),
         SnowDaily(station_id="CSL", date=date(2026, 3, 1), swe_in=15.0),
-        SnowDaily(station_id="BSH", date=date(2026, 3, 1), swe_in=30.0),
+        SnowDaily(station_id="SLK", date=date(2026, 3, 1), swe_in=30.0),
     ])
     db_session.commit()
 
     body = client.get("/api/water/snowpack").json()
     by_id = {s["station_id"]: s for s in body["stations"]}
-    assert sorted(by_id) == ["BSH", "CSL"]
+    assert sorted(by_id) == ["CSL", "SLK"]
 
     csl = by_id["CSL"]
     assert (csl["lat"], csl["lon"]) == (pytest.approx(39.325), pytest.approx(-120.366))
@@ -123,9 +123,9 @@ def test_snowpack_exposes_per_station_coordinates(client, db_session):
     # avg over {10, 15} = 12.5 → 120%.
     assert csl["pct_of_average"] == pytest.approx(120.0)
 
-    # BSH has one reading: present, but with no coordinates and no percent.
-    assert by_id["BSH"]["lat"] is None and by_id["BSH"]["lon"] is None
-    assert by_id["BSH"]["pct_of_average"] is None
+    # SLK has one reading: present, but with no coordinates and no percent.
+    assert by_id["SLK"]["lat"] is None and by_id["SLK"]["lon"] is None
+    assert by_id["SLK"]["pct_of_average"] is None
 
 
 def test_snowpack_stations_exclude_stale_feeds(client, db_session):
@@ -303,3 +303,26 @@ def test_snowpack_april1_counts_stations_no_longer_reporting(client, db_session)
     assert body["apr1_date"] == "2026-04-01"
     assert body["statewide_apr1_pct_of_average"] == pytest.approx(120.0)
     assert body["apr1_station_count"] == 2
+
+
+def test_snowpack_ignores_stations_dropped_from_the_official_set(client, db_session):
+    """Bishop Pass (BSH) left DWR's official list in #414 but its rows stayed
+    in the database, so it kept counting toward the current and April-1
+    figures and showed up on the map with no coordinates."""
+    db_session.add_all([
+        SnowStation(station_id="CSL", name="Central Sierra Snow Lab", elevation_ft=6900, region="Central Sierra"),
+        SnowStation(station_id="BSH", name="Bishop Pass", elevation_ft=11200, region="Southern Sierra"),
+    ])
+    db_session.flush()
+    db_session.add_all([
+        SnowDaily(station_id="CSL", date=date(2025, 4, 1), swe_in=20.0),
+        SnowDaily(station_id="CSL", date=date(2026, 3, 1), swe_in=15.0),
+        SnowDaily(station_id="BSH", date=date(2025, 4, 1), swe_in=60.0),
+        SnowDaily(station_id="BSH", date=date(2026, 3, 1), swe_in=30.0),
+    ])
+    db_session.commit()
+
+    body = client.get("/api/water/snowpack").json()
+    assert [s["station_id"] for s in body["stations"]] == ["CSL"]
+    assert [r["region"] for r in body["regions"]] == ["Central Sierra"]
+

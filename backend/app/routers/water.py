@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from etl.cdec_api import MAJOR_SNOW_STATIONS
 from app.models import (
     County,
     DroughtCountyWeekly,
@@ -478,12 +479,24 @@ def snowpack(
     pick_baseline), plus the season-defining percent of the April-1 normal."""
     response.headers["Cache-Control"] = _ONE_HOUR
 
-    conditions = latest_with_doy_average(db, SnowDaily, SnowDaily.swe_in)
+    # DWR's official snow-sensor set only (#414). Stations dropped from it
+    # keep their rows and history, but must not count toward current or
+    # April-1 figures: Bishop Pass and Farewell Gap still did, with no
+    # coordinates, after #414 removed them from MAJOR_SNOW_STATIONS.
+    official = MAJOR_SNOW_STATIONS.keys()
+    conditions = {
+        sid: c
+        for sid, c in latest_with_doy_average(db, SnowDaily, SnowDaily.swe_in).items()
+        if sid in official
+    }
     if not conditions:
         raise HTTPException(status_code=404, detail="No snowpack data loaded")
     # Whole rows, not just the region: the per-station block below needs
     # name/elevation/coordinates too, and 110 rows is one cheap query.
-    stations = {s.station_id: s for s in db.query(SnowStation).all()}
+    stations = {
+        s.station_id: s
+        for s in db.query(SnowStation).filter(SnowStation.station_id.in_(official)).all()
+    }
     region_of = {sid: st.region for sid, st in stations.items()}
 
     # Drop stations whose latest reading is stale (offline sensor) — they

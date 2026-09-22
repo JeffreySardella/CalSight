@@ -146,6 +146,26 @@ def test_mode_breakdown_unknown_county_errors(db_session):
     }
 
 
+def test_mode_breakdown_says_so_when_its_view_is_not_built(db_session, monkeypatch):
+    """Between a migration and the first refresh, mv_victims_by_mode raises
+    55000. The tool must say the data is not built yet, not fail."""
+    from sqlalchemy.exc import DBAPIError
+
+    import app.routers.stats as stats
+
+    class NotPopulated(Exception):
+        pgcode = "55000"
+
+    def raise_not_populated(*_args, **_kwargs):
+        raise DBAPIError("SELECT", {}, NotPopulated())
+
+    monkeypatch.setattr(stats, "_run_group_query", raise_not_populated)
+    result = get_mode_breakdown(db_session)
+    assert result["modes"] == []
+    assert "not been built yet" in result["note"]
+    assert "PEOPLE" in result["caveats"]
+
+
 # ── get_vmt ────────────────────────────────────────────────────────────
 # The shared seed carries VMT for 2023 only (LA 81,997.43M and Alameda
 # 12,120.14M), and LA's crashes are 2014 / 2015 / 2022 — so a rate needs a

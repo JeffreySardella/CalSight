@@ -17,6 +17,7 @@ import logging
 from typing import Any
 
 from sqlalchemy import and_, case, func, select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -1074,7 +1075,7 @@ def get_mode_breakdown(
     crashes, only people with a recorded injury outcome, and starts in 2016
     (CCRS). Returns at most four rows plus the caveat text — repeat it.
     """
-    from app.routers.stats import _run_group_query  # noqa: PLC0415 (avoid import cycle)
+    from app.routers.stats import _PG_NOT_POPULATED, _run_group_query  # noqa: PLC0415 (avoid import cycle)
 
     code = None
     if county:
@@ -1082,14 +1083,31 @@ def get_mode_breakdown(
         if code is None:
             return {"error": f"County not found: {county}"}
 
-    rows = _run_group_query(
-        "mode",
-        _resolve_years(years),
-        [code] if code else None,
-        [severity] if severity else None,
-        None,
-        db,
-    )
+    try:
+        rows = _run_group_query(
+            "mode",
+            _resolve_years(years),
+            [code] if code else None,
+            [severity] if severity else None,
+            None,
+            db,
+        )
+    except DBAPIError as e:
+        # mv_victims_by_mode is created WITH NO DATA, so between a migration
+        # and its first refresh every read raises 55000. Say so plainly, the
+        # way /api/stats does, instead of surfacing a generic tool failure.
+        if getattr(e.orig, "pgcode", None) != _PG_NOT_POPULATED:
+            raise
+        db.rollback()
+        return {
+            "county": county or "California (statewide)",
+            "caveats": _MODE_CAVEAT,
+            "note": (
+                "The mode-of-travel aggregate has not been built yet "
+                "(it refreshes nightly); no counts are available right now."
+            ),
+            "modes": [],
+        }
     return {
         "county": county or "California (statewide)",
         "years": years or "all available (2016+)",
