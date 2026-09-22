@@ -224,6 +224,49 @@ def _get_provider_chain() -> list[dict[str, str]]:
     return chain
 
 
+# Gemini 3 rejects a replayed tool call without its thought signature (400
+# "Function call is missing a thought_signature"), which benched Gemini on
+# every round after its first tool call. Its OpenAI-compatible API returns
+# the signature as tool_calls[i].extra_content and wants it sent back there;
+# a call another provider made has none, and Google documents this dummy
+# value for exactly that case. Other providers get the field stripped.
+_GEMINI_SKIP_SIGNATURE = {"google": {"thought_signature": "skip_thought_signature_validator"}}
+
+
+def _messages_for(ptype: str, messages: list[dict]) -> list[dict]:
+    """Messages with tool-call ``extra_content`` fitted to ``ptype``.
+
+    Returns new dicts wherever a tool call changes; the caller's list (the
+    conversation the ask loop keeps appending to) is never mutated.
+    """
+    out = []
+    for msg in messages:
+        calls = msg.get("tool_calls") if isinstance(msg, dict) else None
+        if not calls:
+            out.append(msg)
+            continue
+        if ptype == "gemini":
+            fitted = [dict(c) for c in calls]
+            # Gemini signs only the first call of a parallel set.
+            if not any(c.get("extra_content") for c in fitted):
+                fitted[0]["extra_content"] = _GEMINI_SKIP_SIGNATURE
+        else:
+            fitted = [{k: v for k, v in c.items() if k != "extra_content"} for c in calls]
+        out.append({**msg, "tool_calls": fitted})
+    return out
+
+
+def _is_bad_generation(e: Exception) -> bool:
+    """A 400 about one generation, not about the provider.
+
+    Groq validates a tool call against its schema and 400s with
+    ``tool_use_failed`` when the model writes, say, ``"severity": null``.
+    That is this request's bad luck; cooling Groq for 60 s over it sent every
+    other visitor to the fallback models as well.
+    """
+    return getattr(e, "code", None) == "tool_use_failed"
+
+
 def _call_provider(
     provider: dict[str, str],
     messages: list[dict[str, str]],
@@ -249,7 +292,7 @@ def _call_provider(
     )
     kwargs: dict[str, Any] = {
         "model": provider["model"],
-        "messages": messages,
+        "messages": _messages_for(ptype, messages),
         "max_tokens": max_tokens,
         "temperature": temperature,
         **_model_kwargs(provider["model"]),
@@ -360,6 +403,8 @@ def consume_stream(chunks: Any) -> Iterator[str]:
                 )
                 if getattr(tc, "id", None):
                     slot["id"] = tc.id
+                if getattr(tc, "extra_content", None):
+                    slot["extra_content"] = tc.extra_content
                 fn = getattr(tc, "function", None)
                 if fn is None:
                     continue
@@ -373,6 +418,7 @@ def consume_stream(chunks: Any) -> Iterator[str]:
             id=c["id"],
             type="function",
             function=SimpleNamespace(name=c["name"], arguments=c["arguments"] or "{}"),
+            extra_content=c.get("extra_content"),
         )
         for _idx, c in sorted(calls.items())
     ]
@@ -452,7 +498,8 @@ def _generate_over_chain(
             continue
 
         except BadRequestError as e:
-            _mark_cooled_down(name, 60)
+            if not _is_bad_generation(e):
+                _mark_cooled_down(name, 60)
             logger.warning("Provider %s bad request: %s", name, e)
             last_error = e
             continue

@@ -587,6 +587,11 @@ def _run_with_tools_gen(
                         "id": tc.id,
                         "type": "function",
                         "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                        # Gemini's thought signature; app.llm fits it per provider.
+                        **(
+                            {"extra_content": tc.extra_content}
+                            if getattr(tc, "extra_content", None) else {}
+                        ),
                     }
                     for tc in capped_calls
                 ],
