@@ -1,7 +1,6 @@
 """Tests for the snowpack ETL — station sync, FK filtering, dedup, batching.
 Mocked session, matching the other loader suites."""
 
-import logging
 from collections import Counter
 from datetime import date, timedelta
 from unittest import mock
@@ -73,9 +72,11 @@ class TestUpsertStations:
         assert csl["lat"] in values.values()
         assert csl["lon"] in values.values()
 
-    def test_station_without_coordinates_loads_as_null_and_warns(self, caplog):
+    def test_station_without_coordinates_loads_as_null_and_warns(self):
         # A future map entry added without staMeta coordinates must not fail
         # the job — it stores NULLs and logs one warning naming the station.
+        # The module logger is patched rather than read through caplog:
+        # other suites reconfigure logging, which empties caplog here.
         db = MagicMock()
         patched = dict(MAJOR_SNOW_STATIONS)
         patched["ZZZ"] = {
@@ -84,13 +85,19 @@ class TestUpsertStations:
             "region": SNOW_REGION_NORTH,
         }
         with mock.patch.dict(mod.MAJOR_SNOW_STATIONS, patched, clear=True):
-            with caplog.at_level(logging.WARNING):
+            with mock.patch.object(mod.logger, "warning") as warn:
                 count = upsert_stations(db)
 
         assert count == len(MAJOR_SNOW_STATIONS) + 1
-        assert "ZZZ" in caplog.text and "NULL" in caplog.text
-        # Only the coordinate-less station is warned about.
-        assert caplog.text.count("no staMeta coordinates") == 1
+        # Exactly one warning — only the coordinate-less station — naming it.
+        assert warn.call_count == 1
+        message = warn.call_args.args[0] % warn.call_args.args[1:]
+        assert "ZZZ" in message and "NULL" in message
+
+        # The row still goes out, with NULL coordinates rather than dropped.
+        values = db.execute.call_args.args[0].compile().params
+        assert "ZZZ" in values.values()
+        assert None in values.values()
 
     def test_every_station_has_plausible_coordinates(self):
         # Coordinates come from each station's CDEC staMeta page; a typo'd
