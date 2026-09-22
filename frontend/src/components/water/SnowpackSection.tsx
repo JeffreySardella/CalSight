@@ -1,5 +1,11 @@
 import { useSnowpack, type RegionSnowpack } from "../../hooks/useSnowpackData";
+import { slugify } from "../../hooks/useFilterParams";
 import { baselineNote } from "../../hooks/useWaterData";
+
+/** Anchor id so the drought map's "Show in list" can scroll to a region. */
+export function regionRowId(region: string): string {
+  return `snowpack-${slugify(region)}`;
+}
 
 /** Percent-of-average → a bar fill fraction, capped at 200% so a huge
  * snow year doesn't blow out the layout. */
@@ -11,12 +17,20 @@ function barFraction(pct: number): number {
  * that matters is how this season's April 1 snapshot compared to the
  * April-1 average — the same-date percent degenerates as the denominator
  * melts toward zero (a July "9% of a 1.8-inch average" is noise). */
-function isMeltSeason(latestDate: string): boolean {
+export function isMeltSeason(latestDate: string): boolean {
   const month = Number(latestDate.slice(5, 7));
   return month >= 4 && month <= 9;
 }
 
-function RegionRow({ region, melt }: { region: RegionSnowpack; melt: boolean }) {
+function RegionRow({
+  region,
+  melt,
+  highlighted,
+}: {
+  region: RegionSnowpack;
+  melt: boolean;
+  highlighted: boolean;
+}) {
   const pct = melt ? region.apr1_pct_of_average : region.pct_of_average;
   const detail = melt
     ? region.apr1_swe_in != null
@@ -25,7 +39,12 @@ function RegionRow({ region, melt }: { region: RegionSnowpack; melt: boolean }) 
     : `${region.swe_in.toFixed(1)}″ SWE · ${region.station_count} station${region.station_count === 1 ? "" : "s"}`;
   const pctLabel = melt ? "% of April 1 average" : "% of average";
   return (
-    <div className="grid grid-cols-[10rem_1fr_4rem] items-center gap-3">
+    <div
+      id={regionRowId(region.region)}
+      className={`grid grid-cols-[10rem_1fr_4rem] items-center gap-3 scroll-mt-24 rounded-xl transition-shadow ${
+        highlighted ? "ring-2 ring-primary ring-offset-4 ring-offset-surface" : ""
+      }`}
+    >
       <div className="min-w-0">
         <p className="text-sm text-on-surface truncate">{region.region}</p>
         <p className="text-[10px] text-on-surface-variant">{detail}</p>
@@ -66,7 +85,13 @@ function RegionRow({ region, melt }: { region: RegionSnowpack; melt: boolean }) 
  * season-defining "% of April 1 average". Self-contained fetch; renders
  * nothing until CDEC snow data is loaded.
  */
-export default function SnowpackSection() {
+interface SnowpackSectionProps {
+  /** Which region the drought map last sent here, with a request counter so
+   *  a second ask is a fresh object and the page re-scrolls. */
+  listed?: { region: string; request: number } | null;
+}
+
+export default function SnowpackSection({ listed }: SnowpackSectionProps = {}) {
   const { data, isError } = useSnowpack();
 
   // A failed fetch is not the same as "no data loaded yet" (404 → null):
@@ -110,7 +135,12 @@ export default function SnowpackSection() {
 
       <div className="mt-8 space-y-4">
         {data.regions.map((r) => (
-          <RegionRow key={r.region} region={r} melt={melt} />
+          <RegionRow
+            key={r.region}
+            region={r}
+            melt={melt}
+            highlighted={listed?.region === r.region}
+          />
         ))}
       </div>
 

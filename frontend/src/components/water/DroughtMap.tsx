@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCountyGeoJson } from "../../hooks/useCountyGeoJson";
 import { inDroughtPct, type DroughtCounty } from "../../hooks/useDroughtData";
-import type { SnowStationCondition } from "../../hooks/useSnowpackData";
+import type {
+  RegionSnowpack,
+  SnowStationCondition,
+} from "../../hooks/useSnowpackData";
 import { formatAcreFeet, type ReservoirCondition } from "../../hooks/useWaterData";
+import { isMeltSeason } from "./SnowpackSection";
 
 /** Bins for percent-of-county-in-drought (D1+), reusing the validated
  * sequential ramp. A magnitude scale, light→dark. */
@@ -75,11 +79,33 @@ export function fillForSnowPct(pct: number | null): string {
 // encoded, and there are up to 110 stations packed along the Sierra, so a
 // magnitude-sized mark would only add overlap. R is the half-diagonal.
 const SNOW_R = 5;
-// Smaller hit padding than the reservoirs' MIN_HIT_R: with 110 stations in
-// a narrow band, 15-unit hit circles would bury each other and make the
-// small ones unreachable. ponytail: fixed padding, revisit with a
-// zoom/cluster interaction if per-station tapping proves too fiddly.
-const SNOW_HIT_R = 9;
+// Stations are texture, not targets. Measured on production at 375px the
+// SVG renders 324px wide, and the 107 marks have a median nearest-neighbour
+// distance of 4px — 100 of them have another mark within 12px. No hit-target
+// size makes an individual station tappable at that density, so interaction
+// lives one level up, at the DWR region.
+const REGION_PAD = 6;
+// A one-station region still needs a finger: 18 units ≈ 29px across on a
+// 375px phone.
+const REGION_MIN_R = 18;
+// How far from a tap we will still claim a station. Region circles overlap
+// heavily along the Sierra, so the nearest-station rule — not the stacking
+// order — decides which region a tap lands in.
+const REGION_TAP_R = 30;
+
+/** The percent the snowpack section is showing for this region right now —
+ * the same melt-season switch, so the map and the list can never disagree.
+ * Always the API's regional figure, never a mean of the station marks. */
+function regionPct(api: RegionSnowpack | undefined): {
+  pct: number | null;
+  label: string;
+} {
+  if (!api) return { pct: null, label: "average" };
+  const melt = isMeltSeason(api.latest_date) && api.apr1_pct_of_average !== null;
+  return melt
+    ? { pct: api.apr1_pct_of_average, label: "April 1 average" }
+    : { pct: api.pct_of_average, label: "average" };
+}
 
 /** Diamond centred on (cx, cy) with half-diagonal r. */
 function diamondPoints(cx: number, cy: number, r: number): string {
@@ -169,15 +195,21 @@ interface DroughtMapProps {
    *  it fails — the choropleth renders on its own either way. */
   reservoirs?: ReservoirCondition[];
   /** Optional overlay, same contract as `reservoirs`: undefined while the
-   *  snowpack query loads or after it fails, and the map is unchanged. */
+   *  snowpack query loads or after it fails, and the map is unchanged.
+   *  Drawn as non-interactive texture — see REGION_PAD. */
   snowStations?: SnowStationCondition[];
+  /** The API's per-region figures, which the region panel quotes verbatim
+   *  rather than averaging the stations itself. */
+  snowRegions?: RegionSnowpack[];
   /** Jumps to (and expands) the selected reservoir's card up the page. */
   onShowInList?: (stationId: string) => void;
+  /** Same, for the selected region's row in the snowpack section. */
+  onShowRegionInList?: (region: string) => void;
 }
 
-/** One selection across both overlays — picking a snow station clears a
+/** One selection across both overlays — picking a snow region clears a
  *  selected reservoir and vice versa. */
-type Selection = { layer: "reservoir" | "snow"; id: string };
+type Selection = { layer: "reservoir" | "region"; id: string };
 
 /**
  * Inline-SVG choropleth of drought share (D1+) per county, with an
@@ -191,10 +223,15 @@ export default function DroughtMap({
   weekStart,
   reservoirs,
   snowStations,
+  snowRegions,
   onShowInList,
+  onShowRegionInList,
 }: DroughtMapProps) {
   const { data: geojson } = useCountyGeoJson();
   const [selected, setSelected] = useState<Selection | null>(null);
+  // Client→viewBox conversion for the nearest-station tap rule needs the
+  // rendered size, which only the element knows.
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const byCode = useMemo(
     () => new Map(counties.map((c) => [c.county_code, c])),
@@ -251,18 +288,47 @@ export default function DroughtMap({
         const [cx, cy] = project([s.lon as number, s.lat as number]);
         return { cx, cy, station: s };
       })
-      // North first, so the overlapping hit areas resolve the same way on
-      // every render rather than following payload order.
+      // North first, so the draw order is stable across renders rather
+      // than following payload order.
       .sort((a, b) => a.cy - b.cy);
   }, [project, snowStations]);
+
+  // One hit target per DWR region: a circle around that region's located
+  // stations. The `api` row is the figure the panel quotes — the regional
+  // percent is a weighted DWR number, not the mean of these marks.
+  const regions = useMemo(() => {
+    const byRegion = new Map<string, typeof marks>();
+    for (const m of marks) {
+      const group = byRegion.get(m.station.region);
+      if (group) group.push(m);
+      else byRegion.set(m.station.region, [m]);
+    }
+    return [...byRegion]
+      .map(([region, group]) => {
+        const cx = group.reduce((s, m) => s + m.cx, 0) / group.length;
+        const cy = group.reduce((s, m) => s + m.cy, 0) / group.length;
+        const far = Math.max(...group.map((m) => Math.hypot(m.cx - cx, m.cy - cy)));
+        return {
+          region,
+          cx,
+          cy,
+          r: Math.max(far + REGION_PAD, REGION_MIN_R),
+          located: group.length,
+          api: snowRegions?.find((r) => r.region === region),
+        };
+      })
+      // Biggest first so a small region nested inside a big one keeps its
+      // own circle reachable by mouse and by Playwright's centre-click.
+      .sort((a, b) => b.r - a.r);
+  }, [marks, snowRegions]);
 
   const selectedReservoir =
     selected?.layer === "reservoir"
       ? dots.find((d) => d.reservoir.station_id === selected.id)?.reservoir
       : undefined;
-  const selectedStation =
-    selected?.layer === "snow"
-      ? marks.find((m) => m.station.station_id === selected.id)?.station
+  const selectedRegion =
+    selected?.layer === "region"
+      ? regions.find((r) => r.region === selected.id)
       : undefined;
 
   // Escape must clear the selection from anywhere — the detail panel takes
@@ -287,9 +353,42 @@ export default function DroughtMap({
       cur?.layer === layer && cur.id === id ? null : { layer, id },
     );
 
+  /** The region of the located station nearest a tap, or null when the tap
+   *  landed on bare map. Region circles overlap along the Sierra, so this —
+   *  not which circle happens to be on top — decides the selection. */
+  const nearestRegion = (clientX: number, clientY: number): string | null => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect?.width) return null;
+    const k = WIDTH / rect.width;
+    const x = (clientX - rect.left) * k;
+    const y = (clientY - rect.top) * k;
+    let best: string | null = null;
+    let bestD = REGION_TAP_R;
+    for (const m of marks) {
+      const d = Math.hypot(m.cx - x, m.cy - y);
+      if (d < bestD) {
+        bestD = d;
+        best = m.station.region;
+      }
+    }
+    return best;
+  };
+
   return (
     <figure className="flex flex-col items-center mt-12">
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full max-w-[400px]">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        className="w-full max-w-[400px]"
+        // A tap anywhere on the map picks the nearest station's region, so
+        // the dense Sierra cluster is reachable without aiming. Buttons
+        // (reservoir dots, region circles) run their own handler instead.
+        onClick={(e) => {
+          if ((e.target as Element).closest('[role="button"]')) return;
+          const region = nearestRegion(e.clientX, e.clientY);
+          if (region) toggle("region", region);
+        }}
+      >
         <defs>
           <pattern
             id={NO_DATA_PATTERN_ID}
@@ -322,6 +421,64 @@ export default function DroughtMap({
             </path>
           ))}
         </g>
+        {/* Stations are texture: colour carries percent of average, and
+            nothing here is focusable or tappable — 107 marks at a 4px
+            median spacing cannot each be a target. */}
+        <g aria-hidden="true" pointerEvents="none">
+          {marks.map((m) => (
+            <g key={m.station.station_id}>
+              {/* Same halo trick as the reservoir dots: a surface-colored
+                  outline survives whatever county fill sits underneath. */}
+              <polygon
+                points={diamondPoints(m.cx, m.cy, SNOW_R)}
+                fill="none"
+                stroke="rgb(var(--surface))"
+                strokeWidth={3}
+              />
+              <polygon
+                data-testid={`snow-mark-${m.station.station_id}`}
+                points={diamondPoints(m.cx, m.cy, SNOW_R)}
+                fill={fillForSnowPct(m.station.pct_of_average)}
+                fillOpacity={0.92}
+                stroke="rgb(var(--inverse-surface))"
+                // The selected region's stations wear a heavier outline so
+                // the user can see which cluster they picked.
+                strokeWidth={isSelected("region", m.station.region) ? 2.5 : 1}
+              />
+            </g>
+          ))}
+        </g>
+        {/* Region hit targets sit under the reservoir dots, so a tap that
+            lands on a reservoir still belongs to the reservoir. */}
+        {regions.map((g) => {
+          const { pct, label } = regionPct(g.api);
+          return (
+            <circle
+              key={g.region}
+              data-testid={`snow-region-${g.region}`}
+              cx={g.cx}
+              cy={g.cy}
+              r={g.r}
+              fill="transparent"
+              className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+              role="button"
+              tabIndex={0}
+              aria-pressed={isSelected("region", g.region)}
+              aria-label={`${g.region} snowpack, ${
+                pct !== null ? `${pct.toFixed(0)}% of ${label}` : "no comparison available"
+              }, ${g.located} station${g.located === 1 ? "" : "s"}`}
+              // Even a tap inside this circle defers to the nearest station,
+              // so overlapping regions resolve the same way everywhere.
+              onClick={(e) => toggle("region", nearestRegion(e.clientX, e.clientY) ?? g.region)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggle("region", g.region);
+                }
+              }}
+            />
+          );
+        })}
         {dots.map((d) => {
           const on = isSelected("reservoir", d.reservoir.station_id);
           return (
@@ -365,54 +522,6 @@ export default function DroughtMap({
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     toggle("reservoir", d.reservoir.station_id);
-                  }
-                }}
-              />
-            </g>
-          );
-        })}
-        {marks.map((m) => {
-          const on = isSelected("snow", m.station.station_id);
-          const pct = m.station.pct_of_average;
-          return (
-            <g key={m.station.station_id}>
-              {/* Same halo trick as the reservoir dots: a surface-colored
-                  outline survives whatever county fill sits underneath. */}
-              <polygon
-                points={diamondPoints(m.cx, m.cy, SNOW_R)}
-                fill="none"
-                stroke="rgb(var(--surface))"
-                strokeWidth={3}
-                pointerEvents="none"
-              />
-              <polygon
-                data-testid={`snow-mark-${m.station.station_id}`}
-                points={diamondPoints(m.cx, m.cy, SNOW_R)}
-                fill={fillForSnowPct(pct)}
-                fillOpacity={0.92}
-                stroke="rgb(var(--inverse-surface))"
-                strokeWidth={on ? 2.5 : 1}
-                pointerEvents="none"
-              />
-              <circle
-                cx={m.cx}
-                cy={m.cy}
-                r={SNOW_HIT_R}
-                fill="transparent"
-                className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
-                role="button"
-                tabIndex={0}
-                aria-pressed={on}
-                aria-label={`${m.station.name} snow station, ${
-                  pct !== null
-                    ? `${pct.toFixed(0)}% of average snowpack`
-                    : "no snowpack comparison available"
-                }`}
-                onClick={() => toggle("snow", m.station.station_id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    toggle("snow", m.station.station_id);
                   }
                 }}
               />
@@ -465,15 +574,15 @@ export default function DroughtMap({
         </div>
       )}
 
-      {selectedStation && (
+      {selectedRegion && (
         <div
           role="group"
-          aria-label={`${selectedStation.name} detail`}
+          aria-label={`${selectedRegion.region} detail`}
           className="w-full max-w-[400px] mt-4 bg-surface-container-lowest rounded-2xl p-4"
         >
           <div className="flex items-baseline justify-between gap-3">
             <h4 className="font-headline font-bold text-on-surface leading-tight">
-              {selectedStation.name}
+              {selectedRegion.region}
             </h4>
             <button
               type="button"
@@ -483,25 +592,34 @@ export default function DroughtMap({
               Close
             </button>
           </div>
-          {selectedStation.pct_of_average !== null ? (
-            <p className="text-2xl font-headline font-bold text-on-surface tracking-tight mt-2">
-              {selectedStation.pct_of_average.toFixed(0)}
-              <span className="text-base text-on-surface-variant">% of average</span>
-            </p>
-          ) : (
-            <p className="text-xs text-on-surface-variant mt-2">
-              Not enough history here for a percent of average.
-            </p>
+          {(() => {
+            const { pct, label } = regionPct(selectedRegion.api);
+            return pct !== null ? (
+              <p className="text-2xl font-headline font-bold text-on-surface tracking-tight mt-2">
+                {pct.toFixed(0)}
+                <span className="text-base text-on-surface-variant">% of {label}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-on-surface-variant mt-2">
+                No percent of average available for this region.
+              </p>
+            );
+          })()}
+          <p className="text-xs text-on-surface-variant mt-1">
+            {selectedRegion.located} of{" "}
+            {selectedRegion.api?.station_count ?? selectedRegion.located} stations
+            reporting
+            {selectedRegion.api && ` · ${selectedRegion.api.latest_date}`}
+          </p>
+          {onShowRegionInList && (
+            <button
+              type="button"
+              onClick={() => onShowRegionInList(selectedRegion.region)}
+              className="mt-2 min-h-[44px] inline-flex items-center text-xs font-medium text-primary hover:opacity-80 transition-opacity"
+            >
+              Show in list
+            </button>
           )}
-          <p className="text-xs text-on-surface-variant mt-1">
-            {selectedStation.swe_in.toFixed(1)}″ snow water equivalent ·{" "}
-            {selectedStation.latest_date}
-          </p>
-          <p className="text-xs text-on-surface-variant mt-1">
-            {selectedStation.region}
-            {selectedStation.elevation_ft !== null &&
-              ` · ${selectedStation.elevation_ft.toLocaleString()} ft`}
-          </p>
         </div>
       )}
 
@@ -586,7 +704,7 @@ export default function DroughtMap({
               )}
             </ul>
             <p className="text-[10px] text-on-surface-variant uppercase tracking-widest text-center mt-2">
-              Snow stations · diamond color = % of average snowpack
+              Snow stations · colour = % of average · tap a cluster for its region
             </p>
           </>
         )}
