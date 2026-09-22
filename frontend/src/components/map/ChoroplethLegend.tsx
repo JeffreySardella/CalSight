@@ -100,10 +100,14 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         </span>
       ) : (
         <>
+          {/* 14px of text, but a 44px-tall touch target: the vertical padding
+              is cancelled by equal negative margins so the card doesn't grow.
+              `relative` keeps the padding above the ramp for hit testing. */}
           <div
             role="button"
             tabIndex={0}
-            className="md:hidden flex items-center justify-between mb-1 cursor-pointer"
+            data-testid="legend-toggle"
+            className="md:hidden relative flex items-center justify-between -my-[15px] py-[15px] mb-[-11px] cursor-pointer"
             onClick={() => setMobileExpanded((v) => !v)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMobileExpanded((v) => !v); } }}
             aria-expanded={mobileExpanded}

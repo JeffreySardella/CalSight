@@ -436,6 +436,14 @@
 
 .leaflet-container a.leaflet-popup-close-button.leaflet-popup-close-button {
   color: rgb(var(--on-surface-variant));
+  /* leaflet.css makes this a 24x24 box at top:0 right:0 — too small for a
+   * finger. A 44x44 box shifted up and right by 10px keeps the × glyph centred
+   * exactly where it was (12px in from the corner), so it looks the same. */
+  width: 44px;
+  height: 44px;
+  top: -10px;
+  right: -10px;
+  line-height: 44px;
 }
 
 /* Same load-order gotcha as the Leaflet overrides above: repeat the class to
