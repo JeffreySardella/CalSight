@@ -20,6 +20,7 @@ import type { ChartSlot, Dimension } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from "../../lib/dashboard/types";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import { useFilterParams, buildFilterQS } from "../../hooks/useFilterParams";
+import { computeFilterScope } from "../../lib/export/filterSummary";
 import { useCustomTheme } from "../../context/CustomThemeContext";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
@@ -258,9 +259,31 @@ function ChartCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { selectedCounties } = useFilterParams();
+  const filters = useFilterParams();
+  const { selectedCounties } = filters;
   const { chartColors } = useCustomTheme();
   const title = buildTitle(slot);
+
+  // Active-filters one-liner for the PNG export caption — same computation
+  // the PDF report and DataExportPanel's Scope section already use, so the
+  // wording can't drift between them.
+  const filterScope = useMemo(() => computeFilterScope({
+    dateRange: filters.selectedDateRange,
+    severities: filters.selectedSeverities,
+    counties: filters.selectedCounties,
+    causes: filters.selectedCauses,
+    alcohol: filters.selectedAlcohol,
+    distracted: filters.selectedDistracted,
+    pedestrian: filters.selectedPedestrian,
+    cyclist: filters.selectedCyclist,
+    drug: filters.selectedDrug,
+    driverAge: filters.selectedDriverAge,
+    hitRun: filters.selectedHitRun,
+    weather: filters.selectedWeather,
+    lighting: filters.selectedLighting,
+    collisionType: filters.selectedCollisionType,
+    roadType: filters.selectedRoadType,
+  }), [filters]);
 
   // Cross-filter: determine if this chart's dimension supports brushing
   // Disabled on mobile — touch users tap to read, not to filter
@@ -336,7 +359,14 @@ function ChartCard({
 
   const handleExportPng = () => {
     const svg = cardRef.current?.querySelector("svg");
-    if (svg) exportChartPng(svg as SVGSVGElement, title);
+    if (svg) {
+      exportChartPng(svg as SVGSVGElement, title, {
+        filterSummary: filterScope.hasAnyFilter ? filterScope.oneLine : null,
+        // Same footnotes shown on screen below the chart, verbatim and in
+        // the same order (see the JSX below) — a shared PNG carries them too.
+        footnotes: [partialNote, showModeNote ? MODE_COVERAGE_NOTE : null, ksiNote],
+      });
+    }
   };
 
   const handleExportCsv = () => {
