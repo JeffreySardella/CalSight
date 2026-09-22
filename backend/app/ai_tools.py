@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, select, text
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -31,9 +31,12 @@ from app.models import (
     RoadMile,
     SchoolLocation,
     SpeedLimit,
+    TractCes,
+    TractCrashYear,
     TrafficVolume,
     UnemploymentRate,
     VehicleRegistration,
+    Vmt,
     Weather,
 )
 
@@ -1040,6 +1043,441 @@ def get_first_rain(
     return out
 
 
+# ---------------------------------------------------------------------------
+# 18. get_mode_breakdown
+# ---------------------------------------------------------------------------
+
+_MODE_CAVEAT = (
+    "Counts PEOPLE, not crashes: one crash that hurts a pedestrian and two car "
+    "occupants adds 1 to pedestrian and 2 to occupant. A person's mode is only "
+    "known when they have a recorded injury outcome, so victim_count means "
+    "people injured or killed, not everyone present. Victim records are "
+    "CCRS-only, so this series starts in 2016 — it cannot answer mode questions "
+    "about earlier years. Modes are pedestrian, cyclist, motorcyclist "
+    "(motorcycles and mopeds) and occupant (everyone else riding in a vehicle); "
+    "severity is the CRASH's severity, while the casualty columns come from each "
+    "person's own injury outcome."
+)
+
+
+def get_mode_breakdown(
+    db: Session,
+    county: str | None = None,
+    years: list[int] | None = None,
+    severity: str | None = None,
+) -> dict:
+    """People hurt or killed by road-user mode (pedestrian / cyclist /
+    motorcyclist / occupant).
+
+    Reuses the /api/stats?group_by=mode query over mv_victims_by_mode, so the
+    numbers match the dashboard's mode chart exactly. Counts PEOPLE, not
+    crashes, only people with a recorded injury outcome, and starts in 2016
+    (CCRS). Returns at most four rows plus the caveat text — repeat it.
+    """
+    from app.routers.stats import _run_group_query  # noqa: PLC0415 (avoid import cycle)
+
+    code = None
+    if county:
+        code = _county_code(db, county)
+        if code is None:
+            return {"error": f"County not found: {county}"}
+
+    rows = _run_group_query(
+        "mode",
+        _resolve_years(years),
+        [code] if code else None,
+        [severity] if severity else None,
+        None,
+        db,
+    )
+    return {
+        "county": county or "California (statewide)",
+        "years": years or "all available (2016+)",
+        "severity": severity,
+        "caveats": _MODE_CAVEAT,
+        "modes": rows[:_MAX_ROWS],
+    }
+
+
+# ---------------------------------------------------------------------------
+# 19. get_vmt
+# ---------------------------------------------------------------------------
+
+_VMT_CAVEAT = (
+    "VMT (vehicle miles traveled) is the exposure denominator road-safety work "
+    "normally uses. vmt_millions is millions of miles driven on every road in "
+    "the area for the whole year, from the CARB EMFAC2025 model — modelled from "
+    "DMV vehicle population and Caltrans travel-demand totals, not a raw "
+    "traffic count, and a future EMFAC release will restate it. It is NOT "
+    "Caltrans AADT (a state-highway point count for one average day). A rate is "
+    "only returned for years present in both the VMT and crash data; recent "
+    "years can be partial in either. Crash counts here are all recorded "
+    "crashes, coordinates or not."
+)
+
+
+def get_vmt(
+    db: Session,
+    county: str | None = None,
+    year_start: int | None = None,
+    year_end: int | None = None,
+) -> dict:
+    """Vehicle miles traveled per year, with crashes and deaths per 100M VMT.
+
+    One row per year for a county (or statewide when county is omitted), from
+    the CARB EMFAC vmt table, joined to that year's recorded crashes to give
+    crashes_per_100m_vmt and killed_per_100m_vmt — the standard exposure-based
+    safety rate. Returns the 20 most recent years in range.
+    """
+    code = None
+    if county:
+        code = _county_code(db, county)
+        if code is None:
+            return {"error": f"County not found: {county}"}
+
+    vmt_stmt = select(
+        Vmt.year.label("year"),
+        func.sum(Vmt.vmt_millions).label("vmt_millions"),
+    ).group_by(Vmt.year).order_by(Vmt.year.asc())
+    crash_stmt = select(
+        Crash.crash_year.label("year"),
+        func.count(Crash.id).label("crash_count"),
+        func.sum(Crash.number_killed).label("total_killed"),
+    ).group_by(Crash.crash_year).order_by(Crash.crash_year.asc())
+
+    if code:
+        vmt_stmt = vmt_stmt.where(Vmt.county_code == code)
+        crash_stmt = crash_stmt.where(Crash.county_code == code)
+    if year_start is not None:
+        vmt_stmt = vmt_stmt.where(Vmt.year >= year_start)
+        crash_stmt = crash_stmt.where(Crash.crash_year >= year_start)
+    if year_end is not None:
+        vmt_stmt = vmt_stmt.where(Vmt.year <= year_end)
+        crash_stmt = crash_stmt.where(Crash.crash_year <= year_end)
+
+    crashes_by_year = {
+        r.year: (r.crash_count, int(r.total_killed or 0))
+        for r in db.execute(crash_stmt).fetchall()
+    }
+
+    # Which years the table holds at all, ignoring the caller's window — so
+    # "is 2026 covered yet?" is answerable without a second tool call.
+    span = db.execute(
+        select(func.min(Vmt.year), func.max(Vmt.year)).where(
+            *( [Vmt.county_code == code] if code else [] )
+        )
+    ).one()
+
+    rows = []
+    for r in db.execute(vmt_stmt).fetchall():
+        vmt_millions = float(r.vmt_millions) if r.vmt_millions else None
+        crash_count, killed = crashes_by_year.get(r.year, (None, None))
+        rec: dict[str, Any] = {
+            "year": r.year,
+            "vmt_millions": round(vmt_millions, 1) if vmt_millions else None,
+            "crash_count": crash_count,
+            "total_killed": killed,
+        }
+        # 100M VMT is 100 units of vmt_millions.
+        if vmt_millions and crash_count is not None:
+            rec["crashes_per_100m_vmt"] = round(crash_count / (vmt_millions / 100), 2)
+            rec["killed_per_100m_vmt"] = round(killed / (vmt_millions / 100), 3)
+        rows.append(rec)
+
+    return {
+        "county": county or "California (statewide)",
+        "vmt_years_available": (
+            f"{span[0]}-{span[1]}" if span[0] is not None else "none loaded"
+        ),
+        "caveats": _VMT_CAVEAT,
+        # Most recent years first matter more than the oldest — keep the tail.
+        "years": rows[-_MAX_ROWS:],
+    }
+
+
+# ---------------------------------------------------------------------------
+# 20. get_school_crashes
+# ---------------------------------------------------------------------------
+
+_SCHOOL_CAVEAT = (
+    "Counts crashes whose recorded coordinates fall within 500 ft of a school "
+    "(K-12, from the CDE school list). Only about 37% of crashes carry "
+    "coordinates at all and coverage varies a lot by reporting agency, so these "
+    "are located crashes only — a floor, not a total, and a school in a "
+    "low-coverage county looks safer here than it is. coord_coverage_pct below "
+    "is the share of crashes in scope that carry coordinates. Proximity is not "
+    "attribution: a crash 500 ft from a school need not involve the school, and "
+    "the counts are not limited to school hours."
+)
+
+# Totals travel on every row (like query_crashes' grand_total window) so the
+# model can answer "how many crashes near schools in LA" without summing a
+# top-N list and under-reporting.
+_SCHOOL_TOOL_SQL = """
+WITH per_school AS (
+    SELECT s.id                            AS school_id,
+           s.school_name                   AS school_name,
+           s.city                          AS city,
+           s.county_code                   AS county_code,
+           sum(m.crashes)::bigint          AS crashes,
+           sum(m.killed)::bigint           AS killed,
+           sum(m.injured)::bigint          AS injured,
+           sum(m.severe_injured)::bigint   AS severe_injured
+    FROM mv_school_crash_counts m
+    JOIN school_locations s ON s.id = m.school_id
+    -- The cast is what lets the all-years case pass an empty list: an untyped
+    -- '{}' literal has no element type for PG to compare year against.
+    WHERE (:all_years OR m.year = ANY(CAST(:years AS integer[])))
+      AND (:all_counties OR s.county_code = :county_code)
+    GROUP BY s.id, s.school_name, s.city, s.county_code
+)
+SELECT p.*,
+       (SELECT count(*) FROM per_school)          AS schools_with_crashes,
+       (SELECT sum(crashes) FROM per_school)      AS total_crashes,
+       (SELECT sum(killed) FROM per_school)       AS total_killed,
+       (SELECT sum(injured) FROM per_school)      AS total_injured
+FROM per_school p
+ORDER BY p.crashes DESC, p.school_id
+LIMIT :limit
+"""
+
+
+def get_school_crashes(
+    db: Session,
+    county: str | None = None,
+    years: list[int] | None = None,
+    limit: int = 10,
+) -> dict:
+    """Crashes within 500 ft of K-12 schools: the schools with the most, plus
+    the totals for the area.
+
+    Reads mv_school_crash_counts — the same 500 ft rollup behind the map's
+    school markers. Covers only crashes that carry coordinates (~37%
+    statewide), so report the numbers as located crashes and repeat the
+    caveat. Returns up to min(limit, 20) schools.
+    """
+    from app.routers.reference import (  # noqa: PLC0415 (avoid import cycle)
+        _coord_coverage,
+        _school_mv_populated,
+    )
+
+    limit = min(limit, _MAX_ROWS)
+
+    code = None
+    if county:
+        code = _county_code(db, county)
+        if code is None:
+            return {"error": f"County not found: {county}"}
+
+    year_set = set(years) if years else None
+    coverage = [
+        c for c in _coord_coverage(db, year_set)
+        if code is None or c.county_code == code
+    ]
+    located = sum(c.crashes_with_coords for c in coverage)
+    all_crashes = sum(c.total_crashes for c in coverage)
+
+    out: dict[str, Any] = {
+        "county": county or "California (statewide)",
+        "years": sorted(year_set) if year_set else "all available",
+        "coord_coverage_pct": (
+            round(located / all_crashes * 100, 1) if all_crashes else None
+        ),
+        "caveats": _SCHOOL_CAVEAT,
+        "schools_with_a_nearby_crash": 0,
+        "total_crashes_near_schools": 0,
+        "total_killed_near_schools": 0,
+        "total_injured_near_schools": 0,
+        "top_schools": [],
+    }
+
+    # Created WITH NO DATA (migration 10f264138733): between a deploy and the
+    # next nightly refresh, reading it raises rather than returning nothing.
+    if not _school_mv_populated(db):
+        out["note"] = (
+            "The school-proximity aggregate has not been built yet "
+            "(it refreshes nightly); no counts are available right now."
+        )
+        return out
+
+    rows = db.execute(
+        text(_SCHOOL_TOOL_SQL),
+        {
+            "all_years": year_set is None,
+            "years": sorted(year_set or []),
+            "all_counties": code is None,
+            "county_code": code or 0,
+            "limit": limit,
+        },
+    ).fetchall()
+
+    if rows:
+        out["schools_with_a_nearby_crash"] = int(rows[0].schools_with_crashes or 0)
+        out["total_crashes_near_schools"] = int(rows[0].total_crashes or 0)
+        out["total_killed_near_schools"] = int(rows[0].total_killed or 0)
+        out["total_injured_near_schools"] = int(rows[0].total_injured or 0)
+    out["top_schools"] = [
+        {
+            "school_name": r.school_name,
+            "city": r.city,
+            "county_code": r.county_code,
+            "crashes": int(r.crashes or 0),
+            "killed": int(r.killed or 0),
+            "injured": int(r.injured or 0),
+            "severe_injured": int(r.severe_injured or 0),
+        }
+        for r in rows
+    ]
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 21. get_tract_burden
+# ---------------------------------------------------------------------------
+
+_TRACT_CAVEAT = (
+    "ces_percentile is the CalEnviroScreen 5.0 cumulative-burden percentile for "
+    "a census tract: 0 = least burdened in California, 100 = most burdened, "
+    "combining pollution exposure with population vulnerability. It is a single "
+    "CES 5.0 snapshot, not a yearly series. Tract crash counts come from crashes "
+    "whose coordinates fall inside the tract, and only about 37% of crashes "
+    "carry coordinates (coord_share below), so these are located crashes only — "
+    "a floor, not a total. Any pattern across burden bands is an association "
+    "between where crashes are RECORDED and where burdened communities are; "
+    "traffic volume, road design and density all confound it."
+)
+
+_CES_BANDS = (
+    (80.0, "80-100 (most burdened)"),
+    (60.0, "60-80"),
+    (40.0, "40-60"),
+    (20.0, "20-40"),
+    (0.0, "0-20 (least burdened)"),
+)
+
+
+def get_tract_burden(
+    db: Session,
+    county: str | None = None,
+    year_start: int | None = None,
+    year_end: int | None = None,
+    limit: int = 10,
+) -> dict:
+    """Census-tract crash burden against CalEnviroScreen score — the equity cut.
+
+    Summarises the same tract_ces / tract_crash_year join behind
+    /api/tract-burden into two small pieces: crashes and crashes per 1,000
+    residents by CES burden band (five rows), and the tracts carrying the most
+    located crashes (up to min(limit, 20)). Coordinates-only coverage, and an
+    association rather than a cause — repeat the caveat.
+    """
+    from app.routers.tract_burden import _coord_share  # noqa: PLC0415 (avoid import cycle)
+
+    code = None
+    if county:
+        code = _county_code(db, county)
+        if code is None:
+            return {"error": f"County not found: {county}"}
+
+    limit = min(limit, _MAX_ROWS)
+
+    # The year filter lives in the JOIN condition, not a WHERE: a tract with no
+    # crashes in the window must still count toward its band's population.
+    year_cond = [TractCrashYear.geoid == TractCes.geoid]
+    if year_start is not None:
+        year_cond.append(TractCrashYear.year >= year_start)
+    if year_end is not None:
+        year_cond.append(TractCrashYear.year <= year_end)
+
+    band = case(
+        *[(TractCes.ces_percentile >= lo, label) for lo, label in _CES_BANDS],
+        else_="unscored",
+    ).label("ces_band")
+
+    where = [TractCes.county_code == code] if code else []
+
+    band_stmt = (
+        select(
+            band,
+            func.count(func.distinct(TractCes.geoid)).label("tract_count"),
+            func.coalesce(func.sum(TractCrashYear.crash_count), 0).label("crash_count"),
+            func.coalesce(func.sum(TractCrashYear.killed), 0).label("killed"),
+        )
+        .select_from(TractCes)
+        .outerjoin(TractCrashYear, and_(*year_cond))
+        .where(*where)
+        .group_by(band)
+        .order_by(band)
+    )
+    # Population is per tract, so it cannot be summed in the join above
+    # (a tract with N crash-years would be counted N times).
+    pop_stmt = (
+        select(band, func.sum(TractCes.population).label("population"))
+        .select_from(TractCes)
+        .where(*where)
+        .group_by(band)
+    )
+    pop_by_band = {r.ces_band: int(r.population or 0) for r in db.execute(pop_stmt)}
+
+    bands = []
+    for r in db.execute(band_stmt).fetchall():
+        pop = pop_by_band.get(r.ces_band, 0)
+        bands.append({
+            "ces_band": r.ces_band,
+            "tract_count": r.tract_count,
+            "population": pop or None,
+            "crash_count": int(r.crash_count or 0),
+            "killed": int(r.killed or 0),
+            "crashes_per_1k_pop": (
+                round(int(r.crash_count or 0) * 1000.0 / pop, 2) if pop else None
+            ),
+        })
+
+    top_stmt = (
+        select(
+            TractCes.geoid,
+            TractCes.county_code,
+            TractCes.ces_percentile,
+            TractCes.population,
+            func.coalesce(func.sum(TractCrashYear.crash_count), 0).label("crash_count"),
+            func.coalesce(func.sum(TractCrashYear.killed), 0).label("killed"),
+        )
+        .select_from(TractCes)
+        .outerjoin(TractCrashYear, and_(*year_cond))
+        .where(*where)
+        .group_by(
+            TractCes.geoid, TractCes.county_code,
+            TractCes.ces_percentile, TractCes.population,
+        )
+        .order_by(func.coalesce(func.sum(TractCrashYear.crash_count), 0).desc(), TractCes.geoid)
+        .limit(limit)
+    )
+    top_tracts = [
+        {
+            "geoid": r.geoid,
+            "county_code": r.county_code,
+            "ces_percentile": r.ces_percentile,
+            "population": r.population,
+            "crash_count": int(r.crash_count or 0),
+            "killed": int(r.killed or 0),
+            "crashes_per_1k_pop": (
+                round(int(r.crash_count or 0) * 1000.0 / r.population, 2)
+                if r.population else None
+            ),
+        }
+        for r in db.execute(top_stmt).fetchall()
+    ]
+
+    return {
+        "county": county or "California (statewide)",
+        "years": f"{year_start or 'earliest'} to {year_end or 'latest'}",
+        "coord_share": _coord_share(db, year_start, year_end, {code} if code else None),
+        "caveats": _TRACT_CAVEAT,
+        "burden_bands": bands,
+        "top_tracts": top_tracts,
+    }
+
+
 # Tool registry
 # ---------------------------------------------------------------------------
 
@@ -1061,4 +1499,8 @@ TOOL_REGISTRY: dict[str, Any] = {
     "get_street_concentration": get_street_concentration,
     "get_yoy_changes": get_yoy_changes,
     "first_rain": get_first_rain,
+    "get_mode_breakdown": get_mode_breakdown,
+    "get_vmt": get_vmt,
+    "get_school_crashes": get_school_crashes,
+    "get_tract_burden": get_tract_burden,
 }
