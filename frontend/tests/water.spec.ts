@@ -58,7 +58,9 @@ const SNOWPACK = {
   latest_date: "2026-03-01",
   statewide_pct_of_average: 112,
   regions: [
-    { region: "Central Sierra", station_count: 5, latest_date: "2026-03-01", swe_in: 24.6, avg_swe_in: 22.0, pct_of_average: 112 },
+    // station_count is how many reported on latest_date — a subset of the
+    // two Central Sierra marks the map draws, as the live API behaves.
+    { region: "Central Sierra", station_count: 1, latest_date: "2026-03-01", swe_in: 24.6, avg_swe_in: 22.0, pct_of_average: 112 },
     { region: "Northern Sierra / Trinity", station_count: 5, latest_date: "2026-03-01", swe_in: 30.1, avg_swe_in: 24.0, pct_of_average: 125 },
     { region: "Southern Sierra", station_count: 5, latest_date: "2026-03-01", swe_in: 18.0, avg_swe_in: 20.0, pct_of_average: 90 },
   ],
@@ -226,24 +228,35 @@ test("tapping a reservoir circle on the drought map opens its detail panel", asy
   await expect(card.getByRole("button", { name: /hide past year/i })).toBeVisible();
 });
 
-test("tapping a snow station on the drought map opens its detail panel", async ({ page }) => {
+test("tapping a snow cluster on the drought map opens its region panel", async ({ page }) => {
   await page.goto(`${BASE_URL}/water`);
 
-  const csl = page.getByRole("button", {
-    name: /Central Sierra Snow Lab snow station, 112% of average snowpack/,
+  // One target per DWR region, not one per station: the marks are texture.
+  const region = page.getByRole("button", {
+    name: /Central Sierra snowpack, 112% of average, 2 stations/,
   });
-  await expect(csl).toBeVisible();
-
-  // The coordinate-less station is skipped, not misplaced.
+  await expect(region).toBeVisible();
+  await expect(page.getByRole("button", { name: /snow station/ })).toHaveCount(0);
+  // The coordinate-less station is skipped, so its region gets no circle.
   await expect(page.getByRole("button", { name: /Nowhere Meadow/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Southern Sierra snowpack/ }),
+  ).toHaveCount(0);
 
-  await csl.click();
-  const panel = page.getByRole("group", { name: /Central Sierra Snow Lab detail/i });
+  await region.click();
+  const panel = page.getByRole("group", { name: /Central Sierra detail/i });
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText("24.6″ snow water equivalent");
-  await expect(panel).toContainText("6,900 ft");
+  await expect(panel).toContainText("112");
+  await expect(panel).toContainText("1 of 2 stations reporting");
+  await expect(panel).toContainText("2026-03-01");
 
-  // One selection at a time: opening a reservoir closes the station panel.
+  // "Show in list" highlights the region's row up in the snowpack section.
+  await panel.getByRole("button", { name: /show in list/i }).click();
+  const row = page.locator("#snowpack-central-sierra");
+  await expect(row).toBeVisible();
+  await expect(row).toHaveClass(/ring-2/);
+
+  // One selection at a time: opening a reservoir closes the region panel.
   await page.getByRole("button", { name: /Shasta Lake, 75% of capacity/ }).click();
   await expect(panel).toBeHidden();
   await expect(page.getByRole("group", { name: /Shasta Lake detail/i })).toBeVisible();

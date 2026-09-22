@@ -64,11 +64,13 @@ interface DroughtSectionProps {
    *  already holds this query for the cards — no second fetch. */
   reservoirs?: ReservoirCondition[];
   onShowInList?: (stationId: string) => void;
+  onShowRegionInList?: (region: string) => void;
 }
 
 export default function DroughtSection({
   reservoirs,
   onShowInList,
+  onShowRegionInList,
 }: DroughtSectionProps = {}) {
   const { data: snapshot, isLoading, isError } = useDroughtSnapshot();
   const countyNames = useCountyNames();
@@ -164,7 +166,9 @@ export default function DroughtSection({
         weekStart={snapshot.week_start}
         reservoirs={reservoirs}
         snowStations={snowpack?.stations}
+        snowRegions={snowpack?.regions}
         onShowInList={onShowInList}
+        onShowRegionInList={onShowRegionInList}
       />
 
       {hardestHit.length > 0 && (

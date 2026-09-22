@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -9,7 +9,10 @@ import DroughtMap, {
   fillForSnowPct,
 } from "./DroughtMap";
 import type { DroughtCounty } from "../../hooks/useDroughtData";
-import type { SnowStationCondition } from "../../hooks/useSnowpackData";
+import type {
+  RegionSnowpack,
+  SnowStationCondition,
+} from "../../hooks/useSnowpackData";
 import type { ReservoirCondition } from "../../hooks/useWaterData";
 
 // Minimal non-quantized topology: two triangular "counties".
@@ -108,6 +111,17 @@ const GIN: SnowStationCondition = {
   pct_of_average: null,
 };
 
+/** A second Central Sierra mark, so one region covers more than one
+ *  station and the panel's coverage line has something to say. */
+const CASTLE: SnowStationCondition = {
+  ...CSL,
+  station_id: "CAS",
+  name: "Castle Peak",
+  lat: 37.3,
+  lon: -121.3,
+  pct_of_average: 40,
+};
+
 /** Pre-coordinate row: the layer must skip it, not crash on the nulls. */
 const SNOW_NO_COORDS: SnowStationCondition = {
   ...GIN,
@@ -117,11 +131,43 @@ const SNOW_NO_COORDS: SnowStationCondition = {
   lon: null,
 };
 
+/** The API's regional figures. The percentages here deliberately differ
+ *  from the stations' own values so a test can tell which one the panel
+ *  quotes: Central Sierra is 88% here but CSL, one of its stations, reads
+ *  112%. `station_count` is how many reported on `latest_date`, which is a
+ *  subset of the marks on the map — exactly as the live API behaves. */
+const REGIONS: RegionSnowpack[] = [
+  {
+    region: "Central Sierra",
+    station_count: 1,
+    latest_date: "2026-03-02",
+    swe_in: 24.6,
+    avg_swe_in: 28.0,
+    pct_of_average: 88,
+    apr1_swe_in: null,
+    apr1_avg_swe_in: null,
+    apr1_pct_of_average: null,
+  },
+  {
+    region: "Southern Sierra",
+    station_count: 20,
+    latest_date: "2026-03-02",
+    swe_in: 6.0,
+    avg_swe_in: 12.0,
+    pct_of_average: 50,
+    apr1_swe_in: null,
+    apr1_avg_swe_in: null,
+    apr1_pct_of_average: null,
+  },
+];
+
 function renderMap(
   counties: DroughtCounty[] = COUNTIES,
   reservoirs?: ReservoirCondition[],
   onShowInList?: (stationId: string) => void,
   snowStations?: SnowStationCondition[],
+  snowRegions?: RegionSnowpack[],
+  onShowRegionInList?: (region: string) => void,
 ) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     if (String(input).includes("ca-counties.topo.json")) {
@@ -141,7 +187,9 @@ function renderMap(
       weekStart="2026-06-30"
       reservoirs={reservoirs}
       snowStations={snowStations}
+      snowRegions={snowRegions}
       onShowInList={onShowInList}
+      onShowRegionInList={onShowRegionInList}
     />,
     { wrapper },
   );
@@ -337,15 +385,36 @@ describe("DroughtMap reservoir layer", () => {
   });
 });
 
-describe("DroughtMap snow-station layer", () => {
-  /** The transparent hit circles carry the labels and keyboard handling. */
-  async function findSnowButtons() {
+describe("DroughtMap snow layer", () => {
+  /** One transparent circle per DWR region — the only snow targets. */
+  async function findRegionButtons() {
     await screen.findByRole("img", { name: /map of california/i });
-    return screen.getAllByRole("button", { name: /snow station/i });
+    return screen.getAllByRole("button", { name: /snowpack,/i });
   }
 
   function snowMarks() {
     return [...document.querySelectorAll("[data-testid^='snow-mark-']")];
+  }
+
+  /** jsdom gives every element a zero-sized box, so the client→viewBox
+   *  math behind the nearest-station rule needs a stand-in for the real
+   *  one. 400 wide = the viewBox width, so client and SVG units line up. */
+  function mockSvgBox() {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+      left: 0, top: 0, right: 400, bottom: 460, width: 400, height: 460,
+      x: 0, y: 0, toJSON: () => ({}),
+    } as DOMRect);
+  }
+
+  /** Where a station's diamond actually landed, read back off the mark:
+   *  points are "cx,cy-r cx+r,cy cx,cy+r cx-r,cy". */
+  function markCenter(stationId: string): [number, number] {
+    const pts = document
+      .querySelector(`[data-testid='snow-mark-${stationId}']`)!
+      .getAttribute("points")!
+      .split(" ")
+      .map((p) => p.split(",").map(Number));
+    return [pts[0][0], pts[1][1]];
   }
 
   it("draws nothing when the snowpack query has not resolved", async () => {
@@ -359,21 +428,39 @@ describe("DroughtMap snow-station layer", () => {
     expect(screen.queryByRole("list", { name: /legend: snow stations/i })).toBeNull();
   });
 
-  it("renders only stations that have coordinates", async () => {
-    renderMap(COUNTIES, undefined, undefined, [CSL, SNOW_NO_COORDS]);
-    const buttons = await findSnowButtons();
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0]).toHaveAttribute(
-      "aria-label",
-      "Central Sierra Snow Lab snow station, 112% of average snowpack",
-    );
+  it("offers one button per region and none per station", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL, GIN, SNOW_NO_COORDS], REGIONS);
+    const buttons = await findRegionButtons();
+    // Two located stations in two regions — two targets, not 107.
+    expect(buttons).toHaveLength(2);
+    expect(screen.getAllByRole("button")).toHaveLength(2);
+    // The coordinate-less station is skipped, as before.
     expect(snowMarks().map((m) => m.getAttribute("data-testid"))).toEqual([
       "snow-mark-CSL",
+      "snow-mark-GIN",
     ]);
+    // No station mark is focusable or exposed as a control.
+    for (const mark of snowMarks()) {
+      expect(mark.closest("[aria-hidden='true']")).not.toBeNull();
+      expect(mark.getAttribute("role")).toBeNull();
+      expect(mark.getAttribute("tabindex")).toBeNull();
+    }
+  });
+
+  it("labels a region with the API percent and its mark count", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL, CASTLE, GIN], REGIONS);
+    const buttons = await findRegionButtons();
+    // 88% is the API's regional figure; CSL reads 112% and Castle 40%.
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(
+      expect.arrayContaining([
+        "Central Sierra snowpack, 88% of average, 2 stations",
+        "Southern Sierra snowpack, 50% of average, 1 station",
+      ]),
+    );
   });
 
   it("uses diamonds and the snow ramp, not the reservoir circles", async () => {
-    renderMap(COUNTIES, [SHASTA], undefined, [CSL, GIN]);
+    renderMap(COUNTIES, [SHASTA], undefined, [CSL, GIN], REGIONS);
     await screen.findByRole("img", { name: /map of california/i });
     const marks = snowMarks();
     // Diamond marks are polygons, so shape distinguishes them from the
@@ -385,73 +472,121 @@ describe("DroughtMap snow-station layer", () => {
     ]);
   });
 
-  it("selects a station and shows its reading in a detail panel", async () => {
-    renderMap(COUNTIES, undefined, undefined, [CSL]);
-    const buttons = await findSnowButtons();
+  it("selects the region of the station nearest a tap on the map", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL, GIN], REGIONS);
+    const svg = (await screen.findByRole("img", { name: /map of california/i }))
+      .closest("svg")!;
+    mockSvgBox();
+
+    // A few units off Gin Flat picks Southern Sierra, not the nearer-to-
+    // nothing default and not Central Sierra.
+    const [gx, gy] = markCenter("GIN");
+    fireEvent.click(svg, { clientX: gx + 4, clientY: gy - 3 });
+    expect(
+      screen.getByRole("group", { name: /southern sierra detail/i }),
+    ).toBeInTheDocument();
+
+    // ... and a tap by the other cluster switches regions.
+    const [cx, cy] = markCenter("CSL");
+    fireEvent.click(svg, { clientX: cx - 2, clientY: cy + 2 });
+    expect(
+      screen.getByRole("group", { name: /central sierra detail/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /southern sierra detail/i })).toBeNull();
+
+    // Tapping the same cluster again clears it.
+    fireEvent.click(svg, { clientX: cx, clientY: cy });
+    expect(screen.queryByRole("group", { name: /central sierra detail/i })).toBeNull();
+  });
+
+  it("ignores a tap on bare map, far from every station", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL], REGIONS);
+    const svg = (await screen.findByRole("img", { name: /map of california/i }))
+      .closest("svg")!;
+    mockSvgBox();
+    const [cx, cy] = markCenter("CSL");
+    fireEvent.click(svg, { clientX: cx + 120, clientY: cy + 120 });
+    expect(screen.queryByRole("group", { name: /detail/i })).toBeNull();
+  });
+
+  it("shows the API region figure, station coverage and reading date", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL, CASTLE], REGIONS);
+    const buttons = await findRegionButtons();
     await userEvent.click(buttons[0]);
 
-    const panel = screen.getByRole("group", { name: /central sierra snow lab detail/i });
-    expect(panel).toHaveTextContent("112");
+    const panel = screen.getByRole("group", { name: /central sierra detail/i });
+    expect(panel).toHaveTextContent("88");
     expect(panel).toHaveTextContent("% of average");
-    expect(panel).toHaveTextContent("24.6″ snow water equivalent");
-    expect(panel).toHaveTextContent("2026-03-01");
-    expect(panel).toHaveTextContent("Central Sierra");
-    expect(panel).toHaveTextContent("6,900 ft");
+    // Never the stations' own 112% / 40%.
+    expect(panel).not.toHaveTextContent("112");
+    // Only one of the two mapped stations reported on the latest date.
+    expect(panel).toHaveTextContent("1 of 2 stations reporting");
+    expect(panel).toHaveTextContent("2026-03-02");
     expect(buttons[0]).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("says so rather than inventing a percent when there is no baseline", async () => {
-    renderMap(COUNTIES, undefined, undefined, [GIN]);
-    const buttons = await findSnowButtons();
+  it("says so rather than inventing a percent with no API region row", async () => {
+    renderMap(COUNTIES, undefined, undefined, [GIN], undefined);
+    const buttons = await findRegionButtons();
+    expect(buttons[0]).toHaveAttribute(
+      "aria-label",
+      "Southern Sierra snowpack, no comparison available, 1 station",
+    );
     await userEvent.click(buttons[0]);
-    const panel = screen.getByRole("group", { name: /gin flat detail/i });
-    expect(panel).toHaveTextContent(/not enough history/i);
-    expect(panel).not.toHaveTextContent("% of average");
+    const panel = screen.getByRole("group", { name: /southern sierra detail/i });
+    expect(panel).toHaveTextContent(/no percent of average available/i);
+    expect(panel).toHaveTextContent("1 of 1 stations reporting");
+  });
+
+  it("draws the selected region's stations with a heavier stroke", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL, GIN], REGIONS);
+    const buttons = await findRegionButtons();
+    const strokes = () =>
+      snowMarks().map((m) => Number(m.getAttribute("stroke-width")));
+    expect(strokes()).toEqual([1, 1]);
+    await userEvent.click(
+      buttons.find((b) => b.getAttribute("aria-label")!.startsWith("Central"))!,
+    );
+    expect(strokes()).toEqual([2.5, 1]); // CSL is the Central Sierra mark
   });
 
   it("activates on Enter and on Space from the keyboard", async () => {
-    renderMap(COUNTIES, undefined, undefined, [CSL]);
-    const buttons = await findSnowButtons();
+    renderMap(COUNTIES, undefined, undefined, [CSL], REGIONS);
+    const buttons = await findRegionButtons();
     buttons[0].focus();
     await userEvent.keyboard("{Enter}");
     expect(
-      screen.getByRole("group", { name: /central sierra snow lab detail/i }),
+      screen.getByRole("group", { name: /central sierra detail/i }),
     ).toBeInTheDocument();
     await userEvent.keyboard(" ");
-    expect(
-      screen.queryByRole("group", { name: /central sierra snow lab detail/i }),
-    ).toBeNull();
+    expect(screen.queryByRole("group", { name: /central sierra detail/i })).toBeNull();
   });
 
   it("clears the selection on Escape and on Close", async () => {
-    renderMap(COUNTIES, undefined, undefined, [CSL]);
-    const buttons = await findSnowButtons();
+    renderMap(COUNTIES, undefined, undefined, [CSL], REGIONS);
+    const buttons = await findRegionButtons();
     await userEvent.click(buttons[0]);
     await userEvent.keyboard("{Escape}");
-    expect(
-      screen.queryByRole("group", { name: /central sierra snow lab detail/i }),
-    ).toBeNull();
+    expect(screen.queryByRole("group", { name: /central sierra detail/i })).toBeNull();
 
     await userEvent.click(buttons[0]);
     await userEvent.click(screen.getByRole("button", { name: /^close$/i }));
-    expect(
-      screen.queryByRole("group", { name: /central sierra snow lab detail/i }),
-    ).toBeNull();
+    expect(screen.queryByRole("group", { name: /central sierra detail/i })).toBeNull();
   });
 
   it("keeps one selection across the two layers", async () => {
-    renderMap(COUNTIES, [SHASTA], undefined, [CSL]);
+    renderMap(COUNTIES, [SHASTA], undefined, [CSL], REGIONS);
     await screen.findByRole("img", { name: /map of california/i });
     const reservoir = screen.getByRole("button", { name: /shasta lake, 75%/i });
-    const station = screen.getByRole("button", { name: /snow station/i });
+    const region = screen.getByRole("button", { name: /central sierra snowpack/i });
 
     await userEvent.click(reservoir);
     expect(screen.getByRole("group", { name: /shasta lake detail/i })).toBeInTheDocument();
 
-    // Selecting the snow station replaces the reservoir selection.
-    await userEvent.click(station);
+    // Selecting the region replaces the reservoir selection.
+    await userEvent.click(region);
     expect(
-      screen.getByRole("group", { name: /central sierra snow lab detail/i }),
+      screen.getByRole("group", { name: /central sierra detail/i }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /shasta lake detail/i })).toBeNull();
     expect(reservoir).toHaveAttribute("aria-pressed", "false");
@@ -459,18 +594,31 @@ describe("DroughtMap snow-station layer", () => {
     // ... and back the other way.
     await userEvent.click(reservoir);
     expect(screen.getByRole("group", { name: /shasta lake detail/i })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("group", { name: /central sierra snow lab detail/i }),
-    ).toBeNull();
-    expect(station).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("group", { name: /central sierra detail/i })).toBeNull();
+    expect(region).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("hands the region name back for Show in list", async () => {
+    const onShowRegionInList = vi.fn();
+    renderMap(
+      COUNTIES, undefined, undefined, [CSL], REGIONS, onShowRegionInList,
+    );
+    const buttons = await findRegionButtons();
+    await userEvent.click(buttons[0]);
+    await userEvent.click(screen.getByRole("button", { name: /show in list/i }));
+    expect(onShowRegionInList).toHaveBeenCalledWith("Central Sierra");
   });
 
   it("adds a snow legend only when marks are drawn", async () => {
-    renderMap(COUNTIES, undefined, undefined, [CSL, GIN]);
+    renderMap(COUNTIES, undefined, undefined, [CSL, GIN], REGIONS);
     const legend = await screen.findByRole("list", { name: /legend: snow stations/i });
     for (const label of ["<50%", "50–100%", "100–150%", "150%+", "No average"]) {
       expect(legend).toHaveTextContent(label);
     }
+    // The caption points at the cluster, not at individual stations.
+    expect(legend.parentElement).toHaveTextContent(
+      "Snow stations · colour = % of average · tap a cluster for its region",
+    );
     cleanup();
     renderMap(COUNTIES, [SHASTA], undefined, undefined);
     await screen.findByRole("img", { name: /map of california/i });

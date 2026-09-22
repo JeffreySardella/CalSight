@@ -4,7 +4,7 @@ import DroughtSection from "../components/water/DroughtSection";
 import FirstStormTile from "../components/water/FirstStormTile";
 import PrecipSection from "../components/water/PrecipSection";
 import ReservoirCard, { cardId } from "../components/water/ReservoirCard";
-import SnowpackSection from "../components/water/SnowpackSection";
+import SnowpackSection, { regionRowId } from "../components/water/SnowpackSection";
 import {
   baselineFootnote,
   formatAcreFeet,
@@ -19,11 +19,20 @@ export default function WaterPage() {
   // expand/collapse; this only asks it to open. `request` counts up so that
   // asking for the same card again, after the user collapsed it, reopens it.
   const [listed, setListed] = useState<{ stationId: string; request: number } | null>(null);
+  // Same contract for the snowpack section's region rows.
+  const [listedRegion, setListedRegion] = useState<{ region: string; request: number } | null>(null);
 
   const showInList = (stationId: string) => {
     setListed((cur) => ({ stationId, request: (cur?.request ?? 0) + 1 }));
     document
       .getElementById(cardId(stationId))
+      ?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  };
+
+  const showRegionInList = (region: string) => {
+    setListedRegion((cur) => ({ region, request: (cur?.request ?? 0) + 1 }));
+    document
+      .getElementById(regionRowId(region))
       ?.scrollIntoView?.({ behavior: "smooth", block: "center" });
   };
 
@@ -130,11 +139,15 @@ export default function WaterPage() {
         {baselineFootnote((data ?? []).map((r) => r.baseline_period))}.
       </p>
 
-      <SnowpackSection />
+      <SnowpackSection listed={listedRegion} />
 
       <PrecipSection />
 
-      <DroughtSection reservoirs={data} onShowInList={showInList} />
+      <DroughtSection
+        reservoirs={data}
+        onShowInList={showInList}
+        onShowRegionInList={showRegionInList}
+      />
     </div>
   );
 }
