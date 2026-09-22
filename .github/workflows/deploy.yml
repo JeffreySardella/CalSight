@@ -383,6 +383,28 @@ jobs:
           # what uptime.yml checks, from outside, through the edge — which is
           # the only place the check is meaningful.
 
+      - name: Warm the heatmap cache for the busiest counties
+        # The county heat layer is served from an in-process TTL cache
+        # (heatmap.py, 6 h). Every deploy restarts the container cold, and the
+        # first uncached Los Angeles aggregation took 13.6 s on a phone. Ask
+        # for exactly what the map asks for (both point budgets, plus the
+        # fatal slice) so the first visitor after a deploy gets the cached
+        # answer. The key ignores batch numbers, so one request per budget is
+        # enough. Best effort: a slow or failed warm never fails the deploy.
+        run: |
+          base="http://127.0.0.1:8000/api/crashes/heatmap"
+          warm() { curl -s --max-time 90 -o /dev/null -w "$1 %{http_code} %{time_total}s\n" "$base?$1" || true; }
+          for county in los-angeles san-diego orange san-bernardino riverside santa-clara alameda sacramento; do
+            for q in "max_points=25000" "max_points=80000" "severity=fatal&max_points=25000"; do
+              warm "county=$county&resolution=raw&detail=slim&$q"
+            done
+          done
+          for res in low medium; do
+            for budget in 25000 80000; do
+              warm "resolution=$res&max_points=$budget"
+            done
+          done
+
       - name: Verify pipeline container is stable (not crash-looping)
         # A pipeline container that dies at startup restarts forever and is
         # only "running" a few seconds per minute — every scheduled ETL, backup
