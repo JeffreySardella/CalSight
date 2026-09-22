@@ -122,5 +122,6 @@ test("the coordinate-coverage measure bands 0-100% and says what the point layer
 
   const note = legend.locator('[data-testid="coord-coverage-note"]');
   await expect(note).toContainText("only plot crashes");
+  await expect(note).toContainText("2001-2005");
   await expect(note).toContainText("CCRS");
 });

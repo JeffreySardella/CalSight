@@ -301,12 +301,16 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
       )}
 
 
+      {/* Collapsed on a phone with the bucket labels it explains — seven lines
+          of caveat would otherwise be most of the card. */}
       {!countyActive && activeMeasure.kind === "coverage" && (
-        <p data-testid="coord-coverage-note" className="text-[10px] text-on-surface-variant mt-1.5 leading-snug">
+        <p
+          data-testid="coord-coverage-note"
+          className={`text-[10px] text-on-surface-variant mt-1.5 leading-snug ${mobileExpanded ? "" : "hidden md:block"}`}
+        >
           Point layers — heat map, dots, schools, tracts — only plot crashes
-          that carry coordinates. Coverage climbs from 0% in 2001-2005 to about
-          78% in the CCRS years, so a short early-year selection maps far fewer
-          crashes than the county totals suggest.
+          that carry coordinates: 0% of 2001-2005 crashes, about 78% of the
+          CCRS years.
         </p>
       )}
       {!countyActive && activeMeasure.kind === "perCapita" && (dataSummary.missingDemoYears.length > 0 || dataSummary.partialDemoYears.length > 0) && (
