@@ -27,7 +27,7 @@ from app.schemas.drought import (
     DroughtWeekPoint,
 )
 from app.schemas.precip import PrecipIndexOut
-from app.schemas.snow import RegionSnowpack, SnowpackOut
+from app.schemas.snow import RegionSnowpack, SnowpackOut, SnowStationSnowpack
 from app.rate_limit import rate_limit_key
 from app.schemas.water import (
     ReservoirConditionOut,

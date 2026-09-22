@@ -38,6 +38,29 @@ class RegionSnowpack(BaseModel):
     baseline_period: str | None = None
 
 
+class SnowStationSnowpack(BaseModel):
+    """One currently-reporting snow station's latest reading.
+
+    The per-station detail behind the regional means — what the water
+    map's snow layer draws. Same membership rule as RegionSnowpack's
+    station_count: stations whose feed has gone stale are omitted.
+    """
+
+    station_id: str
+    name: str
+    region: str
+    elevation_ft: int | None = None
+    # Station coordinates (CDEC staMeta page) — None for rows loaded before
+    # the coordinate columns existed; the map layer skips those.
+    lat: float | None = None
+    lon: float | None = None
+    latest_date: date
+    swe_in: float
+    # None where the station has no usable day-of-year baseline (<2 years
+    # of history, or a deep-summer average too small to divide by).
+    pct_of_average: float | None = None
+
+
 class SnowpackOut(BaseModel):
     """Latest statewide snowpack plus a per-region breakdown."""
 
@@ -50,3 +73,6 @@ class SnowpackOut(BaseModel):
     apr1_station_count: int | None = None  # as RegionSnowpack.apr1_station_count, statewide
     baseline_period: str | None = None  # as RegionSnowpack.baseline_period, statewide
     regions: list[RegionSnowpack]
+    # Every currently-reporting station, sorted by id. Additive: the
+    # regional/statewide figures above are unchanged by its presence.
+    stations: list[SnowStationSnowpack] = []
