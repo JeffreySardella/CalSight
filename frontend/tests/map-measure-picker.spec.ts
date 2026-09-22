@@ -78,9 +78,14 @@ test("switching to per-licensed-driver and per-road-mile measures updates the le
   }
 
   // Bucket edges recompute async (CountyBoundaries' effect), so read the
-  // legend only once it's past the "Loading data…" placeholder.
+  // legend only once it's past BOTH placeholders — "Loading data…" while the
+  // queries are in flight and "Pan or zoom out to compute scale" until the
+  // edges land. Waiting on the first alone made the round-trip compare below
+  // race: a snapshot taken in the second state can never match one taken
+  // after the edges appear.
   async function stableLegendText(): Promise<string> {
     await expect(legend).not.toContainText("Loading data…");
+    await expect(legend).not.toContainText("Pan or zoom out to compute scale");
     return legend.innerText();
   }
 
