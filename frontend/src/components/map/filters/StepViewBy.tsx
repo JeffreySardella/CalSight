@@ -30,6 +30,7 @@ const MEASURE_LIST: { key: MeasureKey; label: string; description: string; group
   { key: "pollution_burden", label: "Pollution Burden", description: "CalEnviroScreen pollution burden score", group: "Environmental" },
   { key: "traffic_score", label: "Traffic Proximity", description: "CalEnviroScreen traffic proximity and volume score", group: "Environmental" },
   { key: "unemployment_rate", label: "Unemployment Rate", description: "Average unemployment rate across selected period", group: "Economic" },
+  { key: "coord_coverage", label: "Coordinate Coverage", description: "Share of the county's crashes that carry coordinates — how much of it the point layers can show", group: "Data Quality" },
 ];
 
 const CRASH_MEASURES: MeasureKey[] = [

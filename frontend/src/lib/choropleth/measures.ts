@@ -24,16 +24,23 @@ export type MeasureKey =
   | "ces_score"
   | "pollution_burden"
   | "traffic_score"
-  | "unemployment_rate";
+  | "unemployment_rate"
+  | "coord_coverage";
 
 export type Measure = {
   key: MeasureKey;
   label: string;
   /** "perCapita" needs demographics; "raw" and "rate" do not.
    *  "context" measures are sourced from external datasets
-   *  (CalEnviroScreen, unemployment) rather than crash/demo queries. */
-  kind: "perCapita" | "perDriver" | "perRoadMile" | "perVmt" | "raw" | "rate" | "perIncome" | "demographic" | "crashDemographic" | "context";
+   *  (CalEnviroScreen, unemployment) rather than crash/demo queries.
+   *  "coverage" measures come from the pre-computed data-quality stats. */
+  kind: "perCapita" | "perDriver" | "perRoadMile" | "perVmt" | "raw" | "rate" | "perIncome" | "demographic" | "crashDemographic" | "context" | "coverage";
   formatLabel: (n: number) => string;
+  /** Absolute bucket edges, used instead of quantiles over the selected
+   *  counties. For a measure with a fixed, meaningful domain (a 0-100% share)
+   *  quintiles would re-scale on every filter change and hide the thing worth
+   *  seeing — that a county sits at 16% and not 62%. */
+  fixedEdges?: readonly number[];
 };
 
 export const MEASURES: Record<MeasureKey, Measure> = {
@@ -157,6 +164,13 @@ export const MEASURES: Record<MeasureKey, Measure> = {
     kind: "context",
     formatLabel: (n) => `${n.toFixed(1)}%`,
   },
+  coord_coverage: {
+    key: "coord_coverage",
+    label: "Share of crashes with coordinates",
+    kind: "coverage",
+    formatLabel: (n) => `${n.toFixed(0)}%`,
+    fixedEdges: [0, 20, 40, 60, 80, 100],
+  },
 };
 
 export const DEFAULT_MEASURE: MeasureKey = "crashes_per_100k";
@@ -214,6 +228,9 @@ type ComputeOpts = {
   /** Years the crash total spans, so perDriver / perRoadMile / perVmt are
    *  annual rates like the per-100k ones. */
   yearCount?: number;
+  /** Pre-computed located-crash counts for this county over the selected
+   *  years (data_quality_stats via /api/data-quality) — see coord_coverage. */
+  coordCoverage?: { withCoords: number; total: number } | null;
 };
 
 export type DriverYear = { year: number; driver_count: number | null };
@@ -262,6 +279,20 @@ export function computeMeasureValue(
     const v = opts.context?.[measure];
     if (v == null) return { value: null, hasEnoughData: false };
     return { value: v, hasEnoughData: true };
+  }
+
+  // Share of the county's crashes that carry a coordinate. Its own
+  // denominator: the data-quality totals, not the filtered crash stats.
+  // ponytail: data_quality_stats is pre-aggregated per county x year, so this
+  // honours the year range but not the severity/cause filters, and "located"
+  // means a stored lat/lng — the county-mismatch and over-water audits are not
+  // in that table. Both would need /api/stats?group_by=county to count coords.
+  if (measure === "coord_coverage") {
+    const cov = opts.coordCoverage;
+    if (!cov || cov.total < MIN_CRASHES_FOR_RATE) {
+      return { value: null, hasEnoughData: false };
+    }
+    return { value: (cov.withCoords / cov.total) * 100, hasEnoughData: true };
   }
 
   // Exposure denominators: who drives (DMV) and how much road there is

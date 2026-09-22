@@ -19,6 +19,13 @@ describe("parseLayerParams", () => {
     expect(parseLayerParams(sp({ measure: "not_a_measure" })).measure).toBeUndefined();
   });
 
+  // Deep link to the data-quality measure: it is not the default, so
+  // writeLayerParams puts it in the URL and this is the read-back half.
+  it("decodes measure=coord_coverage from a deep link", () => {
+    expect(parseLayerParams(sp({ measure: "coord_coverage" })).measure).toBe("coord_coverage");
+    expect(DEFAULT_MEASURE).not.toBe("coord_coverage");
+  });
+
   it("decodes a valid palette", () => {
     expect(parseLayerParams(sp({ palette: "colorblind" })).palette).toBe("colorblind");
   });
