@@ -62,6 +62,44 @@ const SNOWPACK = {
     { region: "Northern Sierra / Trinity", station_count: 5, latest_date: "2026-03-01", swe_in: 30.1, avg_swe_in: 24.0, pct_of_average: 125 },
     { region: "Southern Sierra", station_count: 5, latest_date: "2026-03-01", swe_in: 18.0, avg_swe_in: 20.0, pct_of_average: 90 },
   ],
+  // Per-station rows feed the drought map's snow layer; real staMeta
+  // coordinates so they land inside the shipped county topojson.
+  stations: [
+    {
+      station_id: "CSL",
+      name: "Central Sierra Snow Lab",
+      region: "Central Sierra",
+      elevation_ft: 6900,
+      lat: 39.325,
+      lon: -120.366,
+      latest_date: "2026-03-01",
+      swe_in: 24.6,
+      pct_of_average: 112,
+    },
+    {
+      station_id: "GIN",
+      name: "Gin Flat",
+      region: "Central Sierra",
+      elevation_ft: 7050,
+      lat: 37.767,
+      lon: -119.773,
+      latest_date: "2026-03-01",
+      swe_in: 18.0,
+      pct_of_average: null,
+    },
+    // No coordinates — the layer must skip it rather than misplace it.
+    {
+      station_id: "ZZZ",
+      name: "Nowhere Meadow",
+      region: "Southern Sierra",
+      elevation_ft: 8000,
+      lat: null,
+      lon: null,
+      latest_date: "2026-03-01",
+      swe_in: 5.0,
+      pct_of_average: 40,
+    },
+  ],
 };
 
 const DROUGHT_SERIES = Array.from({ length: 10 }, (_, i) => ({
@@ -186,6 +224,33 @@ test("tapping a reservoir circle on the drought map opens its detail panel", asy
   await panel.getByRole("button", { name: /show in list/i }).click();
   const card = page.locator("article", { hasText: "Shasta Lake" });
   await expect(card.getByRole("button", { name: /hide past year/i })).toBeVisible();
+});
+
+test("tapping a snow station on the drought map opens its detail panel", async ({ page }) => {
+  await page.goto(`${BASE_URL}/water`);
+
+  const csl = page.getByRole("button", {
+    name: /Central Sierra Snow Lab snow station, 112% of average snowpack/,
+  });
+  await expect(csl).toBeVisible();
+
+  // The coordinate-less station is skipped, not misplaced.
+  await expect(page.getByRole("button", { name: /Nowhere Meadow/ })).toHaveCount(0);
+
+  await csl.click();
+  const panel = page.getByRole("group", { name: /Central Sierra Snow Lab detail/i });
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("24.6″ snow water equivalent");
+  await expect(panel).toContainText("6,900 ft");
+
+  // One selection at a time: opening a reservoir closes the station panel.
+  await page.getByRole("button", { name: /Shasta Lake, 75% of capacity/ }).click();
+  await expect(panel).toBeHidden();
+  await expect(page.getByRole("group", { name: /Shasta Lake detail/i })).toBeVisible();
+
+  // Escape clears whatever is open.
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("group", { name: /Shasta Lake detail/i })).toBeHidden();
 });
 
 test("snowpack section shows statewide headline and per-region bars", async ({ page }) => {

@@ -57,18 +57,34 @@ def upsert_stations(db) -> int:
     """Sync the snow_stations table from the static MAJOR_SNOW_STATIONS map.
 
     The static map is authoritative: every run overwrites name, elevation,
-    and region. Correct bad metadata in etl/cdec_api.py, not in the
-    database — a direct DB edit is silently clobbered on the next run.
+    region and coordinates. Correct bad metadata in etl/cdec_api.py, not in
+    the database — a direct DB edit is silently clobbered on the next run.
     """
-    rows = [
-        {
-            "station_id": station_id,
-            "name": meta["name"],
-            "elevation_ft": meta["elevation_ft"],
-            "region": meta["region"],
-        }
-        for station_id, meta in sorted(MAJOR_SNOW_STATIONS.items())
-    ]
+    rows = []
+    for station_id, meta in sorted(MAJOR_SNOW_STATIONS.items()):
+        # Station coordinates from the CDEC staMeta page, same as
+        # load_reservoirs: .get() so an entry without them loads as NULL
+        # instead of crashing the whole run (the map layer skips
+        # coordinate-less rows).
+        lat, lon = meta.get("lat"), meta.get("lon")
+        if lat is None or lon is None:
+            logger.warning(
+                "Snow station %s (%s): no staMeta coordinates in "
+                "MAJOR_SNOW_STATIONS — storing lat/lon as NULL",
+                station_id,
+                meta["name"],
+            )
+        rows.append(
+            {
+                "station_id": station_id,
+                "name": meta["name"],
+                "elevation_ft": meta["elevation_ft"],
+                "region": meta["region"],
+                "lat": lat,
+                "lon": lon,
+            }
+        )
+
     stmt = pg_insert(SnowStation).values(rows)
     stmt = stmt.on_conflict_do_update(
         index_elements=["station_id"],
@@ -76,6 +92,8 @@ def upsert_stations(db) -> int:
             "name": stmt.excluded.name,
             "elevation_ft": stmt.excluded.elevation_ft,
             "region": stmt.excluded.region,
+            "lat": stmt.excluded.lat,
+            "lon": stmt.excluded.lon,
         },
     )
     db.execute(stmt)

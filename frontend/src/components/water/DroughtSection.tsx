@@ -10,6 +10,7 @@ import {
   useDroughtSnapshot,
   type DroughtPcts,
 } from "../../hooks/useDroughtData";
+import { useSnowpack } from "../../hooks/useSnowpackData";
 import type { ReservoirCondition } from "../../hooks/useWaterData";
 
 /** USDM severity classes in draw order. "None" wears a neutral surface
@@ -71,6 +72,10 @@ export default function DroughtSection({
 }: DroughtSectionProps = {}) {
   const { data: snapshot, isLoading, isError } = useDroughtSnapshot();
   const countyNames = useCountyNames();
+  // Same query key SnowpackSection already uses up the page, so this is a
+  // cache read, not a second request. Undefined while loading or on error,
+  // which is exactly what the map's optional layer expects.
+  const { data: snowpack } = useSnowpack();
   // Fetch the trend only once we know the section will render.
   const { data: series } = useDroughtSeries(104, !!snapshot);
   const trend = (series ?? []).map(inDroughtPct);
@@ -158,6 +163,7 @@ export default function DroughtSection({
         counties={snapshot.counties}
         weekStart={snapshot.week_start}
         reservoirs={reservoirs}
+        snowStations={snowpack?.stations}
         onShowInList={onShowInList}
       />
 

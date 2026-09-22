@@ -86,6 +86,73 @@ def test_snowpack_regions_sorted(client, snow_data):
     assert regions == sorted(regions)
 
 
+def test_snowpack_exposes_per_station_coordinates(client, db_session):
+    """The map layer needs one row per reporting station, with its staMeta
+    coordinates. A station loaded before the coordinate columns existed
+    still appears — with nulls the map skips, not a missing station."""
+    db_session.add_all([
+        SnowStation(
+            station_id="CSL", name="Central Sierra Snow Lab", elevation_ft=6900,
+            region="Central Sierra", lat=39.325, lon=-120.366,
+        ),
+        # No lat/lon — the pre-migration state of every row in production.
+        SnowStation(
+            station_id="BSH", name="Bishop Pass", elevation_ft=11200,
+            region="Southern Sierra",
+        ),
+    ])
+    db_session.flush()
+    db_session.add_all([
+        SnowDaily(station_id="CSL", date=date(2025, 3, 1), swe_in=10.0),
+        SnowDaily(station_id="CSL", date=date(2026, 3, 1), swe_in=15.0),
+        SnowDaily(station_id="BSH", date=date(2026, 3, 1), swe_in=30.0),
+    ])
+    db_session.commit()
+
+    body = client.get("/api/water/snowpack").json()
+    by_id = {s["station_id"]: s for s in body["stations"]}
+    assert sorted(by_id) == ["BSH", "CSL"]
+
+    csl = by_id["CSL"]
+    assert (csl["lat"], csl["lon"]) == (pytest.approx(39.325), pytest.approx(-120.366))
+    assert csl["name"] == "Central Sierra Snow Lab"
+    assert csl["region"] == "Central Sierra"
+    assert csl["elevation_ft"] == 6900
+    assert csl["latest_date"] == "2026-03-01"
+    assert csl["swe_in"] == pytest.approx(15.0)
+    # avg over {10, 15} = 12.5 → 120%.
+    assert csl["pct_of_average"] == pytest.approx(120.0)
+
+    # BSH has one reading: present, but with no coordinates and no percent.
+    assert by_id["BSH"]["lat"] is None and by_id["BSH"]["lon"] is None
+    assert by_id["BSH"]["pct_of_average"] is None
+
+
+def test_snowpack_stations_exclude_stale_feeds(client, db_session):
+    """The station list is the same set the regional means are built from,
+    so a station dropped for staleness must not reappear on the map."""
+    db_session.add_all([
+        SnowStation(
+            station_id="CSL", name="Central Sierra Snow Lab", elevation_ft=6900,
+            region="Central Sierra", lat=39.325, lon=-120.366,
+        ),
+        SnowStation(
+            station_id="BLK", name="Blue Lakes", elevation_ft=8000,
+            region="Central Sierra", lat=38.613, lon=-119.924,
+        ),
+    ])
+    db_session.flush()
+    db_session.add_all([
+        SnowDaily(station_id="CSL", date=date(2026, 3, 1), swe_in=15.0),
+        # Offline since 2019 — excluded from the regional totals already.
+        SnowDaily(station_id="BLK", date=date(2019, 3, 1), swe_in=90.0),
+    ])
+    db_session.commit()
+
+    body = client.get("/api/water/snowpack").json()
+    assert [s["station_id"] for s in body["stations"]] == ["CSL"]
+
+
 def test_snowpack_404_without_data(client):
     assert client.get("/api/water/snowpack").status_code == 404
 

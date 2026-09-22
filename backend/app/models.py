@@ -1230,8 +1230,10 @@ class ReservoirDaily(Base):
 class SnowStation(Base):
     """CDEC snow-pillow station metadata — water module snowpack (v1).
 
-    Metadata (name, elevation, DWR region) comes from the static
-    MAJOR_SNOW_STATIONS map in etl/cdec_api.py.
+    Metadata (name, elevation, DWR region, coordinates) comes from the
+    static MAJOR_SNOW_STATIONS map in etl/cdec_api.py. As with Reservoir,
+    lat/lon (the station point from the CDEC staMeta page) are nullable so
+    a station without coordinates still loads; the map layer skips it.
 
     Source: DWR California Data Exchange Center (cdec.water.ca.gov).
     """
@@ -1242,6 +1244,8 @@ class SnowStation(Base):
     name = Column(String(100), nullable=False)
     elevation_ft = Column(Integer)
     region = Column(String(40), nullable=False)  # DWR Sierra region
+    lat = Column(Float)                                # CDEC staMeta station coordinates
+    lon = Column(Float)
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (Index("ix_snow_stations_region", "region"),)

@@ -65,11 +65,28 @@
   --drought-d4: 95 43 16;
   /* Reservoir fullness ramp (sequential blue, empty->full). Deliberately a
      different hue family from the drought ramp so the two overlaid layers
-     never read as one scale. */
+     never read as one scale. Measured against the light surface at the
+     0.92 fill opacity the dots are drawn with: min adjacent-step CIEDE2000
+     10.56, and 36.50 from the nearest drought step, both taken as the
+     worst case over normal vision and Machado-2009 full deuteranopia,
+     protanopia and tritanopia. (The drought ramp itself scores 9.39
+     adjacent on this surface under the same method.) */
   --reservoir-r0: 190 219 240;
   --reservoir-r1: 126 178 219;
   --reservoir-r2: 60 130 183;
   --reservoir-r3: 19 78 128;
+  /* Snow-station ramp (sequential violet, dry->deep) for percent of
+     average snow water equivalent. Third hue family on the same map: min
+     adjacent-step CIEDE2000 11.47 and 16.87 from the nearest drought step,
+     same worst-case method. It closes to 6.01 against the reservoir blues
+     under full deuteranopia — under red-green CVD a third hue cannot stay
+     far from both an orange and a blue ramp — which is why the snow marks
+     are diamonds and the reservoirs circles: the layers separate by shape,
+     not by colour. */
+  --snow-s0: 222 191 255;
+  --snow-s1: 178 134 237;
+  --snow-s2: 131 81 209;
+  --snow-s3: 80 38 155;
   --on-secondary-fixed: 61 63 68;
   --tertiary-fixed: 220 221 254;
   --primary-fixed: 220 227 242;
@@ -154,11 +171,19 @@
   --drought-d2: 201 123 49;
   --drought-d3: 168 86 35;
   --drought-d4: 131 64 30;
-  /* Reservoir ramp, dark-mode steps (lifted to read on the dark surface) */
+  /* Reservoir ramp, dark-mode steps (lifted to read on the dark surface).
+     Same measurement against the dark surface: min adjacent 11.60, min
+     31.97 from the drought steps. */
   --reservoir-r0: 205 229 245;
   --reservoir-r1: 141 190 227;
   --reservoir-r2: 79 149 199;
   --reservoir-r3: 43 105 158;
+  /* Snow ramp, dark-mode steps (lifted likewise). Min adjacent 12.99, min
+     12.64 from the drought steps, min 5.71 from the reservoir steps. */
+  --snow-s0: 233 203 255;
+  --snow-s1: 190 145 249;
+  --snow-s2: 142 91 220;
+  --snow-s3: 91 48 166;
   --on-secondary-fixed: 213 214 220;
   --tertiary-fixed: 62 63 90;
   --primary-fixed: 58 65 80;

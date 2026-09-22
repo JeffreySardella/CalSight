@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCountyGeoJson } from "../../hooks/useCountyGeoJson";
 import { inDroughtPct, type DroughtCounty } from "../../hooks/useDroughtData";
+import type { SnowStationCondition } from "../../hooks/useSnowpackData";
 import { formatAcreFeet, type ReservoirCondition } from "../../hooks/useWaterData";
 
 /** Bins for percent-of-county-in-drought (D1+), reusing the validated
@@ -44,6 +45,45 @@ export function fillForReservoirPct(pct: number): string {
     if (pct >= bin.min && pct < bin.max) return bin.color;
   }
   return RESERVOIR_BINS[0].color;
+}
+
+/** Snow-station ramp — percent of the day-of-year average SWE. A third
+ * hue family (violet), and the marks are diamonds rather than circles:
+ * under red-green CVD no third hue stays far from both the orange drought
+ * ramp and the blue reservoir ramp, so the layers separate by shape. See
+ * the --snow-s0..s3 comment in index.css for the measured separations. */
+const SNOW_BINS = [
+  { min: 0, max: 50, color: "rgb(var(--snow-s0))", label: "<50%" },
+  { min: 50, max: 100, color: "rgb(var(--snow-s1))", label: "50–100%" },
+  { min: 100, max: 150, color: "rgb(var(--snow-s2))", label: "100–150%" },
+  { min: 150, max: Infinity, color: "rgb(var(--snow-s3))", label: "150%+" },
+] as const;
+// Stations that report SWE but have no usable baseline (<2 years of
+// history, or a deep-summer average too small to divide by) still belong
+// on the map — they just carry no value, like a no-data county.
+const SNOW_NO_PCT_FILL = "rgb(var(--surface-container-highest))";
+
+export function fillForSnowPct(pct: number | null): string {
+  if (pct === null) return SNOW_NO_PCT_FILL;
+  for (const bin of SNOW_BINS) {
+    if (pct >= bin.min && pct < bin.max) return bin.color;
+  }
+  return SNOW_BINS[SNOW_BINS.length - 1].color;
+}
+
+// Snow marks are one fixed size: percent of average is the only value
+// encoded, and there are up to 110 stations packed along the Sierra, so a
+// magnitude-sized mark would only add overlap. R is the half-diagonal.
+const SNOW_R = 5;
+// Smaller hit padding than the reservoirs' MIN_HIT_R: with 110 stations in
+// a narrow band, 15-unit hit circles would bury each other and make the
+// small ones unreachable. ponytail: fixed padding, revisit with a
+// zoom/cluster interaction if per-station tapping proves too fiddly.
+const SNOW_HIT_R = 9;
+
+/** Diamond centred on (cx, cy) with half-diagonal r. */
+function diamondPoints(cx: number, cy: number, r: number): string {
+  return `${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`;
 }
 
 // Area (not radius) carries capacity, so the radius is a sqrt scale. The
@@ -128,25 +168,33 @@ interface DroughtMapProps {
   /** Optional overlay. Undefined while the reservoir query loads or after
    *  it fails — the choropleth renders on its own either way. */
   reservoirs?: ReservoirCondition[];
+  /** Optional overlay, same contract as `reservoirs`: undefined while the
+   *  snowpack query loads or after it fails, and the map is unchanged. */
+  snowStations?: SnowStationCondition[];
   /** Jumps to (and expands) the selected reservoir's card up the page. */
   onShowInList?: (stationId: string) => void;
 }
 
+/** One selection across both overlays — picking a snow station clears a
+ *  selected reservoir and vice versa. */
+type Selection = { layer: "reservoir" | "snow"; id: string };
+
 /**
  * Inline-SVG choropleth of drought share (D1+) per county, with an
- * optional reservoir layer on top. Tile-free and dependency-free:
- * counties come from the same topojson the main map ships, projected with
- * a simple state-scale approximation, and reservoirs ride the very same
- * projector so the two layers cannot drift apart.
+ * optional reservoir and snow-station layers on top. Tile-free and
+ * dependency-free: counties come from the same topojson the main map
+ * ships, projected with a simple state-scale approximation, and both
+ * point layers ride the very same projector so they cannot drift apart.
  */
 export default function DroughtMap({
   counties,
   weekStart,
   reservoirs,
+  snowStations,
   onShowInList,
 }: DroughtMapProps) {
   const { data: geojson } = useCountyGeoJson();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Selection | null>(null);
 
   const byCode = useMemo(
     () => new Map(counties.map((c) => [c.county_code, c])),
@@ -194,23 +242,50 @@ export default function DroughtMap({
       .sort((a, b) => b.r - a.r);
   }, [project, reservoirs]);
 
-  const selected = dots.find((d) => d.reservoir.station_id === selectedId)?.reservoir;
+  const marks = useMemo(() => {
+    if (!project || !snowStations?.length) return [];
+    // Stations synced before the coordinate columns existed have no lat/lon.
+    return snowStations
+      .filter((s) => s.lat !== null && s.lon !== null)
+      .map((s) => {
+        const [cx, cy] = project([s.lon as number, s.lat as number]);
+        return { cx, cy, station: s };
+      })
+      // North first, so the overlapping hit areas resolve the same way on
+      // every render rather than following payload order.
+      .sort((a, b) => a.cy - b.cy);
+  }, [project, snowStations]);
+
+  const selectedReservoir =
+    selected?.layer === "reservoir"
+      ? dots.find((d) => d.reservoir.station_id === selected.id)?.reservoir
+      : undefined;
+  const selectedStation =
+    selected?.layer === "snow"
+      ? marks.find((m) => m.station.station_id === selected.id)?.station
+      : undefined;
 
   // Escape must clear the selection from anywhere — the detail panel takes
-  // focus off the circle, so a key handler on the circle alone wouldn't do.
+  // focus off the mark, so a key handler on the mark alone wouldn't do.
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selected) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedId(null);
+      if (e.key === "Escape") setSelected(null);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [selectedId]);
+  }, [selected]);
 
   if (!paths) return null;
   const hasNoData = paths.some((p) => p.noData);
-  const toggle = (stationId: string) =>
-    setSelectedId((cur) => (cur === stationId ? null : stationId));
+  const isSelected = (layer: Selection["layer"], id: string) =>
+    selected?.layer === layer && selected.id === id;
+  // Selecting in either layer replaces whatever was selected in the other,
+  // so only one detail panel is ever open.
+  const toggle = (layer: Selection["layer"], id: string) =>
+    setSelected((cur) =>
+      cur?.layer === layer && cur.id === id ? null : { layer, id },
+    );
 
   return (
     <figure className="flex flex-col items-center mt-12">
@@ -248,7 +323,7 @@ export default function DroughtMap({
           ))}
         </g>
         {dots.map((d) => {
-          const isSelected = d.reservoir.station_id === selectedId;
+          const on = isSelected("reservoir", d.reservoir.station_id);
           return (
             <g key={d.reservoir.station_id}>
               {/* Halo: whichever theme/county fill kills the ring's
@@ -270,7 +345,7 @@ export default function DroughtMap({
                 fill={fillForReservoirPct(d.reservoir.pct_of_capacity)}
                 fillOpacity={0.92}
                 stroke="rgb(var(--inverse-surface))"
-                strokeWidth={isSelected ? 3 : 1.25}
+                strokeWidth={on ? 3 : 1.25}
                 pointerEvents="none"
               />
               <circle
@@ -283,13 +358,61 @@ export default function DroughtMap({
                 className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
                 role="button"
                 tabIndex={0}
-                aria-pressed={isSelected}
+                aria-pressed={on}
                 aria-label={`${d.reservoir.name}, ${d.reservoir.pct_of_capacity.toFixed(0)}% of capacity`}
-                onClick={() => toggle(d.reservoir.station_id)}
+                onClick={() => toggle("reservoir", d.reservoir.station_id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    toggle(d.reservoir.station_id);
+                    toggle("reservoir", d.reservoir.station_id);
+                  }
+                }}
+              />
+            </g>
+          );
+        })}
+        {marks.map((m) => {
+          const on = isSelected("snow", m.station.station_id);
+          const pct = m.station.pct_of_average;
+          return (
+            <g key={m.station.station_id}>
+              {/* Same halo trick as the reservoir dots: a surface-colored
+                  outline survives whatever county fill sits underneath. */}
+              <polygon
+                points={diamondPoints(m.cx, m.cy, SNOW_R)}
+                fill="none"
+                stroke="rgb(var(--surface))"
+                strokeWidth={3}
+                pointerEvents="none"
+              />
+              <polygon
+                data-testid={`snow-mark-${m.station.station_id}`}
+                points={diamondPoints(m.cx, m.cy, SNOW_R)}
+                fill={fillForSnowPct(pct)}
+                fillOpacity={0.92}
+                stroke="rgb(var(--inverse-surface))"
+                strokeWidth={on ? 2.5 : 1}
+                pointerEvents="none"
+              />
+              <circle
+                cx={m.cx}
+                cy={m.cy}
+                r={SNOW_HIT_R}
+                fill="transparent"
+                className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                role="button"
+                tabIndex={0}
+                aria-pressed={on}
+                aria-label={`${m.station.name} snow station, ${
+                  pct !== null
+                    ? `${pct.toFixed(0)}% of average snowpack`
+                    : "no snowpack comparison available"
+                }`}
+                onClick={() => toggle("snow", m.station.station_id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggle("snow", m.station.station_id);
                   }
                 }}
               />
@@ -298,46 +421,87 @@ export default function DroughtMap({
         })}
       </svg>
 
-      {selected && (
+      {selectedReservoir && (
         <div
           role="group"
-          aria-label={`${selected.name} detail`}
+          aria-label={`${selectedReservoir.name} detail`}
           className="w-full max-w-[400px] mt-4 bg-surface-container-lowest rounded-2xl p-4"
         >
           <div className="flex items-baseline justify-between gap-3">
             <h4 className="font-headline font-bold text-on-surface leading-tight">
-              {selected.name}
+              {selectedReservoir.name}
             </h4>
             <button
               type="button"
-              onClick={() => setSelectedId(null)}
+              onClick={() => setSelected(null)}
               className="text-xs text-on-surface-variant hover:text-on-surface transition-colors shrink-0"
             >
               Close
             </button>
           </div>
           <p className="text-2xl font-headline font-bold text-on-surface tracking-tight mt-2">
-            {selected.pct_of_capacity.toFixed(0)}
+            {selectedReservoir.pct_of_capacity.toFixed(0)}
             <span className="text-base text-on-surface-variant">% of capacity</span>
           </p>
           <p className="text-xs text-on-surface-variant mt-1">
-            {formatAcreFeet(selected.storage_af)} of{" "}
-            {formatAcreFeet(selected.capacity_af)} acre-feet · {selected.latest_date}
+            {formatAcreFeet(selectedReservoir.storage_af)} of{" "}
+            {formatAcreFeet(selectedReservoir.capacity_af)} acre-feet ·{" "}
+            {selectedReservoir.latest_date}
           </p>
-          {selected.pct_of_average !== null && (
+          {selectedReservoir.pct_of_average !== null && (
             <p className="text-xs text-on-surface-variant mt-1">
-              {selected.pct_of_average.toFixed(0)}% of average for this date
+              {selectedReservoir.pct_of_average.toFixed(0)}% of average for this date
             </p>
           )}
           {onShowInList && (
             <button
               type="button"
-              onClick={() => onShowInList(selected.station_id)}
+              onClick={() => onShowInList(selectedReservoir.station_id)}
               className="mt-2 min-h-[44px] inline-flex items-center text-xs font-medium text-primary hover:opacity-80 transition-opacity"
             >
               Show in list
             </button>
           )}
+        </div>
+      )}
+
+      {selectedStation && (
+        <div
+          role="group"
+          aria-label={`${selectedStation.name} detail`}
+          className="w-full max-w-[400px] mt-4 bg-surface-container-lowest rounded-2xl p-4"
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <h4 className="font-headline font-bold text-on-surface leading-tight">
+              {selectedStation.name}
+            </h4>
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="text-xs text-on-surface-variant hover:text-on-surface transition-colors shrink-0"
+            >
+              Close
+            </button>
+          </div>
+          {selectedStation.pct_of_average !== null ? (
+            <p className="text-2xl font-headline font-bold text-on-surface tracking-tight mt-2">
+              {selectedStation.pct_of_average.toFixed(0)}
+              <span className="text-base text-on-surface-variant">% of average</span>
+            </p>
+          ) : (
+            <p className="text-xs text-on-surface-variant mt-2">
+              Not enough history here for a percent of average.
+            </p>
+          )}
+          <p className="text-xs text-on-surface-variant mt-1">
+            {selectedStation.swe_in.toFixed(1)}″ snow water equivalent ·{" "}
+            {selectedStation.latest_date}
+          </p>
+          <p className="text-xs text-on-surface-variant mt-1">
+            {selectedStation.region}
+            {selectedStation.elevation_ft !== null &&
+              ` · ${selectedStation.elevation_ft.toLocaleString()} ft`}
+          </p>
         </div>
       )}
 
@@ -393,6 +557,36 @@ export default function DroughtMap({
             </ul>
             <p className="text-[10px] text-on-surface-variant uppercase tracking-widest text-center mt-2">
               Reservoirs · circle size = capacity, color = % full
+            </p>
+          </>
+        )}
+
+        {marks.length > 0 && (
+          <>
+            <ul
+              aria-label="Map legend: snow stations"
+              className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-4"
+            >
+              {[...SNOW_BINS, { color: SNOW_NO_PCT_FILL, label: "No average" }].map(
+                (bin) => (
+                  <li
+                    key={bin.label}
+                    className="flex items-center gap-1.5 text-[10px] text-on-surface-variant uppercase tracking-wider"
+                  >
+                    {/* Rotated square = the diamond mark on the map, so the
+                        legend keys shape as well as color. */}
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-2 h-2 rotate-45 border border-inverse-surface"
+                      style={{ background: bin.color }}
+                    />
+                    {bin.label}
+                  </li>
+                ),
+              )}
+            </ul>
+            <p className="text-[10px] text-on-surface-variant uppercase tracking-widest text-center mt-2">
+              Snow stations · diamond color = % of average snowpack
             </p>
           </>
         )}

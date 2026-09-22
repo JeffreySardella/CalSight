@@ -3,6 +3,7 @@ Mocked session, matching the other loader suites."""
 
 from collections import Counter
 from datetime import date, timedelta
+from unittest import mock
 from unittest.mock import MagicMock
 
 from etl.cdec_api import (
@@ -13,6 +14,7 @@ from etl.cdec_api import (
     SNOW_REGION_SOUTH,
     Observation,
 )
+from etl import load_snowpack as mod
 from etl.load_snowpack import (
     BATCH_SIZE,
     MAX_PLAUSIBLE_SWE_IN,
@@ -59,6 +61,53 @@ class TestUpsertStations:
     def test_covers_all_three_regions(self):
         regions = {m["region"] for m in MAJOR_SNOW_STATIONS.values()}
         assert len(regions) == 3
+
+    def test_carries_station_coordinates(self):
+        # CSL's staMeta coordinates travel with the upsert row, same as the
+        # reservoir loader's.
+        db = MagicMock()
+        upsert_stations(db)
+        values = db.execute.call_args.args[0].compile().params
+        csl = MAJOR_SNOW_STATIONS["CSL"]
+        assert csl["lat"] in values.values()
+        assert csl["lon"] in values.values()
+
+    def test_station_without_coordinates_loads_as_null_and_warns(self):
+        # A future map entry added without staMeta coordinates must not fail
+        # the job — it stores NULLs and logs one warning naming the station.
+        # The module logger is patched rather than read through caplog:
+        # other suites reconfigure logging, which empties caplog here.
+        db = MagicMock()
+        patched = dict(MAJOR_SNOW_STATIONS)
+        patched["ZZZ"] = {
+            "name": "No Coords",
+            "elevation_ft": 1234,
+            "region": SNOW_REGION_NORTH,
+        }
+        with mock.patch.dict(mod.MAJOR_SNOW_STATIONS, patched, clear=True):
+            with mock.patch.object(mod.logger, "warning") as warn:
+                count = upsert_stations(db)
+
+        assert count == len(MAJOR_SNOW_STATIONS) + 1
+        # Exactly one warning — only the coordinate-less station — naming it.
+        assert warn.call_count == 1
+        message = warn.call_args.args[0] % warn.call_args.args[1:]
+        assert "ZZZ" in message and "NULL" in message
+
+        # The row still goes out, with NULL coordinates rather than dropped.
+        values = db.execute.call_args.args[0].compile().params
+        assert "ZZZ" in values.values()
+        assert None in values.values()
+
+    def test_every_station_has_plausible_coordinates(self):
+        # Coordinates come from each station's CDEC staMeta page; a typo'd
+        # or swapped lat/lon would drop a marker into the ocean or Utah.
+        # The east edge is generous on purpose: DWR tracks three Tahoe-basin
+        # sensors (BMW, MRL, MSK) that sit just inside Nevada.
+        for station_id, meta in MAJOR_SNOW_STATIONS.items():
+            lat, lon = meta["lat"], meta["lon"]
+            assert 32.5 <= lat <= 42.0, f"{station_id}: lat {lat} implausible"
+            assert -124.5 <= lon <= -118.0, f"{station_id}: lon {lon} implausible"
 
     def test_matches_dwr_official_station_lists(self):
         # Pinned to CDEC's sweq.action "Stations included" as of 2026-09-12
