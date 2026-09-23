@@ -1,4 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import {
+  AttributionControl,
+  MapContainer,
+  Pane,
+  SVGOverlay,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
+import type { LatLngBoundsExpression, Map as LeafletMap } from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { useIsDark } from "../../context/ThemeContext";
 import { useCountyGeoJson } from "../../hooks/useCountyGeoJson";
 import { inDroughtPct, type DroughtCounty } from "../../hooks/useDroughtData";
 import type {
@@ -6,6 +18,8 @@ import type {
   SnowStationCondition,
 } from "../../hooks/useSnowpackData";
 import { formatAcreFeet, type ReservoirCondition } from "../../hooks/useWaterData";
+import { prefersReducedMotionNow, scrollBehavior } from "../../lib/a11y/motion";
+import { BASEMAPS, TILE_ERROR_LIMIT } from "../../lib/map/basemaps";
 import { isMeltSeason } from "./SnowpackSection";
 
 /** Bins for percent-of-county-in-drought (D1+), reusing the validated
@@ -25,6 +39,9 @@ const NO_DATA_PATTERN_ID = "drought-no-data";
 const NO_DATA_FILL = `url(#${NO_DATA_PATTERN_ID})`;
 const NO_DATA_STRIPE = "rgb(var(--on-surface-variant) / 0.35)";
 const NO_DATA_LEGEND_BG = `repeating-linear-gradient(45deg, rgb(var(--surface-container-highest)) 0 2px, rgb(var(--on-surface-variant) / 0.35) 2px 3px)`;
+// Just short of opaque so the basemap's roads and water read through the
+// choropleth once zoomed in, without washing out the ramp.
+const COUNTY_FILL_OPACITY = 0.85;
 
 export function fillForDroughtShare(pct: number): string {
   if (pct < 0.5) return NO_DROUGHT_FILL;
@@ -75,18 +92,21 @@ export function fillForSnowPct(pct: number | null): string {
   return SNOW_BINS[SNOW_BINS.length - 1].color;
 }
 
+// Every size below is in screen pixels, and holds at every zoom: the
+// overlay converts to its own units with the current zoom, so zooming in
+// spreads the marks apart instead of blowing them up.
+//
 // Snow marks are one fixed size: percent of average is the only value
 // encoded, and there are up to 110 stations packed along the Sierra, so a
 // magnitude-sized mark would only add overlap. R is the half-diagonal.
 const SNOW_R = 5;
-// Stations are texture, not targets. Measured on production at 375px the
-// SVG renders 324px wide, and the 107 marks have a median nearest-neighbour
-// distance of 4px — 100 of them have another mark within 12px. No hit-target
-// size makes an individual station tappable at that density, so interaction
-// lives one level up, at the DWR region.
+// Stations are texture, not targets. At the statewide view on a 375px phone
+// the 107 marks have a median nearest-neighbour distance of ~4px — 100 of
+// them have another mark within 12px. No hit-target size makes an individual
+// station tappable at that density, so interaction lives one level up, at
+// the DWR region.
 const REGION_PAD = 6;
-// A one-station region still needs a finger: 18 units ≈ 29px across on a
-// 375px phone.
+// A one-station region still needs a finger.
 const REGION_MIN_R = 18;
 // How far from a tap we will still claim a station. Region circles overlap
 // heavily along the Sierra, so the nearest-station rule — not the stacking
@@ -115,12 +135,11 @@ function diamondPoints(cx: number, cy: number, r: number): string {
 }
 
 // Area (not radius) carries capacity, so the radius is a sqrt scale. The
-// floor keeps the smallest reservoirs above a finger-sized tap target even
+// floor keeps the smallest reservoirs visible at the statewide view even
 // though that breaks strict proportionality down there.
 const MIN_R = 6;
 const MAX_R = 16;
-// The map shrinks to ~327px on a 375px phone, so a 6-unit dot renders at
-// ~11px across — far under a finger. A transparent hit circle carries the
+// A 6px dot is far under a finger. A transparent hit circle carries the
 // interaction instead, leaving the visible radius free to mean capacity.
 const MIN_HIT_R = 15;
 
@@ -128,10 +147,6 @@ function radiusForCapacity(capacityAf: number, maxCapacityAf: number): number {
   if (maxCapacityAf <= 0) return MIN_R;
   return Math.max(MIN_R, MAX_R * Math.sqrt(capacityAf / maxCapacityAf));
 }
-
-const WIDTH = 400;
-const HEIGHT = 460;
-const PAD = 8;
 
 type Ring = number[][];
 
@@ -145,9 +160,30 @@ function* rings(geometry: GeoJSON.Geometry): Generator<Ring> {
   }
 }
 
-/** Plate-carrée projection with a cosine longitude correction — fine for
- * a small single-state inset map (no d3-geo dependency needed). */
-function buildProjector(features: GeoJSON.Feature[]) {
+// The overlay's user space is Web Mercator pixels at REF_ZOOM — the
+// projection the basemap tiles are drawn in, so every county edge and mark
+// sits exactly on its tile. Leaflet stretches that space to the live zoom
+// (and animates it through pinches), so the paths are projected only once.
+// At zoom 8 California is ~2,000 units wide: one decimal is sub-pixel all
+// the way to MAX_ZOOM.
+export const REF_ZOOM = 8;
+
+/** EPSG:3857 pixel coordinates at REF_ZOOM — Leaflet's own formula, inlined
+ * so the projection needs no map instance. */
+function mercator([lon, lat]: number[]): [number, number] {
+  const size = 256 * 2 ** REF_ZOOM;
+  const sin = Math.sin((lat * Math.PI) / 180);
+  return [
+    ((lon + 180) / 360) * size,
+    (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size,
+  ];
+}
+
+// Margin around the counties' bounding box, in degrees, so marks on the
+// state line are not clipped by the overlay's own edge.
+const OVERLAY_PAD_DEG = 0.3;
+
+function buildProjection(features: GeoJSON.Feature[]) {
   let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
   for (const f of features) {
     for (const ring of rings(f.geometry)) {
@@ -159,15 +195,24 @@ function buildProjector(features: GeoJSON.Feature[]) {
       }
     }
   }
-  const midLat = (minLat + maxLat) / 2;
-  const lonScale = Math.cos((midLat * Math.PI) / 180);
-  const spanX = (maxLon - minLon) * lonScale;
-  const spanY = maxLat - minLat;
-  const k = Math.min((WIDTH - 2 * PAD) / spanX, (HEIGHT - 2 * PAD) / spanY);
-  return ([lon, lat]: number[]): [number, number] => [
-    PAD + (lon - minLon) * lonScale * k,
-    PAD + (maxLat - lat) * k,
-  ];
+  minLon -= OVERLAY_PAD_DEG;
+  maxLon += OVERLAY_PAD_DEG;
+  minLat -= OVERLAY_PAD_DEG;
+  maxLat += OVERLAY_PAD_DEG;
+  const [x0, y0] = mercator([minLon, maxLat]);
+  const [x1, y1] = mercator([maxLon, minLat]);
+  return {
+    project: (c: number[]): [number, number] => {
+      const [x, y] = mercator(c);
+      return [x - x0, y - y0];
+    },
+    width: x1 - x0,
+    height: y1 - y0,
+    bounds: [
+      [minLat, minLon],
+      [maxLat, maxLon],
+    ] as LatLngBoundsExpression,
+  };
 }
 
 function featurePath(
@@ -189,6 +234,24 @@ function featurePath(
   }
   return parts.join("");
 }
+
+// Opening frame: the whole state, whatever the viewport's shape.
+const CA_BOUNDS: LatLngBoundsExpression = [
+  [32.5, -124.45],
+  [42.0, -114.13],
+];
+// Panning stops a little past the state line rather than wandering off
+// into Nevada or the Pacific.
+const MAX_BOUNDS: LatLngBoundsExpression = [
+  [30.5, -127.5],
+  [44.0, -111.0],
+];
+const MIN_ZOOM = 5;
+// Deep enough that the Sierra stations sit well apart; the data layers have
+// nothing finer to show past it.
+const MAX_ZOOM = 12;
+// How long the "use two fingers" hint stays up after a one-finger drag.
+const HINT_MS = 1500;
 
 interface DroughtMapProps {
   counties: DroughtCounty[];
@@ -213,12 +276,315 @@ interface DroughtMapProps {
  *  selected reservoir and vice versa. */
 type Selection = { layer: "reservoir" | "region"; id: string };
 
+type CountyPath = { key: string | number; d: string; noData: boolean; fill: string; title: string };
+type Dot = { r: number; cx: number; cy: number; reservoir: ReservoirCondition };
+type Mark = { cx: number; cy: number; station: SnowStationCondition };
+type Region = {
+  region: string;
+  cx: number;
+  cy: number;
+  /** Spread of the region's stations from its centre, in overlay units. */
+  far: number;
+  located: number;
+  api: RegionSnowpack | undefined;
+};
+
+/** Hands the Leaflet map to the zoom buttons, which live outside the map
+ *  container so their taps never reach Leaflet's drag and double-click
+ *  handlers. Also names the container: Leaflet makes it focusable (arrow
+ *  keys pan) but gives it no role or label. */
+function MapReady({ onReady }: { onReady: (map: LeafletMap) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    el.setAttribute("role", "region");
+    el.setAttribute(
+      "aria-label",
+      "Interactive map of California drought, reservoirs and snowpack. Arrow keys pan, plus and minus zoom.",
+    );
+    onReady(map);
+  }, [map, onReady]);
+  return null;
+}
+
+interface OverlayProps {
+  paths: CountyPath[];
+  dots: Dot[];
+  marks: Mark[];
+  regions: Region[];
+  weekStart: string;
+  isSelected: (layer: Selection["layer"], id: string) => boolean;
+  toggle: (layer: Selection["layer"], id: string) => void;
+}
+
 /**
- * Inline-SVG choropleth of drought share (D1+) per county, with an
- * optional reservoir and snow-station layers on top. Tile-free and
- * dependency-free: counties come from the same topojson the main map
- * ships, projected with a simple state-scale approximation, and both
- * point layers ride the very same projector so they cannot drift apart.
+ * The drawn layers, rendered into Leaflet's SVG overlay. Positions are in
+ * REF_ZOOM units and never change; sizes are pixels divided by the current
+ * scale, so they are recomputed (cheaply — no county path is touched) on
+ * every zoomend. Strokes are non-scaling, so they are pixels already.
+ */
+function DroughtLayers({ paths, dots, marks, regions, weekStart, isSelected, toggle }: OverlayProps) {
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  // Overlay units per screen pixel at the settled zoom.
+  const u = 2 ** (REF_ZOOM - zoom);
+  // Where the pointer went down, so a click that ends a mouse drag of the
+  // map is not also read as a tap on whatever it was released over.
+  const downAt = useRef<[number, number] | null>(null);
+
+  /** A click's position in overlay units, plus overlay units per client
+   *  pixel as actually rendered — measured, not derived from `zoom`, so it
+   *  stays right mid-animation. */
+  const locate = (e: MouseEvent<Element>) => {
+    const svg = (e.currentTarget as Element).closest("svg");
+    const rect = svg?.getBoundingClientRect();
+    const vbWidth = Number(svg?.getAttribute("viewBox")?.split(" ")[2]);
+    if (!rect?.width || !vbWidth) return null;
+    const k = vbWidth / rect.width;
+    return { x: (e.clientX - rect.left) * k, y: (e.clientY - rect.top) * k, k };
+  };
+
+  /** The region of the located station nearest a tap, or null when the tap
+   *  landed on bare map. Region circles overlap along the Sierra, so this —
+   *  not which circle happens to be on top — decides the selection. */
+  const nearestRegion = (e: MouseEvent<Element>): string | null => {
+    const at = locate(e);
+    if (!at) return null;
+    let best: string | null = null;
+    let bestD = REGION_TAP_R * at.k;
+    for (const m of marks) {
+      const d = Math.hypot(m.cx - at.x, m.cy - at.y);
+      if (d < bestD) {
+        bestD = d;
+        best = m.station.region;
+      }
+    }
+    return best;
+  };
+
+  /** Same idea, for reservoirs: dots are drawn biggest-first so the small
+   *  ones stay on top and tappable, but that also means a big reservoir's
+   *  hit circle can sit *under* a smaller one drawn later (Shasta under
+   *  Trinity). Resolving every reservoir tap to the nearest centre — rather
+   *  than trusting which hit circle happens to be topmost — makes every
+   *  reservoir tappable at its own centre regardless of draw order. */
+  const nearestReservoir = (e: MouseEvent<Element>): string | null => {
+    const at = locate(e);
+    if (!at) return null;
+    let best: string | null = null;
+    let bestD = Infinity;
+    for (const d of dots) {
+      const dist = Math.hypot(d.cx - at.x, d.cy - at.y);
+      // Only reservoirs whose own hit circle contains the tap compete. A
+      // click a screen reader or keyboard synthesises can report (0, 0);
+      // without this bound it resolved to whichever reservoir sits nearest
+      // the map's corner instead of the focused one (callers fall back to
+      // the circle that received the click when this returns null).
+      if (dist > Math.max(d.r, MIN_HIT_R) * at.k) continue;
+      if (dist < bestD) {
+        bestD = dist;
+        best = d.reservoir.station_id;
+      }
+    }
+    return best;
+  };
+
+  const dragged = (e: MouseEvent<Element>) =>
+    !!downAt.current &&
+    Math.hypot(e.clientX - downAt.current[0], e.clientY - downAt.current[1]) > 6;
+
+  return (
+    // Leaflet's CSS takes pointer events off image overlays and their
+    // paths (it expects a plain picture); this layer is interactive, so it
+    // opts back in here and on each county path.
+    <g
+      style={{ pointerEvents: "auto" }}
+      onPointerDown={(e: PointerEvent<Element>) => {
+        downAt.current = [e.clientX, e.clientY];
+      }}
+      // A tap anywhere on the map picks the nearest station's region, so
+      // the dense Sierra cluster is reachable without aiming. Buttons
+      // (reservoir dots, region circles) run their own handler instead.
+      onClick={(e) => {
+        if (dragged(e)) return;
+        if ((e.target as Element).closest('[role="button"]')) return;
+        const region = nearestRegion(e);
+        if (region) toggle("region", region);
+      }}
+    >
+      <defs>
+        <pattern
+          id={NO_DATA_PATTERN_ID}
+          width={5 * u}
+          height={5 * u}
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <rect width={5 * u} height={5 * u} fill={NO_DROUGHT_FILL} />
+          <line x1={0} y1={0} x2={0} y2={5 * u} stroke={NO_DATA_STRIPE} strokeWidth={1.5 * u} />
+        </pattern>
+      </defs>
+      {/* The choropleth is one labeled image; the role lives on the group
+          rather than the <svg> so the reservoir buttons below it stay in
+          the accessibility tree (role="img" makes descendants
+          presentational). */}
+      <g
+        role="img"
+        aria-label={`Map of California counties shaded by share of land in drought for the week of ${weekStart}. Details per county are in the hardest-hit list below.`}
+      >
+        {paths.map((p) => (
+          <path
+            key={p.key}
+            d={p.d}
+            fill={p.fill}
+            fillOpacity={COUNTY_FILL_OPACITY}
+            stroke="rgb(var(--surface))"
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+            style={{ pointerEvents: "auto" }}
+          >
+            <title>{p.title}</title>
+          </path>
+        ))}
+      </g>
+      {/* Stations are texture: colour carries percent of average, and
+          nothing here is focusable or tappable — 107 marks at a 4px
+          median spacing cannot each be a target. */}
+      <g aria-hidden="true" pointerEvents="none">
+        {marks.map((m) => (
+          <g key={m.station.station_id}>
+            {/* Same halo trick as the reservoir dots: a surface-colored
+                outline survives whatever county fill sits underneath. */}
+            <polygon
+              points={diamondPoints(m.cx, m.cy, SNOW_R * u)}
+              fill="none"
+              stroke="rgb(var(--surface))"
+              strokeWidth={3}
+              vectorEffect="non-scaling-stroke"
+            />
+            <polygon
+              data-testid={`snow-mark-${m.station.station_id}`}
+              points={diamondPoints(m.cx, m.cy, SNOW_R * u)}
+              fill={fillForSnowPct(m.station.pct_of_average)}
+              fillOpacity={0.92}
+              stroke="rgb(var(--inverse-surface))"
+              // The selected region's stations wear a heavier outline so
+              // the user can see which cluster they picked.
+              strokeWidth={isSelected("region", m.station.region) ? 2.5 : 1}
+              vectorEffect="non-scaling-stroke"
+            />
+          </g>
+        ))}
+      </g>
+      {/* Region hit targets sit under the reservoir dots, so a tap that
+          lands on a reservoir still belongs to the reservoir. */}
+      {regions.map((g) => {
+        const { pct, label } = regionPct(g.api);
+        return (
+          <circle
+            key={g.region}
+            data-testid={`snow-region-${g.region}`}
+            cx={g.cx}
+            cy={g.cy}
+            r={Math.max(g.far + REGION_PAD * u, REGION_MIN_R * u)}
+            fill="transparent"
+            className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected("region", g.region)}
+            aria-label={`${g.region} snowpack, ${
+              pct !== null ? `${pct.toFixed(0)}% of ${label}` : "no comparison available"
+            }, ${g.located} station${g.located === 1 ? "" : "s"}`}
+            // Even a tap inside this circle defers to the nearest station,
+            // so overlapping regions resolve the same way everywhere.
+            onClick={(e) => {
+              if (dragged(e)) return;
+              toggle("region", nearestRegion(e) ?? g.region);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggle("region", g.region);
+              }
+            }}
+          />
+        );
+      })}
+      {dots.map((d) => {
+        const on = isSelected("reservoir", d.reservoir.station_id);
+        return (
+          <g key={d.reservoir.station_id}>
+            {/* Halo: whichever theme/county fill kills the ring's
+                contrast, the surface-colored halo under it survives. */}
+            <circle
+              cx={d.cx}
+              cy={d.cy}
+              r={d.r * u}
+              fill="none"
+              stroke="rgb(var(--surface))"
+              strokeWidth={3}
+              vectorEffect="non-scaling-stroke"
+              pointerEvents="none"
+            />
+            <circle
+              data-testid={`reservoir-dot-${d.reservoir.station_id}`}
+              cx={d.cx}
+              cy={d.cy}
+              r={d.r * u}
+              fill={fillForReservoirPct(d.reservoir.pct_of_capacity)}
+              fillOpacity={0.92}
+              stroke="rgb(var(--inverse-surface))"
+              strokeWidth={on ? 3 : 1.25}
+              vectorEffect="non-scaling-stroke"
+              pointerEvents="none"
+            />
+            <circle
+              cx={d.cx}
+              cy={d.cy}
+              r={Math.max(d.r, MIN_HIT_R) * u}
+              fill="transparent"
+              // The default ring also fires on a mouse click, which looks
+              // like a stuck selection; keyboard focus still rings.
+              className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+              role="button"
+              tabIndex={0}
+              aria-pressed={on}
+              aria-label={`${d.reservoir.name}, ${d.reservoir.pct_of_capacity.toFixed(0)}% of capacity`}
+              // Even a tap inside this circle defers to the nearest
+              // reservoir centre, so overlapping reservoirs (Shasta under
+              // Trinity) resolve the same way everywhere.
+              onClick={(e) => {
+                if (dragged(e)) return;
+                toggle("reservoir", nearestReservoir(e) ?? d.reservoir.station_id);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggle("reservoir", d.reservoir.station_id);
+                }
+              }}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+const ZOOM_BUTTON =
+  "w-11 h-11 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors";
+
+/**
+ * Interactive choropleth of drought share (D1+) per county, with optional
+ * reservoir and snow-station layers on top, on the same basemap as the
+ * main map. Counties come from the same topojson the main map ships; all
+ * three layers are drawn into one Leaflet SVG overlay in Web Mercator, so
+ * they pan and zoom with the tiles and cannot drift apart.
+ *
+ * Touch: one finger scrolls the page, two fingers pan and pinch the map
+ * (Leaflet's pinch handler pans with the pinch midpoint). A map this tall
+ * would otherwise swallow every scroll that starts on it.
  */
 export default function DroughtMap({
   counties,
@@ -231,23 +597,56 @@ export default function DroughtMap({
 }: DroughtMapProps) {
   const { data: geojson } = useCountyGeoJson();
   const [selected, setSelected] = useState<Selection | null>(null);
-  // Client→viewBox conversion for the nearest-station tap rule needs the
-  // rendered size, which only the element knows.
-  const svgRef = useRef<SVGSVGElement>(null);
+  const [map, setMap] = useState<LeafletMap | null>(null);
+  const isDark = useIsDark();
+
+  // Read once: Leaflet takes these at construction.
+  const [touch] = useState(
+    () => typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches,
+  );
+  const [reducedMotion] = useState(prefersReducedMotionNow);
+  // The detail panel opens under a map that fills most of a phone screen,
+  // i.e. out of sight; bring it up (only as far as needed) on each pick.
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Walk the provider list on repeated tile failures, as MapCanvas does:
+  // a dead provider costs a few seconds of grey, not the basemap.
+  const [basemapIndex, setBasemapIndex] = useState(0);
+  const basemap = BASEMAPS[basemapIndex];
+  const tileErrors = useRef(0);
+  const tileEvents = useMemo(
+    () => ({
+      tileerror: () => {
+        tileErrors.current += 1;
+        if (tileErrors.current < TILE_ERROR_LIMIT) return;
+        tileErrors.current = 0;
+        setBasemapIndex((i) => Math.min(i + 1, BASEMAPS.length - 1));
+      },
+      tileload: () => {
+        tileErrors.current = 0;
+      },
+    }),
+    [],
+  );
+
+  const [hint, setHint] = useState(false);
+  const hintTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(hintTimer.current), []);
 
   const byCode = useMemo(
     () => new Map(counties.map((c) => [c.county_code, c])),
     [counties],
   );
 
-  const project = useMemo(
-    () => (geojson ? buildProjector(geojson.features) : null),
+  const projection = useMemo(
+    () => (geojson ? buildProjection(geojson.features) : null),
     [geojson],
   );
+  const project = projection?.project;
 
   const paths = useMemo(() => {
     if (!geojson || !project) return null;
-    return geojson.features.map((f) => {
+    return geojson.features.map((f): CountyPath => {
       const code = Number(f.properties?.county_code);
       const name = String(f.properties?.name ?? "");
       const county = byCode.get(code);
@@ -267,7 +666,7 @@ export default function DroughtMap({
     });
   }, [geojson, byCode, project]);
 
-  const dots = useMemo(() => {
+  const dots = useMemo((): Dot[] => {
     if (!project || !reservoirs?.length) return [];
     // Rows loaded before the coordinate columns existed have no lat/lon.
     const located = reservoirs.filter((r) => r.lat !== null && r.lon !== null);
@@ -281,7 +680,7 @@ export default function DroughtMap({
       .sort((a, b) => b.r - a.r);
   }, [project, reservoirs]);
 
-  const marks = useMemo(() => {
+  const marks = useMemo((): Mark[] => {
     if (!project || !snowStations?.length) return [];
     // Stations synced before the coordinate columns existed have no lat/lon.
     return snowStations
@@ -298,8 +697,8 @@ export default function DroughtMap({
   // One hit target per DWR region: a circle around that region's located
   // stations. The `api` row is the figure the panel quotes — the regional
   // percent is a weighted DWR number, not the mean of these marks.
-  const regions = useMemo(() => {
-    const byRegion = new Map<string, typeof marks>();
+  const regions = useMemo((): Region[] => {
+    const byRegion = new Map<string, Mark[]>();
     for (const m of marks) {
       const group = byRegion.get(m.station.region);
       if (group) group.push(m);
@@ -309,19 +708,18 @@ export default function DroughtMap({
       .map(([region, group]) => {
         const cx = group.reduce((s, m) => s + m.cx, 0) / group.length;
         const cy = group.reduce((s, m) => s + m.cy, 0) / group.length;
-        const far = Math.max(...group.map((m) => Math.hypot(m.cx - cx, m.cy - cy)));
         return {
           region,
           cx,
           cy,
-          r: Math.max(far + REGION_PAD, REGION_MIN_R),
+          far: Math.max(...group.map((m) => Math.hypot(m.cx - cx, m.cy - cy))),
           located: group.length,
           api: snowRegions?.find((r) => r.region === region),
         };
       })
       // Biggest first so a small region nested inside a big one keeps its
       // own circle reachable by mouse and by Playwright's centre-click.
-      .sort((a, b) => b.r - a.r);
+      .sort((a, b) => b.far - a.far);
   }, [marks, snowRegions]);
 
   const selectedReservoir =
@@ -344,7 +742,11 @@ export default function DroughtMap({
     return () => document.removeEventListener("keydown", onKey);
   }, [selected]);
 
-  if (!paths) return null;
+  useEffect(() => {
+    if (selected) panelRef.current?.scrollIntoView?.({ block: "nearest", behavior: scrollBehavior() });
+  }, [selected]);
+
+  if (!paths || !projection) return null;
   const hasNoData = paths.some((p) => p.noData);
   const isSelected = (layer: Selection["layer"], id: string) =>
     selected?.layer === layer && selected.id === id;
@@ -354,222 +756,127 @@ export default function DroughtMap({
     setSelected((cur) =>
       cur?.layer === layer && cur.id === id ? null : { layer, id },
     );
-
-  /** The region of the located station nearest a tap, or null when the tap
-   *  landed on bare map. Region circles overlap along the Sierra, so this —
-   *  not which circle happens to be on top — decides the selection. */
-  const nearestRegion = (clientX: number, clientY: number): string | null => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect?.width) return null;
-    const k = WIDTH / rect.width;
-    const x = (clientX - rect.left) * k;
-    const y = (clientY - rect.top) * k;
-    let best: string | null = null;
-    let bestD = REGION_TAP_R;
-    for (const m of marks) {
-      const d = Math.hypot(m.cx - x, m.cy - y);
-      if (d < bestD) {
-        bestD = d;
-        best = m.station.region;
-      }
-    }
-    return best;
-  };
-
-  /** Same idea, for reservoirs: dots are drawn biggest-first so the small
-   *  ones stay on top and tappable, but that also means a big reservoir's
-   *  hit circle can sit *under* a smaller one drawn later (Shasta under
-   *  Trinity). Resolving every reservoir tap to the nearest centre — rather
-   *  than trusting which hit circle happens to be topmost — makes every
-   *  reservoir tappable at its own centre regardless of draw order. */
-  const nearestReservoir = (clientX: number, clientY: number): string | null => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect?.width) return null;
-    const k = WIDTH / rect.width;
-    const x = (clientX - rect.left) * k;
-    const y = (clientY - rect.top) * k;
-    let best: string | null = null;
-    let bestD = Infinity;
-    for (const d of dots) {
-      const dist = Math.hypot(d.cx - x, d.cy - y);
-      // Only reservoirs whose own hit circle contains the tap compete. A
-      // click a screen reader or keyboard synthesises can report (0, 0);
-      // without this bound it resolved to whichever reservoir sits nearest
-      // the map's corner instead of the focused one (callers fall back to
-      // the circle that received the click when this returns null).
-      if (dist > Math.max(d.r, MIN_HIT_R)) continue;
-      if (dist < bestD) {
-        bestD = dist;
-        best = d.reservoir.station_id;
-      }
-    }
-    return best;
-  };
+  const animate = !reducedMotion;
 
   return (
     <figure className="flex flex-col items-center mt-12">
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="w-full max-w-[400px]"
-        // A tap anywhere on the map picks the nearest station's region, so
-        // the dense Sierra cluster is reachable without aiming. Buttons
-        // (reservoir dots, region circles) run their own handler instead.
-        onClick={(e) => {
-          if ((e.target as Element).closest('[role="button"]')) return;
-          const region = nearestRegion(e.clientX, e.clientY);
-          if (region) toggle("region", region);
+      <div
+        className="relative w-full max-w-3xl h-[65vh] min-h-[320px] max-h-[640px] rounded-2xl overflow-hidden bg-surface-container-lowest"
+        // One finger on a touch screen scrolls the page (Leaflet's drag is
+        // off there); say how to move the map the moment someone tries.
+        onTouchMove={(e) => {
+          if (!touch || e.touches.length !== 1) return;
+          setHint(true);
+          window.clearTimeout(hintTimer.current);
+          hintTimer.current = window.setTimeout(() => setHint(false), HINT_MS);
         }}
       >
-        <defs>
-          <pattern
-            id={NO_DATA_PATTERN_ID}
-            width={5}
-            height={5}
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(45)"
-          >
-            <rect width={5} height={5} fill={NO_DROUGHT_FILL} />
-            <line x1={0} y1={0} x2={0} y2={5} stroke={NO_DATA_STRIPE} strokeWidth={1.5} />
-          </pattern>
-        </defs>
-        {/* The choropleth is one labeled image; the role lives on the group
-            rather than the <svg> so the reservoir buttons below it stay in
-            the accessibility tree (role="img" makes descendants
-            presentational). */}
-        <g
-          role="img"
-          aria-label={`Map of California counties shaded by share of land in drought for the week of ${weekStart}. Details per county are in the hardest-hit list below.`}
+        <MapContainer
+          bounds={CA_BOUNDS}
+          boundsOptions={{ padding: [8, 8] }}
+          maxBounds={MAX_BOUNDS}
+          maxBoundsViscosity={1.0}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          // Quarter steps let the opening frame fill a phone-shaped box
+          // instead of rounding down to half the width.
+          zoomSnap={0.25}
+          dragging={!touch}
+          scrollWheelZoom={false}
+          zoomControl={false}
+          attributionControl={false}
+          zoomAnimation={animate}
+          fadeAnimation={animate}
+          markerZoomAnimation={animate}
+          className="h-full w-full z-0"
         >
-          {paths.map((p) => (
-            <path
-              key={p.key}
-              d={p.d}
-              fill={p.fill}
-              stroke="rgb(var(--surface))"
-              strokeWidth={1}
-            >
-              <title>{p.title}</title>
-            </path>
-          ))}
-        </g>
-        {/* Stations are texture: colour carries percent of average, and
-            nothing here is focusable or tappable — 107 marks at a 4px
-            median spacing cannot each be a target. */}
-        <g aria-hidden="true" pointerEvents="none">
-          {marks.map((m) => (
-            <g key={m.station.station_id}>
-              {/* Same halo trick as the reservoir dots: a surface-colored
-                  outline survives whatever county fill sits underneath. */}
-              <polygon
-                points={diamondPoints(m.cx, m.cy, SNOW_R)}
-                fill="none"
-                stroke="rgb(var(--surface))"
-                strokeWidth={3}
-              />
-              <polygon
-                data-testid={`snow-mark-${m.station.station_id}`}
-                points={diamondPoints(m.cx, m.cy, SNOW_R)}
-                fill={fillForSnowPct(m.station.pct_of_average)}
-                fillOpacity={0.92}
-                stroke="rgb(var(--inverse-surface))"
-                // The selected region's stations wear a heavier outline so
-                // the user can see which cluster they picked.
-                strokeWidth={isSelected("region", m.station.region) ? 2.5 : 1}
-              />
-            </g>
-          ))}
-        </g>
-        {/* Region hit targets sit under the reservoir dots, so a tap that
-            lands on a reservoir still belongs to the reservoir. */}
-        {regions.map((g) => {
-          const { pct, label } = regionPct(g.api);
-          return (
-            <circle
-              key={g.region}
-              data-testid={`snow-region-${g.region}`}
-              cx={g.cx}
-              cy={g.cy}
-              r={g.r}
-              fill="transparent"
-              className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
-              role="button"
-              tabIndex={0}
-              aria-pressed={isSelected("region", g.region)}
-              aria-label={`${g.region} snowpack, ${
-                pct !== null ? `${pct.toFixed(0)}% of ${label}` : "no comparison available"
-              }, ${g.located} station${g.located === 1 ? "" : "s"}`}
-              // Even a tap inside this circle defers to the nearest station,
-              // so overlapping regions resolve the same way everywhere.
-              onClick={(e) => toggle("region", nearestRegion(e.clientX, e.clientY) ?? g.region)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  toggle("region", g.region);
-                }
-              }}
+          <MapReady onReady={setMap} />
+          {/* Required tile-provider credit, without Leaflet's own prefix. */}
+          <AttributionControl position="bottomright" prefix={false} />
+          <TileLayer
+            key={basemap.base(isDark)}
+            url={basemap.base(isDark)}
+            maxNativeZoom={basemap.maxNativeZoom}
+            attribution={basemap.attribution}
+            eventHandlers={tileEvents}
+          />
+          <SVGOverlay
+            key={`${projection.width}x${projection.height}`}
+            bounds={projection.bounds}
+            attributes={{
+              viewBox: `0 0 ${projection.width} ${projection.height}`,
+              preserveAspectRatio: "none",
+            }}
+          >
+            <DroughtLayers
+              paths={paths}
+              dots={dots}
+              marks={marks}
+              regions={regions}
+              weekStart={weekStart}
+              isSelected={isSelected}
+              toggle={toggle}
             />
-          );
-        })}
-        {dots.map((d) => {
-          const on = isSelected("reservoir", d.reservoir.station_id);
-          return (
-            <g key={d.reservoir.station_id}>
-              {/* Halo: whichever theme/county fill kills the ring's
-                  contrast, the surface-colored halo under it survives. */}
-              <circle
-                cx={d.cx}
-                cy={d.cy}
-                r={d.r}
-                fill="none"
-                stroke="rgb(var(--surface))"
-                strokeWidth={3}
-                pointerEvents="none"
+          </SVGOverlay>
+          {/* Place names above the choropleth, as on the main map. Tiles
+              take no pointer events, so taps fall through to the layers. */}
+          {basemap.labels && (
+            <Pane name="drought-labels" style={{ zIndex: 450 }}>
+              <TileLayer
+                key={basemap.labels(isDark)}
+                url={basemap.labels(isDark)}
+                maxNativeZoom={basemap.maxNativeZoom}
               />
-              <circle
-                data-testid={`reservoir-dot-${d.reservoir.station_id}`}
-                cx={d.cx}
-                cy={d.cy}
-                r={d.r}
-                fill={fillForReservoirPct(d.reservoir.pct_of_capacity)}
-                fillOpacity={0.92}
-                stroke="rgb(var(--inverse-surface))"
-                strokeWidth={on ? 3 : 1.25}
-                pointerEvents="none"
-              />
-              <circle
-                cx={d.cx}
-                cy={d.cy}
-                r={Math.max(d.r, MIN_HIT_R)}
-                fill="transparent"
-                // The default ring also fires on a mouse click, which looks
-                // like a stuck selection; keyboard focus still rings.
-                className="cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
-                role="button"
-                tabIndex={0}
-                aria-pressed={on}
-                aria-label={`${d.reservoir.name}, ${d.reservoir.pct_of_capacity.toFixed(0)}% of capacity`}
-                // Even a tap inside this circle defers to the nearest
-                // reservoir centre, so overlapping reservoirs (Shasta under
-                // Trinity) resolve the same way everywhere.
-                onClick={(e) => toggle("reservoir", nearestReservoir(e.clientX, e.clientY) ?? d.reservoir.station_id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    toggle("reservoir", d.reservoir.station_id);
-                  }
-                }}
-              />
-            </g>
-          );
-        })}
-      </svg>
+            </Pane>
+          )}
+        </MapContainer>
+
+        <div className="absolute top-3 right-3 z-10 flex flex-col bg-surface-container-lowest rounded-full shadow-lg">
+          <button
+            type="button"
+            aria-label="Zoom in"
+            onClick={() => map?.zoomIn(1, { animate })}
+            className={ZOOM_BUTTON}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">add</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Zoom out"
+            onClick={() => map?.zoomOut(1, { animate })}
+            className={ZOOM_BUTTON}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">remove</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Show all of California"
+            onClick={() => map?.fitBounds(CA_BOUNDS, { padding: [8, 8], animate })}
+            className={ZOOM_BUTTON}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">restart_alt</span>
+          </button>
+        </div>
+
+        <div
+          aria-hidden="true"
+          className={`absolute inset-0 z-10 flex items-center justify-center bg-inverse-surface/50 pointer-events-none transition-opacity duration-300 ${
+            hint ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <p className="px-4 py-2 rounded-full bg-surface-container-lowest text-sm text-on-surface shadow-lg">
+            Use two fingers to move the map
+          </p>
+        </div>
+      </div>
 
       {selectedReservoir && (
         <div
           role="group"
           aria-label={`${selectedReservoir.name} detail`}
-          className="w-full max-w-[400px] mt-4 bg-surface-container-lowest rounded-2xl p-4"
+          ref={panelRef}
+          // Clears the phone's bottom nav bar when scrolled into view.
+          className="w-full max-w-3xl mt-4 bg-surface-container-lowest rounded-2xl p-4 scroll-mb-24"
         >
           <div className="flex items-baseline justify-between gap-3">
             <h4 className="font-headline font-bold text-on-surface leading-tight">
@@ -613,7 +920,9 @@ export default function DroughtMap({
         <div
           role="group"
           aria-label={`${selectedRegion.region} detail`}
-          className="w-full max-w-[400px] mt-4 bg-surface-container-lowest rounded-2xl p-4"
+          ref={panelRef}
+          // Clears the phone's bottom nav bar when scrolled into view.
+          className="w-full max-w-3xl mt-4 bg-surface-container-lowest rounded-2xl p-4 scroll-mb-24"
         >
           <div className="flex items-baseline justify-between gap-3">
             <h4 className="font-headline font-bold text-on-surface leading-tight">

@@ -5,6 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import DroughtSection, { SeverityBar } from "./DroughtSection";
 import type { DroughtSnapshot } from "../../hooks/useDroughtData";
+import { ThemeProvider } from "../../context/ThemeContext";
+
+// The drought map is a Leaflet map; the shared mock draws its layers as
+// plain DOM (see DroughtMap.test.tsx for the map itself).
+vi.mock("react-leaflet", () => import("../../__mocks__/react-leaflet"));
 
 const SNAPSHOT: DroughtSnapshot = {
   week_start: "2026-06-30",
@@ -90,7 +95,9 @@ function renderSection() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
-      <MemoryRouter>{children}</MemoryRouter>
+      <ThemeProvider>
+        <MemoryRouter>{children}</MemoryRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
   return render(<DroughtSection />, { wrapper });

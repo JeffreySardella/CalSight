@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import { Link } from "react-router-dom";
 import Sparkline from "../charts/Sparkline";
-import DroughtMap from "./DroughtMap";
+import { lazyWithRetry } from "../../lib/lazyWithRetry";
 import { slugify } from "../../hooks/useFilterParams";
 import {
   inDroughtPct,
@@ -12,6 +13,10 @@ import {
 } from "../../hooks/useDroughtData";
 import { useSnowpack } from "../../hooks/useSnowpackData";
 import type { ReservoirCondition } from "../../hooks/useWaterData";
+
+// The map brings Leaflet with it. Lazy, so the rest of the page (and the
+// site) doesn't pay for it until the drought section actually renders.
+const DroughtMap = lazyWithRetry(() => import("./DroughtMap"));
 
 /** USDM severity classes in draw order. "None" wears a neutral surface
  * tone; D0–D4 climb the validated sequential ramp. Identity is never
@@ -161,15 +166,19 @@ export default function DroughtSection({
         </div>
       )}
 
-      <DroughtMap
-        counties={snapshot.counties}
-        weekStart={snapshot.week_start}
-        reservoirs={reservoirs}
-        snowStations={snowpack?.stations}
-        snowRegions={snowpack?.regions}
-        onShowInList={onShowInList}
-        onShowRegionInList={onShowRegionInList}
-      />
+      {/* The placeholder holds the map's height so the page doesn't jump
+          when the chunk lands. */}
+      <Suspense fallback={<div className="mt-12 mx-auto max-w-3xl h-[65vh] min-h-[320px] max-h-[640px]" />}>
+        <DroughtMap
+          counties={snapshot.counties}
+          weekStart={snapshot.week_start}
+          reservoirs={reservoirs}
+          snowStations={snowpack?.stations}
+          snowRegions={snowpack?.regions}
+          onShowInList={onShowInList}
+          onShowRegionInList={onShowRegionInList}
+        />
+      </Suspense>
 
       {hardestHit.length > 0 && (
         <div className="max-w-2xl mx-auto mt-12">

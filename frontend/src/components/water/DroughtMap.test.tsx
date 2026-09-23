@@ -1,9 +1,12 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { mockMapInstance } from "../../__mocks__/leaflet";
+import { ThemeProvider } from "../../context/ThemeContext";
 import DroughtMap, {
+  REF_ZOOM,
   fillForDroughtShare,
   fillForReservoirPct,
   fillForSnowPct,
@@ -14,6 +17,10 @@ import type {
   SnowStationCondition,
 } from "../../hooks/useSnowpackData";
 import type { ReservoirCondition } from "../../hooks/useWaterData";
+
+// The shared mock renders the overlay as a plain <svg> with its viewBox and
+// hands every layer the same fake map, so the drawn layers are ordinary DOM.
+vi.mock("react-leaflet", () => import("../../__mocks__/react-leaflet"));
 
 // Minimal non-quantized topology: two triangular "counties".
 const TOPO = {
@@ -196,7 +203,9 @@ function renderMap(
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    <QueryClientProvider client={client}>
+      <ThemeProvider>{children}</ThemeProvider>
+    </QueryClientProvider>
   );
   return render(
     <DroughtMap
@@ -212,10 +221,37 @@ function renderMap(
   );
 }
 
+// At REF_ZOOM one overlay unit is one screen pixel, so the pixel sizes in
+// DroughtMap read back unchanged off the drawn marks.
+beforeEach(() => {
+  vi.spyOn(mockMapInstance, "getZoom").mockReturnValue(REF_ZOOM);
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
+
+/** The overlay <svg> the layers are drawn into. Typed as HTMLElement only
+ *  because that is what testing-library's `within` accepts. */
+function mapSvgOf(el: Element) {
+  return el.closest("svg") as unknown as HTMLElement;
+}
+
+async function findMapSvg() {
+  return mapSvgOf(await screen.findByRole("img", { name: /map of california/i }));
+}
+
+/** jsdom gives every element a zero-sized box, so the client→overlay math
+ *  behind the nearest-centre rules needs a stand-in for the real one. Sized
+ *  to the viewBox, so client pixels and overlay units line up 1:1. */
+function mockSvgBox(svg: Element) {
+  const [, , width, height] = svg.getAttribute("viewBox")!.split(" ").map(Number);
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+    left: 0, top: 0, right: width, bottom: height, width, height,
+    x: 0, y: 0, toJSON: () => ({}),
+  } as DOMRect);
+}
 
 describe("DroughtMap", () => {
   it("renders one path per county with severity-binned fills", async () => {
@@ -266,11 +302,11 @@ describe("DroughtMap", () => {
 });
 
 describe("DroughtMap reservoir layer", () => {
-  /** The transparent hit circles are the only role=button elements until a
-   *  panel opens; they carry the labels and the keyboard handling. */
+  /** The transparent hit circles are the only buttons on the drawn layer
+   *  (the zoom controls sit outside it); they carry the labels and the
+   *  keyboard handling. */
   async function findCircles() {
-    await screen.findByRole("img", { name: /map of california/i });
-    return screen.getAllByRole("button");
+    return within(await findMapSvg()).getAllByRole("button");
   }
 
   /** The visible dot behind a hit circle — this is what carries size and
@@ -283,7 +319,7 @@ describe("DroughtMap reservoir layer", () => {
     renderMap(COUNTIES, undefined);
     const svg = await screen.findByRole("img", { name: /map of california/i });
     expect(svg.closest("svg")!.querySelectorAll("circle")).toHaveLength(0);
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(within(mapSvgOf(svg)).queryByRole("button")).toBeNull();
     // The choropleth is untouched by the missing layer.
     expect(svg.querySelectorAll("path")).toHaveLength(2);
   });
@@ -397,10 +433,7 @@ describe("DroughtMap reservoir layer", () => {
     expect(circles[0]).toHaveAttribute("aria-label", expect.stringContaining("Shasta"));
     expect(circles[1]).toHaveAttribute("aria-label", expect.stringContaining("Trinity"));
 
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, right: 400, bottom: 460, width: 400, height: 460,
-      x: 0, y: 0, toJSON: () => ({}),
-    } as DOMRect);
+    mockSvgBox(await findMapSvg());
 
     const shastaDot = document.querySelector("[data-testid='reservoir-dot-SHA']")!;
     const shastaCx = Number(shastaDot.getAttribute("cx"));
@@ -420,10 +453,7 @@ describe("DroughtMap reservoir layer", () => {
     // the map corner": only reservoirs whose hit circle holds the point count.
     renderMap(COUNTIES, [SHASTA, TRINITY]);
     const circles = await findCircles();
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, right: 400, bottom: 460, width: 400, height: 460,
-      x: 0, y: 0, toJSON: () => ({}),
-    } as DOMRect);
+    mockSvgBox(await findMapSvg());
 
     fireEvent.click(circles[1], { clientX: 0, clientY: 0 });
     expect(screen.getByRole("group", { name: /trinity lake detail/i })).toBeInTheDocument();
@@ -455,16 +485,6 @@ describe("DroughtMap snow layer", () => {
     return [...document.querySelectorAll("[data-testid^='snow-mark-']")];
   }
 
-  /** jsdom gives every element a zero-sized box, so the client→viewBox
-   *  math behind the nearest-station rule needs a stand-in for the real
-   *  one. 400 wide = the viewBox width, so client and SVG units line up. */
-  function mockSvgBox() {
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
-      left: 0, top: 0, right: 400, bottom: 460, width: 400, height: 460,
-      x: 0, y: 0, toJSON: () => ({}),
-    } as DOMRect);
-  }
-
   /** Where a station's diamond actually landed, read back off the mark:
    *  points are "cx,cy-r cx+r,cy cx,cy+r cx-r,cy". */
   function markCenter(stationId: string): [number, number] {
@@ -481,7 +501,7 @@ describe("DroughtMap snow layer", () => {
     const svg = await screen.findByRole("img", { name: /map of california/i });
     expect(snowMarks()).toHaveLength(0);
     expect(svg.closest("svg")!.querySelectorAll("polygon")).toHaveLength(0);
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(within(mapSvgOf(svg)).queryByRole("button")).toBeNull();
     // The choropleth is untouched by the missing layer.
     expect(svg.querySelectorAll("path")).toHaveLength(2);
     expect(screen.queryByRole("list", { name: /legend: snow stations/i })).toBeNull();
@@ -492,7 +512,7 @@ describe("DroughtMap snow layer", () => {
     const buttons = await findRegionButtons();
     // Two located stations in two regions — two targets, not 107.
     expect(buttons).toHaveLength(2);
-    expect(screen.getAllByRole("button")).toHaveLength(2);
+    expect(within(await findMapSvg()).getAllByRole("button")).toHaveLength(2);
     // The coordinate-less station is skipped, as before.
     expect(snowMarks().map((m) => m.getAttribute("data-testid"))).toEqual([
       "snow-mark-CSL",
@@ -533,38 +553,54 @@ describe("DroughtMap snow layer", () => {
 
   it("selects the region of the station nearest a tap on the map", async () => {
     renderMap(COUNTIES, undefined, undefined, [CSL, GIN], REGIONS);
-    const svg = (await screen.findByRole("img", { name: /map of california/i }))
-      .closest("svg")!;
-    mockSvgBox();
+    const svg = await findMapSvg();
+    mockSvgBox(svg);
+    // A tap on the map lands on a county; which county doesn't matter.
+    const land = svg.querySelector("path")!;
 
     // A few units off Gin Flat picks Southern Sierra, not the nearer-to-
     // nothing default and not Central Sierra.
     const [gx, gy] = markCenter("GIN");
-    fireEvent.click(svg, { clientX: gx + 4, clientY: gy - 3 });
+    fireEvent.click(land, { clientX: gx + 4, clientY: gy - 3 });
     expect(
       screen.getByRole("group", { name: /southern sierra detail/i }),
     ).toBeInTheDocument();
 
     // ... and a tap by the other cluster switches regions.
     const [cx, cy] = markCenter("CSL");
-    fireEvent.click(svg, { clientX: cx - 2, clientY: cy + 2 });
+    fireEvent.click(land, { clientX: cx - 2, clientY: cy + 2 });
     expect(
       screen.getByRole("group", { name: /central sierra detail/i }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /southern sierra detail/i })).toBeNull();
 
     // Tapping the same cluster again clears it.
-    fireEvent.click(svg, { clientX: cx, clientY: cy });
+    fireEvent.click(land, { clientX: cx, clientY: cy });
     expect(screen.queryByRole("group", { name: /central sierra detail/i })).toBeNull();
+  });
+
+  it("does not read the end of a mouse drag of the map as a tap", async () => {
+    renderMap(COUNTIES, undefined, undefined, [CSL], REGIONS);
+    const svg = await findMapSvg();
+    mockSvgBox(svg);
+    const land = svg.querySelector("path")!;
+    const [cx, cy] = markCenter("CSL");
+    // Pressed well away from the station, released on it: that was a pan.
+    fireEvent.pointerDown(land, { clientX: cx + 80, clientY: cy });
+    fireEvent.click(land, { clientX: cx, clientY: cy });
+    expect(screen.queryByRole("group", { name: /detail/i })).toBeNull();
+    // Pressed and released in place: a tap.
+    fireEvent.pointerDown(land, { clientX: cx, clientY: cy });
+    fireEvent.click(land, { clientX: cx, clientY: cy });
+    expect(screen.getByRole("group", { name: /central sierra detail/i })).toBeInTheDocument();
   });
 
   it("ignores a tap on bare map, far from every station", async () => {
     renderMap(COUNTIES, undefined, undefined, [CSL], REGIONS);
-    const svg = (await screen.findByRole("img", { name: /map of california/i }))
-      .closest("svg")!;
-    mockSvgBox();
+    const svg = await findMapSvg();
+    mockSvgBox(svg);
     const [cx, cy] = markCenter("CSL");
-    fireEvent.click(svg, { clientX: cx + 120, clientY: cy + 120 });
+    fireEvent.click(svg.querySelector("path")!, { clientX: cx + 120, clientY: cy + 120 });
     expect(screen.queryByRole("group", { name: /detail/i })).toBeNull();
   });
 
@@ -684,6 +720,41 @@ describe("DroughtMap snow layer", () => {
     expect(screen.queryByRole("list", { name: /legend: snow stations/i })).toBeNull();
     // The reservoir legend is unaffected by the snow layer's absence.
     expect(screen.getByRole("list", { name: /legend: reservoirs/i })).toBeInTheDocument();
+  });
+});
+
+describe("DroughtMap zoom", () => {
+  it("zooms in, out and back to the whole state from its buttons", async () => {
+    const zoomIn = vi.spyOn(mockMapInstance, "zoomIn");
+    const zoomOut = vi.spyOn(mockMapInstance, "zoomOut");
+    const fitBounds = vi.spyOn(mockMapInstance, "fitBounds");
+    renderMap(COUNTIES, [SHASTA]);
+    await findMapSvg();
+    await userEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(zoomIn).toHaveBeenCalledWith(1, expect.anything());
+    await userEvent.click(screen.getByRole("button", { name: "Zoom out" }));
+    expect(zoomOut).toHaveBeenCalledWith(1, expect.anything());
+    await userEvent.click(screen.getByRole("button", { name: /show all of california/i }));
+    expect(fitBounds).toHaveBeenCalled();
+  });
+
+  it("keeps marks the same size on screen at any zoom", async () => {
+    // One zoom level in, the overlay is drawn twice as large, so every
+    // mark must halve in overlay units to stay the same number of pixels.
+    vi.spyOn(mockMapInstance, "getZoom").mockReturnValue(REF_ZOOM + 1);
+    renderMap(COUNTIES, [FOLSOM, SHASTA], undefined, [CSL], REGIONS);
+    const circles = within(await findMapSvg()).getAllByRole("button");
+    const dot = document.querySelector("[data-testid='reservoir-dot-SHA']")!;
+    expect(Number(dot.getAttribute("r"))).toBeCloseTo(8, 5); // 16px
+    // Folsom's hit circle: the 15px floor, in half-size units.
+    expect(Number(circles.find((c) => c.getAttribute("aria-label")!.startsWith("Folsom"))!.getAttribute("r"))).toBe(7.5);
+    // Diamond half-diagonal: 5px → 2.5 units.
+    const pts = document
+      .querySelector("[data-testid='snow-mark-CSL']")!
+      .getAttribute("points")!
+      .split(" ")
+      .map((p) => p.split(",").map(Number));
+    expect(pts[1][0] - pts[0][0]).toBeCloseTo(2.5, 5);
   });
 });
 

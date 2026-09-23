@@ -43,3 +43,28 @@ export function Popup({ children }: { children?: React.ReactNode }) {
 export function useMap() {
   return mockMapInstance;
 }
+
+/** Handlers are not wired up: tests drive the map through its methods. */
+export function useMapEvents() {
+  return mockMapInstance;
+}
+
+export function Pane({ children }: { children?: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+/** Renders a real <svg> with the overlay's viewBox, so the children (which
+ *  react-leaflet portals into the overlay) land in the DOM as they would. */
+export function SVGOverlay({
+  attributes,
+  children,
+}: {
+  attributes?: Record<string, string>;
+  children?: React.ReactNode;
+}) {
+  return (
+    <svg viewBox={attributes?.viewBox} preserveAspectRatio={attributes?.preserveAspectRatio}>
+      {children}
+    </svg>
+  );
+}
