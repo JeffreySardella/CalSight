@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { formatCompact } from "../../../lib/formatCompact";
 import { YEARS, CAUSES, SEVERITIES, CA_COUNTIES } from "../../../hooks/useFilterParams";
 import { useStagedFilters, type StagedFilters } from "../../../hooks/useStagedFilters";
 import { useLiveCrashCount } from "../../../hooks/useLiveCrashCount";
@@ -29,12 +30,6 @@ interface SimpleFilterPanelProps {
 }
 
 function fmtC(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toLocaleString();
-}
-
-function fmtCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
   return n.toLocaleString();
@@ -192,7 +187,7 @@ export default function SimpleFilterPanel({
           onClick={handleApply}
           className="px-6 py-2.5 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-opacity"
         >
-          <span aria-live="polite">{countLoading ? "Loading..." : liveCount !== null ? `Show ${fmtCount(liveCount)} Crashes` : "Apply Filters"}</span>
+          <span aria-live="polite">{countLoading ? "Loading..." : liveCount !== null ? `Show ${formatCompact(liveCount, 0)} Crashes` : "Apply Filters"}</span>
         </button>
       </div>
     </div>

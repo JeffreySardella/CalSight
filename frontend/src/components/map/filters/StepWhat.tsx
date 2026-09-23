@@ -1,4 +1,5 @@
 import { CAUSES, SEVERITIES } from "../../../hooks/useFilterParams";
+import { formatCompact } from "../../../lib/formatCompact";
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
 import FilterChip from "./FilterChip";
 
@@ -11,12 +12,6 @@ interface StepWhatProps {
   causeCounts?: Record<string, number>;
   severityCounts?: Record<string, number>;
   loading?: boolean;
-}
-
-function fmtCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toLocaleString();
 }
 
 export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggleSeverity, onClearSeverities, causeCounts, severityCounts, loading }: StepWhatProps) {
@@ -60,7 +55,7 @@ export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggl
                 key={cause.value}
                 label={cause.label}
                 icon={cause.icon}
-                count={count != null ? fmtCount(count) : undefined}
+                count={count != null ? formatCompact(count, 0) : undefined}
                 active={!allCauses && staged.causes.has(cause.value)}
                 disabled={!hasData}
                 onClick={() => onToggleCause(cause.value)}
@@ -86,7 +81,7 @@ export default function StepWhat({ staged, onToggleCause, onClearCauses, onToggl
               <FilterChip
                 key={s}
                 label={s}
-                count={count != null ? fmtCount(count) : undefined}
+                count={count != null ? formatCompact(count, 0) : undefined}
                 active={!allSeverities && staged.severities.has(s)}
                 disabled={!hasData}
                 onClick={() => onToggleSeverity(s)}

@@ -13,7 +13,7 @@ import { useSyncExternalStore } from "react";
 
 export type FormatKey = "csv" | "pdf" | "png";
 
-export type ExportPhase =
+type ExportPhase =
   | { kind: "idle" }
   | { kind: "running"; format: FormatKey; message: string; progress?: number }
   | { kind: "error"; format: FormatKey; message: string }

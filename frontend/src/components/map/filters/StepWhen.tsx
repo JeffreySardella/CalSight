@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { formatCompact } from "../../../lib/formatCompact";
 import { YEARS } from "../../../hooks/useFilterParams";
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
 import type { YearMonth } from "../../../hooks/useFilterParams";
@@ -19,12 +20,6 @@ interface StepWhenProps {
   onSetDateRange?: (start: YearMonth | null, end: YearMonth | null) => void;
   yearCounts?: Record<number, number>;
   loading?: boolean;
-}
-
-function fmtCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toLocaleString();
 }
 
 export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDateRange, yearCounts, loading }: StepWhenProps) {
@@ -87,7 +82,7 @@ export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDat
             <FilterChip
               key={year}
               label={yearLabel(year)}
-              count={count != null ? fmtCount(count) : undefined}
+              count={count != null ? formatCompact(count, 0) : undefined}
               active={usingYears && staged.selectedYears.has(year)}
               disabled={!hasData}
               onClick={() => handleToggleYear(year)}
