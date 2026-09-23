@@ -10,7 +10,11 @@ import CountyFirstRainRow from "../water/CountyFirstRainRow";
 import { WATER_PAGE_PUBLIC } from "../../config";
 
 interface AiInsightCardProps {
+  /** Dismisses/collapses this card only — the county selection is untouched. */
   onClose: () => void;
+  /** Clears the county filter entirely (distinct from onClose). Omitted for
+   *  the statewide card, which has no county to clear. */
+  onClearCounty?: () => void;
   countyName: string;
   /** Numeric county code, resolved by the map page; enables the drought row. */
   countyCode?: number;
@@ -174,6 +178,7 @@ const ANGLE_LABELS: Record<string, string> = {
 
 export default function AiInsightCard({
   onClose,
+  onClearCounty,
   countyName,
   countyCode,
   data,
@@ -361,6 +366,19 @@ export default function AiInsightCard({
                     <span className="material-symbols-outlined text-sm">description</span>
                     Open Report Card
                   </Link>
+                )}
+
+                {/* The × above only dismisses this card (#2 in the mobile audit —
+                    it used to also clear the county filter, which lost a user's
+                    selection when they only wanted to hide the card). This is
+                    the explicit control for actually leaving county mode. */}
+                {!isStatewide && onClearCounty && (
+                  <button
+                    onClick={onClearCounty}
+                    className="w-full text-center text-[11px] font-semibold text-on-surface-variant hover:text-on-surface hover:underline py-1"
+                  >
+                    Clear county selection
+                  </button>
                 )}
               </>
             )}

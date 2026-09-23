@@ -7,6 +7,7 @@ import { useLiteMode } from "../../context/LiteModeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { getMapSeverityColors } from "../../lib/theme/tokens";
 import { DOT_MIN_ZOOM } from "../../lib/map/heatmapLod";
+import { toReadableCase } from "../../lib/readableCase";
 
 interface CrashDotLayerProps {
   points: HeatmapPoint[];
@@ -126,7 +127,7 @@ export default memo(function CrashDotLayer({ points, enabled, palette }: CrashDo
                     {p.primary_road && (
                       <tr>
                         <td style={{ color: "rgb(var(--on-surface-variant))", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap", verticalAlign: "top" }}>Road</td>
-                        <td style={{ paddingBottom: 4 }}>{p.primary_road}</td>
+                        <td style={{ paddingBottom: 4 }}>{toReadableCase(p.primary_road)}</td>
                       </tr>
                     )}
                     <tr>
@@ -136,13 +137,13 @@ export default memo(function CrashDotLayer({ points, enabled, palette }: CrashDo
                     {p.weather && (
                       <tr>
                         <td style={{ color: "rgb(var(--on-surface-variant))", paddingRight: 12, paddingBottom: 4 }}>Weather</td>
-                        <td style={{ paddingBottom: 4 }}>{p.weather}</td>
+                        <td style={{ paddingBottom: 4 }}>{toReadableCase(p.weather)}</td>
                       </tr>
                     )}
                     {p.lighting && (
                       <tr>
                         <td style={{ color: "rgb(var(--on-surface-variant))", paddingRight: 12, paddingBottom: 4 }}>Lighting</td>
-                        <td style={{ paddingBottom: 4 }}>{p.lighting}</td>
+                        <td style={{ paddingBottom: 4 }}>{toReadableCase(p.lighting)}</td>
                       </tr>
                     )}
                   </tbody>

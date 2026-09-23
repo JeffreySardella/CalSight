@@ -77,6 +77,12 @@ export default function LayersPanel() {
   // If one is the sole active layer, its toggle is locked (can't be turned off).
   const choroplethLocked = choroplethOn && !otherLayers.heatmapStatewide;
   const heatmapStatewideL = !choroplethOn && otherLayers.heatmapStatewide;
+  // Shared by the sr-only hint (inside the switch) and the visible caption
+  // below it (a sibling, so not read by the switch's own accessible name) —
+  // the mobile audit found sighted users only ever saw the "turn this off"
+  // half of the story, never the "why" (#1 in the audit).
+  const choroplethLockMsg = "On because a base layer must stay active. Turn on Statewide Heatmap if you want this off.";
+  const heatmapLockMsg = "On because a base layer must stay active. Turn on County Colors if you want this off.";
 
   return (
     <div className="space-y-8 pb-32 px-0">
@@ -95,7 +101,7 @@ export default function LayersPanel() {
                 enabled={choroplethOn}
                 label="Shade by Measure"
                 locked={choroplethLocked}
-                lockedHint="At least one base layer must be active. Enable Statewide Heatmap first to turn this off."
+                lockedHint={choroplethLockMsg}
                 onToggle={() => {
                   if (choroplethLocked) return;
                   const next = !choroplethOn;
@@ -114,7 +120,7 @@ export default function LayersPanel() {
           </div>
           {choroplethLocked && (
             <p className="text-[10px] text-on-surface-variant leading-tight pl-1 italic">
-              Enable Statewide Heatmap first to turn this off
+              {choroplethLockMsg}
             </p>
           )}
           {choroplethOn && (
@@ -140,7 +146,7 @@ export default function LayersPanel() {
                 enabled={otherLayers.heatmapStatewide}
                 label="Statewide"
                 locked={heatmapStatewideL}
-                lockedHint="At least one base layer must be active. Enable County Colors first to turn this off."
+                lockedHint={heatmapLockMsg}
                 onToggle={() => {
                   if (heatmapStatewideL) return;
                   const next = !otherLayers.heatmapStatewide;
@@ -160,7 +166,7 @@ export default function LayersPanel() {
           </div>
           {heatmapStatewideL && (
             <p className="text-[10px] text-on-surface-variant leading-tight pl-1 italic">
-              Enable County Colors first to turn this off
+              {heatmapLockMsg}
             </p>
           )}
           {otherLayers.heatmapStatewide && (
@@ -205,26 +211,31 @@ export default function LayersPanel() {
           )}
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${otherLayers.coordMismatches ? "text-on-surface" : "text-on-surface-variant"}`}>
-              Coord Mismatches
+              Location Mismatches
             </span>
-            <Toggle enabled={otherLayers.coordMismatches} label="Coord Mismatches" onToggle={() => toggleOtherLayer("coordMismatches")} />
+            <Toggle enabled={otherLayers.coordMismatches} label="Location Mismatches" onToggle={() => toggleOtherLayer("coordMismatches")} />
           </div>
-          {otherLayers.coordMismatches && (
-            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
-              Shows crashes whose lat/lng falls outside their assigned county (requires county selected)
-            </p>
-          )}
+          <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+            {otherLayers.coordMismatches
+              ? "Showing crashes whose location disagrees with their county (pick a county to see them)"
+              : "Show crashes whose location disagrees with their county"}
+          </p>
+          {/* "Include" (not "hide") — this widens the Location Mismatches
+              view above to also flag crashes over rivers/water even when
+              their county looks correct; off by default, they're already
+              excluded. Was labeled "Hide River Crashes", which described
+              the opposite of what toggling it on actually does. */}
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${otherLayers.coordIncludeRivers ? "text-on-surface" : "text-on-surface-variant"}`}>
-              Hide River Crashes
+              Include River Crashes
             </span>
-            <Toggle enabled={otherLayers.coordIncludeRivers} label="Hide River Crashes" onToggle={() => toggleOtherLayer("coordIncludeRivers")} />
+            <Toggle enabled={otherLayers.coordIncludeRivers} label="Include River Crashes" onToggle={() => toggleOtherLayer("coordIncludeRivers")} />
           </div>
-          {otherLayers.coordIncludeRivers && (
-            <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
-              Excludes crashes over rivers and small water bodies from the heatmap
-            </p>
-          )}
+          <p className="text-[10px] text-on-surface-variant leading-tight pl-1">
+            {otherLayers.coordIncludeRivers
+              ? "Also flagging river-located crashes above, even where the county looks correct"
+              : "River-located crashes are left out of Location Mismatches above by default"}
+          </p>
         </div>
       </div>
 

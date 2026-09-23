@@ -600,6 +600,11 @@ function MapPageInner() {
     clearCounties();
   }, [clearCounties]);
 
+  // Dismisses the insight card only, leaving the county selected (#2 in the
+  // mobile audit: the card's × used to call handleDeselect and silently drop
+  // the user's county along with the card).
+  const handleCloseInsight = useCallback(() => setShowInsight(false), []);
+
   const handleStartCompare = useCallback(() => {
     setCompareMode(true);
     mapRef.current?.flyTo([37.2, -119.5], 6, { duration: 0.8 });
@@ -657,13 +662,13 @@ function MapPageInner() {
     if (showHelp) {
       setShowHelp(false);
     } else if (showInsight) {
-      handleDeselect();
+      handleCloseInsight();
     } else if (activePanel) {
       setActivePanel(null);
     } else if (showMobileFilters) {
       setShowMobileFilters(false);
     }
-  }, [showHelp, showInsight, activePanel, showMobileFilters, handleDeselect]);
+  }, [showHelp, showInsight, activePanel, showMobileFilters, handleCloseInsight]);
 
   useMapKeyboard({
     map: mapRef.current,
@@ -1035,7 +1040,8 @@ function MapPageInner() {
 
         {showInsight && focusedCounty && (
           <AiInsightCard
-            onClose={handleDeselect}
+            onClose={handleCloseInsight}
+            onClearCounty={handleDeselect}
             countyName={insightCounty}
             countyCode={inspectedCode}
             data={inspectedData}

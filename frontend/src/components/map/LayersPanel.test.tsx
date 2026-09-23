@@ -40,8 +40,8 @@ describe("LayersPanel toggle accessibility", () => {
       "Shade by Measure",
       "Statewide",
       "County Detail",
-      "Coord Mismatches",
-      "Hide River Crashes",
+      "Location Mismatches",
+      "Include River Crashes",
       "Highway Danger",
       "Top intersections",
       "Reservoirs",
@@ -66,7 +66,7 @@ describe("LayersPanel toggle accessibility", () => {
     // Defaults: choropleth on, statewide heatmap off — choropleth is locked.
     const choropleth = screen.getByRole("switch", { name: "Shade by Measure" });
     expect(choropleth).toHaveAttribute("aria-disabled", "true");
-    expect(choropleth).toHaveTextContent(/at least one base layer must be active/i);
+    expect(choropleth).toHaveTextContent(/a base layer must stay active/i);
 
     // Clicking a locked toggle is a no-op.
     fireEvent.click(choropleth);
