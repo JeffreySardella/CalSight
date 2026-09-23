@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { scrollBehavior } from "../lib/a11y/motion";
 import { Navigate, useSearchParams } from "react-router-dom";
-import { useFilterParams, formatYearMonth, CAUSES as CAUSE_OPTIONS, SEVERITIES, YEARS } from "../hooks/useFilterParams";
+import { useFilterParams, formatYearMonth, formatDateRange, CAUSES as CAUSE_OPTIONS, SEVERITIES, YEARS } from "../hooks/useFilterParams";
 import { Explainable } from "../components/ai/Explainable";
 import { snapshotFilters, buildTotalCrashesContext } from "../lib/ai/contextBuilders";
 import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
@@ -316,9 +316,7 @@ function StatsPageInner() {
     ? [{ label: "All Counties", onOpen: openFilters }]
     : [...counties].sort().map((c) => ({ label: c, onRemove: () => filters.toggleCounty(c) }));
 
-  const dateRangeLabel = dateRange
-    ? `${dateRange.start ? formatYearMonth(dateRange.start) : "earliest"} – ${dateRange.end ? formatYearMonth(dateRange.end) : "latest"}`
-    : null;
+  const dateRangeLabel = dateRange ? formatDateRange(dateRange.start, dateRange.end) : null;
   const yearChips: Chip[] = dateRangeLabel
     ? [{ label: dateRangeLabel, onRemove: () => filters.clearDateRange() }]
     : [{ label: "All Years", onOpen: openFilters }];

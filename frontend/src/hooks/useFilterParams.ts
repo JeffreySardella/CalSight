@@ -90,6 +90,17 @@ export function formatYearMonth(ym: YearMonth): string {
   return `${ym.year}-${String(ym.month).padStart(2, "0")}`;
 }
 
+/**
+ * Label for a date range. Whole years (January to December) read as years,
+ * "2025" or "2018–2025", instead of "2025-01 – 2025-12".
+ */
+export function formatDateRange(start: YearMonth | null, end: YearMonth | null): string {
+  if (start && end && start.month === 1 && end.month === 12) {
+    return start.year === end.year ? String(start.year) : `${start.year}–${end.year}`;
+  }
+  return `${start ? formatYearMonth(start) : "earliest"} – ${end ? formatYearMonth(end) : "latest"}`;
+}
+
 export function parseYearMonth(raw: string | null): YearMonth | null {
   if (!raw) return null;
   const m = /^(\d{4})-(\d{1,2})$/.exec(raw);

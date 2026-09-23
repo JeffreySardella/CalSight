@@ -6,7 +6,7 @@ import {
   SEVERITIES,
   INVOLVEMENTS,
   DRIVER_AGE_BRACKETS,
-  formatYearMonth,
+  formatDateRange,
   type DateRangeFilter,
   type YearMonth,
 } from "../../hooks/useFilterParams";
@@ -149,14 +149,19 @@ export default function FiltersPanel({
         </div>
 
         <div className="space-y-2">
+          {/* Picking only years spans whole years: From starts in January,
+              To ends in December (it used to default to January, so
+              2025 → 2025 read "2025-01 – 2025-01" over full-year data). */}
           <MonthYearPicker
             label="From"
             value={start}
+            defaultMonth={1}
             onChange={updateStart}
           />
           <MonthYearPicker
             label="To"
             value={end}
+            defaultMonth={12}
             onChange={updateEnd}
           />
         </div>
@@ -168,9 +173,7 @@ export default function FiltersPanel({
         )}
         {dateRangeActive && (
           <p className="text-[10px] text-on-surface-variant">
-            {start ? formatYearMonth(start) : "earliest"}
-            {" – "}
-            {end ? formatYearMonth(end) : "latest"}
+            {formatDateRange(start, end)}
           </p>
         )}
       </div>
@@ -332,6 +335,8 @@ export default function FiltersPanel({
 interface MonthYearPickerProps {
   label: string;
   value: YearMonth | null;
+  /** Month used when only the year is picked. */
+  defaultMonth: number;
   onChange: (next: YearMonth | null) => void;
 }
 
@@ -395,7 +400,7 @@ function StyledSelect({ ariaLabel, value, placeholder, options, onChange }: {
   );
 }
 
-function MonthYearPicker({ label, value, onChange }: MonthYearPickerProps) {
+function MonthYearPicker({ label, value, defaultMonth, onChange }: MonthYearPickerProps) {
   const handleMonth = (v: string) => {
     if (v === "") { onChange(null); return; }
     const month = Number(v);
@@ -406,7 +411,7 @@ function MonthYearPicker({ label, value, onChange }: MonthYearPickerProps) {
   const handleYear = (v: string) => {
     if (v === "") { onChange(null); return; }
     const year = Number(v);
-    const month = value?.month ?? 1;
+    const month = value?.month ?? defaultMonth;
     onChange({ year, month });
   };
 

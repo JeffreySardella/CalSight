@@ -5,6 +5,7 @@ import {
   parseCauses,
   parseYearMonth,
   formatYearMonth,
+  formatDateRange,
   yearsInRange,
   SEVERITIES,
   CAUSES,
@@ -114,6 +115,19 @@ describe("formatYearMonth", () => {
 
   it("preserves double-digit months", () => {
     expect(formatYearMonth({ year: 2023, month: 12 })).toBe("2023-12");
+  });
+});
+
+describe("formatDateRange", () => {
+  it("reads whole years as years", () => {
+    expect(formatDateRange({ year: 2025, month: 1 }, { year: 2025, month: 12 })).toBe("2025");
+    expect(formatDateRange({ year: 2018, month: 1 }, { year: 2025, month: 12 })).toBe("2018–2025");
+  });
+
+  it("keeps months for a partial-year or open-ended range", () => {
+    expect(formatDateRange({ year: 2025, month: 1 }, { year: 2025, month: 1 })).toBe("2025-01 – 2025-01");
+    expect(formatDateRange({ year: 2025, month: 3 }, null)).toBe("2025-03 – latest");
+    expect(formatDateRange(null, { year: 2024, month: 12 })).toBe("earliest – 2024-12");
   });
 });
 
