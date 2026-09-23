@@ -39,9 +39,3 @@ def get_slug_map(db: Session) -> dict[str, int]:
         rows = [(c.code, c.name) for c in db.query(County.code, County.name).all()]
         _cached_map = build_map(rows)
     return _cached_map
-
-
-def _reset_cache_for_tests() -> None:
-    """Test helper — let each session start with a fresh cache."""
-    global _cached_map
-    _cached_map = None

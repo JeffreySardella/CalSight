@@ -1,6 +1,6 @@
 #!/bin/bash
 # Quick check of ETL pipeline status.
-# Run from the repo root on the deploy host (LXC 100): bash backend/deploy/etl-status.sh
+# Run from the repo root on the deploy host (VM 101): bash backend/deploy/etl-status.sh
 #
 # Shows: last 10 runs and any failures in the last 7 days.
 #

@@ -1,6 +1,6 @@
 # CalSight deploy notes — ETL scheduling
 
-**Two schedulers are live on LXC 100 and both stay** — the full picture,
+**Two schedulers are live on VM 101 and both stay** — the full picture,
 captured from the box, is in `lxc100-crontab.md`. The `pipeline` compose
 service runs `python -m etl.pipeline` (APScheduler inside the container) via:
 
@@ -16,7 +16,7 @@ definition and `backend/etl/pipeline.py` for the cron schedules
 
 The *repo copies* of the older schedulers were removed in July 2026:
 `calsight-etl-scheduler.service` (systemd unit wrapping the deleted
-`etl/scheduler.py`) and `setup-etl-cron.sh`. The **host cron on LXC 100
+`etl/scheduler.py`) and `setup-etl-cron.sh`. The **host cron on VM 101
 itself remains live** and is wanted: root's `0 2 * * *` runs
 `run-etl-with-notify.sh` → `etl.run_all` inside `calsight-backend-1`, while
 the `calsight-pipeline-1` container runs the backup (07:00 UTC), the daily
@@ -40,7 +40,7 @@ crontab -l | grep -i -e etl -e calsight
 # 3. !!! DO NOT RUN ON THE CURRENT DEPLOYMENT !!!
 #
 #    Both schedulers are live and both are wanted (lxc100-crontab.md,
-#    2026-08-09, corrected 2026-09-12). The host cron runs the ETL; the
+#    2026-08-09, corrected 2026-09-13). The host cron runs the ETL; the
 #    container runs the ETL *and* the backups. Running the commands below
 #    would silently drop one of the two runs on a system nobody is watching.
 #

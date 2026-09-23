@@ -21,6 +21,7 @@ from sqlalchemy import text
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.route_extraction import extract_route_number
 from etl._utils import track_etl_run
+from etl.backfill_derived import _all_crash_year_range
 
 
 logging.basicConfig(
@@ -29,23 +30,6 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
-
-
-def _all_crash_year_range(db) -> range:
-    """Year range covering every crash in the DB.
-
-    Boundaries come from the data itself so re-running this script after a
-    fresh load automatically picks up new years without a code change.
-    """
-    row = db.execute(text("""
-        SELECT
-            MIN(EXTRACT(YEAR FROM crash_datetime)::int),
-            MAX(EXTRACT(YEAR FROM crash_datetime)::int)
-        FROM crashes
-    """)).one_or_none()
-    if row is None or row[0] is None:
-        return range(0)
-    return range(int(row[0]), int(row[1]) + 1)
 
 
 # Number of rows to update per round-trip. Larger = fewer round-trips, but

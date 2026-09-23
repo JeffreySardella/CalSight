@@ -20,6 +20,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, Hospital
 from etl._utils import get_with_retry, require_rows, track_etl_run
+from etl._utils import safe_float as _safe_float, safe_int as _safe_int
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,31 +41,12 @@ HOSPITAL_TYPES = {
 }
 
 
-def _safe_float(value):
-    if value is None or value == "":
-        return None
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def _safe_int(value):
-    if value is None or value == "":
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
 @track_etl_run("hospitals")
 def run():
     """Main entry point."""
     db = SessionLocal()
 
     try:
-        # Build county name -> code lookup
         counties = db.query(County.name, County.code).all()
         name_to_code = {}
         for name, code in counties:

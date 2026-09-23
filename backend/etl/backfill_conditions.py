@@ -29,6 +29,7 @@ from sqlalchemy import text
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from etl._utils import track_etl_run
+from etl.backfill_derived import _all_crash_year_range
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,25 +37,6 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Year range helper (same pattern as backfill_derived._all_crash_year_range)
-# ---------------------------------------------------------------------------
-
-def _all_crash_year_range(db) -> range:
-    """Year range covering every crash in the DB."""
-    row = db.execute(text("""
-        SELECT
-            MIN(EXTRACT(YEAR FROM crash_datetime)::int),
-            MAX(EXTRACT(YEAR FROM crash_datetime)::int)
-        FROM crashes
-    """)).one_or_none()
-
-    if row is None or row[0] is None:
-        return range(0)
-
-    return range(int(row[0]), int(row[1]) + 1)
 
 
 # ---------------------------------------------------------------------------

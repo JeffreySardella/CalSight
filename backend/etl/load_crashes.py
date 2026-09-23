@@ -140,7 +140,7 @@ def upsert_crashes(
 
     Instead of one SELECT + one INSERT/UPDATE per row (2 round-trips each),
     this sends one statement for the entire batch. PostgreSQL handles the
-    conflict resolution natively — far fewer network round-trips to Azure.
+    conflict resolution natively — far fewer network round-trips to the DB.
 
     How it works:
     - INSERT all rows in one statement

@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, CalenviroScreen, TractCes
 from etl._utils import get_with_retry, require_rows, track_etl_run
+from etl._utils import safe_float as _safe_float
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,16 +82,6 @@ FIELD_MAP = {
     "Linguistic_Isol": "linguistic_isolation_pct",
     "HousBurd": "housing_burden_pct",
 }
-
-
-def _safe_float(value):
-    """Convert a value to float, returning None for missing data."""
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return None
 
 
 def normalize_geoid(tract_code) -> str | None:

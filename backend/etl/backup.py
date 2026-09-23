@@ -3,8 +3,10 @@
 Strategy:
   - Daily custom-format pg_dump (compressed, supports parallel restore)
   - 7-day retention with automatic rotation
-  - Stored on the Proxmox host at /opt/calsight/backups (bind-mounted)
-  - LXC 100 hosts the production DB and runs this backup client
+  - Stored at /opt/calsight/backups on VM 101 (bind-mounted into the
+    pipeline container, which runs this module)
+  - The production DB itself is on LXC 100; its R2 offsite copy comes from a
+    separate script there (backend/deploy/lxc100-backup.py)
 
 Restore procedure:
   See docs/RESTORE_RUNBOOK.md for the full, step-by-step recovery procedure
@@ -477,7 +479,6 @@ def main() -> int:
         rotate_backups(args.dir, args.retention)
         return 0
 
-    # Run backup then rotate
     filepath = run_backup(args.dir)
     if filepath is None:
         _notify_discord("pg_dump failed — check server logs", success=False)

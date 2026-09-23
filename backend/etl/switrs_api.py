@@ -335,17 +335,3 @@ def iter_crashes_from_sqlite(
         "Total SWITRS records loaded (%d–%d): %d",
         start_year, end_year, total,
     )
-
-
-def read_crashes_from_sqlite(
-    sqlite_path: str, start_year: int, end_year: int
-) -> list[dict]:
-    """Materialize the full year range as one list.
-
-    Prefer iter_crashes_from_sqlite() for multi-year loads — this exists for
-    small ranges and tests where a flat list is convenient.
-    """
-    results: list[dict] = []
-    for batch in iter_crashes_from_sqlite(sqlite_path, start_year, end_year):
-        results.extend(batch)
-    return results

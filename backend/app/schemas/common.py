@@ -1,16 +1,8 @@
-"""Shared Pydantic models: error envelope, pagination wrapper."""
+"""Shared Pydantic models: pagination wrapper."""
 
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, Field
-
-
-class ErrorResponse(BaseModel):
-    detail: str
-    filter: str | None = Field(
-        default=None,
-        description="Which filter param was invalid, if any.",
-    )
+from pydantic import BaseModel
 
 
 T = TypeVar("T")

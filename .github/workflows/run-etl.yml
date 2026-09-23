@@ -1,6 +1,6 @@
 name: Run ETL Job
 
-# Manually run a single ETL job on the prod runner (LXC 100) against the live
+# Manually run a single ETL job on the prod runner (VM 101) against the live
 # backend container — without a full redeploy. Used for one-off backfills like
 # route_number, where the data job is registered in the daily pipeline but you
 # don't want to wait for the next nightly cycle.

@@ -55,28 +55,6 @@ RESOURCE_IDS = {
 DEFAULT_START_YEAR = 2019
 DEFAULT_END_YEAR = 2026
 
-# California ZIP code to county mapping.
-# Built from Census ZCTA-to-county crosswalk. Each zip maps to the county
-# containing most of its population. This covers ~95% of CA zip codes.
-# Zips not in this map are skipped (out-of-state, PO boxes, etc.)
-
-def _build_zip_to_county_from_db(db) -> dict[str, int]:
-    """Build a zip-to-county lookup using the Census crosswalk approach.
-
-    Since zip-to-county mapping is complex (zips can span counties),
-    we use a simpler approach: fetch the data grouped by zip, and for
-    each zip, look up which county it belongs to using the HUD crosswalk.
-
-    For now, we'll aggregate at the county level by using the first 3
-    digits of the zip (SCF) as a rough grouping, then do a proper mapping.
-
-    Actually, the DMV data is already massive — let's just fetch it
-    pre-aggregated by summing all vehicles per zip, then map zips to
-    counties using a static lookup.
-    """
-    # We'll build this dynamically from the data itself
-    pass
-
 
 def fetch_and_aggregate_year(year: int, zip_to_county: dict[str, int]) -> dict[int, dict]:
     """Fetch all vehicle records for a year and aggregate to county level.

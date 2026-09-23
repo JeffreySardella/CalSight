@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, SchoolLocation
 from etl._utils import get_with_retry, require_rows, track_etl_run
+from etl._utils import safe_float as _safe_float
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,22 +33,12 @@ RESOURCE_ID = "23740f30-e860-4ada-a7cb-8de6d21e2c78"
 PAGE_SIZE = 5000
 
 
-def _safe_float(value):
-    if value is None or value == "":
-        return None
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return None
-
-
 @track_etl_run("schools")
 def run():
     """Main entry point."""
     db = SessionLocal()
 
     try:
-        # Build county name -> code lookup
         counties = db.query(County.name, County.code).all()
         name_to_code = {name: code for name, code in counties}
         logger.info("Loaded %d counties", len(name_to_code))

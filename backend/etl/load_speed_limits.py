@@ -117,7 +117,6 @@ def run():
         logger.info("Total segments with speed limits: %d", total_fetched)
         logger.info("Unique (county, speed) combos: %d", len(agg))
 
-        # Build rows
         rows = []
         for (county_code, speed_limit), data in agg.items():
             avg_lanes = None

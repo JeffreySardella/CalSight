@@ -1,6 +1,6 @@
 name: Pipeline Diagnostics
 
-# Read-only look at the ETL pipeline container on the prod runner (LXC 100):
+# Read-only look at the ETL pipeline container on the prod runner (VM 101):
 # state, restart count, and recent logs. Exists because the deploy workflow's
 # failure notification only captures BACKEND logs — when the pipeline
 # container crash-loops (2026-07-13 incident), nothing surfaces its traceback.
@@ -44,11 +44,10 @@ jobs:
             docker logs --tail "$TAIL" "$c" 2>&1 || true
           done
 
-      # The live ETL/backup scheduler on this box is the HOST CRON, not the
-      # containerized pipeline scheduler (verified at the box 2026-07-18, issue
-      # #370). That crontab exists only here — the one machine a disaster
-      # recovery would be rebuilding — so RESTORE_RUNBOOK.md §4f has never been
-      # able to state the real schedule. Print it so it can be committed.
+      # This box runs a host cron alongside the containerized pipeline
+      # scheduler, and both are live (issue #370). That crontab exists only
+      # here — the one machine a disaster recovery would be rebuilding — so
+      # print it to re-check the copy in backend/deploy/lxc100-crontab.md.
       #
       # Read-only, and secrets are redacted below: the line is expected to
       # source .env and curl a healthchecks.io URL, and a workflow log is not
@@ -88,11 +87,11 @@ jobs:
             sudo -n cat "$s" 2>/dev/null | redact || echo "(cannot read $s)"
           done
 
-          # Open question the crontab raised: R2 holds dumps named
-          # calsight_<date>_<time>.dump.gz, but etl/backup.py writes
-          # calsight_<date>.dump — no timestamp, no gzip — and "backup" is not
-          # a job in the ETL registry. So something OTHER than the code we
-          # hardened may be producing the backups. Find it.
+          # R2 holds dumps named calsight_<date>_<time>.dump.gz, which
+          # etl/backup.py does not write. The uploader turned out to be a root
+          # cron on LXC 100, which this runner (VM 101) cannot see (resolved
+          # 2026-09-13, see lxc100-crontab.md). The probes below still check
+          # this box for anything else writing backups.
           echo "===== all crontabs, every user ====="
           for u in $(sudo -n cut -d: -f1 /etc/passwd 2>/dev/null); do
             out=$(sudo -n crontab -l -u "$u" 2>/dev/null | grep -vE '^\s*#|^\s*$' || true)
