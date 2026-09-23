@@ -800,9 +800,13 @@ function MapPageInner() {
     // statewide. Only on a changed selection, so re-applying a year filter
     // doesn't undo the user's own pan.
     const countiesKey = [...selectedCounties].sort().join("|");
+    // A focused county that is the whole selection was framed by
+    // CountyBoundaries when the focus followed the pick; a second fitBounds
+    // here landed mid-animation and yanked the camera a second time.
+    const framedByFocus = focusedCounty !== null && selectedCounties.size === 1 && selectedCounties.has(focusedCounty);
     if (countiesKey !== framedCountiesRef.current) {
       framedCountiesRef.current = countiesKey;
-      const bounds = countyGeoJson ? countyBounds(countyGeoJson, selectedCounties) : null;
+      const bounds = countyGeoJson && !framedByFocus ? countyBounds(countyGeoJson, selectedCounties) : null;
       if (bounds) {
         mapRef.current?.fitBounds(bounds, { padding: [40, 40], maxZoom: 11, animate: !prefersReducedMotionNow() });
       }
@@ -810,7 +814,7 @@ function MapPageInner() {
 
     setShowMobileFilters(false);
     setActivePanel(null);
-  }, [setAllFilters, selectedCounties, countyGeoJson]);
+  }, [setAllFilters, selectedCounties, countyGeoJson, focusedCounty]);
 
   function renderPanelContent() {
     switch (activePanel) {
