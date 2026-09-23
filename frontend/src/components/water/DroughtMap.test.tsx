@@ -11,16 +11,16 @@ import DroughtMap, {
   fillForReservoirPct,
   fillForSnowPct,
 } from "./DroughtMap";
-
-// The shared mock renders the overlay as a plain <svg> with its viewBox and
-// hands every layer the same fake map, so the drawn layers are ordinary DOM.
-vi.mock("react-leaflet", () => import("../../__mocks__/react-leaflet"));
 import type { DroughtCounty } from "../../hooks/useDroughtData";
 import type {
   RegionSnowpack,
   SnowStationCondition,
 } from "../../hooks/useSnowpackData";
 import type { ReservoirCondition } from "../../hooks/useWaterData";
+
+// The shared mock renders the overlay as a plain <svg> with its viewBox and
+// hands every layer the same fake map, so the drawn layers are ordinary DOM.
+vi.mock("react-leaflet", () => import("../../__mocks__/react-leaflet"));
 
 // Minimal non-quantized topology: two triangular "counties".
 const TOPO = {
@@ -232,16 +232,20 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** The overlay <svg> the layers are drawn into. */
+/** The overlay <svg> the layers are drawn into. Typed as HTMLElement only
+ *  because that is what testing-library's `within` accepts. */
+function mapSvgOf(el: Element) {
+  return el.closest("svg") as unknown as HTMLElement;
+}
+
 async function findMapSvg() {
-  const img = await screen.findByRole("img", { name: /map of california/i });
-  return img.closest("svg")!;
+  return mapSvgOf(await screen.findByRole("img", { name: /map of california/i }));
 }
 
 /** jsdom gives every element a zero-sized box, so the client→overlay math
  *  behind the nearest-centre rules needs a stand-in for the real one. Sized
  *  to the viewBox, so client pixels and overlay units line up 1:1. */
-function mockSvgBox(svg: SVGSVGElement) {
+function mockSvgBox(svg: Element) {
   const [, , width, height] = svg.getAttribute("viewBox")!.split(" ").map(Number);
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
     left: 0, top: 0, right: width, bottom: height, width, height,
@@ -315,7 +319,7 @@ describe("DroughtMap reservoir layer", () => {
     renderMap(COUNTIES, undefined);
     const svg = await screen.findByRole("img", { name: /map of california/i });
     expect(svg.closest("svg")!.querySelectorAll("circle")).toHaveLength(0);
-    expect(within(svg.closest("svg")!).queryByRole("button")).toBeNull();
+    expect(within(mapSvgOf(svg)).queryByRole("button")).toBeNull();
     // The choropleth is untouched by the missing layer.
     expect(svg.querySelectorAll("path")).toHaveLength(2);
   });
@@ -497,7 +501,7 @@ describe("DroughtMap snow layer", () => {
     const svg = await screen.findByRole("img", { name: /map of california/i });
     expect(snowMarks()).toHaveLength(0);
     expect(svg.closest("svg")!.querySelectorAll("polygon")).toHaveLength(0);
-    expect(within(svg.closest("svg")!).queryByRole("button")).toBeNull();
+    expect(within(mapSvgOf(svg)).queryByRole("button")).toBeNull();
     // The choropleth is untouched by the missing layer.
     expect(svg.querySelectorAll("path")).toHaveLength(2);
     expect(screen.queryByRole("list", { name: /legend: snow stations/i })).toBeNull();
