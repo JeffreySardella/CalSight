@@ -313,25 +313,6 @@ def _run_group_query(
     ])
     has_condition_group = group_by in ("weather", "lighting", "collision_type")
 
-    def _raw_preds():
-        return build_crash_predicates(
-            years=years,
-            county_codes=county_codes,
-            severities=severities,
-            causes=causes,
-            alcohol=alcohol_v,
-            distracted=distracted_v,
-            pedestrian=pedestrian_v,
-            cyclist=cyclist_v,
-            drug=drug_v,
-            driver_age=driver_age_v,
-            weather=weather_v,
-            lighting=lighting_v,
-            collision_type=collision_type_v,
-            road_type=road_type_v,
-            hit_run=hit_run_v,
-        )
-
     if has_involvement and group_by in _PERSON_GROUPS:
         raise FilterError(
             "involvement",

@@ -158,7 +158,6 @@ def check_date_range(
     db: Session,
     table: str = "crashes",
     date_column: str = "crash_datetime",
-    expected_max_year: int | None = None,
 ) -> ValidationCheck:
     """Verify data covers expected date range — no future dates, no gaps."""
     result = db.execute(text(

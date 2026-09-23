@@ -143,26 +143,6 @@ def _is_available(provider_name: str) -> bool:
     return False
 
 
-def get_provider_status() -> dict[str, str]:
-    """Return status of all providers (for the frontend)."""
-    chain = _get_provider_chain()
-    status = {}
-    for p in chain:
-        name = p["name"]
-        if _is_available(name):
-            status[name] = "available"
-        else:
-            remaining = int(_provider_cooldowns.get(name, 0) - time.time())
-            status[name] = f"cooldown ({remaining}s)"
-    return status
-
-
-def get_available_provider_count() -> int:
-    """Return how many providers are currently available (not in cooldown)."""
-    chain = _get_provider_chain()
-    return sum(1 for p in chain if _is_available(p["name"]))
-
-
 def _get_provider_chain() -> list[dict[str, str]]:
     """Build the ordered provider chain with OpenRouter free models expanded.
 
