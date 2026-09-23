@@ -143,4 +143,35 @@ describe("nlqParser", () => {
       expect(resolveNlq(parseNlq("ksi by county"))?.measure).toBe("killed");
     });
   });
+
+  describe("filter words", () => {
+    it("reports a filter word it cannot apply and lowers confidence", () => {
+      // The audit query: it used to parse as Year + Fatalities at "high".
+      const result = parseNlq("pedestrian deaths by year");
+      expect(result.dimension).toBe("year");
+      expect(result.measure).toBe("killed");
+      expect(result.ignored).toEqual(["pedestrian"]);
+      expect(result.confidence).toBe("medium");
+    });
+
+    it("catches involvement and cause words", () => {
+      expect(parseNlq("DUI crashes by county").ignored).toEqual(["dui"]);
+      expect(parseNlq("cyclist and motorcyclist injuries by month").ignored).toEqual(["cyclist", "motorcyclist"]);
+      expect(parseNlq("speeding crashes by hour").ignored).toEqual(["speeding"]);
+      // One matched part plus a dropped word is too little to build a chart.
+      expect(resolveNlq(parseNlq("alcohol crashes"))).toBeNull();
+    });
+
+    it("does not ignore road-user words the mode dimension answers", () => {
+      const result = parseNlq("pedestrians vs cyclists");
+      expect(result.dimension).toBe("mode");
+      expect(result.ignored).toEqual([]);
+      expect(parseNlq("pedestrian deaths").ignored).toEqual([]);
+    });
+
+    it("leaves ordinary queries alone", () => {
+      expect(parseNlq("fatalities by county as a scatter plot").ignored).toEqual([]);
+      expect(parseNlq("crashes by hour").confidence).toBe("high");
+    });
+  });
 });

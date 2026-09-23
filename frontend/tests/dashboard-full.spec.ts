@@ -74,6 +74,8 @@ test.describe("Dashboard - NLQ Query Bar", () => {
     // Should switch to builder mode and show the new chart
     // The chart "Crashes by Hour" should now be visible
     await expect(page.locator("h3", { hasText: "Crashes by Hour" })).toBeVisible({ timeout: 10000 });
+    // ...and says so, rather than switching tabs silently.
+    await expect(page.getByText(/Switched to the Builder tab/)).toBeVisible();
   });
 });
 

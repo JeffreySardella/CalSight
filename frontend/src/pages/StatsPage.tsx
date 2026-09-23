@@ -53,6 +53,7 @@ import { useDrillDown } from "../hooks/useDrillDown";
 import DrillBreadcrumb from "../components/stats/DrillBreadcrumb";
 import { DIMENSION_LABELS } from "../lib/dashboard/types";
 import { DATA_STORIES, getStoryById } from "../lib/dashboard/stories";
+import { PRESETS } from "../lib/dashboard/presets";
 import { buildStatsPageSeo } from "../lib/dashboard/pageSeo";
 import { useCrossFilter } from "../hooks/useCrossFilter";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -796,8 +797,13 @@ function StatsPageInner() {
               />
             )}
             {!printPreview && <NlqQueryBar onAddChart={(cfg) => {
-              if (dashboard.config.mode === "simple") dashboard.setMode("advanced");
               dashboard.addChart(cfg);
+              // Presets can't hold added charts, so the chart lives on the
+              // Builder tab. Say so: the switch used to be silent, and the
+              // preset's charts seemed to vanish.
+              if (dashboard.config.mode !== "simple") return;
+              dashboard.setMode("advanced");
+              return `Switched to the Builder tab; your ${PRESETS[dashboard.config.preset]?.label ?? "preset"} charts are still under Presets.`;
             }} />}
             {dashboard.config.mode === "simple" && (
               <PresetPicker active={dashboard.config.preset} onSelect={handlePresetSelect} />
