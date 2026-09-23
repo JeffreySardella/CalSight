@@ -140,6 +140,30 @@ describe("CrashHeatmap", () => {
     layer._redraw();
     expect(realDraw).toHaveBeenCalledTimes(1);
   });
+
+  it("fades the heat canvas as the crash dots take over, and restores it zooming out", async () => {
+    vi.mocked(L.heatLayer).mockClear();
+    mockMap.on.mockClear();
+    const { useHeatLayer } = await import("./CrashHeatmap");
+    const canvas = document.createElement("canvas");
+    vi.mocked(L.heatLayer).mockImplementationOnce(() => ({
+      setLatLngs: vi.fn().mockReturnThis(),
+      addTo: vi.fn().mockReturnThis(),
+      setOptions: vi.fn().mockReturnThis(),
+      _reset: vi.fn(),
+      _canvas: canvas,
+    }) as unknown as L.HeatLayer);
+    mockMap.getZoom.mockReturnValue(13);
+
+    renderHook(() => useHeatLayer([{ lat: 36.7, lng: -119.8, weight: 1 }], "raw", "default", false));
+    expect(Number(canvas.style.opacity)).toBeLessThan(1);
+
+    const onZoomEnd = mockMap.on.mock.calls.find(([evt]) => evt === "zoomend")![1] as () => void;
+    mockMap.getZoom.mockReturnValue(9);
+    onZoomEnd();
+    expect(canvas.style.opacity).toBe("1");
+    mockMap.getZoom.mockReturnValue(6);
+  });
 });
 
 describe("useFatalLayer", () => {

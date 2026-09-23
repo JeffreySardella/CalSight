@@ -24,8 +24,32 @@ export const RESOLUTION_MAX_ZOOM: Record<HeatmapResolution, number> = {
   raw: 18,
 };
 
-/** Zoom at which individual crash dots take over from the heat field. */
-export const DOT_MIN_ZOOM = 14;
+/**
+ * Zoom at which individual crash dots take over from the heat field.
+ *
+ * Was 14, which left zoom 13 as a wash of grid-aggregated heat with nothing to
+ * tap. Measured against the live API (2026-09-22, a phone-sized 375x650 view
+ * plus the half-screen pad, `limit=2000`): dense downtown Fresno returns 2,000
+ * rows at both zoom 13 and zoom 14 (39,073 vs 16,800 crashes in the rectangle),
+ * ~51 KB gzipped / ~0.59 MB of JSON either way, 875 vs 794 of them on screen;
+ * downtown Los Angeles is the same shape (2,000 rows, ~53 KB). The row cap
+ * makes a zoom-13 request cost what a zoom-14 one already does, and
+ * CrashDotLayer draws at most 800, so the phone pays nothing extra — the
+ * zoom-13 dots are just a thinner sample, which the faded heat underneath
+ * (heatOpacityForZoom) still carries the density for.
+ */
+export const DOT_MIN_ZOOM = 13;
+
+/**
+ * Opacity of the heat canvas at `zoom`: full while it is the only picture,
+ * eased back one zoom before the dots arrive and held low under them, so the
+ * basemap and the dots read through it instead of a saturated wash.
+ */
+export function heatOpacityForZoom(zoom: number): number {
+  if (zoom < DOT_MIN_ZOOM - 1) return 1;
+  if (zoom < DOT_MIN_ZOOM) return 0.7;
+  return 0.4;
+}
 
 /**
  * Full-detail crash points fetched per dot request at DOT_MIN_ZOOM+. The API's

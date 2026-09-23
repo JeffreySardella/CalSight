@@ -6,6 +6,7 @@ import { useIsDark } from "../../context/ThemeContext";
 import { useLiteMode } from "../../context/LiteModeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { getMapSeverityColors } from "../../lib/theme/tokens";
+import { DOT_MIN_ZOOM } from "../../lib/map/heatmapLod";
 
 interface CrashDotLayerProps {
   points: HeatmapPoint[];
@@ -36,7 +37,6 @@ function formatCause(cause: string | null | undefined): string {
   return cause.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const MIN_ZOOM = 14;
 
 export default memo(function CrashDotLayer({ points, enabled, palette }: CrashDotLayerProps) {
   const map = useMap();
@@ -56,7 +56,8 @@ export default memo(function CrashDotLayer({ points, enabled, palette }: CrashDo
   });
 
   const visible = useMemo(() => {
-    if (!enabled || points.length === 0 || zoom < MIN_ZOOM) return [];
+    // The same threshold MapPage fetches on; this used to be its own copy.
+    if (!enabled || points.length === 0 || zoom < DOT_MIN_ZOOM) return [];
     try {
       const bounds = map.getBounds();
       return points
