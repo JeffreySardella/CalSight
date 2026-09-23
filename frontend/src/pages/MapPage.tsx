@@ -1099,7 +1099,10 @@ function MapPageInner() {
             searchOpen={mobileSearchOpen}
           />
         )}
-        {!focusedCounty && showStatewide && randomCard && (
+        {/* Statewide only: with a county filter applied, a California-wide
+            story is off-topic, and on a phone the card covered the lower
+            40% of the county the camera had just framed. */}
+        {!focusedCounty && selectedCounties.size === 0 && showStatewide && randomCard && (
           <AiInsightCard
             onClose={() => setShowStatewide(false)}
             countyName="California"
