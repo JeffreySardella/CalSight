@@ -7,6 +7,7 @@ import { describe, it, expect } from "vitest";
 import { buildSitemapEntries, renderSitemapXml, STATIC_ROUTES } from "./generate-sitemap.mjs";
 import { STORY_IDS } from "../src/lib/dashboard/stories.ts";
 import { PRESET_KEYS } from "../src/lib/dashboard/presets.ts";
+import { CA_COUNTIES, slugify } from "../src/hooks/useFilterParams.ts";
 
 // Guards the whole point of build-time generation: every story and preset
 // that exists in the app must show up in the sitemap. If someone adds a
@@ -28,6 +29,15 @@ describe("generate-sitemap", () => {
     expect(PRESET_KEYS.length).toBeGreaterThan(0);
     for (const key of PRESET_KEYS) {
       expect(locs).toContain(`/stats?preset=${key}`);
+    }
+  });
+
+  it("includes a report-card URL for every county", async () => {
+    const { urls } = await buildSitemapEntries();
+    const locs = urls.map((u) => u.loc);
+    expect(CA_COUNTIES.length).toBe(58);
+    for (const name of CA_COUNTIES) {
+      expect(locs).toContain(`/county/${slugify(name)}/report`);
     }
   });
 
