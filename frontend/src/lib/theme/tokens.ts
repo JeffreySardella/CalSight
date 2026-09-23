@@ -199,7 +199,6 @@ function deriveChoroplethScale(palette: readonly string[]): readonly string[] {
 
 /**
  * Get the correlation cell color for a given r-value.
- * This replaces the hardcoded colorForR function in CorrelationMatrix.
  */
 export function correlationColor(r: number, tokens: CorrelationTokens): string {
   // Not-computable cells (NaN) are neutral — every comparison below is false

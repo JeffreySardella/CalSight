@@ -173,7 +173,6 @@ export function useDragReorder({
     return cards.length;
   }, []);
 
-  // Container ref callback
   const setContainerRef = useCallback((node: HTMLElement | null) => {
     containerRef.current = node;
   }, []);
@@ -193,7 +192,6 @@ export function useDragReorder({
 
     dragSourceIndex.current = index;
 
-    // Set drag data
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", id);
 
