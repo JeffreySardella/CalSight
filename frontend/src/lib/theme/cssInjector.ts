@@ -267,10 +267,3 @@ export function injectThemeCss(customization: ThemeCustomization | null): void {
 
   styleEl.textContent = buildCssOverrides(customization);
 }
-
-/**
- * Remove all custom theme overrides, restoring the base CSS.
- */
-export function clearThemeCss(): void {
-  injectThemeCss(null);
-}

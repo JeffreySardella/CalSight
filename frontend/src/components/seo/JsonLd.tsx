@@ -3,58 +3,13 @@
  *
  * Google uses structured data for rich results in search. For a traffic
  * safety dashboard, the most relevant schemas are:
- *   - WebApplication (for the app itself)
  *   - Dataset (for the crash data)
- *   - GovernmentService (for the public records source)
  *   - BreadcrumbList (for navigation context)
  *
  * References:
  *   https://schema.org/Dataset
  *   https://developers.google.com/search/docs/appearance/structured-data/dataset
  */
-
-/**
- * Base organization schema for CalSight
- */
-export function buildOrganizationSchema() {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "CalSight",
-    url: "https://calsight.org",
-    logo: "https://calsight.org/web-app-manifest-512x512.png",
-    description: "Open-source California traffic crash data exploration platform",
-  };
-}
-
-/**
- * WebApplication schema — tells Google this is an interactive web app
- */
-export function buildWebAppSchema() {
-  return {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    name: "CalSight",
-    url: "https://calsight.org",
-    applicationCategory: "DataVisualization",
-    operatingSystem: "Web",
-    description:
-      "Explore 11.6 million California traffic crashes with interactive maps, AI-powered insights, and demographic analysis.",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-    },
-    featureList: [
-      "Interactive crash map with county-level filtering",
-      "AI-powered safety insights using Groq LLM",
-      "Customizable statistics dashboard with 12 chart types",
-      "Demographic and equity analysis",
-      "PDF and PNG export",
-      "Natural language query builder",
-    ],
-  };
-}
 
 /**
  * Dataset schema for the crash records — helps with Google Dataset Search
@@ -123,26 +78,6 @@ export function buildBreadcrumbSchema(items: { name: string; path: string }[]) {
       position: i + 1,
       name: item.name,
       item: `https://calsight.org${item.path}`,
-    })),
-  };
-}
-
-/**
- * FAQPage schema — useful for the About page or if we add an FAQ section
- */
-export function buildFaqSchema(
-  faqs: { question: string; answer: string }[]
-) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((faq) => ({
-      "@type": "Question",
-      name: faq.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: faq.answer,
-      },
     })),
   };
 }
