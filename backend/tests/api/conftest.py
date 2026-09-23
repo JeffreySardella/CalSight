@@ -8,8 +8,8 @@ from urllib.parse import urlparse
 # CRITICAL: override DATABASE_URL BEFORE importing anything from `app`.
 # app.settings reads it at import time (pydantic-settings), and
 # app.database.engine is constructed from that value — so if we import
-# app before setting this, the tests would run against the default URL
-# (Azure) instead of the local test DB.
+# app before setting this, the tests would run against whatever database
+# .env points at instead of the local test DB.
 TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL",
     "postgresql://calsight:calsight_dev@localhost:5433/calsight_test",

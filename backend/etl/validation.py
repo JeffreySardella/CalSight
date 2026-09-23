@@ -348,7 +348,6 @@ def run_crash_validations(db: Session) -> ValidationReport:
     report.checks.append(check_null_rate(db, "crashes", "severity", max_null_pct=5.0))
     report.checks.append(check_null_rate(db, "crashes", "latitude", max_null_pct=40.0))
 
-    # Log results
     for check in report.checks:
         if check.passed:
             logger.info("  PASS: %s — %s", check.name, check.message)

@@ -1,7 +1,7 @@
 """Backfill crashes.city_id from the existing free-text crashes.city_name.
 
 The ETL loader (`etl/load_crashes.py`) normalizes city_id on new loads, but
-the ~25M rows already in Azure carry city_name strings only. This script
+the ~25M rows already loaded carry city_name strings only. This script
 walks the cities lookup once and updates crash rows in batches.
 
 Strategy:

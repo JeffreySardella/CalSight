@@ -172,7 +172,6 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
     db = SessionLocal()
 
     try:
-        # Load counties with FIPS codes
         counties = db.query(County.code, County.fips, County.name).all()
         logger.info("Loaded %d counties", len(counties))
 

@@ -84,7 +84,7 @@ def _init_sentry() -> None:
 # Schedule Configuration
 # ---------------------------------------------------------------------------
 # All cron times in UTC to avoid container timezone confusion.
-# Prod container (LXC 100) may lack tzdata, so explicit UTC is safest.
+# Prod container (VM 101) may lack tzdata, so explicit UTC is safest.
 # Pacific = UTC-7 (PDT summer) / UTC-8 (PST winter).
 
 ETL_TIMEZONE = "UTC"
@@ -335,7 +335,7 @@ def run_backup() -> bool:
     concerns: alerting and the dead-man's-switch heartbeat.
 
     The backup directory is /backups inside the container, mounted as a
-    Docker volume that maps to the host's /opt/calsight/backups on LXC 100.
+    Docker volume that maps to the host's /opt/calsight/backups on VM 101.
     """
     from etl.backup import (  # noqa: PLC0415
         rotate_backups,

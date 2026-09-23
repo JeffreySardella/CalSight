@@ -116,7 +116,6 @@ def run():
     """Main ETL entry point."""
     db = SessionLocal()
     try:
-        # Build county name -> code lookup
         counties = db.execute(select(County.code, County.name)).all()
         name_to_code = {c.name.upper(): c.code for c in counties}
         logger.info("Loaded %d counties", len(name_to_code))

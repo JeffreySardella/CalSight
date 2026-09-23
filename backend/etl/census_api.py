@@ -491,7 +491,6 @@ def fetch_county_demographics(year: int, api_key: str) -> list[dict]:
     except (httpx.HTTPStatusError, httpx.RequestError):
         logger.info("Disability data (B18101) not available for %d — skipping", year)
 
-    # Build lookup for age data by county FIPS
     age_by_fips = {}
     for row in age_rows:
         age_result = _process_age(row)

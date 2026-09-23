@@ -130,7 +130,6 @@ def run(start_year: int = DEFAULT_START_YEAR, end_year: int = DEFAULT_END_YEAR):
 
     db = SessionLocal()
     try:
-        # Load county FIPS codes
         counties = db.execute(select(County.code, County.fips)).all()
         fips_to_code = {}
         series_to_code = {}

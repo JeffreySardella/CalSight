@@ -5,7 +5,7 @@ https://www2.census.gov/geo/docs/reference/codes2020/place_by_cou/st06_ca_place_
 and ships ~482 incorporated places + ~1133 Census Designated Places.
 
 Run after `seed_counties` since cities.county_code is an FK to counties.code.
-Idempotent — uses session.merge() keyed on (county_code, name).
+Idempotent — INSERT ... ON CONFLICT DO NOTHING on (county_code, name).
 """
 
 import json

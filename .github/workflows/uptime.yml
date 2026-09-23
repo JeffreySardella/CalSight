@@ -9,7 +9,7 @@ name: Uptime Monitor
 # last deploy — which is exactly how the statewide street query 500'd unnoticed
 # for weeks.
 #
-# Runs on GitHub-hosted runners, NOT the self-hosted runner on LXC 100, so the
+# Runs on GitHub-hosted runners, NOT the self-hosted runner on VM 101, so the
 # monitor stays up when the box doesn't.
 #
 # Deliberately probes api.calsight.org and NOT calsight.org/api/health: the apex

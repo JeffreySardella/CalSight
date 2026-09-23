@@ -162,12 +162,10 @@ def run():
     db = SessionLocal()
 
     try:
-        # Build county name -> code lookup
         counties = db.query(County.name, County.code).all()
         name_to_code = {name: code for name, code in counties}
         logger.info("Loaded %d counties from DB", len(name_to_code))
 
-        # Fetch raw segments
         segments = fetch_all_segments()
 
         # Aggregate to county level

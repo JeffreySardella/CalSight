@@ -64,7 +64,6 @@ def run():
     db = SessionLocal()
 
     try:
-        # Build county name -> code lookup
         counties = db.query(County.name, County.code).all()
         name_to_code = {}
         for name, code in counties:

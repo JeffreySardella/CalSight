@@ -321,7 +321,7 @@ def compare_counties(
     """Side-by-side stats for 2-5 counties.
 
     Returns one dict per county with crash_count, total_killed, total_injured,
-    fatal_rate, alcohol_pct, pedestrian_pct (plus any requested metrics).
+    fatal_rate, alcohol_pct, pedestrian_pct. `metrics` is accepted but ignored.
     """
     if not counties:
         return []
