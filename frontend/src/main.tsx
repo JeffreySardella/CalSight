@@ -8,6 +8,7 @@ import '@fontsource-variable/public-sans'
 import '@fontsource-variable/inter'
 import App from './App'
 import { armUpdateGate } from './lib/pwa/swUpdateGate'
+import { failedModuleUrl, healPrecache } from './lib/pwa/healPrecache'
 import './index.css'
 
 registerSW({
@@ -24,6 +25,15 @@ registerSW({
     console.error('Service worker registration failed', error)
     captureException(error)
   },
+})
+
+// A worker that updated mid-deploy can hold the HTML page under a build file's
+// URL; clear those and reload once (see healPrecache). Also when a lazy chunk
+// fails to load mid-session, which is how that damage shows up.
+void healPrecache()
+window.addEventListener('vite:preloadError', (event) => {
+  const url = failedModuleUrl((event as Event & { payload?: unknown }).payload)
+  void healPrecache(undefined, url ? [url] : [])
 })
 
 // React 19 root-level error hooks route uncaught render errors to Sentry

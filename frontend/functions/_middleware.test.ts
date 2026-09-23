@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { escapeHtmlAttr, buildContext, rewriteHtml, onRequest } from "./_middleware";
+import { escapeHtmlAttr, buildContext, rewriteHtml, onRequest, isMissingStaticFile } from "./_middleware";
 
 const SAMPLE_HTML = `<!doctype html>
 <html>
@@ -125,5 +125,40 @@ describe("onRequest content-encoding handling", () => {
     const context = { request: crawlerReq(), next: async () => original };
     const out = await onRequest(context as never);
     expect(out).toBe(original);
+  });
+});
+
+describe("missing build files", () => {
+  const html = () => new Response("<!doctype html><html></html>", { headers: { "content-type": "text/html; charset=utf-8" } });
+  const css = () => new Response("body{}", { headers: { "content-type": "text/css; charset=utf-8" } });
+  const browser = (path: string) =>
+    new Request(`https://calsight.org${path}`, { headers: { "user-agent": "Mozilla/5.0 (iPhone) Safari" } });
+
+  it("answers 404, not the SPA page, for a build file the deployment lacks", async () => {
+    // The SPA catch-all turns a missing /assets/x.css into index.html with a
+    // 200, which the service worker then precaches as the stylesheet.
+    const out = await onRequest({ request: browser("/assets/index-DyBuCTMT.css"), next: async () => html() } as never);
+    expect(out.status).toBe(404);
+    expect(out.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("passes a real build file through untouched", async () => {
+    const real = css();
+    const out = await onRequest({ request: browser("/assets/index-DyBuCTMT.css"), next: async () => real } as never);
+    expect(out).toBe(real);
+  });
+
+  it("still serves the SPA page for app routes", async () => {
+    const page = html();
+    const out = await onRequest({ request: browser("/county/fresno/report"), next: async () => page } as never);
+    expect(out).toBe(page);
+  });
+
+  it("only treats file-like paths as static files", () => {
+    expect(isMissingStaticFile("/assets/a.js", html())).toBe(true);
+    expect(isMissingStaticFile("/sw.js", html())).toBe(true);
+    expect(isMissingStaticFile("/water", html())).toBe(false);
+    expect(isMissingStaticFile("/index.html", html())).toBe(false);
+    expect(isMissingStaticFile("/assets/a.js", css())).toBe(false);
   });
 });

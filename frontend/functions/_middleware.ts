@@ -199,9 +199,35 @@ export function rewriteHtml(html: string, ctx: CrawlerContext): string {
 }
 
 // Cloudflare Pages Functions middleware export
+/**
+ * A build file (script, stylesheet, font, image, data) the current deployment
+ * does not have falls through to the SPA catch-all in _redirects and comes
+ * back as index.html with a 200. The service worker precaches any 200, so a
+ * worker that updated while a deploy was still spreading across Cloudflare's
+ * edge stored the HTML page as a stylesheet and five page chunks (2026-09-23);
+ * the page rendered empty, and the worker never re-downloads a file it thinks
+ * it has. A 404 fails that install instead, and the worker retries later.
+ */
+const STATIC_FILE = /\.(?:js|mjs|css|map|woff2?|ttf|png|jpe?g|webp|avif|gif|svg|ico|geojson|json|txt|xml|webmanifest)$/i;
+
+export function isMissingStaticFile(pathname: string, response: Response): boolean {
+  if (!STATIC_FILE.test(pathname)) return false;
+  return (response.headers.get("content-type") || "").includes("text/html");
+}
+
 export const onRequest: PagesFunction = async (context) => {
   const { request, next } = context;
   const userAgent = request.headers.get("user-agent") || "";
+
+  const { pathname } = new URL(request.url);
+  if (STATIC_FILE.test(pathname)) {
+    const response = await next();
+    if (!isMissingStaticFile(pathname, response)) return response;
+    return new Response("Not found", {
+      status: 404,
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
 
   // Non-crawlers get the normal SPA response
   if (!isCrawler(userAgent)) {
