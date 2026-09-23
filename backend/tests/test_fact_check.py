@@ -87,11 +87,68 @@ def test_causal_phrases_flagged(text):
     "Crash causes are coded by the reporting officer.",
     "Each cause is recorded in a single field.",
     "Traffic backs up on the causeway.",
+    # The unique_factor template, once every template angle got the check.
+    "No single cause usually exceeds 30%.",
     "Crashes led the state that year.",
     "The result was 12 fewer crashes.",
 ])
 def test_cause_category_nouns_not_flagged(text):
     assert CAUSAL_RE.search(text) is None, text
+
+
+# ── hedged speculation is still a cause claim ─────────────────────────────
+#
+# 2026-09-23: our own recovery template said "emptier roads may have
+# encouraged riskier driving" and the gate let it through — a hedge in front
+# of an explanation the data can't support.
+
+@pytest.mark.parametrize("text", [
+    "Emptier roads may have encouraged speeding.",
+    "Crashes fell 12%, likely due to remote work.",
+    "Crashes fell 12%, possibly because fewer people commuted.",
+    "The drop could reflect remote work.",
+    "The rise likely reflects more miles driven.",
+    "Crashes are likely driven by rain and fog.",
+    "The spike was likely influenced by holiday travel.",
+    "Remote work might have contributed to the decline.",
+    "Longer EMS response times are likely factors.",
+    "Fog is probably a factor on Highway 99.",
+    "The dip is likely the result of the stay-at-home order.",
+    "Tourism may be linked to the summer peak.",
+    "That would explain the evening cluster.",
+    "Lower gas prices may also have fueled the increase.",
+    "The pandemic may well have played a role.",
+    "Could reflect\nremote work.",
+])
+def test_hedged_causal_speculation_flagged(text):
+    assert find_causal(text), text
+
+
+@pytest.mark.parametrize("text", [
+    "Crashes fell 12% from 2019 to 2020.",
+    "May had the most crashes of any month.",
+    "In May 2020 crashes fell 12%.",
+    "Crashes peaked in May, with 1,200 recorded.",
+    "Figures for 2025 may change as late reports arrive.",
+    "The 2025 totals may be incomplete.",
+    "Crashes here are 3x more likely to be fatal than the state average.",
+    "The most likely hour for a crash is 5 PM.",
+    "If every county matched this rate, the state would see 5,000 fewer crashes.",
+    "It sits higher than its population share would suggest.",
+    "Deaths could still rise as reports arrive.",
+    "The county might rank higher next year.",
+])
+def test_plain_descriptive_sentences_not_flagged(text):
+    assert find_causal(text) is None, text
+
+
+def test_hedged_pattern_is_linear_on_adversarial_input():
+    import time
+
+    evil = ("may " + "have " * 3 + " " * 20_000) * 20 + "x"
+    start = time.perf_counter()
+    assert find_causal(evil) is None
+    assert time.perf_counter() - start < 1.0
 
 
 # ── "crashes resulted in injuries" reports an outcome, not a cause ────────
@@ -417,3 +474,57 @@ def test_county_card_templates_name_only_causes_in_their_data(data):
     for angle, compose in cc.ANGLES.items():
         text = compose("Kern", data)
         assert check_claims(text, cc.claims_context(data)) == [], (angle, text)
+
+
+# Branch coverage for the explanation-free check below: each variant steers a
+# template into a branch that used to explain its numbers.
+_WINTER_MONTHS = [(12, 20_000), (1, 19_000), (2, 18_000),
+                  *((m, 10_000) for m in range(3, 12))]
+_COVID_HIST = [(2018, 1_000, 10), (2019, 1_000, 10), (2020, 700, 9),
+               (2021, 800, 9), (2022, 800, 9), (2023, 800, 9)]
+_TEMPLATE_VARIANTS = [
+    _FULL_CARD,
+    _RURAL_CARD,
+    {**_FULL_CARD, "peak_hour": (8, 12_000), "months": _WINTER_MONTHS, "hist": _COVID_HIST,
+     "commute_drive": 85.0, "poverty": 18.0, "per_cap": 3_500, "density": 800,
+     "hw_pct": 45.0, "cyc": 0, "cyc_pct": 0.0},
+    {**_FULL_CARD, "peak_hour": (12, 12_000), "commute_drive": 60.0, "density": 200,
+     "income": 90_000, "per_cap": 1_200, "hw_pct": 5.0, "dui_pct": 12.0,
+     "hist": [(2018, 1_000, 10), (2019, 1_000, 10), (2020, 1_100, 11), (2021, 1_300, 9)]},
+    {**_RURAL_CARD, "deaths_per_1k": 30.0, "tc": 400, "dow": [(5, 90), (6, 80), (0, 40)],
+     "hist": [(2018, 300, 9), (2019, 300, 9), (2020, 250, 9), (2021, 400, 9)]},
+]
+
+
+@pytest.mark.parametrize("data", _TEMPLATE_VARIANTS)
+def test_county_card_templates_state_no_causes(data):
+    for angle, compose in cc.ANGLES.items():
+        text = compose("Kern", data)
+        assert find_causal(text) is None, (angle, text)
+
+
+def test_county_card_writer_rejects_and_rewrites_explained_cards():
+    from types import SimpleNamespace
+
+    hedged = "Winter crashes outpace summer by 12%, likely driven by rain."
+    assert cc._card_fails("Kern", 2024, "seasonal", hedged, _FULL_CARD)
+    assert not cc._card_fails("Kern", 2024, "seasonal", "Winter crashes outpace summer.", _FULL_CARD)
+    totals = {"total_crashes": _FULL_CARD["tc"], "total_killed": _FULL_CARD["tk"]}
+    assert cc._is_current(SimpleNamespace(narrative="Plain text.", **totals), _FULL_CARD)
+    assert not cc._is_current(SimpleNamespace(narrative=hedged, **totals), _FULL_CARD)
+
+
+def test_statewide_llm_cards_get_the_causal_check(monkeypatch):
+    """The landing card served "Insurance actuaries had known this for
+    decades"; statewide prompts don't ask "why", so they get the full check."""
+    calls = []
+
+    def fake(prompt):
+        calls.append(prompt)
+        return "California's 150,000 crashes may reflect remote work."
+
+    monkeypatch.setattr(llm_mod, "generate_narrative", fake)
+    assert llm_mod._generate_verified(
+        "p", _STATS, 2024, "statewide/2024/overview", "overview", facts_only=True,
+    ) is None
+    assert "not what caused them" in calls[1]

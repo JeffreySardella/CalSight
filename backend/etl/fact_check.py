@@ -31,12 +31,29 @@ _NOUN_MODIFIERS = (
     "two", "three", "known", "unknown", "likely", "probable", "possible",
     "root", "major", "minor", "frequent", "specific", "underlying",
     "contributing", "reported", "recorded", "listed", "by", "crash",
-    "collision",
+    "collision", "single",
 )
 _NOT_THE_NOUN = "".join(rf"(?<!\b{w} )" for w in _NOUN_MODIFIERS)
 _NOUN_COMPOUNDS = ("of", "categor\\w*", "breakdown", "label", "labels",
                    "code", "codes", "column", "field", "mix", "split")
 _NOT_A_COMPOUND = rf"(?!\s+(?:{'|'.join(_NOUN_COMPOUNDS)})\b)"
+
+# A hedge doesn't make a cause claim supportable: "emptier roads may have
+# encouraged riskier driving" and "could reflect remote work" explain a number
+# the data only counts. The shape is a hedge word, at most two auxiliaries,
+# then an explaining verb or noun. "May" the month and "may change as reports
+# arrive" have no explaining word after them and pass. Kept linear-time for
+# CodeQL: every alternative is a literal stem, and the only repeat is bounded.
+_HEDGES = "may|might|could|would|likely|probably|possibly|perhaps|presumably"
+_HEDGE_AUX = "have|has|had|be|been|also|well|partly|largely|mostly"
+_EXPLAINERS = (
+    r"reflect\w*|contribut\w*|encourag\w*|fuel\w*|driven|spur\w*|prompt\w*"
+    r"|trigger\w*|stem\w*|explain\w*|attribut\w*|linked|tied|influenc\w*"
+    r"|play(?:s|ed)?\s+a\s+(?:role|part)"
+    r"|(?:an?\s+)?(?:factors?|reasons?|culprits?|explanations?)"
+    r"|(?:the|a|an)\s+(?:result|product|consequence|reflection|sign)\s+of"
+)
+_HEDGED_CAUSE = rf"(?:{_HEDGES})(?:\s+(?:{_HEDGE_AUX})){{0,2}}\s+(?:{_EXPLAINERS})"
 
 CAUSAL_RE = re.compile(
     r"\b(?:"
@@ -49,6 +66,7 @@ CAUSAL_RE = re.compile(
     r"|likely played"
     r"|driven by"
     r"|thanks to"
+    rf"|{_HEDGED_CAUSE}"
     r")\b",
     re.IGNORECASE,
 )

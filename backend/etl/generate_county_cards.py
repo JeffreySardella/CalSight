@@ -8,7 +8,12 @@ data); missing, stale and legacy cards are (re)written. No LLM calls.
 Usage::
 
     cd backend
-    python -m etl.generate_county_cards
+    python -m etl.generate_county_cards              # latest year
+    python -m etl.generate_county_cards all          # every year
+    python -m etl.generate_county_cards all --force  # rewrite current cards too
+
+--force is how a template wording fix reaches cards whose totals haven't
+changed. It also replaces generate_llm_cards' card for any angle both write.
 """
 
 from __future__ import annotations
@@ -21,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, CountyInsightCard
-from etl.fact_check import check_claims, numbers_context
+from etl.fact_check import check_claims, find_causal, numbers_context
 from etl.generate_fun_facts import fact_fails
 
 logger = logging.getLogger(__name__)
@@ -236,15 +241,12 @@ def compose_unique_factor(name: str, d: dict) -> str:
         findings.append(
             f"Crashes in {name} County are {round(d['deaths_per_1k']/d['st_deaths_per_1k'],1)}x "
             f"more likely to be fatal than the state average — {d['deaths_per_1k']} deaths "
-            f"per 1,000 crashes compared to California's {d['st_deaths_per_1k']}. Rural highways "
-            f"with higher speeds and longer EMS response times are likely factors."
+            f"per 1,000 crashes compared to California's {d['st_deaths_per_1k']}."
         )
     elif d["deaths_per_1k"] < d["st_deaths_per_1k"] * 0.5 and d["tc"] >= 500:
         findings.append(
             f"Despite high crash volume, {name} County's {d['deaths_per_1k']} deaths per "
-            f"1,000 crashes is less than half the state average of {d['st_deaths_per_1k']}. Dense urban "
-            f"environments with lower speeds tend to produce fender-benders rather than "
-            f"fatal collisions."
+            f"1,000 crashes is less than half the state average of {d['st_deaths_per_1k']}."
         )
 
     # Unusually high pedestrian rate
@@ -258,9 +260,7 @@ def compose_unique_factor(name: str, d: dict) -> str:
     # Unusually high highway proportion
     if d["hw_pct"] > 40:
         findings.append(
-            f"A striking {d['hw_pct']}% of crashes occur on highways, reflecting "
-            f"{name} County's role as a through-corridor where long-distance traffic "
-            f"mixes with local driving."
+            f"A striking {d['hw_pct']}% of {name} County's crashes occur on highways."
         )
 
     # Very high hit-and-run rate
@@ -275,8 +275,8 @@ def compose_unique_factor(name: str, d: dict) -> str:
         per_day = round(d["tc"] / 365, 1)
         findings.append(
             f"With just {_fmt(d['tc'])} crashes all year — roughly {per_day} per day — "
-            f"{name} is one of California's quietest counties for traffic incidents. "
-            f"Its sparse population of {_fmt(d['pop'])} means roads are lightly traveled."
+            f"{name} is one of California's quietest counties for traffic incidents, "
+            f"with a population of just {_fmt(d['pop'])}."
         )
 
     if findings:
@@ -306,8 +306,7 @@ def compose_cause_focus(name: str, d: dict) -> str:
             parts.append(
                 f'The leading cause of crashes in {name} County is "{top_label}" at '
                 f"{top_pct}%, a full {gap:.0f} percentage points ahead of "
-                f'"{second[0].replace("_", " ")}" ({second[2]}%). '
-                f"That concentration suggests a systemic issue rather than random variation."
+                f'"{second[0].replace("_", " ")}" ({second[2]}%).'
             )
         else:
             parts.append(
@@ -357,18 +356,6 @@ def compose_dui(name: str, d: dict) -> str:
             f"{name} County's DUI rate of {d['dui_pct']}% ({_fmt(d['dui'])} crashes) "
             f"tracks close to the state average of {d['st_dui_pct']}%."
         )
-
-    # DUI fatality disproportionality
-    if d["dui"] > 10 and d["tk"] > 0:
-        # Check if DUI crashes are disproportionately fatal
-        dui_fatal_text = (
-            "While DUI crashes represent a fraction of total volume, they "
-            "consistently account for a disproportionate share of fatalities "
-            "— impaired drivers are far more likely to be in high-speed, "
-            "single-vehicle collisions."
-        )
-        if d["dui_pct"] < 15 and d["deaths_per_1k"] > 10:
-            parts.append(dui_fatal_text)
 
     # Historical DUI trend
     dui_years = [(y, k) for y, cnt, k in d["hist"] if y >= 2016]
@@ -437,27 +424,23 @@ def compose_geography(name: str, d: dict) -> str:
     if d["hw_pct"] > 30:
         parts.append(
             f"Highway and freeway crashes account for {d['hw_pct']}% of all collisions "
-            f"in {name} County ({_fmt(d['hw_count'])} incidents), reflecting the "
-            f"county's dependence on major corridors for both local commutes and "
-            f"through-traffic."
+            f"in {name} County ({_fmt(d['hw_count'])} incidents)."
         )
     elif d["hw_pct"] < 10 and d["tc"] > 500:
         parts.append(
-            f"Only {d['hw_pct']}% of crashes occur on highways — the vast majority "
-            f"happen on local streets and intersections, consistent with {name} County's "
-            f"dense urban grid."
+            f"Only {d['hw_pct']}% of crashes in {name} County occur on highways — the "
+            f"vast majority happen on local streets and intersections."
         )
 
     if d["density"] and d["density"] > 1000:
         parts.append(
-            f"With {round(d['density']):,} people per square mile, tight urban streets "
-            f"create constant conflict points between cars, pedestrians, and cyclists."
+            f"{name} County is densely populated, with {round(d['density']):,} people "
+            f"per square mile."
         )
     elif d["density"] and d["density"] < 50:
         parts.append(
-            f"At just {round(d['density'])} people per square mile, long stretches of "
-            f"rural highway with higher speeds and limited lighting contribute to the "
-            f"county's elevated fatality rate."
+            f"{name} County is sparsely populated, with just {round(d['density'])} "
+            f"people per square mile."
         )
 
     if d["ped_pct"] > 5 and d["ped"] > 30:
@@ -491,14 +474,12 @@ def compose_seasonal(name: str, d: dict) -> str:
         pct_more = round((summer - winter) / winter * 100)
         parts.append(
             f"Summer months (June-August) see {pct_more}% more crashes than winter "
-            f"(December-February) in {name} County — more people on the road means "
-            f"more collisions, even with better weather."
+            f"(December-February) in {name} County."
         )
     elif winter > summer * 1.1:
         pct_more = round((winter - summer) / summer * 100)
         parts.append(
-            f"Winter crashes outpace summer by {pct_more}% in {name} County, likely "
-            f"driven by rain, fog, shorter daylight hours, and holiday travel."
+            f"Winter crashes outpace summer by {pct_more}% in {name} County."
         )
 
     parts.append(
@@ -583,8 +564,7 @@ def compose_cyclist(name: str, d: dict) -> str:
     """Cyclist-specific crash analysis."""
     if d["cyc"] == 0:
         return (
-            f"{name} County recorded zero cyclist-involved crashes in {d['year']}, "
-            f"likely reflecting low cycling activity rather than perfect safety."
+            f"{name} County recorded zero cyclist-involved crashes in {d['year']}."
         )
     diff = d["cyc_pct"] - d["st_cyc_pct"]
     parts = []
@@ -605,12 +585,7 @@ def compose_cyclist(name: str, d: dict) -> str:
             f"{name} County saw {_fmt(d['cyc'])} cyclist-involved crashes in {d['year']} "
             f"({d['cyc_pct']}% of collisions, vs {d['st_cyc_pct']}% statewide)."
         )
-    if d["density"] and d["density"] > 500 and d["cyc_pct"] > 3:
-        parts.append(
-            f"Higher population density ({_fmt(round(d['density']))} per sq mi) means more "
-            f"cyclists sharing the road — and more potential conflict points at intersections."
-        )
-    elif d["cyc"] > 0 and d["tc"] > 0:
+    if d["cyc"] > 0 and d["tc"] > 0:
         ratio = round(d["tc"] / d["cyc"])
         parts.append(
             f"Roughly 1 in every {ratio} crashes involves a cyclist — "
@@ -630,26 +605,16 @@ def compose_time_of_day(name: str, d: dict) -> str:
         f"to {_hour_label((peak_h + 1) % 24)}, which alone accounts for {_fmt(peak_cnt)} "
         f"crashes ({peak_pct}% of the total)."
     ]
+    # Where the peak falls, not why: the card data has no traffic volumes,
+    # visibility or impairment by hour to back an explanation.
     if 15 <= peak_h <= 18:
-        parts.append(
-            "This aligns with the evening commute rush — fatigue, congestion, and the "
-            "setting sun create a perfect storm for collisions."
-        )
+        parts.append("That hour falls in the evening commute window.")
     elif 7 <= peak_h <= 9:
-        parts.append(
-            "Morning commute hours are when alertness lags and school traffic "
-            "mixes with work-bound drivers, elevating risk."
-        )
+        parts.append("That hour falls in the morning commute window.")
     elif peak_h >= 22 or peak_h <= 5:
-        parts.append(
-            "A late-night peak is often linked to impaired driving, reduced visibility, "
-            "and lower traffic volumes that encourage speeding."
-        )
+        parts.append("That is a late-night peak, outside both commute windows.")
     else:
-        parts.append(
-            "Midday peaks often reflect high commercial and errand-running traffic "
-            "rather than traditional rush-hour patterns."
-        )
+        parts.append("That is a midday peak, between the two commute windows.")
     return " ".join(parts[:2])
 
 
@@ -677,12 +642,12 @@ def compose_weekend_weekday(name: str, d: dict) -> str:
         pct_more = round((avg_weekday - avg_weekend) / avg_weekend * 100)
         parts.append(
             f"Weekdays drive the crash count in {name} County, averaging {pct_more}% more "
-            f"collisions per day than weekends — commuter traffic is the dominant factor."
+            f"collisions per day than weekends."
         )
     else:
         parts.append(
             f"Crashes in {name} County are spread fairly evenly across the week, with no "
-            f"dramatic weekend spike — suggesting consistent daily traffic patterns."
+            f"dramatic weekend spike."
         )
     parts.append(
         f"{busiest_name} is the single busiest day with {_fmt(busiest_dow[1])} crashes, "
@@ -698,9 +663,9 @@ def compose_highway(name: str, d: dict) -> str:
     parts = []
     if d["hw_pct"] > 30:
         parts.append(
-            f"Highways carry an outsized share of danger in {name} County: "
+            f"Highways carry an outsized share of crashes in {name} County: "
             f"{_fmt(d['hw_count'])} crashes ({d['hw_pct']}%) occurred on highways and "
-            f"freeways, where higher speeds turn minor mistakes into serious collisions."
+            f"freeways."
         )
     elif d["hw_pct"] < 10 and d["tc"] > 200:
         parts.append(
@@ -740,10 +705,6 @@ def compose_fatality_paradox(name: str, d: dict) -> str:
             f"{name} County sees relatively few crashes ({_fmt(d['tc'])}), but those that "
             f"happen are disproportionately deadly: {d['deaths_per_1k']} deaths per 1,000 crashes "
             f"versus the state's {d['st_deaths_per_1k']}."
-        )
-        parts.append(
-            "Rural roads with higher speed limits, longer emergency response times, and "
-            "limited lighting are the usual culprits behind this paradox."
         )
     else:
         volume_label = "high" if d["tc"] > 2000 else "moderate" if d["tc"] > 500 else "low"
@@ -812,16 +773,12 @@ def compose_income_inequality(name: str, d: dict) -> str:
     if d["poverty"] and d["poverty"] > 15 and d["per_cap"] and d["per_cap"] > 2000:
         parts.append(
             f"{name} County's poverty rate of {d['poverty']}% coincides with an elevated "
-            f"crash rate of {_fmt(d['per_cap'])} per 100,000 residents. Research consistently "
-            f"links economic disadvantage to higher crash exposure through older vehicles, "
-            f"longer commutes, and less-maintained roads."
+            f"crash rate of {_fmt(d['per_cap'])} per 100,000 residents."
         )
     elif d["income"] and d["income"] > 80000 and d["per_cap"] and d["per_cap"] < 1500:
         parts.append(
-            f"With a median income of ${_fmt(d['income'])} and a crash rate of "
-            f"{_fmt(d['per_cap'])} per 100,000, {name} County fits a common pattern: "
-            f"wealthier areas tend to have newer vehicles, better infrastructure, and "
-            f"lower crash rates."
+            f"{name} County pairs a median income of ${_fmt(d['income'])} with a "
+            f"relatively low crash rate of {_fmt(d['per_cap'])} per 100,000 residents."
         )
     else:
         income_str = f"${_fmt(d['income'])}" if d["income"] else "unknown"
@@ -831,8 +788,7 @@ def compose_income_inequality(name: str, d: dict) -> str:
         )
         if d["per_cap"]:
             parts.append(
-                f"Its crash rate of {_fmt(d['per_cap'])} per 100,000 residents reflects "
-                f"the intersection of economic conditions, road design, and driving patterns."
+                f"Its crash rate is {_fmt(d['per_cap'])} per 100,000 residents."
             )
     return " ".join(parts[:2])
 
@@ -848,31 +804,21 @@ def compose_commuter(name: str, d: dict) -> str:
     if d["commute_drive"] > 80:
         parts.append(
             f"A striking {d['commute_drive']}% of {name} County residents drive alone to "
-            f"work — heavy car dependence means more vehicles on the road and more "
-            f"opportunity for collisions ({_fmt(d['tc'])} total in {d['year']})."
+            f"work; the county recorded {_fmt(d['tc'])} crashes in {d['year']}."
         )
     elif d["commute_drive"] < 65:
         parts.append(
-            f"Only {d['commute_drive']}% of {name} County residents drive alone to work, "
-            f"suggesting robust transit, carpooling, or remote work options that help "
-            f"reduce vehicle exposure."
+            f"Only {d['commute_drive']}% of {name} County residents drive alone to work."
         )
     else:
         parts.append(
-            f"{d['commute_drive']}% of {name} County commuters drive alone — "
-            f"close to the statewide norm — contributing to {_fmt(d['tc'])} total crashes "
-            f"in {d['year']}."
+            f"{d['commute_drive']}% of {name} County commuters drive alone; the county "
+            f"recorded {_fmt(d['tc'])} crashes in {d['year']}."
         )
     if d["peak_hour"] and 7 <= d["peak_hour"][0] <= 9:
-        parts.append(
-            "The morning commute window is the most dangerous hour, aligning with the "
-            "high solo-driving rate."
-        )
+        parts.append("Crashes peak in the morning commute window.")
     elif d["peak_hour"] and 15 <= d["peak_hour"][0] <= 18:
-        parts.append(
-            "The evening rush dominates crash timing — when commuters mix with "
-            "school pickups and errand traffic."
-        )
+        parts.append("Crashes peak in the evening commute window.")
     return " ".join(parts[:2])
 
 
@@ -1078,8 +1024,7 @@ def compose_nighttime(name: str, d: dict) -> str:
     if peak_h >= 22 or peak_h <= 5:
         parts.append(
             f"Nighttime hours are unusually dangerous in {name} County — crash activity "
-            f"peaks between {_hour_label(peak_h)} and {_hour_label((peak_h + 1) % 24)}, "
-            f"when darkness, fatigue, and impaired driving converge."
+            f"peaks between {_hour_label(peak_h)} and {_hour_label((peak_h + 1) % 24)}."
         )
     else:
         parts.append(
@@ -1088,14 +1033,13 @@ def compose_nighttime(name: str, d: dict) -> str:
         )
     if d["dui_pct"] > 8:
         parts.append(
-            f"The county's {d['dui_pct']}% DUI rate suggests alcohol plays a significant "
-            f"role in after-dark incidents — impaired drivers are overrepresented in "
-            f"nighttime fatalities."
+            f"DUI crashes make up {d['dui_pct']}% of the county's total, against "
+            f"{d['st_dui_pct']}% statewide."
         )
     elif d["deaths_per_1k"] > d["st_deaths_per_1k"]:
         parts.append(
-            f"With {d['deaths_per_1k']} deaths per 1,000 crashes (above the state's "
-            f"{d['st_deaths_per_1k']}), the county's nighttime crashes are especially lethal."
+            f"Across all hours, the county records {d['deaths_per_1k']} deaths per 1,000 "
+            f"crashes, above the state's {d['st_deaths_per_1k']}."
         )
     return " ".join(parts[:2])
 
@@ -1111,31 +1055,32 @@ def compose_population_density(name: str, d: dict) -> str:
     if d["density"] > 2000:
         parts.append(
             f"At {_fmt(round(d['density']))} people per square mile, {name} County is one "
-            f"of California's most densely packed areas — and dense streets mean constant "
-            f"conflict between cars, bikes, and pedestrians ({_fmt(d['tc'])} crashes total)."
+            f"of California's most densely packed areas, with {_fmt(d['tc'])} crashes "
+            f"in {d['year']}."
         )
     elif d["density"] > 500:
         parts.append(
-            f"{name} County's suburban density of {_fmt(round(d['density']))} people per "
-            f"square mile creates a mix of arterial roads and neighborhood streets that "
-            f"generated {_fmt(d['tc'])} crashes in {d['year']}."
+            f"{name} County has a suburban density of {_fmt(round(d['density']))} people "
+            f"per square mile and recorded {_fmt(d['tc'])} crashes in {d['year']}."
         )
     elif d["density"] > 50:
         parts.append(
-            f"With {_fmt(round(d['density']))} people per square mile, {name} County's "
-            f"semi-rural landscape means longer drives, higher speeds, and "
-            f"{_fmt(d['tc'])} crashes in {d['year']}."
+            f"With {_fmt(round(d['density']))} people per square mile, semi-rural "
+            f"{name} County recorded {_fmt(d['tc'])} crashes in {d['year']}."
         )
     else:
         parts.append(
             f"At just {_fmt(round(d['density']))} people per square mile, {name} County "
-            f"is deeply rural — fewer crashes ({_fmt(d['tc'])}) but each one is more "
-            f"likely to be severe."
+            f"is deeply rural, with {_fmt(d['tc'])} crashes in {d['year']}."
         )
     if d["per_cap"]:
         parts.append(
-            f"The per-capita crash rate is {_fmt(d['per_cap'])} per 100,000 residents, "
-            f"{'elevated by through-traffic that inflates crash counts beyond what residents alone would cause.'if d['per_cap'] > 3000 else 'reflecting the balance between road design and driving volume.'}"
+            f"The per-capita crash rate is {_fmt(d['per_cap'])} per 100,000 residents"
+            + (
+                " (crashes are counted where they happen, so visitors and "
+                "through-traffic are included)."
+                if d["per_cap"] > 3000 else "."
+            )
         )
     return " ".join(parts[:2])
 
@@ -1209,15 +1154,8 @@ def compose_speeding(name: str, d: dict) -> str:
     )
     if d["deaths_per_1k"] > d["st_deaths_per_1k"] and total_pct > 10:
         parts.append(
-            f"Combined with {d['deaths_per_1k']} deaths per 1,000 crashes (above the state's "
-            f"{d['st_deaths_per_1k']}), speed in {name} County doesn't just cause crashes "
-            f"— it makes them deadly."
-        )
-    elif d["hw_pct"] > 25 and total_pct > 5:
-        parts.append(
-            f"With {d['hw_pct']}% of crashes on highways, higher travel speeds on "
-            f"these corridors amplify both the likelihood and severity of speed-related "
-            f"collisions."
+            f"The county also records {d['deaths_per_1k']} deaths per 1,000 crashes, "
+            f"above the state's {d['st_deaths_per_1k']}."
         )
     return " ".join(parts[:2])
 
@@ -1246,7 +1184,7 @@ def compose_holiday(name: str, d: dict) -> str:
     elif holiday_avg < non_holiday_avg * 0.9:
         pct_less = round((non_holiday_avg - holiday_avg) / non_holiday_avg * 100)
         parts.append(
-            f"Counter to the national trend, {name} County actually sees {pct_less}% "
+            f"{name} County sees {pct_less}% "
             f"fewer crashes per month during the October-December holiday season than "
             f"during the rest of the year."
         )
@@ -1262,8 +1200,7 @@ def compose_holiday(name: str, d: dict) -> str:
         peak_holiday = max((10, oct), (11, by_month.get(11, 0)), (12, dec), key=lambda x: x[1])
         parts.append(
             f"{MONTH_NAMES[peak_holiday[0]]} is the worst holiday-season month with "
-            f"{_fmt(peak_holiday[1])} crashes — likely influenced by "
-            f"{'Halloween and early holiday travel' if peak_holiday[0] == 10 else 'Thanksgiving travel' if peak_holiday[0] == 11 else 'Christmas and New Year celebrations'}."
+            f"{_fmt(peak_holiday[1])} crashes."
         )
     return " ".join(parts[:2])
 
@@ -1287,14 +1224,13 @@ def compose_recovery_pattern(name: str, d: dict) -> str:
     parts = []
     if covid_drop > 10:
         parts.append(
-            f"COVID-19 lockdowns drove a {covid_drop}% crash reduction in {name} County: "
+            f"Crashes in {name} County fell {covid_drop}% in the first pandemic year: "
             f"from ~{_fmt(pre_avg)} per year pre-pandemic to {_fmt(covid_cnt)} in 2020."
         )
     elif covid_drop < -5:
         parts.append(
             f"Unusually, {name} County saw more crashes during 2020 ({_fmt(covid_cnt)}) "
-            f"than pre-pandemic ({_fmt(pre_avg)}/year) — emptier roads may have "
-            f"encouraged riskier driving."
+            f"than pre-pandemic ({_fmt(pre_avg)}/year)."
         )
     else:
         parts.append(
@@ -1307,14 +1243,12 @@ def compose_recovery_pattern(name: str, d: dict) -> str:
         if recovery_pct > 5:
             parts.append(
                 f"Post-pandemic, crashes have surged {recovery_pct}% above pre-COVID "
-                f"levels to ~{_fmt(post_avg)}/year — a nationwide pattern of riskier "
-                f"driving behavior that has outlasted lockdowns."
+                f"levels to ~{_fmt(post_avg)}/year."
             )
         elif recovery_pct < -5:
             parts.append(
                 f"Post-pandemic volumes (~{_fmt(post_avg)}/year) remain {abs(recovery_pct)}% "
-                f"below pre-COVID levels — remote work and changed commute patterns may "
-                f"have permanently reduced traffic exposure."
+                f"below pre-COVID levels."
             )
         else:
             parts.append(
@@ -1346,10 +1280,13 @@ def claims_context(d: dict) -> str:
 
 
 def _card_fails(county: str, year: int, angle: str, narrative: str, data: dict) -> bool:
-    """Every angle must name only causes in its data; fun facts also get the
-    full fact check (the other angles aren't served as facts)."""
+    """Every angle must name only causes in its data and explain nothing the
+    data can't show; fun facts also get the full fact check."""
     label = f"{county}/{year}/{angle}"
-    if reasons := check_claims(narrative, claims_context(data)):
+    reasons = check_claims(narrative, claims_context(data))
+    if m := find_causal(narrative):
+        reasons.append(f"causal language: {m.group(0)!r}")
+    if reasons:
         logger.warning("Not writing %s — %s", label, "; ".join(reasons))
         return True
     return angle.startswith("fun_fact") and fact_fails(
@@ -1359,10 +1296,12 @@ def _card_fails(county: str, year: int, angle: str, narrative: str, data: dict) 
 
 def _is_current(existing, data: dict) -> bool:
     """A stored card is kept only while its totals match the data; a stale or
-    legacy (NULL-totals) card is rewritten, and the API won't serve it."""
+    legacy (NULL-totals) card is rewritten, and the API won't serve it. So is
+    one that explains its numbers (the templates' old "emptier roads may have
+    encouraged riskier driving"), which lets a plain rerun replace that text."""
     return existing is not None and (
         existing.total_crashes, existing.total_killed,
-    ) == (data["tc"], data["tk"])
+    ) == (data["tc"], data["tk"]) and not find_causal(existing.narrative or "")
 
 
 # ---------------------------------------------------------------------------
@@ -1405,7 +1344,7 @@ ANGLES: dict[str, callable] = {
 # Main
 # ---------------------------------------------------------------------------
 
-def run() -> int:
+def run(force: bool = False) -> int:
     db = SessionLocal()
     try:
         counties: list[County] = db.query(County).order_by(County.name).all()
@@ -1434,7 +1373,7 @@ def run() -> int:
                     .filter_by(county_code=county.code, year=year, angle=angle)
                     .first()
                 )
-                if _is_current(existing, data):
+                if not force and _is_current(existing, data):
                     skipped += 1
                     continue
 
@@ -1472,7 +1411,7 @@ def run() -> int:
         db.close()
 
 
-def run_all_years() -> int:
+def run_all_years(force: bool = False) -> int:
     """Generate cards for ALL counties × ALL years × ALL angles.
 
     Skips county/year/angle combos that already have a card.
@@ -1503,7 +1442,7 @@ def run_all_years() -> int:
                         .filter_by(county_code=county.code, year=year, angle=angle)
                         .first()
                     )
-                    if _is_current(existing, data):
+                    if not force and _is_current(existing, data):
                         skipped += 1
                         continue
 
@@ -1553,9 +1492,11 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s — %(message)s",
     )
-    mode = sys.argv[1] if len(sys.argv) > 1 else "latest"
+    force = "--force" in sys.argv[1:]
+    positional = [a for a in sys.argv[1:] if not a.startswith("--")]
+    mode = positional[0] if positional else "latest"
     if mode == "all":
-        total = run_all_years()
+        total = run_all_years(force=force)
     else:
-        total = run()
+        total = run(force=force)
     print(f"\nDone — {total} cards generated.")

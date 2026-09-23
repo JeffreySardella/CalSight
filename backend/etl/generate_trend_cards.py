@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, CountyInsightCard
+from etl.fact_check import find_causal
 
 logger = logging.getLogger(__name__)
 
@@ -281,7 +282,7 @@ def compose_trend(trend: CountyTrend) -> str:
     # Lead with the most interesting finding
     if pandemic and abs(pandemic["drop_pct"]) > 15:
         sentences.append(
-            f"The pandemic reshaped driving in {name} County: crashes plunged "
+            f"The pandemic year stands out in {name} County: crashes plunged "
             f"{abs(pandemic['drop_pct'])}% from {pandemic['y19_crashes']:,} in 2019 "
             f"to {pandemic['y20_crashes']:,} in 2020."
         )
@@ -292,8 +293,8 @@ def compose_trend(trend: CountyTrend) -> str:
         elif pandemic["bounce_pct"] and pandemic["bounce_pct"] > 10:
             sentences.append(
                 f"A sharp {pandemic['bounce_pct']}% rebound in 2021 "
-                f"({pandemic['y21_crashes']:,} crashes) signaled drivers returning "
-                f"to the road, though patterns haven't fully normalized."
+                f"({pandemic['y21_crashes']:,} crashes) followed, though volume has not "
+                f"returned to the 2019 level."
             )
     elif state_div and abs(state_div["divergence"]) > 12:
         if state_div["county_change"] > state_div["state_change"]:
@@ -334,9 +335,8 @@ def compose_trend(trend: CountyTrend) -> str:
             sentences.append(
                 f"Deaths per 1,000 crashes have dropped from {fat_div['early_rate']} "
                 f"({fat_div['early_period']}) to {fat_div['late_rate']} "
-                f"({fat_div['late_period']}), suggesting that while crashes still "
-                f"happen, they're becoming less lethal — likely due to better vehicle "
-                f"safety and faster emergency response."
+                f"({fat_div['late_period']}) — each crash is becoming slightly less "
+                f"likely to be deadly."
             )
 
     if dui and len(sentences) < 3:
@@ -377,9 +377,11 @@ def run() -> int:
                 .first()
             )
             latest = trend.years[-1]
+            # A current card that explains its numbers ("likely due to better
+            # vehicle safety", compose_trend's old wording) is rewritten too.
             if existing and (existing.total_crashes, existing.total_killed) == (
                 latest.crashes, latest.killed,
-            ):
+            ) and not find_causal(existing.narrative or ""):
                 skipped += 1
                 continue
 

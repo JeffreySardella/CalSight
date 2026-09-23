@@ -31,18 +31,20 @@ def seed_insights(db_session):
     Francisco (38) is left with no insight rows so the 404 paths can be
     tested against a real, seeded county.
     """
+    # Statewide rows match the shared seed summed over counties: 2023 is two
+    # crashes and no deaths, 2022 one crash and one death.
     db_session.add_all([
         StatewideInsight(
             year=2023, angle="overview",
             narrative="California recorded fewer fatal crashes in 2023.",
-            total_crashes=4_200_000, total_killed=3800,
-            total_injured=250_000, data_source="ccrs",
+            total_crashes=2, total_killed=0,
+            total_injured=3, data_source="ccrs",
         ),
         StatewideInsight(
             year=2022, angle="trend",
             narrative="Statewide crash totals rose through 2022.",
-            total_crashes=4_050_000, total_killed=3950,
-            total_injured=248_000, data_source="ccrs",
+            total_crashes=1, total_killed=1,
+            total_injured=1, data_source="ccrs",
         ),
     ])
     # Cards carry the county-year totals they were written from; the shared
@@ -107,6 +109,47 @@ def test_statewide_insight_404_for_year_with_no_data(client, seed_insights):
     response = client.get("/api/insights/statewide?year=1999")
     assert response.status_code == 404
     assert "statewide" in response.json()["detail"].lower()
+
+
+def _statewide(year, angle, tc, tk):
+    return StatewideInsight(
+        year=year, angle=angle, narrative=f"Statewide {angle} for {year}.",
+        total_crashes=tc, total_killed=tk, data_source="ccrs",
+    )
+
+
+@pytest.mark.parametrize("tc, tk", [(2, 1), (3, 0), (None, None)])
+def test_statewide_insight_not_matching_live_totals_is_not_served(
+    client, seed_insights, db_session, tc, tk,
+):
+    """The phone audit's 2018 gender card was a May 2026 hand-seeded row;
+    stale, off-by-a-death and cleared (NULL) totals all stay hidden."""
+    db_session.add(_statewide(2015, "gender", tc, tk))  # 2015 is really 1 / 1
+    db_session.flush()
+    assert client.get("/api/insights/statewide?year=2015").status_code == 404
+
+
+def test_statewide_insight_matching_live_totals_is_served(client, seed_insights, db_session):
+    db_session.add(_statewide(2015, "overview", 1, 1))
+    db_session.flush()
+    assert client.get("/api/insights/statewide?year=2015").json()["angle"] == "overview"
+
+
+def test_stale_statewide_insight_never_chosen_beside_a_current_one(client, seed_insights, db_session):
+    db_session.add(_statewide(2023, "gender", 2, 1))
+    db_session.flush()
+    for _ in range(15):
+        assert client.get("/api/insights/statewide?year=2023").json()["angle"] == "overview"
+
+
+def test_fun_facts_skip_unverified_statewide_facts(client, seed_insights, db_session):
+    db_session.add_all([
+        _statewide(2022, "fun_fact", None, None),
+        _statewide(2023, "fun_fact_records", 2, 0),
+    ])
+    db_session.flush()
+    body = client.get("/api/fun-facts?n=5").json()
+    assert [(f["year"], f["angle"]) for f in body] == [(2023, "fun_fact_records")]
 
 
 def test_statewide_insight_sets_cache_header(client, seed_insights):
