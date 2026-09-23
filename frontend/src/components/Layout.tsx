@@ -29,6 +29,16 @@ export default function Layout() {
     }
   }, [scrollKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reset scroll on an actual page change. Keyed on pathname alone (not the
+  // full location) so the map's constant query-string writes never trigger
+  // it, and skipped when the URL carries a #hash — the effect above owns
+  // scrolling to that anchor instead. This is what stopped e.g. Water from
+  // opening mid-scroll after a bottom-nav tap from a long Stats page.
+  useEffect(() => {
+    if (location.hash) return;
+    window.scrollTo(0, 0);
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <>
       <a
