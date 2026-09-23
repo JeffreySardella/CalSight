@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { SEVERITIES, CAUSES, formatYearMonth, type DateRangeFilter } from "./useFilterParams";
+import { SEVERITIES, CAUSES, formatYearMonth, slugify, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
 import { PERSISTED_QUERY_GC_TIME } from "../lib/queryPersistence";
 import { excludePartialYear } from "../lib/partialYear";
@@ -128,10 +128,6 @@ const AGE_ORDER = ["under_18", "18_24", "25_44", "45_64", "over_65", "unknown"];
 const MONTH_LABEL = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DOW_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function severityToSlug(s: string): string {
-  return s.toLowerCase().replace(/ /g, "-");
-}
-
 function normalizeFilters(f: StatsFilters): StatsFilters {
   return {
     dateRange: f.dateRange,
@@ -247,7 +243,7 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
     const b: Record<string, string> = {};
     if (filters.dateRange?.start) b.start = formatYearMonth(filters.dateRange.start);
     if (filters.dateRange?.end) b.end = formatYearMonth(filters.dateRange.end);
-    if (filters.severities.length) b.severity = filters.severities.map(severityToSlug).join(",");
+    if (filters.severities.length) b.severity = filters.severities.map(slugify).join(",");
     if (filters.causes.length) b.cause = filters.causes.join(",");
     if (filters.counties.length) b.county = filters.counties.join(",");
     if (filters.alcohol) b.alcohol = "true";

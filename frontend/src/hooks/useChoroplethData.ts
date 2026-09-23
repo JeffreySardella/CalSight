@@ -20,6 +20,7 @@ import {
   SEVERITIES,
   CAUSES,
   formatYearMonth,
+  slugify,
   yearsInRange,
   type DateRangeFilter,
 } from "./useFilterParams";
@@ -100,10 +101,6 @@ function normalizeFilters(filters: ChoroplethFilters): ChoroplethFilters {
   };
 }
 
-function severityToSlug(s: string): string {
-  return s.toLowerCase().replace(/ /g, "-");
-}
-
 function appendDateRange(p: URLSearchParams, dr: DateRangeFilter | null) {
   if (!dr) return;
   if (dr.start) p.set("start", formatYearMonth(dr.start));
@@ -128,7 +125,7 @@ function buildStatsUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   p.set("group_by", "county");
   appendDateRange(p, filters.dateRange);
-  if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
+  if (filters.severities.length) p.set("severity", filters.severities.map(slugify).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
   appendInvolvement(p, filters);
   return `${API_BASE}/api/stats?${p}`;
@@ -138,7 +135,7 @@ function buildYearStatsUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   p.set("group_by", "year");
   appendDateRange(p, filters.dateRange);
-  if (filters.severities.length) p.set("severity", filters.severities.map(severityToSlug).join(","));
+  if (filters.severities.length) p.set("severity", filters.severities.map(slugify).join(","));
   if (filters.causes.length) p.set("cause", filters.causes.join(","));
   appendInvolvement(p, filters);
   return `${API_BASE}/api/stats?${p}`;

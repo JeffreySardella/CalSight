@@ -3,6 +3,7 @@ import ChartTooltip from "./ChartTooltip";
 import { linearRegression, mean as calcMean, stddev as calcStddev } from "../../lib/dashboard/stats";
 import { useChartAnimation } from "../../hooks/useChartAnimation";
 import { useTextScale } from "../../hooks/useTextScale";
+import { formatCompact } from "../../lib/formatCompact";
 
 interface LinePoint {
   label: string;
@@ -30,12 +31,6 @@ interface SimpleLineChartProps {
   forecastData?: ForecastPoint[];
   renderTooltip?: (item: LinePoint, idx: number) => React.ReactNode;
   title?: string;
-}
-
-function formatNumber(val: number): string {
-  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
-  return val.toLocaleString();
 }
 
 export default function SimpleLineChart({
@@ -167,7 +162,7 @@ export default function SimpleLineChart({
             <g key={v}>
               <line x1={padding.left} x2={svgWidth - padding.right} y1={y} y2={y} stroke="rgb(var(--outline-variant))" strokeOpacity={0.2} />
               <text x={Math.max(padding.left - 6, 2)} y={y + 3} textAnchor="end" fontSize={10 * ts} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
-                {formatNumber(v)}
+                {formatCompact(v)}
               </text>
             </g>
           );
