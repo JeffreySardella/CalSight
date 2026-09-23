@@ -24,6 +24,9 @@ interface AiInsightCardProps {
   narrative?: string | null;
   /** Angle label for the insight card (e.g. "overview", "dui"). */
   narrativeAngle?: string | null;
+  /** Year the narrative's figures describe — always shown with the text so
+   *  it can be checked against the report card for that year. */
+  narrativeYear?: number | null;
   /** Callback to fetch a different random insight card. */
   onRefreshNarrative?: () => void;
   /** True while choropleth data is still fetching — show skeletons in place of metric cells. */
@@ -181,6 +184,7 @@ export default function AiInsightCard({
   compareData,
   narrative,
   narrativeAngle,
+  narrativeYear,
   onRefreshNarrative,
   loading,
 }: AiInsightCardProps) {
@@ -289,6 +293,11 @@ export default function AiInsightCard({
                         {narrativeAngle && (
                           <span className="text-[10px] text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded-full">
                             {ANGLE_LABELS[narrativeAngle] ?? narrativeAngle}
+                          </span>
+                        )}
+                        {narrativeYear != null && (
+                          <span className="text-[10px] text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded-full">
+                            {narrativeYear}
                           </span>
                         )}
                       </div>
