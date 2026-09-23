@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import { useFilterParams, CA_COUNTIES, YEARS } from "../hooks/useFilterParams";
 import { useApplyDefaultCounty } from "../hooks/useApplyDefaultCounty";
+import { useFocusFollowsSelection } from "../hooks/useFocusFollowsSelection";
 import { useHeatmapSuppression } from "../hooks/useHeatmapSuppression";
 import { selectHeatmapDetailSlugs } from "../lib/map/heatmapDetail";
 import {
@@ -702,22 +703,11 @@ function MapPageInner() {
     setShowInsight(true);
   }, [countyGeoJson, selectedCounties, focusedCounty]);
 
-  // Keep focusedCounty in sync when the URL filter moves to a different
-  // single county (e.g. user changed their default-county preference and the
-  // hook rewrote the URL). Without this, CountyBoundaries still draws the
-  // prior focus as colored on top of the new filter selection.
-  useEffect(() => {
-    if (!focusedCounty) return;
-    if (selectedCounties.size === 0) return;
-    if (selectedCounties.has(focusedCounty)) return;
-    if (selectedCounties.size === 1) {
-      const [name] = [...selectedCounties];
-      setFocusedCounty(name);
-      setInsightCounty(name);
-    } else {
-      setFocusedCounty(null);
-    }
-  }, [selectedCounties, focusedCounty]);
+  const followSelection = useCallback((name: string | null) => {
+    setFocusedCounty(name);
+    if (name) setInsightCounty(name);
+  }, []);
+  useFocusFollowsSelection(selectedCounties, focusedCounty, followSelection);
 
   function handleToggle(panel: string) {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -810,9 +800,13 @@ function MapPageInner() {
     // statewide. Only on a changed selection, so re-applying a year filter
     // doesn't undo the user's own pan.
     const countiesKey = [...selectedCounties].sort().join("|");
+    // A focused county that is the whole selection was framed by
+    // CountyBoundaries when the focus followed the pick; a second fitBounds
+    // here landed mid-animation and yanked the camera a second time.
+    const framedByFocus = focusedCounty !== null && selectedCounties.size === 1 && selectedCounties.has(focusedCounty);
     if (countiesKey !== framedCountiesRef.current) {
       framedCountiesRef.current = countiesKey;
-      const bounds = countyGeoJson ? countyBounds(countyGeoJson, selectedCounties) : null;
+      const bounds = countyGeoJson && !framedByFocus ? countyBounds(countyGeoJson, selectedCounties) : null;
       if (bounds) {
         mapRef.current?.fitBounds(bounds, { padding: [40, 40], maxZoom: 11, animate: !prefersReducedMotionNow() });
       }
@@ -820,7 +814,7 @@ function MapPageInner() {
 
     setShowMobileFilters(false);
     setActivePanel(null);
-  }, [setAllFilters, selectedCounties, countyGeoJson]);
+  }, [setAllFilters, selectedCounties, countyGeoJson, focusedCounty]);
 
   function renderPanelContent() {
     switch (activePanel) {
