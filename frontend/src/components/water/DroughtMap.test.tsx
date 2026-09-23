@@ -414,6 +414,23 @@ describe("DroughtMap reservoir layer", () => {
     expect(screen.queryByRole("group", { name: /trinity lake detail/i })).toBeNull();
   });
 
+  it("a click with no pointer position selects the circle it was sent to", async () => {
+    // Screen readers and keyboard-activated clicks can report (0, 0). The
+    // nearest-centre rule must not turn that into "the reservoir nearest
+    // the map corner": only reservoirs whose hit circle holds the point count.
+    renderMap(COUNTIES, [SHASTA, TRINITY]);
+    const circles = await findCircles();
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+      left: 0, top: 0, right: 400, bottom: 460, width: 400, height: 460,
+      x: 0, y: 0, toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.click(circles[1], { clientX: 0, clientY: 0 });
+    expect(screen.getByRole("group", { name: /trinity lake detail/i })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /shasta lake detail/i })).toBeNull();
+  });
+
+
   it("adds a reservoir legend only when circles are drawn", async () => {
     renderMap(COUNTIES, [SHASTA]);
     const legend = await screen.findByRole("list", { name: /legend: reservoirs/i });

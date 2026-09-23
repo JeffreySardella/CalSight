@@ -392,6 +392,12 @@ export default function DroughtMap({
     let bestD = Infinity;
     for (const d of dots) {
       const dist = Math.hypot(d.cx - x, d.cy - y);
+      // Only reservoirs whose own hit circle contains the tap compete. A
+      // click a screen reader or keyboard synthesises can report (0, 0);
+      // without this bound it resolved to whichever reservoir sits nearest
+      // the map's corner instead of the focused one (callers fall back to
+      // the circle that received the click when this returns null).
+      if (dist > Math.max(d.r, MIN_HIT_R)) continue;
       if (dist < bestD) {
         bestD = dist;
         best = d.reservoir.station_id;
