@@ -90,6 +90,24 @@ describe("useFacetCounts", () => {
     expect(result.current.driverAge["22-34"]).toBe(1);
   });
 
+  it("scopes every count to the picked counties", async () => {
+    const { result } = renderHook(
+      () => useFacetCounts(BASE_STAGED, new Set(["Los Angeles", "Fresno"])),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const urls = vi.mocked(globalThis.fetch).mock.calls.map((c) => new URL(String(c[0]), "http://x"));
+    expect(urls.length).toBeGreaterThan(0);
+    for (const u of urls) expect(u.searchParams.get("county")).toBe("fresno,los-angeles");
+  });
+
+  it("stays statewide with no county picked", async () => {
+    const { result } = renderHook(() => useFacetCounts(BASE_STAGED, new Set()), { wrapper: makeWrapper() });
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const urls = vi.mocked(globalThis.fetch).mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes("county="))).toBe(false);
+  });
+
   it("starts loading before data resolves", () => {
     const { result } = renderHook(() => useFacetCounts(BASE_STAGED), { wrapper: makeWrapper() });
     expect(result.current.loading).toBe(true);

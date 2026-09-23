@@ -55,8 +55,8 @@ export default function SimpleFilterPanel({
     clearAll, reset,
   } = useStagedFilters(initial);
 
-  const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
-  const facets = useFacetCounts(staged);
+  const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged, selectedCounties);
+  const facets = useFacetCounts(staged, selectedCounties);
 
   const handlePreset = useCallback((preset: Partial<StagedFilters>) => {
     const merged: StagedFilters = {

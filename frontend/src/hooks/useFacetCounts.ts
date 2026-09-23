@@ -1,6 +1,6 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { API_BASE } from "../config";
-import { formatYearMonth } from "./useFilterParams";
+import { formatYearMonth, slugify } from "./useFilterParams";
 import type { StagedFilters } from "./useStagedFilters";
 
 export interface ConditionCounts {
@@ -25,8 +25,16 @@ export interface FacetCounts extends FacetData {
   loaded: boolean;
 }
 
-function buildParams(staged: StagedFilters, exclude: string): string {
+/** `county=fresno,kern` for /api/stats, or "" for statewide. */
+export function countyParam(counties: ReadonlySet<string> | undefined): string {
+  return counties && counties.size > 0 ? [...counties].map(slugify).sort().join(",") : "";
+}
+
+function buildParams(staged: StagedFilters, exclude: string, county: string): string {
   const p = new URLSearchParams();
+  // The county picker writes the URL straight away (it isn't staged), so the
+  // counts must follow it — they read statewide while Fresno was ticked.
+  if (county) p.set("county", county);
 
   if (exclude !== "year") {
     if (staged.dateRange?.start || staged.dateRange?.end) {
@@ -98,17 +106,17 @@ function serializeStaged(staged: StagedFilters): string[] {
   ];
 }
 
-async function fetchAllFacets(staged: StagedFilters): Promise<FacetData> {
-  const yearParams = buildParams(staged, "year");
-  const sevParams = buildParams(staged, "severity");
-  const causeParams = buildParams(staged, "cause");
-  const baseParams = buildParams(staged, "");
-  const weatherParams = buildParams(staged, "weather");
-  const lightingParams = buildParams(staged, "lighting");
-  const collisionParams = buildParams(staged, "collisionType");
-  const driverAgeParams = buildParams(staged, "driverAge");
-  const roadTypeParams = buildParams(staged, "roadType");
-  const hitRunParams = buildParams(staged, "hitRun");
+async function fetchAllFacets(staged: StagedFilters, county: string): Promise<FacetData> {
+  const yearParams = buildParams(staged, "year", county);
+  const sevParams = buildParams(staged, "severity", county);
+  const causeParams = buildParams(staged, "cause", county);
+  const baseParams = buildParams(staged, "", county);
+  const weatherParams = buildParams(staged, "weather", county);
+  const lightingParams = buildParams(staged, "lighting", county);
+  const collisionParams = buildParams(staged, "collisionType", county);
+  const driverAgeParams = buildParams(staged, "driverAge", county);
+  const roadTypeParams = buildParams(staged, "roadType", county);
+  const hitRunParams = buildParams(staged, "hitRun", county);
 
   const fetchJson = (url: string) =>
     fetch(url).then((r) => r.ok ? r.json() : []).catch(() => []);
@@ -191,12 +199,13 @@ const EMPTY: FacetData = {
   conditions: {},
 };
 
-export function useFacetCounts(staged: StagedFilters): FacetCounts {
-  const queryKey = ["facet-counts", ...serializeStaged(staged)];
+export function useFacetCounts(staged: StagedFilters, counties?: ReadonlySet<string>): FacetCounts {
+  const county = countyParam(counties);
+  const queryKey = ["facet-counts", ...serializeStaged(staged), county];
 
   const { data, isFetching, isSuccess } = useQuery({
     queryKey,
-    queryFn: () => fetchAllFacets(staged),
+    queryFn: () => fetchAllFacets(staged, county),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     placeholderData: keepPreviousData,

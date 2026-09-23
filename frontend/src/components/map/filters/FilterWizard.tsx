@@ -57,8 +57,8 @@ export default function FilterWizard({
     otherLayers, toggleOtherLayer, setOtherLayer,
   } = useLayersState();
 
-  const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
-  const facets = useFacetCounts(staged);
+  const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged, selectedCounties);
+  const facets = useFacetCounts(staged, selectedCounties);
 
   const prevStepRef = useRef(step);
   const [waitingForCounts, setWaitingForCounts] = useState(!facets.loaded);
