@@ -8,13 +8,13 @@
 #
 # Shared by two callers:
 #   - deploy.yml, right after every fresh (cold-cache) container start
-#   - warm-heatmap-cache.yml, a cron just under the 6h TTL, since a deploy
+#   - warm-heatmap-cache.yml, an hourly cron, since a deploy
 #     doesn't happen every day and the cache would otherwise go cold again
 #     mid-afternoon
 #
 # Best-effort by design in both callers: nothing here ever exits non-zero.
 # A slow or failed warm must not fail a deploy, and a scheduled run must not
-# fail loudly enough to spam alerts every 5h -- even a total failure (every
+# fail loudly enough to spam alerts every hour -- even a total failure (every
 # request failed, i.e. the API is down) is left to uptime.yml, which already
 # alerts on that from outside the house.
 set -u

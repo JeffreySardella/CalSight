@@ -4,15 +4,19 @@ name: Warm Heatmap Cache
 # around the clock. deploy.yml already warms it right after every deploy,
 # but deploys don't happen daily -- on a quiet day the cache goes cold again
 # mid-afternoon and the next visitor eats the ~13s Los Angeles aggregation.
-# Runs every 5h (just under the 6h TTL) on the same self-hosted runner the
-# deploy step uses, since 127.0.0.1:8000 is only reachable from that box.
+# Runs hourly on the same self-hosted runner the deploy step uses, since
+# 127.0.0.1:8000 is only reachable from that box. Hourly, not "just under the
+# TTL": a cache hit does not extend an entry's life, so a 5 h cron would find
+# entries still fresh, skip them, and next arrive up to 4 h after they
+# expired. Hourly caps that cold gap at an hour, and a run of cache hits
+# costs a few seconds.
 #
 # Shares its warm logic with deploy.yml via backend/deploy/warm_heatmap_cache.sh
 # so the two never drift apart.
 
 on:
   schedule:
-    - cron: "0 */5 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
