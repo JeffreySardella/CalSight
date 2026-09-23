@@ -38,7 +38,7 @@ from sqlalchemy.orm import Session
 from app.database import EtlSessionLocal as SessionLocal
 from app.llm import generate_narrative
 from app.models import County, CountyInsightCard, StatewideInsight
-from etl.fact_check import check_fact, unsupported_numbers
+from etl.fact_check import check_claims, check_fact, unsupported_numbers
 from etl.generate_fun_facts import _query_statewide_stats
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,10 @@ logger = logging.getLogger(__name__)
 _GUARDRAILS = (
     " Use only the figures provided: no comparison to a national average or any "
     "figure not supplied; do not call the fatality rate low or high unless a "
-    "statewide rate is supplied; do not invent explanations for the peak hour."
+    "statewide rate is supplied; do not invent explanations for the peak hour. "
+    "Give deaths relative to crashes only as deaths per 1,000 crashes, never a "
+    "percentage or per 100. Name a collision type (head-on, rear-end, "
+    "broadside...) or crash cause only if it appears in the data. State the year."
 )
 
 ANGLE_PROMPTS: dict[str, str] = {
@@ -104,7 +107,7 @@ ANGLE_PROMPTS: dict[str, str] = {
         "Data: {stats}"
     ),
     "fatality_paradox": (
-        "Write a 2-3 sentence insight about the relationship between crash volume and fatality rate "
+        "Write a 2-3 sentence insight about the relationship between crash volume and deaths per 1,000 crashes "
         "in {county} County ({year}). Is it high volume/low fatality or vice versa? Why? Data: {stats}"
     ),
     "nighttime": (
@@ -197,11 +200,14 @@ STATEWIDE_ANGLE_PROMPTS: dict[str, str] = {
 
 def _problems(narrative: str, stats_str: str, year: int, angle: str) -> list[str]:
     """Fun facts get the full check_fact; other angles only the numeric gate
-    (their prompts ask "why", so causal wording is expected there)."""
+    (their prompts ask "why", so causal wording is expected there). Every
+    angle gets check_claims: a named cause or collision type must be in the
+    stats, and deaths per crash must be per 1,000."""
+    claims = check_claims(narrative, stats_str)
     if angle.startswith("fun_fact"):
-        return check_fact(narrative, stats_str, year)
+        return check_fact(narrative, stats_str, year) + claims
     bad = unsupported_numbers(narrative, stats_str, year)
-    return [f"figures not in stats: {bad}"] if bad else []
+    return ([f"figures not in stats: {bad}"] if bad else []) + claims
 
 
 def _generate_verified(
@@ -275,10 +281,15 @@ def _build_stats_string(db: Session, county_code: int, year: int) -> str | None:
         FROM demographics WHERE county_code = :c AND year = :y LIMIT 1
     """), {"c": county_code, "y": year}).first()
 
+    # Deaths per crash only ever as deaths per 1,000 crashes — the unit the
+    # report card and Stats page use. The Fresno card's "1.2 per 100 crashes
+    # versus the statewide 0.68" came from a percentage in this string.
     parts = [
         f"total_crashes={t.tc:,}", f"killed={t.tk:,}", f"injured={t.ti:,}",
-        f"fatality_rate={round(t.tk/t.tc*100,2)}%",
+        f"deaths_per_1000_crashes={round(t.tk / t.tc * 1000, 1)}",
     ]
+    if st.tc:
+        parts.append(f"statewide_deaths_per_1000_crashes={round(st.tk / st.tc * 1000, 1)}")
     if causes:
         parts.append(f"top_causes={', '.join(f'{r.canonical_cause}({round(r.cnt/t.tc*100,1)}%)' for r in causes[:3])}")
     if peak:
@@ -308,7 +319,8 @@ def _build_stats_string(db: Session, county_code: int, year: int) -> str | None:
             COALESCE(SUM(CASE WHEN pedestrian_involved THEN 1 ELSE 0 END), 0) AS ped,
             COALESCE(SUM(CASE WHEN cyclist_involved THEN 1 ELSE 0 END), 0) AS cyc,
             COALESCE(SUM(CASE WHEN hit_run IS NOT NULL THEN 1 ELSE 0 END), 0) AS hr,
-            COALESCE(SUM(CASE WHEN canonical_cause = 'speeding' THEN 1 ELSE 0 END), 0) AS spd
+            COALESCE(SUM(CASE WHEN canonical_cause = 'speeding' THEN 1 ELSE 0 END), 0) AS spd,
+            COALESCE(SUM(CASE WHEN canonical_cause = 'dui' THEN 1 ELSE 0 END), 0) AS dui
         FROM crashes WHERE county_code = :c AND crash_year = :y
     """), {"c": county_code, "y": year}).first()
     if inv:
@@ -316,6 +328,7 @@ def _build_stats_string(db: Session, county_code: int, year: int) -> str | None:
         parts.append(f"cyclist_crashes={inv.cyc}")
         parts.append(f"hit_run_crashes={inv.hr}")
         parts.append(f"speeding_crashes={inv.spd}")
+        parts.append(f"dui_crashes={inv.dui}")
 
     monthly = db.execute(text("""
         SELECT crash_month, COUNT(*) AS cnt
@@ -354,7 +367,7 @@ def _build_statewide_stats_string(db: Session, year: int) -> tuple[str, dict] | 
     tc = s["tc"]
     parts = [
         f"total_crashes={tc:,}", f"killed={s['tk']:,}", f"injured={s['ti']:,}",
-        f"fatality_rate={s['fatality_rate']}%", f"crashes_per_day={s['crashes_per_day']}",
+        f"deaths_per_1000_crashes={s['deaths_per_1k']}", f"crashes_per_day={s['crashes_per_day']}",
         f"dui_pct={s['dui_pct']}%",
     ]
     if s["yoy"] is not None:
@@ -367,9 +380,9 @@ def _build_statewide_stats_string(db: Session, year: int) -> tuple[str, dict] | 
         name, cnt = s["top_county"]
         parts.append(f"top_county={name}({cnt:,} crashes, {round(cnt / tc * 100, 1)}% of state)")
     if s["high_fat"]:
-        parts.append(f"highest_fatality_rate_county={s['high_fat'][0]}({s['high_fat'][1]}%)")
+        parts.append(f"highest_deaths_per_1000_crashes_county={s['high_fat'][0]}({s['high_fat'][1]})")
     if s["low_fat"]:
-        parts.append(f"lowest_fatality_rate_county={s['low_fat'][0]}({s['low_fat'][1]}%)")
+        parts.append(f"lowest_deaths_per_1000_crashes_county={s['low_fat'][0]}({s['low_fat'][1]})")
     if s["high_dui"]:
         parts.append(f"highest_dui_county={s['high_dui'][0]}({s['high_dui'][1]}%)")
 

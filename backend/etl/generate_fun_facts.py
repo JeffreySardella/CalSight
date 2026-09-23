@@ -174,7 +174,7 @@ def _query_county_stats(db: Session, county_code: int, year: int) -> dict | None
 
     return {
         "tc": tc, "tk": tk, "ti": ti,
-        "fatality_rate": round(tk / tc * 100, 2) if tc > 0 else 0,
+        "deaths_per_1k": round(tk / tc * 1000, 1) if tc > 0 else 0,
         "dow": dow,
         "months": months,
         "peak_hour": (hour_row.crash_hour, hour_row.cnt) if hour_row else None,
@@ -184,7 +184,7 @@ def _query_county_stats(db: Session, county_code: int, year: int) -> dict | None
         "dui_pct": round(dui_count / tc * 100, 1) if tc > 0 else 0,
         "state_total": state.total,
         "state_killed": state.killed,
-        "state_fatality_rate": round(state.killed / state.total * 100, 2) if state.total > 0 else 0,
+        "state_deaths_per_1k": round(state.killed / state.total * 1000, 1) if state.total > 0 else 0,
         "state_dui_pct": round(state_dui / state.total * 100, 1) if state.total > 0 else 0,
         "county_share": round(tc / state.total * 100, 2) if state.total > 0 else 0,
         "pop": pop,
@@ -252,21 +252,21 @@ def _compose_comparison(name: str, s: dict) -> str:
                 f"{direction} than its population share would suggest."
             )
 
-    # Fatality rate comparison
-    if s["fatality_rate"] and s["state_fatality_rate"]:
-        diff = s["fatality_rate"] - s["state_fatality_rate"]
-        if abs(diff) > 0.1:
-            ratio = round(s["fatality_rate"] / s["state_fatality_rate"], 1) if s["state_fatality_rate"] > 0 else 0
+    # Deaths per 1,000 crashes — the one unit the site uses for this rate
+    if s["deaths_per_1k"] and s["state_deaths_per_1k"]:
+        diff = s["deaths_per_1k"] - s["state_deaths_per_1k"]
+        if abs(diff) > 1:
+            ratio = round(s["deaths_per_1k"] / s["state_deaths_per_1k"], 1) if s["state_deaths_per_1k"] > 0 else 0
             if ratio >= 1.5:
                 parts.append(
-                    f"With a fatality rate of {s['fatality_rate']}% (vs. the state's "
-                    f"{s['state_fatality_rate']}%), crashes here are {ratio}x more "
+                    f"With {s['deaths_per_1k']} deaths per 1,000 crashes (vs. the state's "
+                    f"{s['state_deaths_per_1k']}), crashes here are {ratio}x more "
                     f"likely to be fatal than the California average."
                 )
             elif ratio <= 0.7:
                 parts.append(
-                    f"The county's fatality rate of {s['fatality_rate']}% is well below "
-                    f"the statewide {s['state_fatality_rate']}%, meaning crashes here "
+                    f"The county's {s['deaths_per_1k']} deaths per 1,000 crashes is well below "
+                    f"the statewide {s['state_deaths_per_1k']}, meaning crashes here "
                     f"are less likely to be deadly than the California average."
                 )
 
@@ -361,7 +361,7 @@ def _compose_quirky(name: str, s: dict) -> str:
     random.shuffle(options)
     return " ".join(options[:2]) if options else (
         f"{name} County saw {_fmt(s['tc'])} crashes and {_fmt(s['tk'])} fatalities — "
-        f"a fatality rate of {s['fatality_rate']}%."
+        f"{s['deaths_per_1k']} deaths per 1,000 crashes."
     )
 
 
@@ -399,20 +399,20 @@ def _query_statewide_stats(db: Session, year: int) -> dict | None:
         HAVING COUNT(*) >= 10 ORDER BY cnt ASC LIMIT 1
     """), {"y": year}).first()
 
-    # Highest fatality rate (min 100 crashes)
+    # Highest deaths per 1,000 crashes (min 100 crashes)
     high_fat = db.execute(text("""
         SELECT c.name, COUNT(*) AS cnt,
                SUM(cr.number_killed) AS killed,
-               ROUND(SUM(cr.number_killed)::numeric / COUNT(*) * 100, 2) AS rate
+               ROUND(SUM(cr.number_killed)::numeric / COUNT(*) * 1000, 1) AS rate
         FROM crashes cr JOIN counties c ON cr.county_code = c.code
         WHERE cr.crash_year = :y GROUP BY c.name
         HAVING COUNT(*) >= 100 ORDER BY rate DESC LIMIT 1
     """), {"y": year}).first()
 
-    # Lowest fatality rate (min 500 crashes)
+    # Lowest deaths per 1,000 crashes (min 500 crashes)
     low_fat = db.execute(text("""
         SELECT c.name, COUNT(*) AS cnt,
-               ROUND(SUM(cr.number_killed)::numeric / COUNT(*) * 100, 2) AS rate
+               ROUND(SUM(cr.number_killed)::numeric / COUNT(*) * 1000, 1) AS rate
         FROM crashes cr JOIN counties c ON cr.county_code = c.code
         WHERE cr.crash_year = :y GROUP BY c.name
         HAVING COUNT(*) >= 500 ORDER BY rate ASC LIMIT 1
@@ -464,7 +464,7 @@ def _query_statewide_stats(db: Session, year: int) -> dict | None:
 
     return {
         "tc": tc, "tk": tk, "ti": ti, "year": year,
-        "fatality_rate": round(tk / tc * 100, 2),
+        "deaths_per_1k": round(tk / tc * 1000, 1),
         "crashes_per_day": crashes_per_day,
         "top_county": (top_county.name, top_county.cnt) if top_county else None,
         "small_county": (small_county.name, small_county.cnt) if small_county else None,
@@ -518,16 +518,16 @@ def _compose_statewide_records(s: dict) -> str:
     parts = []
     if s["high_fat"]:
         parts.append(
-            f"{s['high_fat'][0]} County had the highest fatality rate at "
-            f"{s['high_fat'][1]}% — meaning roughly 1 in "
-            f"{round(100 / s['high_fat'][1]) if s['high_fat'][1] > 0 else '?'} "
-            f"crashes there was fatal, compared to 1 in "
-            f"{round(100 / s['fatality_rate']) if s['fatality_rate'] > 0 else '?'} statewide."
+            f"{s['high_fat'][0]} County had the highest death rate at "
+            f"{s['high_fat'][1]} deaths per 1,000 crashes — roughly one death for every "
+            f"{round(1000 / s['high_fat'][1]) if s['high_fat'][1] > 0 else '?'} "
+            f"crashes, compared to one for every "
+            f"{round(1000 / s['deaths_per_1k']) if s['deaths_per_1k'] > 0 else '?'} statewide."
         )
     if s["low_fat"]:
         parts.append(
-            f"On the other end, {s['low_fat'][0]} County's fatality rate of "
-            f"{s['low_fat'][1]}% made it one of the safest places to have "
+            f"On the other end, {s['low_fat'][0]} County's "
+            f"{s['low_fat'][1]} deaths per 1,000 crashes made it one of the safest places to have "
             f"a crash in California."
         )
     if s["high_dui"]:
@@ -585,7 +585,7 @@ def _compose_statewide_surprising(s: dict) -> str:
 
     return " ".join(parts[:2]) if parts else (
         f"California recorded {_fmt(s['tc'])} crashes and {_fmt(s['tk'])} "
-        f"fatalities in {s['year']} — a fatality rate of {s['fatality_rate']}%."
+        f"fatalities in {s['year']} — {s['deaths_per_1k']} deaths per 1,000 crashes."
     )
 
 
@@ -598,7 +598,7 @@ def fact_context(s: dict) -> str:
     tc, tk, ti = s["tc"], s["tk"], s["ti"]
     derived: list[float] = [60, 31_536_000 / tc, 365 / tc]  # 60-minute window; seconds/days between
     if tk:
-        derived += [ti / tk, 100 / s["fatality_rate"]] if s["fatality_rate"] else [ti / tk]
+        derived += [ti / tk, 1000 / s["deaths_per_1k"]] if s["deaths_per_1k"] else [ti / tk]
     if s.get("crashes_per_day"):
         derived.append(24 / s["crashes_per_day"])
     counted = [s.get("peak_hour"), s.get("top_cause"), s.get("top_county"), *s.get("causes", [])]
@@ -617,7 +617,7 @@ def fact_context(s: dict) -> str:
         peak, low = max(c for _, c in s["hist"]), min(c for _, c in s["hist"])
         derived.append((1 - low / peak) * 100)
     if s.get("high_fat") and s["high_fat"][1]:
-        derived.append(100 / s["high_fat"][1])
+        derived.append(1000 / s["high_fat"][1])
     if s.get("dui_count"):
         derived.append(s["dui_count"] / 365)
     return (
