@@ -17,7 +17,6 @@ import {
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useViewportParams } from "../hooks/useViewportParams";
 import { useLayerParams } from "../hooks/useLayerParams";
-import type { CoordCoverage } from "../hooks/useCoordCoverage";
 import { useMapKeyboard } from "../hooks/useMapKeyboard";
 import { LayersStateProvider, useLayersState } from "../hooks/useLayersState";
 import ChoroplethLegend from "../components/map/ChoroplethLegend";
@@ -49,12 +48,13 @@ import ShareButton from "../components/ui/ShareButton";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import { useToast } from "../components/ui/toastContext";
 import { isSelfCompare } from "../lib/map/compare";
+import { countyBounds, countyCrashTotal } from "../lib/map/countySelection";
+import { prefersReducedMotionNow } from "../lib/a11y/motion";
 import { useCrashHeatmap, useBatchedHeatmap, heatmapQueryOptions } from "../hooks/useCrashHeatmap";
 import { useHeatmapTimelapse } from "../hooks/useHeatmapTimelapse";
 import TemporalScrubber from "../components/map/TemporalScrubber";
 import { useAccessibility } from "../context/AccessibilityContext";
 import MobileFilterSheet from "../components/map/MobileFilterSheet";
-import { useCoordCoverage } from "../hooks/useCoordCoverage";
 import { useCountyInsight } from "../hooks/useCountyInsight";
 import { useRandomInsight } from "../hooks/useRandomInsight";
 import ActiveFiltersBanner from "../components/map/ActiveFiltersBanner";
@@ -423,7 +423,6 @@ function MapPageInner() {
     includeRivers: otherLayers.coordIncludeRivers,
   });
 
-  const coordCoverage = useCoordCoverage(selectedDateRange);
   const choroplethFilters = useMemo(
     () => ({
       dateRange: selectedDateRange,
@@ -450,6 +449,18 @@ function MapPageInner() {
   const compareCode = compareCounty ? choroplethData.nameToCode[compareCounty] : undefined;
   const comparePointData = compareCode != null ? choroplethData.byCountyCode[compareCode] : undefined;
   const measureLabel = MEASURES[measure].label;
+
+  // The counties the view is scoped to: the compare pair while comparing, the
+  // county filter otherwise; empty means statewide. Its crash count is the
+  // legend's total and the denominator of the heat layer's "mapped" line —
+  // both read the statewide 11.6M with Fresno selected.
+  const scopeCounties = useMemo(
+    () => (compareMode ? [focusedCounty, compareCounty].filter((c): c is string => !!c) : [...selectedCounties]),
+    [compareMode, focusedCounty, compareCounty, selectedCounties],
+  );
+  const scopeCrashes = scopeCounties.length > 0
+    ? countyCrashTotal(scopeCounties, choroplethData.nameToCode, choroplethData.byCountyCode)
+    : choroplethData.dataSummary.totalCrashes;
 
   // When exactly one year is selected, pass it to the insight API so the
   // narrative matches the active filter context. Otherwise use the API
@@ -759,6 +770,10 @@ function MapPageInner() {
     hitRun: selectedHitRun,
   }), [selectedDateRange, selectedSeverities, selectedCauses, selectedAlcohol, selectedDistracted, selectedPedestrian, selectedCyclist, selectedDrug, selectedDriverAge, selectedYears, selectedWeather, selectedLighting, selectedCollisionType, selectedRoadType, selectedHitRun]);
 
+  // The county selection the camera was last framed on (see handleApplyFilters).
+  // Seeded with the arrival URL's: a deep link is framed by its own path.
+  const framedCountiesRef = useRef([...selectedCounties].sort().join("|"));
+
   const handleApplyFilters = useCallback((filters: StagedFilters) => {
     let start: { year: number; month: number } | null = null;
     let end: { year: number; month: number } | null = null;
@@ -790,9 +805,22 @@ function MapPageInner() {
       hitRun: filters.hitRun,
     });
 
+    // Frame the picked counties. The picker applies on tap, behind the sheet,
+    // so this is the first moment the map is in view again — it used to stay
+    // statewide. Only on a changed selection, so re-applying a year filter
+    // doesn't undo the user's own pan.
+    const countiesKey = [...selectedCounties].sort().join("|");
+    if (countiesKey !== framedCountiesRef.current) {
+      framedCountiesRef.current = countiesKey;
+      const bounds = countyGeoJson ? countyBounds(countyGeoJson, selectedCounties) : null;
+      if (bounds) {
+        mapRef.current?.fitBounds(bounds, { padding: [40, 40], maxZoom: 11, animate: !prefersReducedMotionNow() });
+      }
+    }
+
     setShowMobileFilters(false);
     setActivePanel(null);
-  }, [setAllFilters]);
+  }, [setAllFilters, selectedCounties, countyGeoJson]);
 
   function renderPanelContent() {
     switch (activePanel) {
@@ -939,7 +967,7 @@ function MapPageInner() {
           collisionType={selectedCollisionType}
           roadType={selectedRoadType}
           hitRun={selectedHitRun}
-          totalCrashes={choroplethData.dataSummary.totalCrashes}
+          totalCrashes={scopeCrashes ?? choroplethData.dataSummary.totalCrashes}
           isLoading={choroplethData.isLoading}
           onClear={requestClearAll}
           searchOpen={mobileSearchOpen}
@@ -1035,13 +1063,12 @@ function MapPageInner() {
         />
         <ChoroplethLegendContainer
           choroplethData={choroplethData}
-          coordCoverage={coordCoverage}
+          scopeCrashes={scopeCrashes}
           heatmapCrashes={heatmapEnabled ? heatmap.totalCrashes : null}
           heatmapDisplayed={heatmapEnabled ? heatmap.points.length : null}
           heatmapLoading={heatmapEnabled && heatmap.isLoading}
           heatmapStreaming={heatmapStreaming}
           countyActive={!!focusedCounty}
-          countyTotalCrashes={inspectedData?.rawCount ?? null}
           searchOpen={mobileSearchOpen}
           mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
         />
@@ -1331,24 +1358,22 @@ export default function MapPage() {
 
 function ChoroplethLegendContainer({
   choroplethData,
-  coordCoverage,
+  scopeCrashes,
   heatmapCrashes,
   heatmapDisplayed,
   heatmapLoading,
   heatmapStreaming,
   countyActive,
-  countyTotalCrashes,
   searchOpen,
   mismatchCount,
 }: {
   choroplethData: ChoroplethData;
-  coordCoverage?: CoordCoverage | null;
+  scopeCrashes: number | null;
   heatmapCrashes?: number | null;
   heatmapDisplayed?: number | null;
   heatmapLoading?: boolean;
   heatmapStreaming?: boolean;
   countyActive?: boolean;
-  countyTotalCrashes?: number | null;
   searchOpen?: boolean;
   mismatchCount?: number | null;
 }) {
@@ -1357,7 +1382,7 @@ function ChoroplethLegendContainer({
     <ChoroplethLegend
       demographicsAvailable={choroplethData.demographicsAvailable}
       dataSummary={choroplethData.dataSummary}
-      coordCoverage={coordCoverage}
+      scopeCrashes={scopeCrashes}
       isLoading={choroplethData.isLoading}
       isError={choroplethData.isError}
       is422={choroplethData.is422}
@@ -1368,7 +1393,6 @@ function ChoroplethLegendContainer({
       heatmapLoading={heatmapLoading}
       heatmapStreaming={heatmapStreaming}
       countyActive={countyActive}
-      countyTotalCrashes={countyTotalCrashes}
       mismatchCount={mismatchCount}
     />
   );

@@ -14,14 +14,15 @@ const MISMATCH_DOT_COLORS: Record<PaletteKey, string> = {
   colorblind: "#17becf",
 };
 import type { DataSummary } from "../../hooks/useChoroplethData";
-import type { CoordCoverage } from "../../hooks/useCoordCoverage";
 import { useCoordValidation } from "../../hooks/useCoordValidation";
 import JargonTerm from "../ui/JargonTerm";
 
 type Props = {
   demographicsAvailable: boolean;
   dataSummary?: DataSummary;
-  coordCoverage?: CoordCoverage | null;
+  /** Crashes in the selected counties (statewide when none) under the active
+   *  filters; null while a county's count is still loading. */
+  scopeCrashes?: number | null;
   isLoading?: boolean;
   isError?: boolean;
   is422?: boolean;
@@ -33,7 +34,6 @@ type Props = {
   /** Batches are still streaming in — drives the inline mobile progress bar. */
   heatmapStreaming?: boolean;
   countyActive?: boolean;
-  countyTotalCrashes?: number | null;
   mismatchCount?: number | null;
 };
 
@@ -55,9 +55,21 @@ function formatCount(n: number): string {
   return n.toLocaleString();
 }
 
+/**
+ * The heat layer's coverage line: crashes it plots (the ones carrying
+ * coordinates) out of every crash in the same scope and filters. It used to
+ * print heat *cells* over the county total in one place ("20K mapped (9%)")
+ * and cells over plotted crashes in another ("20K of 107K mapped").
+ */
+function mappedLabel(mapped: number, scopeTotal: number | null | undefined): string {
+  if (!scopeTotal) return `${formatCount(mapped)} crashes mapped`;
+  const pct = Math.min(100, Math.round((mapped / scopeTotal) * 100));
+  return `${formatCount(mapped)} of ${formatCount(scopeTotal)} crashes mapped (${pct}%)`;
+}
+
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], estimatedDemoYears: [], estimatedFromYears: [], sparseYears: [] };
 
-export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, coordCoverage, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, heatmapStreaming, countyActive, countyTotalCrashes, mismatchCount }: Props) {
+export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, scopeCrashes = dataSummary.totalCrashes, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, heatmapStreaming, countyActive, mismatchCount }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
   const coordValidation = useCoordValidation();
   const isDark = useIsDark();
@@ -88,6 +100,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
       ? Math.min(100, Math.round((heatmapDisplayed / heatmapCrashes) * 100))
       : null;
   const allMeasures = Object.values(MEASURES);
+  const showTotal = !countyActive && !isLoading && activeMeasure.kind === "raw" && scopeCrashes != null && scopeCrashes > 0;
 
   return (
     <div
@@ -217,25 +230,75 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         </div>
       )}
 
-      {/* Statewide summary — hide when county focused */}
-      {!mobileExpanded && !isLoading && dataSummary.totalCrashes > 0 && !countyActive && (
+      {/* Bucket values straight under the ramp, in the measure's own format
+          (its units are in the title above). A phone used to get the ramp
+          alone unless the card was expanded. */}
+      {!countyActive && (
+        <div>
+          {isLoading ? (
+            <div className="text-[10px] text-on-surface-variant mt-1 italic">
+              Loading data…
+            </div>
+          ) : bucketEdges ? (
+            <>
+              <div data-testid="legend-breaks" className="flex justify-between gap-1 text-[10px] text-on-surface-variant mt-1 font-mono">
+                {bucketEdges.map((e, i) => (
+                  <span key={i}>{activeMeasure.formatLabel(e)}</span>
+                ))}
+              </div>
+              <div className={mobileExpanded ? "" : "hidden md:block"}>
+                {/* Disclose the binning method. Quantiles put an equal COUNT of
+                    counties in each colour, not an equal value range — so
+                    near-identical counties can land in different colours while
+                    the darkest band lumps together counties an order of
+                    magnitude apart. Saying so costs one line and stops the map
+                    implying differences the data doesn't support. Too few
+                    counties have data for real quintiles (see legendEdges) —
+                    bucketEdges is just [min, max] then, so skip the caption. */}
+                {bucketEdges.length > 2 && !activeMeasure.fixedEdges && (
+                  <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
+                    Quintiles — each colour holds about a fifth of counties, not an
+                    equal value range.
+                  </p>
+                )}
+                {/* Fixed-domain measures (a 0-100% share) are banded on absolute
+                    edges, so the quintile caption above would be wrong. */}
+                {activeMeasure.fixedEdges && (
+                  <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
+                    Fixed 20-point bands, comparable across filters.
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className={`text-[10px] text-on-surface-variant mt-1 italic ${mobileExpanded ? "" : "hidden md:block"}`}>
+              Pan or zoom out to compute scale
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* The crash total belongs to a count measure; under "Fatalities per
+          100k" it read as that measure's value. The heat layer's line below
+          carries the same total whenever the heat map is on. */}
+      {showTotal && !mobileExpanded && (
         <div className="md:hidden text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
-          {formatCount(dataSummary.totalCrashes)} crashes
+          {formatCount(scopeCrashes!)} crashes
         </div>
       )}
 
       {(heatmapLoading || heatmapStreaming || (heatmapCrashes != null && heatmapCrashes > 0)) && (
         <div className="mt-1">
-          <div className="text-[10px] text-on-surface-variant font-mono font-semibold">
+          <div
+            data-testid="heatmap-mapped"
+            className="text-[10px] text-on-surface-variant font-mono font-semibold"
+            title="Crashes the map can place (they carry coordinates), out of every crash matching the filters in this area"
+          >
             {heatmapLoading && !heatmapDisplayed
               ? "Loading heatmap…"
-              : countyActive && countyTotalCrashes && heatmapDisplayed != null
-                ? `${formatCount(heatmapDisplayed)} mapped (${Math.round((heatmapDisplayed / countyTotalCrashes) * 100)}%)${mismatchCount ? ` · ${formatCount(mismatchCount)} bad coords` : ""}`
-                : heatmapDisplayed != null && heatmapCrashes != null && heatmapDisplayed < heatmapCrashes
-                  ? `${formatCount(heatmapDisplayed)} of ${formatCount(heatmapCrashes)} mapped`
-                  : heatmapCrashes != null
-                    ? `${formatCount(heatmapCrashes)} mapped`
-                    : "Loading heatmap…"}
+              : heatmapCrashes != null
+                ? `${mappedLabel(heatmapCrashes, scopeCrashes)}${countyActive && mismatchCount ? ` · ${formatCount(mismatchCount)} bad coords` : ""}`
+                : "Loading heatmap…"}
           </div>
           {/* Mobile carries the streaming progress here rather than in a
               floating pill: at phone widths a centred pill lands on top of
@@ -255,50 +318,6 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
                   : "h-full bg-primary rounded-full transition-all duration-500 ease-out"}
                 style={heatmapProgressPct == null ? undefined : { width: `${heatmapProgressPct}%` }}
               />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Bucket labels — hide when county heatmap active */}
-      {!countyActive && (
-        <div className={mobileExpanded ? "" : "hidden md:block"}>
-          {isLoading ? (
-            <div className="text-[10px] text-on-surface-variant mt-1 italic">
-              Loading data…
-            </div>
-          ) : bucketEdges ? (
-            <>
-              <div className="flex justify-between text-[10px] text-on-surface-variant mt-1 font-mono">
-                {bucketEdges.map((e, i) => (
-                  <span key={i}>{activeMeasure.formatLabel(e)}</span>
-                ))}
-              </div>
-              {/* Disclose the binning method. Quantiles put an equal COUNT of
-                  counties in each colour, not an equal value range — so
-                  near-identical counties can land in different colours while
-                  the darkest band lumps together counties an order of
-                  magnitude apart. Saying so costs one line and stops the map
-                  implying differences the data doesn't support. Too few
-                  counties have data for real quintiles (see legendEdges) —
-                  bucketEdges is just [min, max] then, so skip the caption. */}
-              {bucketEdges.length > 2 && !activeMeasure.fixedEdges && (
-                <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
-                  Quintiles — each colour holds about a fifth of counties, not an
-                  equal value range.
-                </p>
-              )}
-              {/* Fixed-domain measures (a 0-100% share) are banded on absolute
-                  edges, so the quintile caption above would be wrong. */}
-              {activeMeasure.fixedEdges && (
-                <p className="text-[10px] text-on-surface-variant mt-1 leading-snug">
-                  Fixed 20-point bands, comparable across filters.
-                </p>
-              )}
-            </>
-          ) : (
-            <div className="text-[10px] text-on-surface-variant mt-1 italic">
-              Pan or zoom out to compute scale
             </div>
           )}
         </div>
@@ -342,20 +361,23 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
       <div className={mobileExpanded ? "" : "hidden md:block"}>
       {!countyActive && !isLoading && dataSummary.totalCrashes > 0 && (
         <div data-testid="data-summary" className="text-[11px] sm:text-[10px] text-on-surface-variant mt-2 leading-snug">
-          <span className="font-mono font-semibold">{formatCount(dataSummary.totalCrashes)}</span> crashes
+          {showTotal && (
+            <>
+              <span className="font-mono font-semibold">{formatCount(scopeCrashes!)}</span> crashes
+            </>
+          )}
 
           {coordValidation && coordValidation.mismatched > 0 && (
             <div className="mt-0.5 text-[10px] text-on-surface-variant">
               <span className="font-mono">{formatCount(coordValidation.mismatched)}</span> audited outside county
             </div>
           )}
-          {coordCoverage && (
-            <div className="mt-0.5 text-[10px]">
-              <span className="font-mono">{formatCount(coordCoverage.mapped - (coordValidation?.mismatched ?? 0))}</span> of{" "}
-              <span className="font-mono">{formatCount(coordCoverage.total)}</span> mapped (
-              <span className="font-mono">{Math.round((coordCoverage.mapped - (coordValidation?.mismatched ?? 0)) / coordCoverage.total * 100)}%</span>)
-            </div>
-          )}
+          {/* A statewide "X of Y mapped" coverage line used to sit here, over
+              a different denominator (every crash in the years, ignoring the
+              other filters and the county) than the heat line above. Nothing
+              is "mapped" without a point layer — the choropleth counts every
+              crash — so the heat line is the only one, and the coverage share
+              has its own measure. */}
 
           {dataSummary.sparseYears.length > 0 && (
             <div className="mt-1">
