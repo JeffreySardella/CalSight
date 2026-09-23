@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
 import { slugify, formatYearMonth, type DateRangeFilter } from "./useFilterParams";
 
-export interface ClusterSeverityBreakdown {
+interface ClusterSeverityBreakdown {
   fatal: number;
   injury: number;
   pdo: number;
@@ -69,7 +69,7 @@ function buildUrl(params: ClusterHotspotsParams): string {
   return `${API_BASE}/api/crashes/clusters?${sp.toString()}`;
 }
 
-export const FETCH_TIMEOUT_MS = 15_000;
+const FETCH_TIMEOUT_MS = 15_000;
 
 async function fetchClusterHotspots(params: ClusterHotspotsParams): Promise<ClusterHotspotsApiResponse> {
   const res = await fetch(buildUrl(params), {

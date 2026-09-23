@@ -17,7 +17,7 @@ import type { HeatmapResolution } from "../../hooks/useLayersState";
  * medium 0.01deg (~0.7mi, 0.03deg/~2mi when unscoped), high 0.001deg (~350ft),
  * raw individual crashes.
  */
-export const RESOLUTION_MAX_ZOOM: Record<HeatmapResolution, number> = {
+const RESOLUTION_MAX_ZOOM: Record<HeatmapResolution, number> = {
   low: 8,
   medium: 9,
   high: 10,
@@ -104,7 +104,7 @@ export function nextDotFetch(fetched: DotFetch | null, view: Bbox, zoom: number)
 const SCOPED_LADDER: readonly HeatmapResolution[] = ["low", "medium", "high", "raw"];
 const UNSCOPED_LADDER: readonly HeatmapResolution[] = ["low", "medium"];
 
-export function resolutionLadder(scoped: boolean): readonly HeatmapResolution[] {
+function resolutionLadder(scoped: boolean): readonly HeatmapResolution[] {
   return scoped ? SCOPED_LADDER : UNSCOPED_LADDER;
 }
 

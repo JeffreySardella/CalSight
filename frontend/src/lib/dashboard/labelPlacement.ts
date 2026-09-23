@@ -920,14 +920,3 @@ export function generateChartAriaLabel(
     .join("; ");
   return `${summary} Data: ${details}`;
 }
-
-/**
- * Generate aria-label attributes for individual hidden labels
- * so screen readers can still access them.
- */
-export function hiddenLabelAriaProps(text: string, value?: string): Record<string, string> {
-  return {
-    "aria-label": value ? `${text}: ${value}` : text,
-    role: "img",
-  };
-}

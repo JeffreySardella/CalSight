@@ -5,6 +5,7 @@ import { linearRegressionXY } from "../../lib/dashboard/stats";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { useTextScale } from "../../hooks/useTextScale";
 import { CHART_PALETTES } from "../../lib/theme/palettes";
+import { formatCompact } from "../../lib/formatCompact";
 
 interface ScatterItem {
   label: string;
@@ -22,12 +23,6 @@ interface SimpleScatterProps {
   color?: string;
   renderTooltip?: (item: ScatterItem, idx: number) => React.ReactNode;
   title?: string;
-}
-
-function formatNumber(val: number): string {
-  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
-  return val.toLocaleString();
 }
 
 export default function SimpleScatter({
@@ -145,7 +140,7 @@ export default function SimpleScatter({
             <g key={`y-${i}`}>
               <line x1={padding.left} x2={padding.left + chartW} y1={py} y2={py} stroke="rgb(var(--outline-variant))" strokeOpacity={0.15} />
               <text x={padding.left - 8} y={py + 3} textAnchor="end" fontSize={9 * ts} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
-                {formatNumber(v)}
+                {formatCompact(v)}
               </text>
             </g>
           );
@@ -157,7 +152,7 @@ export default function SimpleScatter({
             <g key={`x-${i}`}>
               <line x1={px} x2={px} y1={padding.top} y2={padding.top + chartH} stroke="rgb(var(--outline-variant))" strokeOpacity={0.1} />
               <text x={px} y={height - padding.bottom + 16} textAnchor="middle" fontSize={9 * ts} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif">
-                {formatNumber(v)}
+                {formatCompact(v)}
               </text>
             </g>
           );

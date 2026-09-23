@@ -33,6 +33,7 @@ import type { ForecastPoint } from "../charts/SimpleLineChart";
 import type { DragHandleProps } from "../../hooks/useDragReorder";
 import type { CrossFilterAPI } from "../../hooks/useCrossFilter";
 import type { BarHighlight } from "../charts/SimpleBarChart";
+import { formatCompact } from "../../lib/formatCompact";
 
 const CROSS_FILTER_DIMS: Dimension[] = ["severity", "cause", "year"];
 
@@ -68,12 +69,6 @@ function buildTitle(slot: ChartSlot): string {
   return `${measure} by ${dim}`;
 }
 
-function fmtValue(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString();
-}
-
 const TEXT_DIMS: Dimension[] = ["cause", "county", "weather", "lighting", "collision_type"];
 
 function thinLabelFormatter(total: number, dim: Dimension) {
@@ -103,7 +98,7 @@ function Tip({ label, value }: { label: string; value: number }) {
   return (
     <>
       <p className="font-headline font-bold text-on-surface">{label}</p>
-      <p className="text-on-surface-variant mt-0.5">{fmtValue(value)}</p>
+      <p className="text-on-surface-variant mt-0.5">{formatCompact(value)}</p>
     </>
   );
 }
@@ -510,11 +505,11 @@ function ChartCard({
               <p className="font-headline font-bold text-on-surface">{item.label}</p>
               <p className="text-on-surface-variant mt-0.5">
                 <span style={{ color: "rgb(var(--primary))" }}>{measureLabel(slot.dimension, slot.measure)}:</span>{" "}
-                {fmtValue(item.primary)}
+                {formatCompact(item.primary)}
               </p>
               <p className="text-on-surface-variant">
                 <span style={{ color: "rgb(var(--tertiary))" }}>{MEASURE_LABELS[slot.secondaryMeasure!]}:</span>{" "}
-                {fmtValue(item.secondary)}
+                {formatCompact(item.secondary)}
               </p>
             </>
           ) : null}

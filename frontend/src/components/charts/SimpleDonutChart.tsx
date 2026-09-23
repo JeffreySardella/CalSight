@@ -9,7 +9,7 @@ interface Segment {
   color: string;
 }
 
-export type DonutHighlight = "selected" | "dimmed" | "normal";
+type DonutHighlight = "selected" | "dimmed" | "normal";
 
 interface SimpleDonutChartProps {
   data: Segment[];

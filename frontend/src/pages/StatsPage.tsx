@@ -46,7 +46,7 @@ import PrintHeader from "../components/stats/PrintHeader";
 import PrintFooter from "../components/stats/PrintFooter";
 import Sparkline from "../components/charts/Sparkline";
 import { useTimelapsePlayer } from "../hooks/useTimelapsePlayer";
-import { useThrottledValue } from "../hooks/useDebouncedValue";
+import { useThrottledValue } from "../hooks/useThrottledValue";
 import TimelapseControls from "../components/stats/TimelapseControls";
 import StoryReader from "../components/stats/StoryReader";
 import { useDrillDown } from "../hooks/useDrillDown";

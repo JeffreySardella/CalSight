@@ -46,7 +46,7 @@ export function baselineFootnote(periods: (string | null | undefined)[]): string
   return `${baselineNote(common)}; ${n === 1 ? "1 station uses its" : `${n} stations use their`} shorter full record`;
 }
 
-export interface ReservoirSeriesPoint {
+interface ReservoirSeriesPoint {
   date: string;
   storage_af: number;
 }

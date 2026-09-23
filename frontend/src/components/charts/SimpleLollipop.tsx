@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useId } from "react";
 import ChartTooltip from "./ChartTooltip";
 import { nextChartIndex } from "./chartKeyboardNav";
 import { useTextScale } from "../../hooks/useTextScale";
+import { formatCompact } from "../../lib/formatCompact";
 
 interface LollipopItem {
   label: string;
@@ -9,7 +10,7 @@ interface LollipopItem {
   color?: string;
 }
 
-export type LollipopHighlight = "selected" | "dimmed" | "normal";
+type LollipopHighlight = "selected" | "dimmed" | "normal";
 
 interface SimpleLollipopProps {
   data: LollipopItem[];
@@ -19,12 +20,6 @@ interface SimpleLollipopProps {
   title?: string;
   onItemClick?: (item: LollipopItem, idx: number) => void;
   getHighlight?: (item: LollipopItem, idx: number) => LollipopHighlight;
-}
-
-function formatNumber(val: number): string {
-  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
-  return val.toLocaleString();
 }
 
 export default function SimpleLollipop({
@@ -164,7 +159,7 @@ export default function SimpleLollipop({
                   fill="rgb(var(--on-surface-variant))"
                   fontFamily="'Inter Variable', Inter, sans-serif"
                 >
-                  {formatNumber(d.value)}
+                  {formatCompact(d.value)}
                 </text>
               ) : (
                 <text
@@ -175,7 +170,7 @@ export default function SimpleLollipop({
                   fill="rgb(var(--on-surface-variant))"
                   fontFamily="'Inter Variable', Inter, sans-serif"
                 >
-                  {formatNumber(d.value)}
+                  {formatCompact(d.value)}
                 </text>
               )}
             </g>

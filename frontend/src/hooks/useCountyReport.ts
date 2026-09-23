@@ -52,7 +52,7 @@ type RateRow = {
 type DriverRow = { county_code: number; year: number; driver_count: number | null };
 type RoadMileRow = { county_code: number; total_miles: number | null };
 
-export type TrendPoint = { year: number; crashes: number; killed: number };
+type TrendPoint = { year: number; crashes: number; killed: number };
 export type FactorItem = { label: string; count: number };
 
 export type CountyReport = {

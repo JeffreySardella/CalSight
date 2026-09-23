@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect, useId } from "react";
 import type { CorrelationField, CountyRow } from "../../hooks/useCorrelationData";
 import { linearRegressionXY } from "../../lib/dashboard/stats";
-import { useIsDark } from "../../context/ThemeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { correlationColor, correlationDotColor, type CorrelationTokens } from "../../lib/theme/tokens";
 import { useTextScale } from "../../hooks/useTextScale";
 import { textOnColor } from "./onColorText";
 
-export interface CorrelationActiveFilters {
+interface CorrelationActiveFilters {
   severity?: string[];
   alcohol?: boolean;
   pedestrian?: boolean;
@@ -24,10 +23,6 @@ interface Props {
   countyCount: number;
   counties?: CountyRow[];
   activeFilters?: CorrelationActiveFilters;
-}
-
-function colorForR(r: number, _isDark: boolean, tokens: CorrelationTokens): string {
-  return correlationColor(r, tokens);
 }
 
 function textColorForR(r: number, tokens: CorrelationTokens): string {
@@ -178,7 +173,6 @@ function buildFilterSubtitle(f?: CorrelationActiveFilters): string {
 }
 
 export default function CorrelationMatrix({ fields, matrix, countyCount, counties, activeFilters }: Props) {
-  const isDark = useIsDark();
   const tokens = useDesignTokens();
   const titleId = useId();
   const ts = useTextScale();
@@ -236,7 +230,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
               const isSelected = selected?.i === i && selected?.j === j;
               return (
                 <g key={`${i}-${j}`} role="img" aria-label={`${fields[i].label} vs ${fields[j].label}: r = ${isNaN(r) ? "N/A" : r.toFixed(2)}`} onMouseEnter={() => setHoverCell({ i, j })} onMouseLeave={() => setHoverCell(null)}>
-                  <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={colorForR(r, isDark, tokens.correlation)}
+                  <rect x={x + 0.5} y={y + 0.5} width={cellSize - 1} height={cellSize - 1} rx={2} fill={correlationColor(r, tokens.correlation)}
                     opacity={isHovered || isSelected ? 1 : 0.85} stroke={isSelected ? "rgb(var(--on-surface))" : isHovered ? "rgb(var(--outline))" : "none"} strokeWidth={isSelected ? 2 : 1}
                     onClick={() => {
                       if (i === j) { setSelected(null); return; }
@@ -309,7 +303,7 @@ export default function CorrelationMatrix({ fields, matrix, countyCount, countie
             <span className="font-bold">no data</span>
           ) : (
             <>
-              <span className="font-bold" style={{ color: Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.2 ? colorForR(matrix[hoverCell.i][hoverCell.j], isDark, tokens.correlation) : undefined }}>r = {matrix[hoverCell.i][hoverCell.j].toFixed(2)}</span>
+              <span className="font-bold" style={{ color: Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.2 ? correlationColor(matrix[hoverCell.i][hoverCell.j], tokens.correlation) : undefined }}>r = {matrix[hoverCell.i][hoverCell.j].toFixed(2)}</span>
               {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.7 && " (strong)"}
               {Math.abs(matrix[hoverCell.i][hoverCell.j]) >= 0.4 && Math.abs(matrix[hoverCell.i][hoverCell.j]) < 0.7 && " (moderate)"}
             </>

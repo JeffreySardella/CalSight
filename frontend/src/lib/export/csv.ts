@@ -12,7 +12,7 @@
 import { API_BASE } from "../../config";
 import { triggerDownload, todayStamp } from "./download";
 
-export const MAX_EXPORT_ROWS = 50_000;
+const MAX_EXPORT_ROWS = 50_000;
 const PAGE_SIZE = 1000;
 
 interface CrashRow {
@@ -98,7 +98,7 @@ export function buildCsv(rows: CrashRow[]): string {
   return lines.join("\r\n");
 }
 
-export type CsvProgress =
+type CsvProgress =
   | { phase: "counting" }
   | { phase: "fetching"; fetched: number; total: number }
   | { phase: "building" }

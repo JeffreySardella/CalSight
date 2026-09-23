@@ -2,6 +2,7 @@ import { mean, stddev } from "./stats";
 import { slotKey, type Dimension, type Measure, type ChartOptions } from "./types";
 import { isDeathMeasure, isProvisionalDeathYear } from "./provisionalDeaths";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
+import { formatCompact } from "../formatCompact";
 
 export type AnomalySeverity = "critical" | "high" | "medium";
 
@@ -26,12 +27,6 @@ const MEASURE_NOUNS: Record<string, string> = {
 
 function measureNoun(m: Measure): string {
   return MEASURE_NOUNS[m] ?? m;
-}
-
-function fmtVal(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString();
 }
 
 function zToConfidence(absZ: number): number {
@@ -70,7 +65,7 @@ function detectZScore(
       method: "zscore",
       severity: scoreSeverity(confidence),
       confidence,
-      message: `${data[i].label}: ${fmtVal(values[i])} ${noun} (${pctDiff > 0 ? "+" : ""}${pctDiff}% ${direction} avg, ${absZ.toFixed(1)}σ)`,
+      message: `${data[i].label}: ${formatCompact(values[i])} ${noun} (${pctDiff > 0 ? "+" : ""}${pctDiff}% ${direction} avg, ${absZ.toFixed(1)}σ)`,
       dimension, measure,
       index: i,
       label: data[i].label,
@@ -113,7 +108,7 @@ function detectIQR(
       method: "iqr",
       severity: scoreSeverity(confidence),
       confidence,
-      message: `${data[i].label}: ${fmtVal(values[i])} is an outlier (${direction} IQR fence)`,
+      message: `${data[i].label}: ${formatCompact(values[i])} is an outlier (${direction} IQR fence)`,
       dimension, measure,
       index: i,
       label: data[i].label,

@@ -5,11 +5,7 @@ import { API_BASE } from "../config";
 import { yearsInRange, type DateRangeFilter } from "./useFilterParams";
 import type { TractBurden } from "../lib/map/tractBurden";
 
-export type {
-  TractBurden,
-  TractBurdenRow,
-  TractBurdenSummary,
-} from "../lib/map/tractBurden";
+export type { TractBurden } from "../lib/map/tractBurden";
 
 /**
  * The CA census tract outlines, as a static TopoJSON asset (same pattern as

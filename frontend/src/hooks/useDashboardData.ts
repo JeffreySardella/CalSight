@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
 import { MODE_LABELS, slotKey, type ChartSlot, type Dimension, type Measure } from "../lib/dashboard/types";
 import type { StatsFilters } from "./useStats";
-import { formatYearMonth } from "./useFilterParams";
+import { formatYearMonth, slugify } from "./useFilterParams";
 import { movingAverage } from "../lib/dashboard/stats";
 import type { DimensionRow, StatsBatchResponse } from "../types/api";
 
@@ -31,10 +31,6 @@ const SEVERITY_COLORS: Record<string, string> = {
   Injury: "var(--color-severity-injury, rgb(var(--tertiary)))",
   "Property Damage Only": "var(--color-severity-pdo, rgb(var(--outline-variant)))",
 };
-
-function severityToSlug(s: string): string {
-  return s.toLowerCase().replace(/ /g, "-");
-}
 
 function pickValue(r: DimensionRow, measure: Measure, dim: Dimension): number {
   // Victim-level rows, whatever they are bucketed by: gender, age and mode
@@ -151,7 +147,7 @@ export function useDashboardData(charts: ChartSlot[], filters: StatsFilters, cro
     const b: Record<string, string> = {};
     if (filters.dateRange?.start) b.start = formatYearMonth(filters.dateRange.start);
     if (filters.dateRange?.end) b.end = formatYearMonth(filters.dateRange.end);
-    if (filters.severities.length) b.severity = filters.severities.map(severityToSlug).join(",");
+    if (filters.severities.length) b.severity = filters.severities.map(slugify).join(",");
     if (filters.causes.length) b.cause = filters.causes.join(",");
     if (filters.counties.length) b.county = filters.counties.join(",");
     if (filters.alcohol) b.alcohol = "true";

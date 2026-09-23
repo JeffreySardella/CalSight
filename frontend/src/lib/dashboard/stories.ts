@@ -9,7 +9,7 @@ export type StoryContext = {
   isFiltered: boolean; // any filter active
 };
 
-export type NarrativeBlock = {
+type NarrativeBlock = {
   type: "narrative";
   heading: string;
   body: string | ((ctx: StoryContext) => string);
@@ -32,7 +32,7 @@ export type ChartBlock = {
   caption?: string;
 };
 
-export type StatCalloutBlock = {
+type StatCalloutBlock = {
   type: "stat-callout";
   value: string;
   label: string;
@@ -41,7 +41,7 @@ export type StatCalloutBlock = {
 
 /** Daily crash counts around a county's most recent first-rain day — a
  *  live chart off /api/first-rain, outside the /api/stats dimensions. */
-export type FirstRainStoryBlock = {
+type FirstRainStoryBlock = {
   type: "first-rain";
   id: string;
   countySlug: string;
@@ -49,7 +49,7 @@ export type FirstRainStoryBlock = {
 
 /** Average daily crashes on NOAA dense-fog-advisory days vs every other day
  *  in the same months, for one county — a live chart off /api/fog-days. */
-export type TuleFogStoryBlock = {
+type TuleFogStoryBlock = {
   type: "tule-fog";
   id: string;
   countySlug: string;
@@ -58,7 +58,7 @@ export type TuleFogStoryBlock = {
 /** Holiday-period crash, death and DUI rates against ordinary days of the
  *  same month — a live table off /api/holidays, outside the /api/stats
  *  dimensions (nothing else in the schema carries day-of-month). */
-export type HolidayStoryBlock = {
+type HolidayStoryBlock = {
   type: "holidays";
   id: string;
   /** Omit for statewide; a slug narrows the whole table to one county. */

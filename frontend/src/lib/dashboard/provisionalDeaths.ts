@@ -20,7 +20,7 @@
  * about deaths only: crash counts for a closed year are close to final.
  */
 
-export const DEATH_SETTLE_MONTHS = 12;
+const DEATH_SETTLE_MONTHS = 12;
 
 /** Measures built on death counts, which inherit the lag. */
 const DEATH_MEASURES: ReadonlySet<string> = new Set(["killed", "ksi", "fatality_rate"]);

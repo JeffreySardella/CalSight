@@ -30,7 +30,7 @@ const GLOSSARY = {
     "Property Damage Only — a crash in which no one was injured or killed; only vehicles or property were damaged.",
 } as const;
 
-export type JargonKey = keyof typeof GLOSSARY;
+type JargonKey = keyof typeof GLOSSARY;
 
 const ALIGN = {
   center: "left-1/2 -translate-x-1/2",

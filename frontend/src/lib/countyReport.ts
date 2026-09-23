@@ -33,7 +33,7 @@ export const MIN_DEATHS_FOR_DEATH_RATE = 10;
 export const MIN_CRASHES_FOR_CRASH_RATE = 50;
 
 /** Which count was too small to publish a rate, when one was. */
-export type Suppression = "deaths" | "crashes" | null;
+type Suppression = "deaths" | "crashes" | null;
 
 export type Rate = {
   value: number | null;

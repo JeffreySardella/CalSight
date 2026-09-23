@@ -44,7 +44,7 @@ export interface FilterDescription {
   flags: string[];
 }
 
-export interface StatFact {
+interface StatFact {
   type: "peak" | "trough" | "trend" | "concentration" | "dominance" | "comparison" | "volatility" | "outlier" | "change_point";
   strength: "strong" | "moderate" | "weak";
   label: string;

@@ -3,7 +3,7 @@ import { API_BASE } from "../config";
 import { formatYearMonth, slugify } from "./useFilterParams";
 import type { StagedFilters } from "./useStagedFilters";
 
-export interface ConditionCounts {
+interface ConditionCounts {
   weather?: Record<string, number>;
   lighting?: Record<string, number>;
   collisionType?: Record<string, number>;

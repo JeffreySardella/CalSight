@@ -3,6 +3,7 @@ import ChartTooltip from "./ChartTooltip";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { useTextScale } from "../../hooks/useTextScale";
 import { CHART_PALETTES } from "../../lib/theme/palettes";
+import { formatCompact } from "../../lib/formatCompact";
 
 interface GaugeItem {
   label: string;
@@ -15,13 +16,6 @@ interface SimpleGaugeProps {
   height?: number;
   title?: string;
 }
-
-function formatNumber(val: number): string {
-  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
-  return val.toLocaleString();
-}
-
 
 export default function SimpleGauge({ data, height = 180, title }: SimpleGaugeProps) {
   const titleId = useId();
@@ -137,7 +131,7 @@ export default function SimpleGauge({ data, height = 180, title }: SimpleGaugePr
           />
         ))}
         <text x={cx} y={cy - 12} textAnchor="middle" fontSize={26 * ts} fontWeight={800} fill="rgb(var(--on-surface))" fontFamily="'Inter Variable', Inter, sans-serif">
-          {formatNumber(total)}
+          {formatCompact(total)}
         </text>
         <text x={cx} y={cy + 6} textAnchor="middle" fontSize={10 * ts} fontWeight={600} fill="rgb(var(--on-surface-variant))" fontFamily="'Inter Variable', Inter, sans-serif" letterSpacing={2}>
           TOTAL

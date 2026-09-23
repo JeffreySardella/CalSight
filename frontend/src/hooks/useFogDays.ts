@@ -18,7 +18,7 @@ export interface FogYear {
   fog_coded_crashes: number;
 }
 
-export interface FogCounty {
+interface FogCounty {
   county_code: number;
   county_name: string;
   county_slug: string;

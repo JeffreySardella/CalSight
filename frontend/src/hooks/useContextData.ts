@@ -1,7 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
-import { API_BASE } from "../config";
-import { PERSISTED_QUERY_GC_TIME } from "../lib/queryPersistence";
-
 export interface CalEnviroScreenData {
   county_code: number;
   ces_score: number | null;
@@ -26,33 +22,4 @@ export interface UnemploymentData {
   year: number;
   month: number;
   unemployment_rate: number | null;
-}
-
-export function useCalEnviroScreen() {
-  return useQuery<CalEnviroScreenData[]>({
-    queryKey: ["calenviroscreen"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/calenviroscreen`);
-      if (!res.ok) throw new Error(`calenviroscreen ${res.status}`);
-      return res.json();
-    },
-    staleTime: Infinity,
-    // Persisted offline (queryPersistence.ts whitelist).
-    gcTime: PERSISTED_QUERY_GC_TIME,
-  });
-}
-
-export function useUnemployment(year?: number) {
-  return useQuery<UnemploymentData[]>({
-    queryKey: ["unemployment", year],
-    queryFn: async () => {
-      const params = year ? `?year=${year}` : "";
-      const res = await fetch(`${API_BASE}/api/unemployment${params}`);
-      if (!res.ok) throw new Error(`unemployment ${res.status}`);
-      return res.json();
-    },
-    staleTime: 5 * 60 * 1000,
-    // Persisted offline (queryPersistence.ts whitelist).
-    gcTime: PERSISTED_QUERY_GC_TIME,
-  });
 }

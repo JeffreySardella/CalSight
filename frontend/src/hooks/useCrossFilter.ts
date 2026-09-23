@@ -1,18 +1,18 @@
 import { useState, useCallback, useMemo } from "react";
 import type { Dimension } from "../lib/dashboard/types";
 
-export type CrossFilterSelection = {
+type CrossFilterSelection = {
   type: "category";
   dimension: Dimension;
   values: string[];
 };
 
-export type CrossFilterState = {
+type CrossFilterState = {
   sourceChartId: string | null;
   selection: CrossFilterSelection | null;
 };
 
-export type CrossFilterOverrides = {
+type CrossFilterOverrides = {
   severity?: string;
   cause?: string;
   county?: string;

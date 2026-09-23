@@ -61,7 +61,7 @@ export interface CorrelationTokens {
   neutral: string;
 }
 
-export interface MapTokens {
+interface MapTokens {
   /** Choropleth scale — 5 colors from low to high */
   choropleth: readonly string[];
   /** Heatmap gradient stops: [low, mid, high] */
@@ -74,7 +74,7 @@ export interface MapTokens {
   fatalHigh: string;
 }
 
-export interface ChartTokens {
+interface ChartTokens {
   /** Categorical palette — up to 10 colors for multi-series charts */
   categorical: readonly string[];
 }
@@ -196,20 +196,9 @@ function deriveChoroplethScale(palette: readonly string[]): readonly string[] {
   return palette.slice(0, 5);
 }
 
-/**
- * Convert a hex color to an rgba string with the given alpha.
- */
-export function hexToRgba(hex: string, alpha: number): string {
-  const h = hex.replace("#", "");
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 /**
  * Get the correlation cell color for a given r-value.
- * This replaces the hardcoded colorForR function in CorrelationMatrix.
  */
 export function correlationColor(r: number, tokens: CorrelationTokens): string {
   // Not-computable cells (NaN) are neutral — every comparison below is false

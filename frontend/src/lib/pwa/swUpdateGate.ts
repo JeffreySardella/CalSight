@@ -44,7 +44,7 @@ export function decideUpdate(trigger: UpdateTrigger, state: GateState): "apply" 
 }
 
 /** How long we wait for a quiet moment before giving up on this session. */
-export const UPDATE_GRACE_MS = 10 * 60 * 1000;
+const UPDATE_GRACE_MS = 10 * 60 * 1000;
 
 let state: GateState = { applied: false, expired: false };
 let applyFn: (() => void) | null = null;

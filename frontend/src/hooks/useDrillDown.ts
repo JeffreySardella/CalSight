@@ -2,7 +2,7 @@ import { useMemo, useCallback } from "react";
 import { useSearchParamsWriter } from "./useSearchParamsWriter";
 import { deslugify } from "./useFilterParams";
 
-export type DrillLevel = "state" | "county";
+type DrillLevel = "state" | "county";
 
 export interface DrillState {
   level: DrillLevel;

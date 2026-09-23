@@ -1,3 +1,5 @@
+import { formatCompact } from "../../lib/formatCompact";
+
 interface StatItem {
   label: string;
   value: number;
@@ -6,12 +8,6 @@ interface StatItem {
 interface StatCardProps {
   data: StatItem[];
   height?: number;
-}
-
-function formatNumber(val: number): string {
-  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
-  return val.toLocaleString();
 }
 
 export default function StatCard({ data, height = 192 }: StatCardProps) {
@@ -30,7 +26,7 @@ export default function StatCard({ data, height = 192 }: StatCardProps) {
     <div className="flex flex-col items-center justify-center gap-3" style={{ minHeight: height }}>
       <div className="text-center">
         <p className="text-4xl font-headline font-bold text-on-surface tracking-tight">
-          {formatNumber(total)}
+          {formatCompact(total)}
         </p>
         <p className="text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">
           total across {data.length} categories
