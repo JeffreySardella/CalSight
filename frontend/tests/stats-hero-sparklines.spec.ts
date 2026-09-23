@@ -39,10 +39,10 @@ test.beforeEach(async ({ page }) => {
 
 const SPARKLINES = [
   { name: /Incident trend, last 10 years/i },
-  // The tile is "Killed and injured" before the KSI frontend lands and
-  // "Killed or seriously injured" after it; the partial-year rule is the same.
-  { name: /Killed (and injured|or seriously injured) trend, last 10 years/i },
-  { name: /Fatality trend, last 10 years/i },
+  // Death sparklines also stop at the last settled year (lib/dashboard/
+  // provisionalDeaths.ts), CURRENT_YEAR - 2 here: still near the series max.
+  { name: /Killed or seriously injured trend, last settled years/i },
+  { name: /People killed, last settled years/i },
 ];
 
 test("hero sparklines cover the last 10 complete years and never plot the in-progress year", async ({ page }) => {
