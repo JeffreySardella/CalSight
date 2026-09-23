@@ -31,6 +31,7 @@ const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const WaterPage = lazyWithRetry(() => import("./pages/WaterPage"));
 const CountyReportPage = lazyWithRetry(() => import("./pages/CountyReportPage"));
+const CountyRedirectPage = lazyWithRetry(() => import("./pages/CountyRedirectPage"));
 const AdminEtlPage = lazyWithRetry(() => import("./pages/AdminEtlPage"));
 const NotFoundPage = lazyWithRetry(() => import("./pages/NotFoundPage"));
 
@@ -93,6 +94,7 @@ export default function App() {
                 <Route path="ask" element={<AskAiPage />} />
                 <Route path="water" element={<WaterPage />} />
                 <Route path="county/:slug/report" element={<CountyReportPage />} />
+                <Route path="county/:slug" element={<CountyRedirectPage />} />
                 <Route path="privacy" element={<PrivacyPage />} />
                 <Route path="terms" element={<TermsPage />} />
                 <Route path="admin/etl" element={<AdminGuard><AdminEtlPage /></AdminGuard>} />

@@ -376,6 +376,36 @@ export default function DroughtMap({
     return best;
   };
 
+  /** Same idea, for reservoirs: dots are drawn biggest-first so the small
+   *  ones stay on top and tappable, but that also means a big reservoir's
+   *  hit circle can sit *under* a smaller one drawn later (Shasta under
+   *  Trinity). Resolving every reservoir tap to the nearest centre — rather
+   *  than trusting which hit circle happens to be topmost — makes every
+   *  reservoir tappable at its own centre regardless of draw order. */
+  const nearestReservoir = (clientX: number, clientY: number): string | null => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect?.width) return null;
+    const k = WIDTH / rect.width;
+    const x = (clientX - rect.left) * k;
+    const y = (clientY - rect.top) * k;
+    let best: string | null = null;
+    let bestD = Infinity;
+    for (const d of dots) {
+      const dist = Math.hypot(d.cx - x, d.cy - y);
+      // Only reservoirs whose own hit circle contains the tap compete. A
+      // click a screen reader or keyboard synthesises can report (0, 0);
+      // without this bound it resolved to whichever reservoir sits nearest
+      // the map's corner instead of the focused one (callers fall back to
+      // the circle that received the click when this returns null).
+      if (dist > Math.max(d.r, MIN_HIT_R)) continue;
+      if (dist < bestD) {
+        bestD = dist;
+        best = d.reservoir.station_id;
+      }
+    }
+    return best;
+  };
+
   return (
     <figure className="flex flex-col items-center mt-12">
       <svg
@@ -519,7 +549,10 @@ export default function DroughtMap({
                 tabIndex={0}
                 aria-pressed={on}
                 aria-label={`${d.reservoir.name}, ${d.reservoir.pct_of_capacity.toFixed(0)}% of capacity`}
-                onClick={() => toggle("reservoir", d.reservoir.station_id)}
+                // Even a tap inside this circle defers to the nearest
+                // reservoir centre, so overlapping reservoirs (Shasta under
+                // Trinity) resolve the same way everywhere.
+                onClick={(e) => toggle("reservoir", nearestReservoir(e.clientX, e.clientY) ?? d.reservoir.station_id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();

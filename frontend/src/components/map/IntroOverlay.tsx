@@ -70,11 +70,23 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
     }, 500);
   };
 
+  // Dismisses onboarding the same way the two mode choices do, but skips the
+  // onStart callback entirely — that callback's only job is opening the
+  // filter sheet, and "just show me the map" means not doing that.
+  const handleSkip = () => {
+    safeSetItem(STORAGE_KEY, "1");
+    setExiting(true);
+    setTimeout(() => setVisible(false), 500);
+  };
+
   return (
     <div className={`fixed inset-0 z-[300] overflow-y-auto transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
       <div className="fixed inset-0 bg-surface" />
 
-      <FocusTrap>
+      {/* fallbackFocus, matching the sibling modals in this directory: without
+          it, focus-trap throws instead of mounting whenever no tabbable node
+          can be measured yet (e.g. under jsdom, which does no real layout). */}
+      <FocusTrap focusTrapOptions={{ fallbackFocus: '[role="dialog"]' }}>
       <div role="dialog" aria-modal="true" aria-label="Welcome to CalSight" className="relative z-10 min-h-full flex flex-col items-center justify-center py-12 px-4">
         <div className="w-full max-w-xl">
 
@@ -153,6 +165,13 @@ export default function IntroOverlay({ onStart }: IntroOverlayProps) {
                 <p className="text-on-primary-container/70 text-xs mt-1">Step-by-step wizard</p>
               </button>
             </div>
+
+            <button
+              onClick={handleSkip}
+              className="block w-full text-center text-on-surface-variant text-xs mt-5 py-2 underline hover:text-on-surface transition-colors"
+            >
+              Skip, just show me the map
+            </button>
           </div>
 
         </div>
