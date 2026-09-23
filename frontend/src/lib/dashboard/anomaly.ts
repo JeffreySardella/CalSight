@@ -1,5 +1,6 @@
 import { mean, stddev } from "./stats";
 import { slotKey, type Dimension, type Measure, type ChartOptions } from "./types";
+import { isDeathMeasure, isProvisionalDeathYear } from "./provisionalDeaths";
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 
 export type AnomalySeverity = "critical" | "high" | "medium";
@@ -190,7 +191,12 @@ export function detectAllAnomalies(
   const all: Anomaly[] = [];
   for (const chart of charts) {
     const key = slotKey(chart);
-    const data = dataBySlot[key];
+    // A death measure's newest years are still filling in: a "structural
+    // shift" there is the recording lag, not a real change. They sit at the
+    // end of the series, so indices of the remaining points are unchanged.
+    const data = chart.dimension === "year" && isDeathMeasure(chart.measure)
+      ? dataBySlot[key]?.filter(d => !isProvisionalDeathYear(d.label))
+      : dataBySlot[key];
     if (!data || data.length < 3) continue;
     const result = detectAnomalies(data, chart.dimension, chart.measure);
     byChart[chart.id] = result;

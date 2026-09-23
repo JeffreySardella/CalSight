@@ -8,7 +8,8 @@
 
 import type { ChartDataItem } from "../../hooks/useDashboardData";
 import type { Anomaly } from "./anomaly";
-import { slotKey, DIMENSION_LABELS, type ChartOptions, type Dimension } from "./types";
+import { slotKey, DIMENSION_LABELS, MEASURE_LABELS, type ChartOptions, type Dimension, type Measure } from "./types";
+import { isDeathMeasure, isProvisionalDeathYear } from "./provisionalDeaths";
 
 // Only these axes have an order along which "increased/decreased over this
 // period" means anything. Every other dimension (county, cause, severity, …)
@@ -18,6 +19,13 @@ import { slotKey, DIMENSION_LABELS, type ChartOptions, type Dimension } from "./
 // DIMENSION_LABELS text, so accept both.
 const TIME_DIMENSIONS: Dimension[] = ["hour", "day_of_week", "month", "year"];
 const TIME_AXES = new Set<string>(TIME_DIMENSIONS.flatMap(d => [d, DIMENSION_LABELS[d]]));
+
+// Death-based measures, by key or label. On a year axis their newest years
+// are still filling in (provisionalDeaths.ts), so those years are left out of
+// the trend, peak and trough instead of being read as a decline.
+const DEATH_MEASURE_NAMES = new Set<string>(
+  (Object.keys(MEASURE_LABELS) as Measure[]).filter(isDeathMeasure).flatMap(m => [m, MEASURE_LABELS[m]]),
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -123,11 +131,16 @@ function buildFilterContext(filters: FilterDescription): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function generateChartNarrative(
-  data: ChartDataItem[],
+  allData: ChartDataItem[],
   dimension: string,
   measure: string,
   tone: NarrativeTone,
 ): ChartNarrativeResult {
+  const isYearAxis = dimension === "year" || dimension === DIMENSION_LABELS.year;
+  const provisional = isYearAxis && DEATH_MEASURE_NAMES.has(measure)
+    ? allData.filter(d => isProvisionalDeathYear(d.label)).map(d => d.label)
+    : [];
+  const data = provisional.length > 0 ? allData.filter(d => !provisional.includes(d.label)) : allData;
   if (data.length === 0) {
     return { paragraph: "", sentences: [], facts: [], confidence: 0 };
   }
@@ -141,8 +154,9 @@ export function generateChartNarrative(
   const sentences: string[] = [];
   const facts: StatFact[] = [];
 
-  // Trend sentence — time axes only; a categorical chart has no "period".
-  if (!TIME_AXES.has(dimension)) {
+  // Trend sentence — time axes only; a categorical chart has no "period",
+  // and one point has no trend (it used to read "stayed fairly steady").
+  if (!TIME_AXES.has(dimension) || values.length < 2) {
     // no trend sentence
   } else if (trend.direction !== "flat") {
     const verb = trend.direction === "up" ? "increased" : "decreased";
@@ -225,8 +239,13 @@ export function generateChartNarrative(
     }
   }
 
+  if (provisional.length > 0 && sentences.length > 0) {
+    sentences.push(`${provisional.join(" and ")} ${provisional.length > 1 ? "are" : "is"} left out: deaths are still being recorded.`);
+  }
+
   const paragraph = sentences.join(" ");
-  const confidence = Math.min(1, 0.3 + (data.length / 20) + (facts.length * 0.1));
+  // Nothing to say (one point, or only preliminary years): no caption at all.
+  const confidence = sentences.length === 0 ? 0 : Math.min(1, 0.3 + (data.length / 20) + (facts.length * 0.1));
 
   return { paragraph, sentences, facts, confidence };
 }

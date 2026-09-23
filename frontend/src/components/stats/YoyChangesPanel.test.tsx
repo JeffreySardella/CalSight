@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import YoyChangesPanel from "./YoyChangesPanel";
+import { latestSettledDeathYear } from "../../lib/dashboard/provisionalDeaths";
 
 const CRASHES = {
   metric: "crashes",
@@ -62,6 +63,19 @@ describe("YoyChangesPanel", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Fatal crashes" }));
     await vi.waitFor(() =>
       expect(spy.mock.calls.some((c) => String(c[0]).includes("metric=fatal_crashes"))).toBe(true),
+    );
+  });
+
+  it("asks for the latest settled year on death metrics only", async () => {
+    const spy = mockFetch();
+    renderPanel();
+    await screen.findByText(/Los Angeles/);
+    expect(spy.mock.calls.some((c) => String(c[0]).includes("year="))).toBe(false);
+    await userEvent.click(screen.getByRole("radio", { name: "Killed" }));
+    await vi.waitFor(() =>
+      expect(spy.mock.calls.some((c) =>
+        String(c[0]).includes("metric=killed") && String(c[0]).includes(`year=${latestSettledDeathYear()}`),
+      )).toBe(true),
     );
   });
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useYoyChanges, type YoyMetric, type CountyChange } from "../../hooks/useYoyChanges";
+import { latestSettledDeathYear } from "../../lib/dashboard/provisionalDeaths";
 import { Skeleton } from "../ui/Skeleton";
 import { EmptyState } from "../ui/EmptyState";
 import { ErrorState } from "../ui/ErrorState";
@@ -40,7 +41,13 @@ function DirectionIcon({ change }: { change: number }) {
 
 export default function YoyChangesPanel() {
   const [metric, setMetric] = useState<YoyMetric>("crashes");
-  const { data, isLoading, error, refetch } = useYoyChanges({ metric });
+  // Death metrics compare the last two settled years; the server's default
+  // (latest year with data) would rank counties on still-lagging deaths.
+  const deathMetric = metric === "killed" || metric === "fatal_crashes";
+  const { data, isLoading, error, refetch } = useYoyChanges({
+    metric,
+    year: deathMetric ? latestSettledDeathYear() : null,
+  });
 
   const rows = data?.rows ?? [];
   const metricLabel = METRICS.find((m) => m.value === metric)?.label ?? "Crashes";
@@ -163,6 +170,7 @@ export default function YoyChangesPanel() {
         earlier year) are marked and ranked after the rest — a large percent change on a few crashes
         is statistically unreliable.
         {data?.partial_year && " The latest year is still accumulating data, so its counts are incomplete."}
+        {deathMetric && data && ` Deaths after ${data.year} are still being recorded, so this compares the latest settled years.`}
       </p>
     </section>
   );

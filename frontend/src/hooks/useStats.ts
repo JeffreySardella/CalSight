@@ -4,6 +4,7 @@ import { SEVERITIES, CAUSES, formatYearMonth, type DateRangeFilter } from "./use
 import { API_BASE } from "../config";
 import { PERSISTED_QUERY_GC_TIME } from "../lib/queryPersistence";
 import { excludePartialYear } from "../lib/partialYear";
+import { isProvisionalDeathYear } from "../lib/dashboard/provisionalDeaths";
 import { fillDemographicYears } from "./useChoroplethData";
 
 export type StatsFilters = {
@@ -38,7 +39,16 @@ export interface HeroMetrics {
   ksiRatePer100k?: number;
   /** Census years whose population stood in for years without one (nearest year). */
   ksiPopEstimatedFrom?: number[];
+  /** [earlier, later]: the two years incidentYoYPct compares. */
+  incidentYoYYears?: [number, number];
+  /** Deaths change between the last two SETTLED years (provisionalDeaths.ts). */
   yoyFatalityChangePct?: number;
+  /** [earlier, later]: the two settled years yoyFatalityChangePct compares. */
+  fatalityYoYYears?: [number, number];
+  /** People killed in the newest settled year in range. */
+  killedSettled?: { year: number; killed: number };
+  /** People killed in the newest complete year while it is still provisional. */
+  killedPreliminary?: { year: number; killed: number };
 }
 export interface MonthlyDataPoint { month: number; label: string; count: number; killed: number; injured: number }
 export interface DayOfWeekDataPoint { day: number; label: string; count: number }
@@ -170,7 +180,7 @@ async function fetchJson<T>(url: string): Promise<T> {
  *  lag months). Crash years without census population borrow the nearest
  *  census year, as the map does, and ksiPopEstimatedFrom names those years so
  *  the tile can say so. */
-export function computeHeroMetrics(yearRows: YearRow[], demoRows: DemoRow[] | null): HeroMetrics {
+export function computeHeroMetrics(yearRows: YearRow[], demoRows: DemoRow[] | null, now: Date = new Date()): HeroMetrics {
   if (!yearRows.length) return {};
   const totalIncidents = yearRows.reduce((s, r) => s + r.crash_count, 0);
   const complete = excludePartialYear(yearRows).sort((a, b) => a.year - b.year);
@@ -199,9 +209,23 @@ export function computeHeroMetrics(yearRows: YearRow[], demoRows: DemoRow[] | nu
     const curr = complete[complete.length - 1];
     if (prev.crash_count > 0) {
       hero.incidentYoYPct = Math.round(((curr.crash_count - prev.crash_count) / prev.crash_count) * 1000) / 10;
+      hero.incidentYoYYears = [prev.year, curr.year];
     }
+  }
+
+  // Deaths: the headline and its change use settled years only, so the lag
+  // in the newest year never reads as an improvement. That year is still
+  // reported, labelled preliminary.
+  const settled = complete.filter((r) => !isProvisionalDeathYear(r.year, now));
+  const lastSettled = settled[settled.length - 1];
+  if (lastSettled) hero.killedSettled = { year: lastSettled.year, killed: lastSettled.total_killed };
+  const newest = complete[complete.length - 1];
+  if (newest && newest !== lastSettled) hero.killedPreliminary = { year: newest.year, killed: newest.total_killed };
+  if (settled.length >= 2) {
+    const prev = settled[settled.length - 2];
     if (prev.total_killed > 0) {
-      hero.yoyFatalityChangePct = Math.round(((curr.total_killed - prev.total_killed) / prev.total_killed) * 1000) / 10;
+      hero.yoyFatalityChangePct = Math.round(((lastSettled.total_killed - prev.total_killed) / prev.total_killed) * 1000) / 10;
+      hero.fatalityYoYYears = [prev.year, lastSettled.year];
     }
   }
   return hero;

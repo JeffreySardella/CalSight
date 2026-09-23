@@ -211,7 +211,12 @@ describe("useStats", () => {
     const hero = result.current.data!.heroMetrics;
     expect(hero.totalIncidents).toBe(825_000);
     expect(hero.incidentYoYPct).toBeCloseTo(5.0, 1);
-    expect(hero.yoyFatalityChangePct).toBeCloseTo(-5.3, 1);
+    expect(hero.incidentYoYYears).toEqual([currentYear - 2, currentYear - 1]);
+    // Last year's deaths are still provisional: no death change, and the
+    // year is reported as preliminary beside the settled one.
+    expect(hero.yoyFatalityChangePct).toBeUndefined();
+    expect(hero.killedSettled).toEqual({ year: currentYear - 2, killed: 3800 });
+    expect(hero.killedPreliminary).toEqual({ year: currentYear - 1, killed: 3600 });
   });
 
   it("returns loading=true while fetching", () => {
@@ -279,6 +284,40 @@ describe("useStats", () => {
     expect(result.current.data!.yearlyData.length).toBeGreaterThan(0);
     expect(result.current.data!.hourlyData.length).toBeGreaterThan(0);
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe("computeHeroMetrics deaths", () => {
+  // Statewide rows as production served them on the audit date.
+  const SEPT_2026 = new Date(2026, 8, 22);
+  const row = (year: number, crashes: number, killed: number) =>
+    ({ year, crash_count: crashes, total_killed: killed, total_injured: 0 });
+  const rows = [row(2023, 377_431, 4011), row(2024, 415_406, 4000), row(2025, 401_710, 3407)];
+
+  it("compares the last two settled years, never the lagging one", () => {
+    const hero = computeHeroMetrics(rows, null, SEPT_2026);
+    // Not 2025 vs 2024's -14.8%: 2025 deaths are still being recorded.
+    expect(hero.fatalityYoYYears).toEqual([2023, 2024]);
+    expect(hero.yoyFatalityChangePct).toBeCloseTo(-0.3, 1);
+    expect(hero.killedSettled).toEqual({ year: 2024, killed: 4000 });
+    expect(hero.killedPreliminary).toEqual({ year: 2025, killed: 3407 });
+    // Crash counts are not lag-bound: that change stays 2025 vs 2024.
+    expect(hero.incidentYoYYears).toEqual([2024, 2025]);
+    expect(hero.incidentYoYPct).toBeCloseTo(-3.3, 1);
+  });
+
+  it("moves on once the year settles", () => {
+    const hero = computeHeroMetrics(rows, null, new Date(2027, 0, 1));
+    expect(hero.fatalityYoYYears).toEqual([2024, 2025]);
+    expect(hero.killedSettled).toEqual({ year: 2025, killed: 3407 });
+    expect(hero.killedPreliminary).toBeUndefined();
+  });
+
+  it("reports only the preliminary figure when no settled year is in range", () => {
+    const hero = computeHeroMetrics([row(2025, 401_710, 3407)], null, SEPT_2026);
+    expect(hero.killedSettled).toBeUndefined();
+    expect(hero.killedPreliminary).toEqual({ year: 2025, killed: 3407 });
+    expect(hero.yoyFatalityChangePct).toBeUndefined();
   });
 });
 

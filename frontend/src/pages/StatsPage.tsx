@@ -9,6 +9,7 @@ import MobileFilterSheet from "../components/map/MobileFilterSheet";
 import FiltersPanel from "../components/map/FiltersPanel";
 import { useStats } from "../hooks/useStats";
 import { excludePartialYear } from "../lib/partialYear";
+import { isProvisionalDeathYear } from "../lib/dashboard/provisionalDeaths";
 import { Skeleton } from "../components/ui/Skeleton";
 import DashboardModeToggle from "../components/stats/DashboardModeToggle";
 import DataFreshnessBanner from "../components/stats/DataFreshnessBanner";
@@ -363,9 +364,19 @@ function StatsPageInner() {
   ];
 
   const heroMetrics = data?.heroMetrics ?? {};
-  const { totalIncidents, incidentYoYPct, ksiRatePer100k, ksiPopEstimatedFrom, yoyFatalityChangePct } = heroMetrics;
+  const {
+    totalIncidents, incidentYoYPct, incidentYoYYears, ksiRatePer100k, ksiPopEstimatedFrom,
+    yoyFatalityChangePct, fatalityYoYYears, killedSettled, killedPreliminary,
+  } = heroMetrics;
   const incidentUp = incidentYoYPct != null && incidentYoYPct >= 0;
   const fatalityUp = yoyFatalityChangePct != null && yoyFatalityChangePct > 0;
+  // The deaths tile leads with the newest settled year; with none in range it
+  // falls back to the preliminary figure, labelled as such.
+  const killedHeadline = killedSettled ?? killedPreliminary;
+  const killedHeadlineIsPrelim = !killedSettled && !!killedPreliminary;
+  const yearSpan = data?.yearlyData.length
+    ? [Math.min(...data.yearlyData.map((d) => d.year)), Math.max(...data.yearlyData.map((d) => d.year))]
+    : null;
 
   // Fun facts — prefer county-specific when a single county is selected
   const funFactsCounty = counties.size === 1 ? [...counties][0] : null;
@@ -378,9 +389,15 @@ function StatsPageInner() {
     () => excludePartialYear(data?.yearlyData ?? []).slice(-10),
     [data?.yearlyData],
   );
+  // Death sparklines stop at the last settled year, like the tile they sit on.
+  const settledYearly = useMemo(
+    () => completeYearly.filter((d) => !isProvisionalDeathYear(d.year)),
+    [completeYearly],
+  );
+  const provisionalYears = completeYearly.filter((d) => isProvisionalDeathYear(d.year)).map((d) => d.year);
   const sparkIncidents = useMemo(() => completeYearly.map((d) => d.count), [completeYearly]);
-  const sparkFatalities = useMemo(() => completeYearly.map((d) => d.killed), [completeYearly]);
-  const sparkKsi = useMemo(() => completeYearly.map((d) => d.killed + d.severeInjured), [completeYearly]);
+  const sparkFatalities = useMemo(() => settledYearly.map((d) => d.killed), [settledYearly]);
+  const sparkKsi = useMemo(() => settledYearly.map((d) => d.killed + d.severeInjured), [settledYearly]);
 
   // SEO: dynamic meta tags and OG image based on current dashboard state
   const ogImage = useMemo(() => buildOgImageUrl({
@@ -541,9 +558,12 @@ function StatsPageInner() {
               </span>
             )}
           </div>
-          <p className="text-on-surface-variant text-[11px] mt-2 italic">
-            Relative to previous fiscal cycle
-          </p>
+          {!loading && (yearSpan || incidentYoYYears) && (
+            <p className="text-on-surface-variant text-[11px] mt-2 italic">
+              {yearSpan && `Crashes, ${yearSpan[0] === yearSpan[1] ? yearSpan[0] : `${yearSpan[0]}–${yearSpan[1]}`}. `}
+              {incidentYoYYears && `Change: ${incidentYoYYears[1]} vs ${incidentYoYYears[0]}.`}
+            </p>
+          )}
         </div>
 
         {/* KSI: people killed or seriously injured per 100K residents a year,
@@ -555,7 +575,7 @@ function StatsPageInner() {
               <JargonTerm term="KSI" /> / 100K Pop.*
             </p>
             {!loading && sparkKsi.length >= 2 && (
-              <Sparkline data={sparkKsi} label="Killed or seriously injured trend, last 10 years" />
+              <Sparkline data={sparkKsi} label="Killed or seriously injured trend, last settled years" />
             )}
           </div>
           {loading ? (
@@ -567,6 +587,7 @@ function StatsPageInner() {
           )}
           <p className="text-on-surface-variant text-[11px] mt-2 italic">
             People killed or seriously injured, per 100K residents a year
+            {!loading && provisionalYears.length > 0 && ` (includes preliminary ${provisionalYears.join(", ")})`}
           </p>
           {!loading && ksiPopEstimatedFrom && (
             <p className="text-on-surface-variant text-[10px] mt-1">
@@ -575,24 +596,25 @@ function StatsPageInner() {
           )}
         </div>
 
-        {/* YoY Fatality Change */}
-        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="Year over year fatality change">
+        {/* People killed: newest SETTLED year and its change on the year
+            before (computeHeroMetrics). A newer year whose deaths are still
+            being recorded is shown below it, labelled preliminary, and never
+            gets a better/worse verdict (lib/dashboard/provisionalDeaths.ts). */}
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 ambient-shadow" role="group" aria-label="People killed">
           <div className="flex items-start justify-between mb-3 sm:mb-4">
             <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-widest">
-              YoY Fatality Change
+              People killed{killedHeadline ? `, ${killedHeadline.year}` : ""}{killedHeadlineIsPrelim ? " (preliminary)" : ""}
             </p>
             {!loading && sparkFatalities.length >= 2 && (
-              <Sparkline data={sparkFatalities} label="Fatality trend, last 10 years" />
+              <Sparkline data={sparkFatalities} label="People killed, last settled years" />
             )}
           </div>
           <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
             {loading ? (
               <Skeleton className="h-10 w-32" />
             ) : (
-              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`Year over year fatality change: ${yoyFatalityChangePct != null ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%` : "unavailable"}`}>
-                {yoyFatalityChangePct != null
-                  ? `${fatalityUp ? "+" : ""}${yoyFatalityChangePct}%`
-                  : "—"}
+              <p className="text-3xl sm:text-4xl font-headline font-bold text-on-surface tracking-tight hero-value" role="img" aria-label={`People killed${killedHeadline ? ` in ${killedHeadline.year}${killedHeadlineIsPrelim ? ", preliminary" : ""}: ${killedHeadline.killed.toLocaleString()}` : ": unavailable"}`}>
+                {killedHeadline ? killedHeadline.killed.toLocaleString() : "—"}
               </p>
             )}
             {yoyFatalityChangePct != null && (
@@ -600,13 +622,22 @@ function StatsPageInner() {
                 <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                   {fatalityUp ? "trending_up" : "trending_down"}
                 </span>
+                {fatalityUp ? "+" : ""}{yoyFatalityChangePct}%
                 <span className="text-xs">{fatalityUp ? "worse" : "improved"}</span>
               </span>
             )}
           </div>
-          <p className="text-on-surface-variant text-[11px] mt-2 italic">
-            Change in fatalities vs. prior year
-          </p>
+          {!loading && fatalityYoYYears && (
+            <p className="text-on-surface-variant text-[11px] mt-2 italic">
+              Change: {fatalityYoYYears[1]} vs {fatalityYoYYears[0]}
+            </p>
+          )}
+          {!loading && killedPreliminary && (
+            <p className="text-on-surface-variant text-[11px] mt-1" data-testid="killed-preliminary">
+              {killedHeadlineIsPrelim ? "" : `${killedPreliminary.year} (preliminary): ${killedPreliminary.killed.toLocaleString()} so far. `}
+              Deaths are recorded once confirmed, which can take six months or more, so {killedPreliminary.year} will rise.
+            </p>
+          )}
         </div>
       </section>
 
