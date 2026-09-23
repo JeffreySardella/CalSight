@@ -16,6 +16,7 @@ const MISMATCH_DOT_COLORS: Record<PaletteKey, string> = {
 import type { DataSummary } from "../../hooks/useChoroplethData";
 import { useCoordValidation } from "../../hooks/useCoordValidation";
 import JargonTerm from "../ui/JargonTerm";
+import { mappedLabel } from "../../lib/map/countySelection";
 
 type Props = {
   demographicsAvailable: boolean;
@@ -53,18 +54,6 @@ function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
   return n.toLocaleString();
-}
-
-/**
- * The heat layer's coverage line: crashes it plots (the ones carrying
- * coordinates) out of every crash in the same scope and filters. It used to
- * print heat *cells* over the county total in one place ("20K mapped (9%)")
- * and cells over plotted crashes in another ("20K of 107K mapped").
- */
-function mappedLabel(mapped: number, scopeTotal: number | null | undefined): string {
-  if (!scopeTotal) return `${formatCount(mapped)} crashes mapped`;
-  const pct = Math.min(100, Math.round((mapped / scopeTotal) * 100));
-  return `${formatCount(mapped)} of ${formatCount(scopeTotal)} crashes mapped (${pct}%)`;
 }
 
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], estimatedDemoYears: [], estimatedFromYears: [], sparseYears: [] };

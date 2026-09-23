@@ -1094,7 +1094,7 @@ function MapPageInner() {
         {otherLayers.heatmapStatewide && !focusedCounty && !choroplethOn && (
           <StatewideHeatmapCard
             totalCrashes={statewideHeatmap.totalCrashes}
-            displayed={statewideHeatmap.points.length}
+            scopeCrashes={scopeCrashes}
             isLoading={statewideHeatmap.isLoading}
             searchOpen={mobileSearchOpen}
           />

@@ -1,10 +1,13 @@
 import { useLayersState, type HeatmapResolution } from "../../hooks/useLayersState";
 import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
+import { mappedLabel } from "../../lib/map/countySelection";
 
 type Props = {
+  /** Crashes the heat layer plots (the API's total_crashes). */
   totalCrashes: number | null;
-  displayed: number | null;
+  /** Every crash in scope under the same filters — the denominator. */
+  scopeCrashes: number | null;
   isLoading: boolean;
   searchOpen?: boolean;
 };
@@ -16,18 +19,10 @@ const RESOLUTION_LABEL: Record<HeatmapResolution, string> = {
   high: "High",
 };
 
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toLocaleString();
-}
-
-export default function StatewideHeatmapCard({ totalCrashes, displayed, isLoading, searchOpen }: Props) {
+export default function StatewideHeatmapCard({ totalCrashes, scopeCrashes, isLoading, searchOpen }: Props) {
   const { palette, heatmapResolution } = useLayersState();
   const isDark = useIsDark();
   const colors = getPalette(palette, isDark);
-
-  const sampled = totalCrashes != null && displayed != null && displayed < totalCrashes;
 
   return (
     <div
@@ -53,18 +48,12 @@ export default function StatewideHeatmapCard({ totalCrashes, displayed, isLoadin
           <span className="italic">Loading heatmap…</span>
         ) : totalCrashes == null || totalCrashes === 0 ? (
           <span className="italic">No crashes for current filters</span>
-        ) : sampled ? (
-          <>
-            <span className="font-mono font-semibold">{formatCount(displayed!)}</span>
-            {" of "}
-            <span className="font-mono font-semibold">{formatCount(totalCrashes)}</span>
-            {" mapped"}
-          </>
         ) : (
-          <>
-            <span className="font-mono font-semibold">{formatCount(totalCrashes)}</span>
-            {" mapped"}
-          </>
+          // Same line as the legend's: the old "N of M mapped" put grid
+          // cells over crashes.
+          <span data-testid="heatmap-mapped" className="font-mono font-semibold">
+            {mappedLabel(totalCrashes, scopeCrashes)}
+          </span>
         )}
       </div>
 
