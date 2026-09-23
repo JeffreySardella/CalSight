@@ -3,8 +3,9 @@
 Uses generate_narrative() which auto-rotates between API keys. Runs slowly
 (5s between calls) to avoid rate limits and stay separate from Ask AI traffic.
 
-Skips cards that already have an LLM-generated narrative unless --force.
-Safe to interrupt and resume — picks up where it left off.
+Skips cards that are still current (a narrative whose stored totals match the
+county-year) unless --force. Safe to interrupt and resume — picks up where it
+left off.
 
 Every generated card passes a numeric gate: any number it states between 10
 and 10,000,000 must be within 2% of a figure that was in the prompt (or a
@@ -19,6 +20,11 @@ Usage:
     python -m etl.generate_llm_cards --years 2001 2002 --force
     python -m etl.generate_llm_cards --statewide --years 2001 2002 --force
     python -m etl.generate_llm_cards --delay 10         # slower (10s between calls)
+    python -m etl.generate_llm_cards --angles overview cause_focus --limit 116
+
+Without --force, only missing or stale cards are written: a stale card's
+stored total_crashes/total_killed no longer match its county-year (the API
+does not serve those). --limit caps the cards attempted (2 LLM calls max each).
 
 --statewide writes the LLM angles of ``statewide_insights`` (overview,
 data_quality, historical_context, county_spotlight). Those rows were
@@ -231,8 +237,9 @@ def _generate_verified(
     return narrative
 
 
-def _build_stats_string(db: Session, county_code: int, year: int) -> str | None:
-    """Build a compact stats string for the LLM prompt."""
+def _build_stats_string(db: Session, county_code: int, year: int) -> tuple[str, dict] | None:
+    """Compact stats string for the LLM prompt, plus the county-year totals
+    stored on the card (the API serves it only while they still match)."""
     t = db.execute(text("""
         SELECT COUNT(*) AS tc,
                COALESCE(SUM(number_killed),0) AS tk,
@@ -356,7 +363,7 @@ def _build_stats_string(db: Session, county_code: int, year: int) -> str | None:
     if t.tc > 0:
         parts.append(f"nighttime_crashes={night}({round(night/t.tc*100,1)}%)")
 
-    return ", ".join(parts)
+    return ", ".join(parts), {"total_crashes": t.tc, "total_killed": t.tk}
 
 
 def _build_statewide_stats_string(db: Session, year: int) -> tuple[str, dict] | None:
@@ -474,12 +481,20 @@ def run(
     counties: list[str] | None = None,
     force: bool = False,
     statewide: bool = False,
+    angles: list[str] | None = None,
+    limit: int | None = None,
 ) -> int:
     """Generate LLM insight cards.
 
     ``years`` overrides the mode's year selection; ``force`` rewrites cards
     that already have a narrative; ``counties`` are names with spaces as
     underscores (``los_angeles``) so they pass the ETL workflow's arg allowlist.
+
+    Without ``force`` a card is rewritten only when it is missing or stale:
+    its stored total_crashes/total_killed no longer match the county-year
+    (including legacy cards with no stored totals). ``angles`` narrows the
+    angles; ``limit`` caps the cards attempted in this run — each attempt is
+    at most two LLM calls (one retry), so ``limit`` bounds the cost.
     """
     db = SessionLocal()
     try:
@@ -497,8 +512,16 @@ def run(
         created = 0
         skipped = 0
         errors = 0
+        attempted = 0
+        prompts = [(a, t) for a, t in ANGLE_PROMPTS.items() if not angles or a in angles]
+
+        def capped() -> bool:
+            return limit is not None and attempted >= limit
 
         for county in county_rows:
+            if capped():
+                logger.info("Reached --limit %d cards; stopping", limit)
+                break
             if years:
                 county_years = list(years)
             elif mode == "all":
@@ -517,19 +540,28 @@ def run(
                 county_years = [yr] if yr else []
 
             for year in county_years:
-                stats_str = _build_stats_string(db, county.code, year)
-                if not stats_str:
+                if capped():
+                    break
+                built = _build_stats_string(db, county.code, year)
+                if not built:
                     continue
+                stats_str, totals = built
 
-                for angle, prompt_tpl in ANGLE_PROMPTS.items():
+                for angle, prompt_tpl in prompts:
                     existing = (
                         db.query(CountyInsightCard)
                         .filter_by(county_code=county.code, year=year, angle=angle)
                         .first()
                     )
-                    if existing and not force and existing.narrative and len(existing.narrative) > 50:
+                    current = existing is not None and (
+                        existing.total_crashes, existing.total_killed,
+                    ) == (totals["total_crashes"], totals["total_killed"])
+                    if current and not force and existing.narrative and len(existing.narrative) > 50:
                         skipped += 1
                         continue
+                    if capped():
+                        break
+                    attempted += 1
 
                     prompt = prompt_tpl.format(
                         county=county.name, year=year, stats=stats_str,
@@ -549,10 +581,11 @@ def run(
                                 year=year,
                                 angle=angle,
                                 narrative=narrative,
+                                **totals,
                             )
                             .on_conflict_do_update(
                                 index_elements=["county_code", "year", "angle"],
-                                set_=dict(narrative=narrative),
+                                set_=dict(narrative=narrative, **totals),
                             )
                         )
                         db.execute(stmt)
@@ -569,7 +602,10 @@ def run(
 
             logger.info("%s complete — %d created so far", county.name, created)
 
-        logger.info("LLM cards: %d created, %d skipped, %d errors", created, skipped, errors)
+        logger.info(
+            "LLM cards: %d created, %d skipped (current), %d errors, %d attempted",
+            created, skipped, errors, attempted,
+        )
         return created
     finally:
         db.close()
@@ -589,8 +625,13 @@ if __name__ == "__main__":
     parser.add_argument("--statewide", action="store_true",
                         help="write the LLM angles of statewide_insights instead of county cards")
     parser.add_argument("--delay", type=int, default=5)
+    parser.add_argument("--angles", nargs="+", default=None, choices=sorted(ANGLE_PROMPTS),
+                        help="only these county-card angles")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="stop after this many cards attempted (at most 2 LLM calls each)")
     args = parser.parse_args()
     run(
         mode=args.mode, delay=args.delay, years=args.years,
         counties=args.counties, force=args.force, statewide=args.statewide,
+        angles=args.angles, limit=args.limit,
     )

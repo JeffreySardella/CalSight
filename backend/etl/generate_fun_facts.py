@@ -690,10 +690,13 @@ def _generate_county(db: Session, force: bool = False) -> int:
                     year=year,
                     angle=angle,
                     narrative=narrative,
+                    total_crashes=stats["tc"],
+                    total_killed=stats["tk"],
                 )
                 .on_conflict_do_update(
                     index_elements=["county_code", "year", "angle"],
-                    set_=dict(narrative=narrative),
+                    set_=dict(narrative=narrative, total_crashes=stats["tc"],
+                              total_killed=stats["tk"]),
                 )
             )
             db.execute(stmt)

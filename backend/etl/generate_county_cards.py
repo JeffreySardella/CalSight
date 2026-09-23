@@ -2,7 +2,8 @@
 
 Fills sparse angles (unique_factor, comparison, cause_focus, dui,
 safety_ranking, geography, seasonal) with data-driven analysis.
-Skips counties that already have a card for a given angle.
+Skips a county/angle whose card is current (its stored totals match the
+data); missing, stale and legacy cards are (re)written. No LLM calls.
 
 Usage::
 
@@ -1356,6 +1357,14 @@ def _card_fails(county: str, year: int, angle: str, narrative: str, data: dict) 
     )
 
 
+def _is_current(existing, data: dict) -> bool:
+    """A stored card is kept only while its totals match the data; a stale or
+    legacy (NULL-totals) card is rewritten, and the API won't serve it."""
+    return existing is not None and (
+        existing.total_crashes, existing.total_killed,
+    ) == (data["tc"], data["tk"])
+
+
 # ---------------------------------------------------------------------------
 # Angle registry
 # ---------------------------------------------------------------------------
@@ -1425,7 +1434,7 @@ def run() -> int:
                     .filter_by(county_code=county.code, year=year, angle=angle)
                     .first()
                 )
-                if existing:
+                if _is_current(existing, data):
                     skipped += 1
                     continue
 
@@ -1443,10 +1452,13 @@ def run() -> int:
                         year=year,
                         angle=angle,
                         narrative=narrative,
+                        total_crashes=data["tc"],
+                        total_killed=data["tk"],
                     )
                     .on_conflict_do_update(
                         index_elements=["county_code", "year", "angle"],
-                        set_=dict(narrative=narrative),
+                        set_=dict(narrative=narrative, total_crashes=data["tc"],
+                                  total_killed=data["tk"]),
                     )
                 )
                 db.execute(stmt)
@@ -1491,7 +1503,7 @@ def run_all_years() -> int:
                         .filter_by(county_code=county.code, year=year, angle=angle)
                         .first()
                     )
-                    if existing:
+                    if _is_current(existing, data):
                         skipped += 1
                         continue
 
@@ -1509,10 +1521,13 @@ def run_all_years() -> int:
                             year=year,
                             angle=angle,
                             narrative=narrative,
+                            total_crashes=data["tc"],
+                            total_killed=data["tk"],
                         )
                         .on_conflict_do_update(
                             index_elements=["county_code", "year", "angle"],
-                            set_=dict(narrative=narrative),
+                            set_=dict(narrative=narrative, total_crashes=data["tc"],
+                                      total_killed=data["tk"]),
                         )
                     )
                     db.execute(stmt)
