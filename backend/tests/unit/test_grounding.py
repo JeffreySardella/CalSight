@@ -7,7 +7,11 @@ distinctive numbers but which cites none of them is not data-backed.
 
 from __future__ import annotations
 
-from app.grounding import answer_cites_tool_numbers, extract_distinctive_numbers
+from app.grounding import (
+    answer_cites_tool_numbers,
+    extract_distinctive_numbers,
+    trend_word_contradictions,
+)
 
 
 # ── extract_distinctive_numbers ──────────────────────────────────────────
@@ -158,3 +162,68 @@ def test_overlap_across_multiple_tool_results():
         "Kern county reported 23,456 crashes.",
         ['{"fresno": 12345}', '{"kern": 23456}'],
     )
+
+
+# ── trend_word_contradictions ────────────────────────────────────────────
+
+# The phone audit's answer (2026-09-22), trimmed: a "modest rebound" over a
+# table that falls every year after 2018.
+AUDIT_ANSWER = """Pedestrian crashes in Los Angeles County have declined from 2016 to 2023.
+
+- 2016: 5,704 crashes
+- 2017: 5,977 crashes
+- 2018: 5,980 crashes
+- 2019: 5,915 crashes
+- 2020: 4,422 crashes
+- 2021: 3,873 crashes
+- 2022: 3,763 crashes
+- 2023: 3,744 crashes
+
+The drop in 2020 reflects the pandemic, and the subsequent years show a modest rebound."""
+
+
+def test_flags_the_audits_rebound_over_a_falling_table():
+    notes = trend_word_contradictions(AUDIT_ANSWER)
+    assert notes == [
+        'The answer says "rebound", but the yearly figures it shows do not rise again after 2018.'
+    ]
+
+
+def test_a_real_rebound_is_not_flagged():
+    answer = "Deaths rebounded after 2020.\n\n2019: 300\n2020: 250\n2021: 280\n2022: 320\n2023: 200"
+    assert trend_word_contradictions(answer) == []
+
+
+def test_flags_a_direction_word_against_a_named_span():
+    answer = (
+        "| Year | Deaths |\n|---|---|\n| 2019 | 250 |\n| 2020 | 260 |\n| 2021 | 301 |\n\n"
+        "Deaths declined from 2019 to 2021."
+    )
+    assert trend_word_contradictions(answer) == [
+        'The answer says "declined" for 2019 to 2021, but its figures go from 250 to 301.'
+    ]
+
+
+def test_a_matching_direction_word_passes():
+    fixed = AUDIT_ANSWER.replace(", and the subsequent years show a modest rebound", "")
+    assert trend_word_contradictions(fixed) == []
+
+
+def test_mixed_directions_in_one_sentence_are_left_alone():
+    answer = "2019: 250\n2020: 260\n2021: 301\n\nDeaths rose in 2020 but fell by 2021 against 2019."
+    assert trend_word_contradictions(answer) == []
+
+
+def test_reads_the_series_from_the_chart():
+    chart = {"type": "line", "data": [
+        {"label": "2021", "value": 90}, {"label": "2022", "value": 80}, {"label": "2023", "value": 70},
+    ]}
+    assert trend_word_contradictions("Deaths increased from 2021 to 2023.", chart) == [
+        'The answer says "increased" for 2021 to 2023, but its figures go from 90 to 70.'
+    ]
+
+
+def test_needs_a_yearly_series_to_judge():
+    assert trend_word_contradictions("Crashes rebounded from 2016 to 2023.") == []
+    # A year range at the start of a line is not a data point.
+    assert trend_word_contradictions("2016-2023 saw a drop.\n2016: 50\n2017: 60") == []

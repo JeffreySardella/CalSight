@@ -14,6 +14,7 @@ overlapping numeric IDs).
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import and_, case, func, select, text
@@ -1066,6 +1067,8 @@ def get_mode_breakdown(
     county: str | None = None,
     years: list[int] | None = None,
     severity: str | None = None,
+    mode: str | None = None,
+    by_year: bool = False,
 ) -> dict:
     """People hurt or killed by road-user mode (pedestrian / cyclist /
     motorcyclist / occupant).
@@ -1074,8 +1077,14 @@ def get_mode_breakdown(
     numbers match the dashboard's mode chart exactly. Counts PEOPLE, not
     crashes, only people with a recorded injury outcome, and starts in 2016
     (CCRS). Returns at most four rows plus the caveat text — repeat it.
+
+    ``by_year=True`` returns one row per year instead (for ``mode`` if given,
+    else every mode summed), the series a "is walking getting more dangerous"
+    question needs. Every row carries ksi_count (killed + seriously injured),
+    and the two most recent years are flagged: death records lag six months
+    or more, so their counts are still rising.
     """
-    from app.routers.stats import _PG_NOT_POPULATED, _run_group_query  # noqa: PLC0415 (avoid import cycle)
+    from app.routers.stats import _PG_NOT_POPULATED, _run_group_query, mv_mode  # noqa: PLC0415 (avoid import cycle)
 
     code = None
     if county:
@@ -1084,14 +1093,42 @@ def get_mode_breakdown(
             return {"error": f"County not found: {county}"}
 
     try:
-        rows = _run_group_query(
-            "mode",
-            _resolve_years(years),
-            [code] if code else None,
-            [severity] if severity else None,
-            None,
-            db,
-        )
+        if by_year:
+            v = mv_mode
+            preds = []
+            if years:
+                preds.append(v.c.crash_year.in_(_resolve_years(years)))
+            if code:
+                preds.append(v.c.county_code == code)
+            if severity:
+                preds.append(v.c.severity == severity)
+            if mode:
+                preds.append(v.c.mode == mode)
+            stmt = (
+                select(
+                    v.c.crash_year.label("year"),
+                    func.sum(v.c.victim_count).label("victim_count"),
+                    func.sum(v.c.fatal_victim_count).label("fatal_victim_count"),
+                    func.sum(v.c.severe_injured_count).label("severe_injured_count"),
+                )
+                .where(*preds)
+                .group_by(v.c.crash_year)
+                .order_by(v.c.crash_year.desc())
+                .limit(_MAX_ROWS)
+            )
+            # Newest first so a row cap drops the oldest years, not the latest.
+            rows = [dict(r._mapping) for r in reversed(db.execute(stmt).all())]
+        else:
+            rows = _run_group_query(
+                "mode",
+                _resolve_years(years),
+                [code] if code else None,
+                [severity] if severity else None,
+                None,
+                db,
+            )
+            if mode:
+                rows = [r for r in rows if r["mode"] == mode]
     except DBAPIError as e:
         # mv_victims_by_mode is created WITH NO DATA, so between a migration
         # and its first refresh every read raises 55000. Say so plainly, the
@@ -1108,10 +1145,22 @@ def get_mode_breakdown(
             ),
             "modes": [],
         }
+    # ponytail: "the last two calendar years are provisional" is a rule of
+    # thumb for the 6+ month death-record lag, not a per-county completeness
+    # check; switch to the loaded-data watermark if the lag ever shrinks.
+    this_year = datetime.now(timezone.utc).year
+    for r in rows:
+        r["ksi_count"] = (r.get("fatal_victim_count") or 0) + (r.get("severe_injured_count") or 0)
+        year = r.get("year")
+        if year is not None and year >= this_year:
+            r["status"] = "partial year (still in progress)"
+        elif year is not None and year == this_year - 1:
+            r["status"] = "provisional (death records still arriving; counts will rise)"
     return {
         "county": county or "California (statewide)",
         "years": years or "all available (2016+)",
         "severity": severity,
+        "mode": mode,
         "caveats": _MODE_CAVEAT,
         "modes": rows[:_MAX_ROWS],
     }

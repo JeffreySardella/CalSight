@@ -32,7 +32,7 @@ from app.ai_prompt import (
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
 from app.database import SessionLocal, apply_statement_timeout, get_db
-from app.grounding import answer_cites_tool_numbers
+from app.grounding import answer_cites_tool_numbers, trend_word_contradictions
 from app.llm_cache import get_ask_cache, make_cache_key
 from app.models import ChatFeedback
 from app.llm import (
@@ -549,6 +549,15 @@ def _finalize_answer(
     # deliberately conservative and can false-negative on heavily rounded
     # answers, so it downgrades the reported flag without evicting the answer.
     cacheable = not degraded and tool_grounded
+
+    # A trend word its own figures contradict ("a modest rebound" over a
+    # series that kept falling) is flagged to the reader, not silently
+    # rewritten, and never cached: the next ask may word it correctly.
+    trend_notes = trend_word_contradictions(clean_answer, chart)
+    if trend_notes:
+        logger.warning("Answer's trend words contradict its own figures: %s", trend_notes)
+        clean_answer += "\n\n> **Check the numbers:** " + " ".join(trend_notes)
+        cacheable = False
 
     grounded = tool_grounded
     # Calling a tool is not the same as citing it: cross-check that the raw

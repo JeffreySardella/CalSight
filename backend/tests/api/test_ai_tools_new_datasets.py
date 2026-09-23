@@ -166,6 +166,53 @@ def test_mode_breakdown_says_so_when_its_view_is_not_built(db_session, monkeypat
     assert "PEOPLE" in result["caveats"]
 
 
+def test_mode_breakdown_by_year_gives_a_yearly_ksi_series(db_session):
+    """A "getting more dangerous" question needs deaths + serious injuries per
+    year, not one total. The seed's "Severe" is not a CCRS serious-injury
+    code (SuspectSerious), so KSI here is the one 2022 death."""
+    rows = get_mode_breakdown(db_session, by_year=True)["modes"]
+
+    assert [r["year"] for r in rows] == [2022, 2023]
+    assert (rows[0]["victim_count"], rows[0]["ksi_count"]) == (2, 1)
+    assert (rows[1]["victim_count"], rows[1]["ksi_count"]) == (3, 0)
+
+
+def test_mode_breakdown_filters_to_one_mode(db_session):
+    walking = get_mode_breakdown(db_session, mode="pedestrian", by_year=True)
+    assert walking["mode"] == "pedestrian"
+    assert [(r["year"], r["victim_count"], r["ksi_count"]) for r in walking["modes"]] == [(2023, 1, 0)]
+
+    by_mode = get_mode_breakdown(db_session, mode="pedestrian")["modes"]
+    assert [r["mode"] for r in by_mode] == ["pedestrian"]
+    assert by_mode[0]["victim_count"] == 1
+
+
+def test_mode_breakdown_flags_the_years_whose_deaths_are_still_arriving(db_session, monkeypatch):
+    """Death records lag six months or more: the latest full year is
+    provisional and the current one partial, so a drop there is not news."""
+    from datetime import datetime as real_datetime
+
+    import app.ai_tools as ai_tools
+
+    class Frozen2024(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return real_datetime(2024, 9, 22, tzinfo=tz)
+
+    monkeypatch.setattr(ai_tools, "datetime", Frozen2024)
+    rows = {r["year"]: r for r in get_mode_breakdown(db_session, by_year=True)["modes"]}
+
+    assert "status" not in rows[2022]
+    assert rows[2023]["status"].startswith("provisional")
+
+    monkeypatch.setattr(ai_tools, "datetime", type("F", (real_datetime,), {
+        "now": classmethod(lambda cls, tz=None: real_datetime(2023, 3, 1, tzinfo=tz)),
+    }))
+    rows = {r["year"]: r for r in get_mode_breakdown(db_session, by_year=True)["modes"]}
+    assert rows[2023]["status"].startswith("partial year")
+    assert rows[2022]["status"].startswith("provisional")
+
+
 # ── get_vmt ────────────────────────────────────────────────────────────
 # The shared seed carries VMT for 2023 only (LA 81,997.43M and Alameda
 # 12,120.14M), and LA's crashes are 2014 / 2015 / 2022 — so a rate needs a
