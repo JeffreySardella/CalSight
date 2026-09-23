@@ -1,6 +1,6 @@
 # docker-compose.pipeline.yml — ETL pipeline service
 #
-# Runs alongside docker-compose.prod.yml on LXC 100.
+# Runs alongside docker-compose.prod.yml on VM 101 (the DB is on LXC 100).
 # Handles automated data refresh, backups, and monitoring.
 #
 # Usage:

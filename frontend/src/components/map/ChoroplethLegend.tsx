@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { formatCompact } from "../../lib/formatCompact";
 import { useLayersState } from "../../hooks/useLayersState";
 import { MEASURES } from "../../lib/choropleth/measures";
 import { getPalette, type PaletteKey } from "../../lib/choropleth/palettes";
@@ -55,12 +56,6 @@ function formatYearList(years: number[]): string {
     else runs.push([y]);
   }
   return runs.map((run) => (run.length >= 3 ? `${run[0]}-${run[run.length - 1]}` : run.join(", "))).join(", ");
-}
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toLocaleString();
 }
 
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], estimatedDemoYears: [], estimatedFromYears: [], sparseYears: [] };
@@ -318,7 +313,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           carries the same total whenever the heat map is on. */}
       {showTotal && !mobileExpanded && (
         <div className="md:hidden text-[10px] text-on-surface-variant mt-1 font-mono font-semibold">
-          {formatCount(scopeCrashes!)} crashes
+          {formatCompact(scopeCrashes!, 0)} crashes
         </div>
       )}
 
@@ -332,7 +327,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             {heatmapLoading && !heatmapDisplayed
               ? "Loading heatmap…"
               : heatmapCrashes != null
-                ? `${mappedLabel(heatmapCrashes, scopeCrashes)}${countyActive && mismatchCount ? ` · ${formatCount(mismatchCount)} bad coords` : ""}`
+                ? `${mappedLabel(heatmapCrashes, scopeCrashes)}${countyActive && mismatchCount ? ` · ${formatCompact(mismatchCount, 0)} bad coords` : ""}`
                 : "Loading heatmap…"}
           </div>
           {/* Mobile carries the streaming progress here rather than in a
@@ -398,13 +393,13 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
         <div data-testid="data-summary" className="text-[11px] sm:text-[10px] text-on-surface-variant mt-2 leading-snug">
           {showTotal && (
             <>
-              <span className="font-mono font-semibold">{formatCount(scopeCrashes!)}</span> crashes
+              <span className="font-mono font-semibold">{formatCompact(scopeCrashes!, 0)}</span> crashes
             </>
           )}
 
           {coordValidation && coordValidation.mismatched > 0 && (
             <div className="mt-0.5 text-[10px] text-on-surface-variant">
-              <span className="font-mono">{formatCount(coordValidation.mismatched)}</span> audited outside county
+              <span className="font-mono">{formatCompact(coordValidation.mismatched, 0)}</span> audited outside county
             </div>
           )}
           {/* A statewide "X of Y mapped" coverage line used to sit here, over

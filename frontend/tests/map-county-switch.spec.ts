@@ -142,6 +142,12 @@ test("tapping into a neighbouring county frames it once and paints its heat, not
   // San Joaquin's heat is painted.
   await expect.poll(async () => (await heatInkCentroid(page))?.lat ?? 0, { timeout: 10_000 }).toBeGreaterThan(38.1);
 
+  // The URL ignores moves for the first 700 ms (VIEWPORT_SYNC_WARMUP_MS in
+  // MapCanvas). The heat can paint sooner, and a tap inside that window
+  // zoomed the map without the URL following, so the poll below timed out
+  // about 1 run in 10.
+  await page.waitForTimeout(800);
+
   // On a phone a tap zooms toward the point until the zoom runs out, then
   // selects the county under it.
   for (let i = 0; i < 8 && camera(page).county !== "stanislaus"; i++) {

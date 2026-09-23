@@ -1,4 +1,5 @@
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
+import { formatCompact } from "../../../lib/formatCompact";
 import { usePresetCounts } from "../../../hooks/usePresetCounts";
 
 interface Preset {
@@ -71,12 +72,6 @@ interface FilterPresetsProps {
   onApplyPreset: (filters: Partial<StagedFilters>) => void;
 }
 
-function fmtCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toLocaleString();
-}
-
 export default function FilterPresets({ staged, onApplyPreset }: FilterPresetsProps) {
   const { data: counts } = usePresetCounts();
 
@@ -109,7 +104,7 @@ export default function FilterPresets({ staged, onApplyPreset }: FilterPresetsPr
                 <p className={`text-[10px] ${isActive ? "text-on-primary-container/70" : "text-on-surface-variant"}`}>
                 {preset.description}
                 {counts?.[preset.label] != null && (
-                  <span className="ml-1 font-semibold">({fmtCount(counts[preset.label])})</span>
+                  <span className="ml-1 font-semibold">({formatCompact(counts[preset.label], 0)})</span>
                 )}
               </p>
               </div>

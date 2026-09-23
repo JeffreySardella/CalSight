@@ -1,4 +1,5 @@
 import { INVOLVEMENTS, DRIVER_AGE_BRACKETS } from "../../../hooks/useFilterParams";
+import { formatCompact } from "../../../lib/formatCompact";
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
 import FilterChip from "./FilterChip";
 import JargonTerm from "../../ui/JargonTerm";
@@ -11,12 +12,6 @@ interface StepWhoProps {
   involvementCounts?: Record<string, number>;
   driverAgeCounts?: Record<string, number>;
   loading?: boolean;
-}
-
-function fmtCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return n.toLocaleString();
 }
 
 const INV_KEYS: Record<string, keyof Pick<StagedFilters, "alcohol" | "distracted" | "pedestrian" | "cyclist" | "drug">> = {
@@ -82,7 +77,7 @@ export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSe
                 key={inv.value}
                 label={inv.label}
                 icon={inv.icon}
-                count={count != null ? fmtCount(count) : undefined}
+                count={count != null ? formatCompact(count, 0) : undefined}
                 active={staged[INV_KEYS[inv.value]]}
                 disabled={count != null && count === 0}
                 onClick={() => onToggleInvolvement(INV_KEYS[inv.value])}
@@ -107,7 +102,7 @@ export default function StepWho({ staged, has2016Plus, onToggleInvolvement, onSe
               <FilterChip
                 key={b.value}
                 label={b.label}
-                count={count != null ? fmtCount(count) : undefined}
+                count={count != null ? formatCompact(count, 0) : undefined}
                 active={staged.driverAge === b.value}
                 disabled={count === 0}
                 onClick={() => onSetDriverAge(staged.driverAge === b.value ? null : b.value)}

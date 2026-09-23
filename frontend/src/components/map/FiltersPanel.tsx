@@ -438,17 +438,3 @@ function MonthYearPicker({ label, value, defaultMonth, onChange }: MonthYearPick
   );
 }
 
-interface FiltersPanelFooterProps {
-  onClear?: () => void;
-}
-
-export function FiltersPanelFooter({ onClear }: FiltersPanelFooterProps) {
-  return (
-    <button
-      onClick={() => { if (onClear) onClear(); }}
-      className="w-full text-[11px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors underline-offset-4 hover:underline py-4"
-    >
-      Clear All
-    </button>
-  );
-}
