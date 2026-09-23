@@ -57,7 +57,7 @@ export default function Layout() {
           <Outlet />
         </main>
       ) : isAskPage ? (
-        <div key={location.pathname} className="page-enter pt-12 pb-14 md:pt-16 lg:pb-0 h-dvh flex flex-col overflow-hidden">
+        <div key={location.pathname} className="page-enter pt-12 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pt-16 lg:pb-0 h-dvh flex flex-col overflow-hidden">
           <main id="main-content" className="flex-1 flex flex-col overflow-hidden">
             <Outlet />
           </main>
