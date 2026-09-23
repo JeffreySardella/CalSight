@@ -51,10 +51,11 @@ export default function AnomalyPanel({ anomalies, defaultCollapsed = false }: Pr
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-headline font-bold text-on-surface">Anomaly Detection</h2>
+          {/* Leads with the same count as the badge and the "Show All" list;
+              it used to say "3 significant" beside a badge of 4. */}
           <p className="text-[11px] text-on-surface-variant">
-            {significant > 0
-              ? `${significant} significant pattern${significant > 1 ? "s" : ""} detected`
-              : `${anomalies.length} pattern${anomalies.length > 1 ? "s" : ""} of interest`}
+            {`${anomalies.length} pattern${anomalies.length > 1 ? "s" : ""} detected`}
+            {significant > 0 && `, ${significant} significant`}
           </p>
         </div>
         <span className="flex items-center gap-1.5 flex-shrink-0">
