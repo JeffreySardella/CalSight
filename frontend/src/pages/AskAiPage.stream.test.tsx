@@ -66,6 +66,36 @@ describe("AskAiPage streaming", () => {
     expect(screen.getByText("Kern County saw 12 crashes.")).toBeTruthy();
   });
 
+  it("shows the server's progress lines until the first token", async () => {
+    const { stream, push, close } = pushableStream();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: { get: () => null }, body: stream,
+    } as unknown as Response));
+
+    await ask("Is it getting more dangerous to walk in Los Angeles?");
+
+    await push(sseFrame("status", { text: "Choosing what to look up..." }));
+    await waitFor(() => expect(screen.getByText("Choosing what to look up...")).toBeTruthy());
+
+    // Each phase replaces the last, inside the same indicator.
+    await push(sseFrame("status", { text: "Counting people hurt or killed by travel mode in Los Angeles..." }));
+    await waitFor(() =>
+      expect(screen.getByRole("status", { name: /thinking/i }).textContent)
+        .toContain("travel mode in Los Angeles"),
+    );
+    expect(screen.queryByText("Choosing what to look up...")).toBeNull();
+
+    // The answer takes over from the indicator.
+    await push(sseFrame("token", { t: "Pedestrian deaths rose." }));
+    await waitFor(() => expect(screen.getByText("Pedestrian deaths rose.")).toBeTruthy());
+    expect(screen.queryByRole("status", { name: /thinking/i })).toBeNull();
+
+    await push(sseFrame("done", askPayload("Pedestrian deaths rose.", { provider: "Groq" })));
+    await close();
+    await waitFor(() => expect(screen.getByText(/Powered by Groq/)).toBeTruthy());
+    expect(screen.queryByText(/travel mode/)).toBeNull();
+  });
+
   it("drops a narrated preamble when the round turns out to be a tool call", async () => {
     const { stream, push, close } = pushableStream();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({

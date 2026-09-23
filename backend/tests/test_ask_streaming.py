@@ -60,6 +60,11 @@ def _events(frames: list[bytes]) -> list[tuple[str, dict]]:
     return out
 
 
+def _answer_events(frames) -> list[tuple[str, dict]]:
+    """The answer events alone; `status` progress lines are pinned separately."""
+    return [ev for ev in _events(list(frames)) if ev[0] != "status"]
+
+
 @pytest.fixture
 def stream_env(monkeypatch):
     """Isolate _stream_ask from the DB, the answer cache and the tool registry."""
@@ -184,7 +189,7 @@ def test_mid_stream_provider_failure_emits_an_error_event(monkeypatch, stream_en
         dying_stream(),
     ])
 
-    events = _events(list(_stream_ask(AskRequest(question="How many crashes in Kern?"))))
+    events = _answer_events(_stream_ask(AskRequest(question="How many crashes in Kern?")))
 
     assert [e for e, _ in events] == ["token", "token", "error"]
     assert events[-1][1]["message"]
@@ -203,12 +208,35 @@ def test_a_streamed_round_that_turns_out_to_be_a_tool_call_sends_reset(monkeypat
         iter([_chunk("Kern County saw 41234 crashes.")]),    # round 2: the answer
     ])
 
-    events = _events(list(_stream_ask(AskRequest(question="How many crashes in Kern?"))))
+    events = _answer_events(_stream_ask(AskRequest(question="How many crashes in Kern?")))
 
     assert [e for e, _ in events] == ["token", "reset", "token", "done"]
     assert events[0][1]["t"] == "Let me check the data"
     assert events[2][1]["t"] == "Kern County saw 41234 crashes."
     assert events[3][1]["answer"] == "Kern County saw 41234 crashes."
+
+
+def test_progress_lines_stream_before_the_first_token(monkeypatch, stream_env):
+    """The tool rounds used to send nothing: a phone saw a typing indicator
+    for 25 s. Each phase now says what it is doing, before any answer text."""
+    _scripted(monkeypatch, [
+        _response(tool_calls=[
+            _call("query_crashes", "call_1", '{"county": "los-angeles"}'),
+            _call("query_crashes", "call_2", '{"county": "Not a county at all"}'),
+        ]),
+        iter([_chunk("Los Angeles saw 41234 crashes.")]),
+    ])
+
+    events = _events(list(_stream_ask(AskRequest(question="Crashes in LA?"))))
+
+    assert [e for e, _ in events] == ["status", "status", "status", "status", "token", "done"]
+    assert [d["text"] for e, d in events if e == "status"] == [
+        "Choosing what to look up...",
+        "Querying crash records in Los Angeles...",
+        # Model-written text that is not a county never reaches the reader.
+        "Querying crash records...",
+        "Reading the results...",
+    ]
 
 
 def test_a_trickling_provider_is_cut_off_at_the_deadline(monkeypatch, stream_env):
@@ -223,14 +251,15 @@ def test_a_trickling_provider_is_cut_off_at_the_deadline(monkeypatch, stream_env
         _response(tool_calls=[_call("query_crashes")]),
         never_ends(),
     ])
-    # A clock that runs out partway through the token stream: calls 1-4 are
-    # the deadline's own baseline, the two round checks and the first token.
-    ticks = iter([0.0, 0.0, 0.0, 0.0])
+    # A clock that runs out partway through the token stream: calls 1-6 are
+    # the deadline's own baseline, the two round checks, the two progress
+    # lines (tool, then "Reading the results") and the first token.
+    ticks = iter([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     monkeypatch.setattr(
         ask_module, "time", SimpleNamespace(monotonic=lambda: next(ticks, 10_000.0))
     )
 
-    events = _events(list(_stream_ask(AskRequest(question="How many crashes in Kern?"))))
+    events = _answer_events(_stream_ask(AskRequest(question="How many crashes in Kern?")))
 
     assert [e for e, _ in events] == ["token", "error"]
     assert "timed out" in events[-1][1]["message"]
@@ -244,7 +273,7 @@ def test_all_providers_exhausted_still_ends_with_a_done_payload(monkeypatch, str
         ask_module, "_run_simple_mode", lambda db, filters, messages: (_ for _ in ()).throw(RuntimeError("down"))
     )
 
-    events = _events(list(_stream_ask(AskRequest(question="How many crashes in Kern?"))))
+    events = _answer_events(_stream_ask(AskRequest(question="How many crashes in Kern?")))
 
     assert [e for e, _ in events] == ["done"]
     assert events[0][1]["provider"] == "none"
