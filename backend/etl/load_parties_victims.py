@@ -37,7 +37,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import CrashParty, CrashVictim
-from etl._utils import dedupe_rows, period_already_loaded
+from etl._utils import dedupe_rows, period_already_loaded, safe_int as _safe_int
 from etl.ckan_api import merged_resource_ids
 
 logging.basicConfig(
@@ -102,15 +102,6 @@ def effective_start_year(start_year: int, force: bool, current_year: int) -> int
     if force:
         return start_year
     return max(start_year, current_year - 1)
-
-
-def _safe_int(value):
-    if value is None or value == "":
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
 
 
 def _safe_bool(value):
