@@ -1066,6 +1066,8 @@ function MapPageInner() {
           countyActive={!!focusedCounty}
           searchOpen={mobileSearchOpen}
           mismatchCount={otherLayers.coordMismatches ? mismatchHeatmap.totalCrashes : null}
+          heatmapActive={heatmapEnabled}
+          dotZoomActive={mapZoom >= DOT_MIN_ZOOM}
         />
         <TractBurdenLegend />
         {timelapseAvailable && (
@@ -1365,6 +1367,8 @@ function ChoroplethLegendContainer({
   countyActive,
   searchOpen,
   mismatchCount,
+  heatmapActive,
+  dotZoomActive,
 }: {
   choroplethData: ChoroplethData;
   scopeCrashes: number | null;
@@ -1375,6 +1379,8 @@ function ChoroplethLegendContainer({
   countyActive?: boolean;
   searchOpen?: boolean;
   mismatchCount?: number | null;
+  heatmapActive?: boolean;
+  dotZoomActive?: boolean;
 }) {
   const queryClient = useQueryClient();
   return (
@@ -1393,6 +1399,8 @@ function ChoroplethLegendContainer({
       heatmapStreaming={heatmapStreaming}
       countyActive={countyActive}
       mismatchCount={mismatchCount}
+      heatmapActive={heatmapActive}
+      dotZoomActive={dotZoomActive}
     />
   );
 }
