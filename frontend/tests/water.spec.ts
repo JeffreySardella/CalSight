@@ -341,22 +341,26 @@ test.describe("on a touch phone", () => {
     await expect(page.getByRole("group", { name: /Central Sierra detail/i })).toBeVisible();
 
     // One finger on the map scrolls the page; the map itself stays put.
+    // Read the overlay's page position (viewport top + scrollY) in one
+    // evaluate: the scroll can still be settling after the poll below
+    // resolves, so separately read box and scrollY disagreed by a frame.
+    const pageBox = () =>
+      page.evaluate(() => {
+        const r = document.querySelector("svg.leaflet-image-layer")!.getBoundingClientRect();
+        return { top: r.top + window.scrollY, width: r.width };
+      });
     const scrollY = await page.evaluate(() => window.scrollY);
-    const zoomed = (await overlay.boundingBox())!;
+    const zoomed = await pageBox();
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: cx, y: cy, id: 0 }] });
     for (let dy = 15; dy <= 150; dy += 15) {
       await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: cx, y: cy - dy, id: 0 }] });
     }
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scrollY);
-    const after = (await overlay.boundingBox())!;
-    // Moved up exactly as far as the page scrolled: panned with the page,
-    // not within the map.
+    // Same place on the page: it moved with the page, not within the map.
+    const after = await pageBox();
     expect(after.width).toBeCloseTo(zoomed.width, 0);
-    expect(zoomed.y - after.y).toBeCloseTo(
-      (await page.evaluate(() => window.scrollY)) - scrollY,
-      0,
-    );
+    expect(after.top).toBeCloseTo(zoomed.top, 0);
   });
 });
 
