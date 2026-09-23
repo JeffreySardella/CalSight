@@ -16,7 +16,7 @@ export type TractBurdenRow = {
   crashes_per_1k_pop: number | null;
 };
 
-export type TractBurdenSummary = {
+type TractBurdenSummary = {
   /** 0-1 share of crashes in these years that have coordinates at all. */
   coord_share: number | null;
   tract_count: number;

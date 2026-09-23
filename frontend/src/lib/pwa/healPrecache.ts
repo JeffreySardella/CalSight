@@ -40,7 +40,7 @@ export async function dropHtmlPrecacheEntries(cacheStorage: CacheStorage = cache
  * out under /assets/'s one-year immutable Cache-Control. `cache: "reload"`
  * refetches from the network and overwrites that entry.
  */
-export async function refreshHttpCache(urls: readonly string[]): Promise<void> {
+async function refreshHttpCache(urls: readonly string[]): Promise<void> {
   await Promise.all(urls.map((u) => fetch(u, { cache: "reload" }).catch(() => undefined)));
 }
 

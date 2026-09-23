@@ -10,7 +10,7 @@
  */
 
 /** Aggregate measures shared by every /api/stats/batch dimension row. */
-export interface StatsMeasures {
+interface StatsMeasures {
   crash_count?: number | null;
   total_killed?: number | null;
   total_injured?: number | null;

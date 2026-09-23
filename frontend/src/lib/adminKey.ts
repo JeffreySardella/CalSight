@@ -14,7 +14,7 @@
 let adminKey: string | null = null;
 
 /** Header name expected by the backend (see backend/app/routers/etl.py). */
-export const ETL_KEY_HEADER = "X-ETL-API-Key";
+const ETL_KEY_HEADER = "X-ETL-API-Key";
 
 /** Fired on `window` whenever the stored key is cleared. */
 export const ADMIN_KEY_CLEARED_EVENT = "calsight-admin-key-cleared";

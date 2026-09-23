@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
 
 /** One statewide "first rainy day of the water year" event. */
-export interface FirstRainStatewideEvent {
+interface FirstRainStatewideEvent {
   water_year: number;
   counties: number;
   crashes_on_first_rain_days: number;
@@ -11,7 +11,7 @@ export interface FirstRainStatewideEvent {
   median_first_rain_date: string;
 }
 
-export interface FirstRainCountyEvent {
+interface FirstRainCountyEvent {
   county_code: number;
   county_name: string;
   county_slug: string;
@@ -25,7 +25,7 @@ export interface FirstRainCountyEvent {
   small_baseline: boolean;
 }
 
-export interface DaysSinceRain {
+interface DaysSinceRain {
   county_code: number;
   county_name: string;
   county_slug: string;
@@ -48,7 +48,7 @@ export interface FirstRain {
   days_since_rain: DaysSinceRain[];
 }
 
-export interface FirstRainSeriesPoint {
+interface FirstRainSeriesPoint {
   date: string;
   crashes: number;
   precip_in: number;

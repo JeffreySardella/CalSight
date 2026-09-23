@@ -25,14 +25,14 @@ export type StatsFilters = {
   hitRun?: boolean;
 };
 
-export interface HourlyDataPoint { hour: number; count: number }
-export interface YearlyDataPoint { year: number; count: number; killed: number; injured: number; severeInjured: number }
-export interface CauseDataPoint { label: string; count: number }
-export interface SeverityDataPoint { label: string; count: number }
-export interface GenderDataPoint { label: string; count: number }
-export interface AgeBracketDataPoint { label: string; count: number }
-export interface AtFaultGenderDataPoint { label: string; count: number }
-export interface AtFaultAgeBracketDataPoint { label: string; count: number }
+interface HourlyDataPoint { hour: number; count: number }
+interface YearlyDataPoint { year: number; count: number; killed: number; injured: number; severeInjured: number }
+interface CauseDataPoint { label: string; count: number }
+interface SeverityDataPoint { label: string; count: number }
+interface GenderDataPoint { label: string; count: number }
+interface AgeBracketDataPoint { label: string; count: number }
+interface AtFaultGenderDataPoint { label: string; count: number }
+interface AtFaultAgeBracketDataPoint { label: string; count: number }
 export interface HeroMetrics {
   totalIncidents?: number;
   incidentYoYPct?: number;
@@ -50,9 +50,9 @@ export interface HeroMetrics {
   /** People killed in the newest complete year while it is still provisional. */
   killedPreliminary?: { year: number; killed: number };
 }
-export interface MonthlyDataPoint { month: number; label: string; count: number; killed: number; injured: number }
-export interface DayOfWeekDataPoint { day: number; label: string; count: number }
-export interface RateDataPoint {
+interface MonthlyDataPoint { month: number; label: string; count: number; killed: number; injured: number }
+interface DayOfWeekDataPoint { day: number; label: string; count: number }
+interface RateDataPoint {
   county_code: number; county_name: string; year: number; severity: string;
   total_crashes: number; total_killed: number; total_injured: number;
   per_100k_population: number | null; per_10k_licensed_drivers: number | null;
@@ -60,7 +60,7 @@ export interface RateDataPoint {
   per_10k_vehicles: number | null;
 }
 
-export interface StatsData {
+interface StatsData {
   hourlyData: HourlyDataPoint[];
   yearlyData: YearlyDataPoint[];
   causesData: CauseDataPoint[];

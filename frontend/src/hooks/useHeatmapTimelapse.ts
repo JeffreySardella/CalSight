@@ -8,7 +8,7 @@ export type { TimelapseSpeed };
 export const MS_PER_YEAR_BASE = 3000;
 
 // How many upcoming frames to warm ahead of the playhead.
-export const PREFETCH_AHEAD = 2;
+const PREFETCH_AHEAD = 2;
 
 interface HeatmapTimelapseOptions {
   minYear: number;

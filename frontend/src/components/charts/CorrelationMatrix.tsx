@@ -7,7 +7,7 @@ import { correlationColor, correlationDotColor, type CorrelationTokens } from ".
 import { useTextScale } from "../../hooks/useTextScale";
 import { textOnColor } from "./onColorText";
 
-export interface CorrelationActiveFilters {
+interface CorrelationActiveFilters {
   severity?: string[];
   alcohol?: boolean;
   pedestrian?: boolean;

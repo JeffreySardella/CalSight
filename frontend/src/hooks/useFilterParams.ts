@@ -209,7 +209,7 @@ export function parseSeverities(param: string | null): Set<string> {
   return new Set(parsed);
 }
 
-export function parseCounties(param: string | null): Set<string> {
+function parseCounties(param: string | null): Set<string> {
   if (!param) return new Set<string>();
   const parsed = param
     .split(",")
@@ -234,7 +234,7 @@ export function parseBoolFlag(param: string | null): boolean {
   return param === "true";
 }
 
-export function parseSetParam(param: string | null): Set<string> {
+function parseSetParam(param: string | null): Set<string> {
   if (!param) return new Set<string>();
   return new Set(param.split(",").map((s) => s.trim()).filter(Boolean));
 }

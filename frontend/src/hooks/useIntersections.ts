@@ -150,7 +150,7 @@ export function useStreetAggregation(params: StreetAggParams) {
 
 // ── Street concentration (High-Injury-Network-style) ───────────────────
 
-export interface ConcentrationBreakpoint {
+interface ConcentrationBreakpoint {
   label: string;
   top_pct: number;
   unit_count: number;

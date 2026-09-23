@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /** 3+ counties makes point density on top of the choropleth unreadable. */
-export const MAX_COUNTIES_FOR_HEATMAP = 3;
+const MAX_COUNTIES_FOR_HEATMAP = 3;
 
 interface SuppressionArgs {
   selectedCountiesSize: number;

@@ -7,7 +7,7 @@ const CURRENT_VERSION = 1;
 export type Theme = "light" | "dark" | "system";
 export type MotionPref = "system" | "on" | "off";
 export type LiteModeSetting = "on" | "off" | "auto";
-export type FilterMode = "simple" | "advanced";
+type FilterMode = "simple" | "advanced";
 
 export interface UserPreferences {
   version: 1;

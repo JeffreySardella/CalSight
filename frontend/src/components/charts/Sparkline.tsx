@@ -29,7 +29,7 @@ export interface SparklineProps {
  * Computes trend direction from data: compares last value to first value.
  * Returns "up" if last > first, "down" if last < first, "flat" otherwise.
  */
-export function computeTrend(data: number[]): SparklineTrend {
+function computeTrend(data: number[]): SparklineTrend {
   if (data.length < 2) return "flat";
   const first = data[0];
   const last = data[data.length - 1];

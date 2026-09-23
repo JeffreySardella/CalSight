@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
 
 /** Counts and per-day rates over a set of calendar days. */
-export interface HolidayRates {
+interface HolidayRates {
   days: number;
   crashes: number;
   killed: number;

@@ -11,7 +11,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
  * - Accessible live announcements via aria-live region
  */
 
-export interface DragState {
+interface DragState {
   /** ID of the card currently being dragged, or null */
   dragId: string | null;
   /** Index where the card would be inserted if dropped now */
@@ -44,7 +44,7 @@ interface UseDragReorderReturn {
   announcement: string;
 }
 
-export interface DragItemProps {
+interface DragItemProps {
   draggable: boolean;
   "data-drag-id": string;
   "data-drag-index": number;

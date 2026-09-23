@@ -61,7 +61,7 @@ export interface CorrelationTokens {
   neutral: string;
 }
 
-export interface MapTokens {
+interface MapTokens {
   /** Choropleth scale — 5 colors from low to high */
   choropleth: readonly string[];
   /** Heatmap gradient stops: [low, mid, high] */
@@ -74,7 +74,7 @@ export interface MapTokens {
   fatalHigh: string;
 }
 
-export interface ChartTokens {
+interface ChartTokens {
   /** Categorical palette — up to 10 colors for multi-series charts */
   categorical: readonly string[];
 }

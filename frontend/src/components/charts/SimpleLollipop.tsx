@@ -9,7 +9,7 @@ interface LollipopItem {
   color?: string;
 }
 
-export type LollipopHighlight = "selected" | "dimmed" | "normal";
+type LollipopHighlight = "selected" | "dimmed" | "normal";
 
 interface SimpleLollipopProps {
   data: LollipopItem[];

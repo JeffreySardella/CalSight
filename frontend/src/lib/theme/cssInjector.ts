@@ -171,7 +171,7 @@ function typeScaleVars(scale: TypeScale): Record<string, string> {
 /**
  * Build the complete CSS text from a customization object.
  */
-export function buildCssOverrides(customization: ThemeCustomization): string {
+function buildCssOverrides(customization: ThemeCustomization): string {
   const vars: Record<string, string> = {};
 
   // Color overrides. `--primary` is resolved per mode so it keeps contrast with
