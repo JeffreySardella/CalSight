@@ -1,14 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
-import { DIMENSION_LABELS, MEASURE_LABELS } from "../../lib/dashboard/types";
+import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from "../../lib/dashboard/types";
 import { parseNlq, resolveNlq, SUGGESTIONS } from "../../lib/dashboard/nlqParser";
 
 interface Props {
-  onAddChart: (config: { dimension: Dimension; measure: Measure; chartType: ChartType; options?: ChartOptions }) => void;
+  /** May return a sentence saying where the chart went (e.g. another tab). */
+  onAddChart: (config: { dimension: Dimension; measure: Measure; chartType: ChartType; options?: ChartOptions }) => string | void;
 }
 
 export default function NlqQueryBar({ onAddChart }: Props) {
   const [value, setValue] = useState("");
+  // What the last query added, what it ignored and where the chart went,
+  // so nothing about the result is silent.
+  const [notice, setNotice] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,7 +40,14 @@ export default function NlqQueryBar({ onAddChart }: Props) {
     const result = parseNlq(query);
     const chart = resolveNlq(result);
     if (chart) {
-      onAddChart(chart.options && Object.keys(chart.options).length > 0 ? chart : { ...chart, options: undefined });
+      const where = onAddChart(chart.options && Object.keys(chart.options).length > 0 ? chart : { ...chart, options: undefined });
+      const m = measureLabel(chart.dimension, chart.measure);
+      setNotice([
+        // Named as ChartCard titles it.
+        `Added “${m === "Crash Count" ? "Crashes" : m} by ${DIMENSION_LABELS[chart.dimension]}”.`,
+        result.ignored.length > 0 && `Ignored ${result.ignored.map((w) => `“${w}”`).join(", ")}: use Filters to narrow the charts.`,
+        where,
+      ].filter(Boolean).join(" "));
       setValue("");
       setShowSuggestions(false);
     }
@@ -74,7 +85,7 @@ export default function NlqQueryBar({ onAddChart }: Props) {
           type="text"
           role="combobox"
           value={value}
-          onChange={(e) => { setValue(e.target.value); setShowSuggestions(true); setSelectedIdx(-1); }}
+          onChange={(e) => { setValue(e.target.value); setShowSuggestions(true); setSelectedIdx(-1); setNotice(null); }}
           onFocus={() => setShowSuggestions(true)}
           onKeyDown={handleKeyDown}
           placeholder="Add a chart… try &quot;crashes by hour&quot; or &quot;fatalities by county as scatter&quot;"
@@ -97,15 +108,24 @@ export default function NlqQueryBar({ onAddChart }: Props) {
       </div>
 
       {parsed && value.trim() && (
-        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-on-surface-variant">
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-on-surface-variant">
           <span className="font-medium">Parsing:</span>
           {parsed.dimension && <span className="px-1.5 py-0.5 bg-primary-container/30 rounded">{DIMENSION_LABELS[parsed.dimension]}</span>}
           {parsed.measure && <span className="px-1.5 py-0.5 bg-tertiary-container/30 rounded">{MEASURE_LABELS[parsed.measure]}</span>}
           {parsed.chartType && <span className="px-1.5 py-0.5 bg-secondary-container/30 rounded">{parsed.chartType}</span>}
+          {parsed.ignored.length > 0 && (
+            <span className="px-1.5 py-0.5 bg-error-container text-on-error-container rounded">
+              Ignored: {parsed.ignored.join(", ")}
+            </span>
+          )}
           <span className={`ml-auto font-semibold ${parsed.confidence === "high" ? "text-primary" : parsed.confidence === "medium" ? "text-tertiary" : "text-error"}`}>
             {parsed.confidence}
           </span>
         </div>
+      )}
+
+      {notice && (
+        <p role="status" className="mt-1.5 text-[11px] text-on-surface-variant leading-snug">{notice}</p>
       )}
 
       {showSuggestions && filteredSuggestions.length > 0 && (

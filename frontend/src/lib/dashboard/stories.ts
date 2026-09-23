@@ -240,7 +240,7 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Progress is uneven",
-        body: "Crashes fell for most of two decades, but deaths did not track them. From 2019 to 2022 crashes dropped while deaths climbed to their highest level since at least 2001, and only in 2025 did deaths fall below the 2019 level. Pedestrian deaths followed the same arc, rising from 984 in 2016 to 1,278 in 2022 before falling back. This data shows the pattern; it cannot say how much airbags, road design or enforcement contributed.",
+        body: "Crashes fell for most of two decades, but deaths did not track them. From 2019 to 2022 crashes dropped while deaths climbed to their highest level since at least 2001, and only in 2025 did deaths fall below the 2019 level, on a preliminary count that will rise as late death records arrive. Pedestrian deaths followed the same arc, rising from 984 in 2016 to 1,278 in 2022 before falling back. This data shows the pattern; it cannot say how much airbags, road design or enforcement contributed.",
       },
     ],
   },
@@ -566,10 +566,10 @@ export const DATA_STORIES: DataStory[] = [
         type: "narrative",
         heading: "Two long declines",
         body: (ctx) => ctx.countyCount === 1
-          ? `Statewide, crashes with speeding as the primary factor fell 30% from 2016 to 2025, and deaths in alcohol-involved crashes fell 35%. The charts below show ${ctx.countyNames[0]} County's trends. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
+          ? `Statewide, crashes with speeding as the primary factor fell 30% from 2016 to 2025, and deaths in alcohol-involved crashes fell 35% (2025 deaths are still preliminary). The charts below show ${ctx.countyNames[0]} County's trends. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
           : ctx.isFiltered
-          ? `Statewide, crashes with speeding as the primary factor fell 30% from 2016 to 2025, and deaths in alcohol-involved crashes fell 35%. The charts below show the ${ctx.countyCount} selected counties. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
-          : `Speeding and drunk driving are two of the oldest targets of traffic enforcement. From 2016 to 2025, crashes with speeding as the primary factor fell 30%, and deaths in alcohol-involved crashes fell 35%, while alcohol-involved crashes themselves fell only 7%. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit those drops to enforcement.`,
+          ? `Statewide, crashes with speeding as the primary factor fell 30% from 2016 to 2025, and deaths in alcohol-involved crashes fell 35% (2025 deaths are still preliminary). The charts below show the ${ctx.countyCount} selected counties. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
+          : `Speeding and drunk driving are two of the oldest targets of traffic enforcement. From 2016 to 2025, crashes with speeding as the primary factor fell 30%, and deaths in alcohol-involved crashes fell 35% (2025 deaths are still preliminary), while alcohol-involved crashes themselves fell only 7%. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit those drops to enforcement.`,
         isThesis: true,
       },
       {
@@ -595,7 +595,7 @@ export const DATA_STORIES: DataStory[] = [
         type: "stat-callout",
         value: "-30%",
         label: "Speeding crashes, 2016 to 2025",
-        context: "From 163,095 to 114,480. Deaths in alcohol-involved crashes fell 35% over the same years, while alcohol-involved crashes fell only 7%",
+        context: "From 163,095 to 114,480. Deaths in alcohol-involved crashes fell 35% over the same years (2025 deaths preliminary), while alcohol-involved crashes fell only 7%",
       },
       {
         type: "chart",

@@ -10,7 +10,7 @@ test.describe("Dashboard - Hero Metrics", () => {
     // Verify all three hero metric cards are visible
     await expect(page.locator("text=Total Incidents")).toBeVisible();
     await expect(page.getByRole("group", { name: "Killed or seriously injured per 100K population" })).toBeVisible();
-    await expect(page.locator("text=YoY Fatality Change")).toBeVisible();
+    await expect(page.getByRole("group", { name: "People killed" })).toBeVisible();
 
     // Verify hero metric elements render (values depend on API data availability)
     const metricValues = page.locator("p.hero-value");
@@ -74,6 +74,8 @@ test.describe("Dashboard - NLQ Query Bar", () => {
     // Should switch to builder mode and show the new chart
     // The chart "Crashes by Hour" should now be visible
     await expect(page.locator("h3", { hasText: "Crashes by Hour" })).toBeVisible({ timeout: 10000 });
+    // ...and says so, rather than switching tabs silently.
+    await expect(page.getByText(/Switched to the Builder tab/)).toBeVisible();
   });
 });
 
@@ -305,5 +307,31 @@ test.describe("Dashboard - Data Table Toggle", () => {
 
     // Table should no longer be visible
     await expect(table).not.toBeVisible();
+  });
+});
+
+test.describe("Dashboard - Preliminary deaths", () => {
+  // Last year's deaths are still being recorded all through this year
+  // (lib/dashboard/provisionalDeaths.ts): the headline must lead with the
+  // settled year and label last year preliminary, never call it "improved".
+  const CY = new Date().getFullYear();
+  const YEARS = [
+    { year: CY - 3, crash_count: 377_431, total_killed: 4011, total_injured: 213_131, total_severe_injured: 16_132 },
+    { year: CY - 2, crash_count: 415_406, total_killed: 4000, total_injured: 236_176, total_severe_injured: 17_182 },
+    { year: CY - 1, crash_count: 401_710, total_killed: 3407, total_injured: 231_540, total_severe_injured: 17_037 },
+  ];
+
+  test("labels the lagging year preliminary on the KPI and the deaths chart", async ({ page }) => {
+    await page.route("**/api/stats/batch", (route) => route.fulfill({ json: { year: YEARS } }));
+    await page.goto(`${BASE_URL}/stats`);
+
+    const tile = page.getByRole("group", { name: "People killed" });
+    await expect(tile).toContainText(`People killed, ${CY - 2}`);
+    await expect(tile).toContainText("4,000");
+    await expect(tile).toContainText(`Change: ${CY - 2} vs ${CY - 3}`);
+    await expect(tile.getByTestId("killed-preliminary")).toContainText(`${CY - 1} (preliminary): 3,407`);
+
+    await page.click('button:has-text("Fatality Focus")');
+    await expect(page.getByText(`Deaths for ${CY - 1} are preliminary`, { exact: false }).first()).toBeVisible({ timeout: 10000 });
   });
 });

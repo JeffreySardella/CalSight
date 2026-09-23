@@ -26,6 +26,7 @@ import { useIsMobile } from "../../hooks/useIsMobile";
 import { exportChartPng, exportChartCsv } from "../../lib/export/chartExport";
 import { partialYearNote } from "../../lib/partialYear";
 import { ksiDefinitionNote } from "../../lib/ksi";
+import { isDeathMeasure, provisionalDeathNote } from "../../lib/dashboard/provisionalDeaths";
 import { MODE_COVERAGE_NOTE } from "../../lib/dashboard/types";
 import { forecast as computeForecast } from "../../lib/dashboard/stats";
 import type { ForecastPoint } from "../charts/SimpleLineChart";
@@ -364,7 +365,7 @@ function ChartCard({
         filterSummary: filterScope.hasAnyFilter ? filterScope.oneLine : null,
         // Same footnotes shown on screen below the chart, verbatim and in
         // the same order (see the JSX below) — a shared PNG carries them too.
-        footnotes: [partialNote, showModeNote ? MODE_COVERAGE_NOTE : null, ksiNote],
+        footnotes: [partialNote, deathNote, showModeNote ? MODE_COVERAGE_NOTE : null, ksiNote],
       });
     }
   };
@@ -377,6 +378,12 @@ function ChartCard({
   // apparent "drop" in the last bucket isn't misread as a real decline.
   const partialNote = slot.dimension === "year"
     ? partialYearNote(data.map((d) => d.label))
+    : null;
+
+  // Deaths lag the crash record by six months or more, so a year chart of a
+  // death-based measure says which of its years are still preliminary.
+  const deathNote = slot.dimension === "year" && (isDeathMeasure(slot.measure) || isDeathMeasure(slot.secondaryMeasure))
+    ? provisionalDeathNote(data.map((d) => d.label))
     : null;
 
   // Pedestrian/cyclist/motorcyclist/occupant come from CCRS party and victim
@@ -513,6 +520,12 @@ function ChartCard({
           ) : null}
           title={title}
         />
+      ) : (slot.chartType === "line" || slot.chartType === "area") && data.length === 1 ? (
+        // One point draws no line: show the number itself.
+        <div className="h-48 flex flex-col items-center justify-center" data-testid="single-value">
+          <p className="text-4xl font-headline font-bold text-on-surface tracking-tight">{data[0].value.toLocaleString()}</p>
+          <p className="text-xs text-on-surface-variant mt-1">{valueLabel}, {data[0].label}</p>
+        </div>
       ) : slot.chartType === "line" || slot.chartType === "area" ? (
         <>
         <SimpleLineChart
@@ -622,6 +635,10 @@ function ChartCard({
 
       {!loading && hasData && partialNote && (
         <p className="text-[10px] italic text-on-surface-variant mt-1.5">{partialNote}</p>
+      )}
+
+      {!loading && hasData && deathNote && (
+        <p className="text-[10px] italic text-on-surface-variant mt-1.5">{deathNote}</p>
       )}
 
       {showModeNote && (

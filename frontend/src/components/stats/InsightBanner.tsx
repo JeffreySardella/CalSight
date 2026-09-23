@@ -13,18 +13,22 @@ interface Slide {
   text: string;
 }
 
+// Each change names the years it compares. The deaths change is between the
+// last two settled years, which can be a year behind the crash change.
 function buildYoYSlide(heroMetrics: HeroMetrics): Slide | null {
-  const { incidentYoYPct, yoyFatalityChangePct } = heroMetrics;
+  const { incidentYoYPct, incidentYoYYears, yoyFatalityChangePct, fatalityYoYYears } = heroMetrics;
   if (incidentYoYPct == null && yoyFatalityChangePct == null) return null;
 
   const parts: string[] = [];
   if (incidentYoYPct != null) {
     const direction = incidentYoYPct >= 0 ? "up" : "down";
-    parts.push(`Crashes are ${direction} ${Math.abs(incidentYoYPct)}% YoY`);
+    const years = incidentYoYYears ? ` in ${incidentYoYYears[1]} vs ${incidentYoYYears[0]}` : " year over year";
+    parts.push(`Crashes were ${direction} ${Math.abs(incidentYoYPct)}%${years}`);
   }
   if (yoyFatalityChangePct != null) {
     const direction = yoyFatalityChangePct >= 0 ? "up" : "down";
-    parts.push(`fatalities are ${direction} ${Math.abs(yoyFatalityChangePct)}%`);
+    const years = fatalityYoYYears ? ` in ${fatalityYoYYears[1]} vs ${fatalityYoYYears[0]}` : "";
+    parts.push(`deaths were ${direction} ${Math.abs(yoyFatalityChangePct)}%${years}`);
   }
   return { type: "yoy", text: parts.join(" — ") };
 }

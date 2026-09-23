@@ -118,3 +118,41 @@ describe("ChartCard KSI definition footnote", () => {
     expect(heading?.textContent).not.toMatch(/\*$/);
   });
 });
+
+describe("ChartCard preliminary-deaths footnote", () => {
+  const killedSlot: ChartSlot = { ...yearSlot, measure: "killed" };
+  // The previous year's deaths are provisional all through the current year.
+  const recent = [
+    { label: String(CURRENT - 3), value: 4011 },
+    { label: String(CURRENT - 2), value: 4000 },
+    { label: String(CURRENT - 1), value: 3407 },
+  ];
+
+  it("marks the provisional year on a deaths-by-year chart", () => {
+    renderCard(killedSlot, recent);
+    expect(screen.getByText(new RegExp(`^Deaths for ${CURRENT - 1} are preliminary`))).toBeInTheDocument();
+  });
+
+  it("also marks deaths per 1,000 crashes", () => {
+    renderCard({ ...yearSlot, measure: "fatality_rate" }, recent);
+    expect(screen.getByText(/are preliminary/)).toBeInTheDocument();
+  });
+
+  it("stays off crash-count charts", () => {
+    renderCard(yearSlot, recent);
+    expect(screen.queryByText(/are preliminary/)).toBeNull();
+  });
+
+  it("stays off when every charted year is settled", () => {
+    renderCard(killedSlot, recent.slice(0, 2));
+    expect(screen.queryByText(/are preliminary/)).toBeNull();
+  });
+});
+
+describe("ChartCard single-point line", () => {
+  it("shows the number instead of an invisible one-point line", () => {
+    renderCard({ ...yearSlot, measure: "killed", chartType: "area" }, [{ label: "2025", value: 3407 }]);
+    expect(screen.getByTestId("single-value")).toHaveTextContent("3,407");
+    expect(screen.getByTestId("single-value")).toHaveTextContent("Fatalities, 2025");
+  });
+});

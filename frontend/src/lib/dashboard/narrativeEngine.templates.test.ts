@@ -34,6 +34,29 @@ describe("generateChartNarrative", () => {
     });
   });
 
+  it("says nothing about a single point (no 'stayed fairly steady')", () => {
+    const result = generateChartNarrative([{ label: "2025", value: 3407 }], "Year", "Fatalities", "plain");
+    expect(result.sentences).toEqual([]);
+    expect(result.confidence).toBe(0);
+  });
+
+  it("judges a deaths-by-year trend on settled years only", () => {
+    const now = new Date().getFullYear();
+    // Flat through the settled years, then a lagging last year that would
+    // otherwise read as a steep decline.
+    const data = [4000, 4010, 3990, 4005, 2000].map((v, i) => ({ label: String(now - 5 + i), value: v }));
+    const result = generateChartNarrative(data, "Year", "Fatalities", "plain");
+    expect(result.sentences[0]).toBe("Fatalities stayed fairly steady over this period.");
+    expect(result.paragraph).not.toMatch(/decreased|lowest/);
+    expect(result.paragraph).toContain(`${now - 1} is left out: deaths are still being recorded.`);
+  });
+
+  it("leaves crash counts on a year axis alone", () => {
+    const now = new Date().getFullYear();
+    const data = [4000, 4010, 3990, 4005, 2000].map((v, i) => ({ label: String(now - 5 + i), value: v }));
+    expect(generateChartNarrative(data, "Year", "Crash Count", "plain").paragraph).not.toContain("left out");
+  });
+
   it("renders the flat-trend template per tone (< 5% variation)", () => {
     const data = [100, 101, 99, 100].map((v, i) => ({ label: `x${i}`, value: v }));
 

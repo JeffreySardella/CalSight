@@ -39,4 +39,20 @@ describe("detectAllAnomalies", () => {
     const result = detectAllAnomalies(dataBySlot, charts);
     expect(result.byChart["chart-cause"]).toBeUndefined();
   });
+
+  it("never flags a preliminary deaths year", () => {
+    const now = new Date().getFullYear();
+    // Steady deaths, then last year's still-lagging count.
+    const years = [4000, 4010, 3990, 4005, 3995, 4000, 2000];
+    const series = years.map((v, i) => ({ label: String(now - years.length + i), value: v }));
+    const charts = [{ dimension: "year" as const, measure: "killed" as const, id: "deaths" }];
+    const deaths = detectAllAnomalies({ "year:killed": series }, charts);
+    expect(deaths.all.some(a => a.label === String(now - 1))).toBe(false);
+    // The same shape in crash counts is still flagged.
+    const crashes = detectAllAnomalies(
+      { "year:count": series },
+      [{ dimension: "year" as const, measure: "count" as const, id: "crashes" }],
+    );
+    expect(crashes.all.some(a => a.label === String(now - 1))).toBe(true);
+  });
 });

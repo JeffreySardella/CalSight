@@ -61,12 +61,27 @@ const OPTION_PATTERNS: [RegExp, Partial<ChartOptions>][] = [
   [/\bforecast\b/i, { forecast: true }],
 ];
 
+// Filter words the chart box cannot apply: a chart is only a dimension and a
+// measure, and filters live in the Filters sheet. They are reported back as
+// ignored rather than dropped, so "pedestrian deaths by year" can no longer
+// pass (at "high" confidence) for a chart of pedestrian deaths.
+const FILTER_WORDS: RegExp[] = [
+  /\bpedestrians?\b/i, /\bbicyclists?\b/i, /\bcyclists?\b/i, /\bbikes?\b/i,
+  /\bmotorcyclists?\b/i, /\bmotorcycles?\b/i,
+  /\bdui\b/i, /\bdrunk\b/i, /\balcohol\b/i, /\bimpaired\b/i, /\bdrugs?\b/i,
+  /\bdistracted\b/i, /\bhit[- ]and[- ]run\b/i, /\bspeeding\b/i,
+];
+// Road-user words the mode dimension answers itself ("pedestrians vs cyclists").
+const MODE_WORDS = /^(pedestrians?|(bi)?cyclists?|bikes?|motorcyclists?|motorcycles?)$/i;
+
 export interface NlqResult {
   dimension: Dimension | null;
   measure: Measure | null;
   chartType: ChartType | null;
   options: ChartOptions;
   confidence: "high" | "medium" | "low";
+  /** Filter words in the query that the chart cannot reflect. */
+  ignored: string[];
 }
 
 function matchFirst(input: string, synonyms: [string, string][]): string | null {
@@ -94,10 +109,16 @@ export function parseNlq(input: string): NlqResult {
 
   const chartType = matchFirst(chartTypeInput, CHART_TYPE_SYNONYMS) as ChartType | null;
 
-  const matched = [dimension, measure, chartType].filter(Boolean).length;
-  const confidence = matched >= 2 ? "high" : matched === 1 ? "medium" : "low";
+  const ignored = FILTER_WORDS
+    .map((re) => re.exec(input)?.[0].toLowerCase())
+    .filter((w): w is string => !!w && !(dimension === "mode" && MODE_WORDS.test(w)));
 
-  return { dimension, measure, chartType, options, confidence };
+  const matched = [dimension, measure, chartType].filter(Boolean).length;
+  // A dropped word means the chart answers a different question: one step down.
+  const level = Math.min(matched, 2) - (ignored.length > 0 ? 1 : 0);
+  const confidence = (["low", "medium", "high"] as const)[Math.max(0, level)];
+
+  return { dimension, measure, chartType, options, confidence, ignored };
 }
 
 export function resolveNlq(result: NlqResult): { dimension: Dimension; measure: Measure; chartType: ChartType; options: ChartOptions } | null {

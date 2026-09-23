@@ -57,7 +57,7 @@ test("fun-fact and YoY insight cards on a county page show text with no causal l
 
   // Slide 0: the YoY stat slide (pushed first when present) — plain
   // template text with digits, never a causal claim.
-  await expect(insightText).toHaveText(/YoY/);
+  await expect(insightText).toHaveText(/ vs \d{4}/);
   await expect(insightText).toHaveText(/\d/);
   await expect(insightText).not.toHaveText(/\bbecause\b/i);
   await expect(insightText).not.toHaveText(/caused by/i);
@@ -79,5 +79,5 @@ test("fun-fact and YoY insight cards on a county page show text with no causal l
 
   // A third click wraps back to the YoY slide.
   await nextButton.click();
-  await expect(insightText).toHaveText(/YoY/);
+  await expect(insightText).toHaveText(/ vs \d{4}/);
 });
