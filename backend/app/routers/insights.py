@@ -113,6 +113,34 @@ def _current_cards(q: OrmQuery) -> OrmQuery:
     ).filter(CountyInsightCard.year < date.today().year)
 
 
+def _current_statewide(q: OrmQuery) -> OrmQuery:
+    """_current_cards for statewide_insights: served only while the stored
+    year totals equal mv_crashes_by_year summed over every county.
+
+    The May 2026 hand-seeded rows carry totals but their text was never
+    checked against any stats ("Insurance actuaries had known this for
+    decades"), so migration e6d9f06f7bb0 cleared their totals. Only the
+    generators, which gate their text, write totals back.
+    """
+    live = (
+        select(
+            mv_year.c.crash_year,
+            func.sum(mv_year.c.crash_count).label("tc"),
+            func.sum(mv_year.c.total_killed).label("tk"),
+        )
+        .group_by(mv_year.c.crash_year)
+        .subquery()
+    )
+    return q.join(
+        live,
+        and_(
+            live.c.crash_year == StatewideInsight.year,
+            live.c.tc == StatewideInsight.total_crashes,
+            live.c.tk == StatewideInsight.total_killed,
+        ),
+    ).filter(StatewideInsight.year < date.today().year)
+
+
 @router.get("/insights/statewide", response_model=StatewideInsightOut)
 @_limiter.limit("1000/minute;20000/hour")
 def get_random_statewide_insight(
@@ -121,9 +149,12 @@ def get_random_statewide_insight(
     year: int | None = Query(None, description="Filter by year; omit for any year"),
     db: Session = Depends(get_db),
 ):
-    """Return one random statewide insight card."""
+    """Return one random statewide insight card that matches today's data.
+
+    404 when none does; the map then shows no California Insight card.
+    """
     response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
-    q = db.query(StatewideInsight)
+    q = _current_statewide(db.query(StatewideInsight))
     if year is not None:
         q = q.filter(StatewideInsight.year == year)
     row = q.order_by(func.random()).first()
@@ -178,7 +209,7 @@ def get_fun_facts(
     remaining = n - len(results)
     if remaining > 0:
         statewide_facts = (
-            db.query(StatewideInsight)
+            _current_statewide(db.query(StatewideInsight))
             .filter(StatewideInsight.angle.like("fun_fact%"))
             .order_by(func.random())
             .limit(remaining)

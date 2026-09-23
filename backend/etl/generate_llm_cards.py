@@ -204,13 +204,16 @@ STATEWIDE_ANGLE_PROMPTS: dict[str, str] = {
 # template generators and etl.audit_fun_facts).
 
 
-def _problems(narrative: str, stats_str: str, year: int, angle: str) -> list[str]:
-    """Fun facts get the full check_fact; other angles only the numeric gate
-    (their prompts ask "why", so causal wording is expected there). Every
-    angle gets check_claims: a named cause or collision type must be in the
-    stats, and deaths per crash must be per 1,000."""
+def _problems(
+    narrative: str, stats_str: str, year: int, angle: str, facts_only: bool = False,
+) -> list[str]:
+    """Fun facts and ``facts_only`` cards (the statewide ones) get the full
+    check_fact; other county angles only the numeric gate (their prompts ask
+    "why", so causal wording is expected there). Every angle gets
+    check_claims: a named cause or collision type must be in the stats, and
+    deaths per crash must be per 1,000."""
     claims = check_claims(narrative, stats_str)
-    if angle.startswith("fun_fact"):
+    if facts_only or angle.startswith("fun_fact"):
         return check_fact(narrative, stats_str, year) + claims
     bad = unsupported_numbers(narrative, stats_str, year)
     return ([f"figures not in stats: {bad}"] if bad else []) + claims
@@ -218,17 +221,19 @@ def _problems(narrative: str, stats_str: str, year: int, angle: str) -> list[str
 
 def _generate_verified(
     prompt: str, stats_str: str, year: int, label: str, angle: str = "",
+    facts_only: bool = False,
 ) -> str | None:
     """generate_narrative + write-time check; one retry, then None (keep old card)."""
+    facts_only = facts_only or angle.startswith("fun_fact")
     narrative = generate_narrative(prompt)
-    bad = _problems(narrative, stats_str, year, angle)
+    bad = _problems(narrative, stats_str, year, angle, facts_only)
     if bad:
         logger.warning("%s — %s; retrying", label, "; ".join(bad))
         retry = " Use only the exact figures provided."
-        if angle.startswith("fun_fact"):
+        if facts_only:
             retry = " State only what the figures show, not what caused them." + retry
         narrative = generate_narrative(prompt + retry)
-        bad = _problems(narrative, stats_str, year, angle)
+        bad = _problems(narrative, stats_str, year, angle, facts_only)
         if bad:
             logger.warning("%s — still %s; keeping previous card", label, "; ".join(bad))
             return None
@@ -435,13 +440,22 @@ def _run_statewide(db: Session, mode: str, years: list[int] | None, force: bool,
         stats_str, totals = built
         for angle, tpl in STATEWIDE_ANGLE_PROMPTS.items():
             existing = db.query(StatewideInsight).filter_by(year=year, angle=angle).first()
-            if existing and not force and existing.narrative and len(existing.narrative) > 50:
+            # Same rule as county cards: only a row whose stored totals still
+            # match is current. The hand-seeded rows had theirs cleared
+            # (migration e6d9f06f7bb0), so a plain run replaces them.
+            current = existing is not None and (
+                existing.total_crashes, existing.total_killed,
+            ) == (totals["total_crashes"], totals["total_killed"])
+            if current and not force and existing.narrative and len(existing.narrative) > 50:
                 skipped += 1
                 continue
             label = f"statewide/{year}/{angle}"
             try:
                 narrative = _generate_verified(
                     tpl.format(year=year, stats=stats_str) + _GUARDRAILS, stats_str, year, label, angle,
+                    # The landing card: its prompts don't ask "why", and it
+                    # served "Insurance actuaries had known this for decades".
+                    facts_only=True,
                 )
                 if narrative is None:
                     continue

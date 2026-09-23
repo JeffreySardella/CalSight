@@ -15,7 +15,7 @@ from sqlalchemy import text
 import etl.generate_county_cards as cc
 import etl.generate_fun_facts as ff
 import etl.generate_llm_cards as llm
-from app.models import Crash, CountyInsightCard
+from app.models import Crash, CountyInsightCard, StatewideInsight
 
 pytestmark = pytest.mark.integration
 
@@ -130,3 +130,24 @@ def test_fun_facts_store_totals(sf_2023):
     facts = [c for a, c in _cards(sf_2023, 38, 2023).items() if a.startswith("fun_fact")]
     assert facts
     assert {(c.total_crashes, c.total_killed) for c in facts} == {(51, 2)}
+
+
+_SW_OK = "California recorded 1 crash and 1 death in 2022, the only crash that year."
+
+
+def test_statewide_llm_run_replaces_unverified_rows_and_is_served(db_session, monkeypatch, client):
+    """The landing card's hand-seeded rows had their totals cleared, so a
+    plain --statewide run rewrites them; once written they are current."""
+    monkeypatch.setattr(llm, "generate_narrative", lambda p: _SW_OK)
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+    db_session.add(StatewideInsight(
+        year=2022, angle="overview", data_source="ccrs",
+        narrative="Insurance actuaries had known this for decades; the data confirmed it.",
+    ))
+    db_session.flush()
+
+    assert llm._run_statewide(db_session, "latest", [2022], False, 0) == len(llm.STATEWIDE_ANGLE_PROMPTS)
+    row = db_session.query(StatewideInsight).filter_by(year=2022, angle="overview").one()
+    assert (row.narrative, row.total_crashes, row.total_killed) == (_SW_OK, 1, 1)
+    assert llm._run_statewide(db_session, "latest", [2022], False, 0) == 0
+    assert client.get("/api/insights/statewide?year=2022").json()["narrative"] == _SW_OK

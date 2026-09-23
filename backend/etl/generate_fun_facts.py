@@ -745,10 +745,12 @@ def _generate_statewide(db: Session, force: bool = False) -> int:
 
             stmt = (
                 pg_insert(StatewideInsight)
-                .values(year=year, angle=angle, narrative=narrative, data_source="switrs")
+                .values(year=year, angle=angle, narrative=narrative, data_source="switrs",
+                        total_crashes=stats["tc"], total_killed=stats["tk"])
                 .on_conflict_do_update(
                     index_elements=["year", "angle"],
-                    set_=dict(narrative=narrative),
+                    set_=dict(narrative=narrative, total_crashes=stats["tc"],
+                              total_killed=stats["tk"]),
                 )
             )
             db.execute(stmt)
