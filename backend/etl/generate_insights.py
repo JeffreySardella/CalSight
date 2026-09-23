@@ -51,7 +51,7 @@ from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.llm import generate_narrative
 from app.models import County, CountyInsight
 from etl._utils import track_etl_run
-from etl.fact_check import check_fact
+from etl.fact_check import check_claims, check_fact
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,10 @@ _PROMPT_TEMPLATE = (
     "those; describe the patterns a reader would notice and how they compare. "
     "Use only the figures provided: no comparison to a national average or any "
     "figure not supplied; do not call the fatality rate low or high unless a "
-    "statewide rate is supplied; do not invent explanations for the peak hour."
+    "statewide rate is supplied; do not invent explanations for the peak hour. "
+    "Give deaths relative to crashes only as deaths per 1,000 crashes, never a "
+    "percentage or per 100. Name a collision type or crash cause only if it "
+    "appears in the data."
 )
 
 
@@ -303,6 +306,11 @@ def _stats_parts(stats: dict, demo: dict) -> str:
         f"total_crashes={stats['total_crashes']}",
         f"total_killed={stats['total_killed']}",
     ]
+    if stats["total_crashes"]:
+        parts.append(
+            "deaths_per_1000_crashes="
+            f"{round(stats['total_killed'] / stats['total_crashes'] * 1000, 1)}"
+        )
     if stats.get("yoy_change_pct") is not None:
         parts.append(f"yoy_change={stats['yoy_change_pct']:+.1f}%")
     if stats.get("top_cause"):
@@ -409,7 +417,7 @@ def _fresh_narrative(prompt: str, label: str, stats_str: str, year: int) -> str 
     if is_junk_narrative(narrative):
         logger.warning("Junk narrative for %s — keeping stored text: %r", label, (narrative or "")[:80])
         return None
-    reasons = check_fact(narrative, stats_str, year)
+    reasons = check_fact(narrative, stats_str, year) + check_claims(narrative, stats_str)
     if not reasons:
         return narrative
 
@@ -418,7 +426,7 @@ def _fresh_narrative(prompt: str, label: str, stats_str: str, year: int) -> str 
     if is_junk_narrative(narrative):
         logger.warning("Junk retry for %s — keeping stored text: %r", label, (narrative or "")[:80])
         return None
-    if reasons := check_fact(narrative, stats_str, year):
+    if reasons := check_fact(narrative, stats_str, year) + check_claims(narrative, stats_str):
         logger.warning(
             "Fact check still failed for %s — %s; keeping stored narrative",
             label, "; ".join(reasons),

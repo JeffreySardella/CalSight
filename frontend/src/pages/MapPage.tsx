@@ -1024,6 +1024,7 @@ function MapPageInner() {
             compareData={comparePointData}
             narrative={randomCard?.narrative ?? insightData?.narrative}
             narrativeAngle={randomCard?.angle}
+            narrativeYear={randomCard ? randomCard.year : insightData?.year}
             onRefreshNarrative={randomCard ? refreshRandomCard : undefined}
             loading={choroplethData.isLoading}
           />
@@ -1082,6 +1083,7 @@ function MapPageInner() {
             onCompare={() => {}}
             narrative={randomCard.narrative}
             narrativeAngle={randomCard.angle}
+            narrativeYear={randomCard.year}
             onRefreshNarrative={refreshRandomCard}
           />
         )}

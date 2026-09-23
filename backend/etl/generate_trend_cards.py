@@ -41,8 +41,8 @@ class YearStats:
     dui: int
 
     @property
-    def fatality_rate(self) -> float:
-        return round(self.killed / self.crashes * 100, 2) if self.crashes > 0 else 0
+    def deaths_per_1k(self) -> float:
+        return round(self.killed / self.crashes * 1000, 1) if self.crashes > 0 else 0
 
     @property
     def dui_pct(self) -> float:
@@ -164,8 +164,8 @@ def _fatality_divergence(years: list[YearStats]) -> dict | None:
 
     early = years[:3]
     late = years[-3:]
-    early_rate = sum(y.fatality_rate for y in early) / 3
-    late_rate = sum(y.fatality_rate for y in late) / 3
+    early_rate = sum(y.deaths_per_1k for y in early) / 3
+    late_rate = sum(y.deaths_per_1k for y in late) / 3
     early_vol = sum(y.crashes for y in early) / 3
     late_vol = sum(y.crashes for y in late) / 3
 
@@ -173,11 +173,11 @@ def _fatality_divergence(years: list[YearStats]) -> dict | None:
     rate_change = late_rate - early_rate
 
     # Interesting if rate moved opposite to volume, or rate changed a lot
-    if abs(rate_change) > 0.3:
+    if abs(rate_change) > 3:
         return {
-            "early_rate": round(early_rate, 2),
-            "late_rate": round(late_rate, 2),
-            "rate_change": round(rate_change, 2),
+            "early_rate": round(early_rate, 1),
+            "late_rate": round(late_rate, 1),
+            "rate_change": round(rate_change, 1),
             "vol_change": vol_change,
             "early_period": f"{early[0].year}-{early[-1].year}",
             "late_period": f"{late[0].year}-{late[-1].year}",
@@ -325,15 +325,15 @@ def compose_trend(trend: CountyTrend) -> str:
     if fat_div and len(sentences) < 3:
         if fat_div["rate_change"] > 0:
             sentences.append(
-                f"Despite changes in crash volume, the fatality rate has crept up from "
-                f"{fat_div['early_rate']}% ({fat_div['early_period']}) to "
-                f"{fat_div['late_rate']}% ({fat_div['late_period']}) — each crash "
+                f"Despite changes in crash volume, deaths per 1,000 crashes have crept up from "
+                f"{fat_div['early_rate']} ({fat_div['early_period']}) to "
+                f"{fat_div['late_rate']} ({fat_div['late_period']}) — each crash "
                 f"is becoming slightly more likely to be deadly."
             )
         else:
             sentences.append(
-                f"The fatality rate has dropped from {fat_div['early_rate']}% "
-                f"({fat_div['early_period']}) to {fat_div['late_rate']}% "
+                f"Deaths per 1,000 crashes have dropped from {fat_div['early_rate']} "
+                f"({fat_div['early_period']}) to {fat_div['late_rate']} "
                 f"({fat_div['late_period']}), suggesting that while crashes still "
                 f"happen, they're becoming less lethal — likely due to better vehicle "
                 f"safety and faster emergency response."
@@ -376,7 +376,10 @@ def run() -> int:
                 .filter_by(county_code=trend.code, year=latest_year, angle="trend")
                 .first()
             )
-            if existing:
+            latest = trend.years[-1]
+            if existing and (existing.total_crashes, existing.total_killed) == (
+                latest.crashes, latest.killed,
+            ):
                 skipped += 1
                 continue
 
@@ -390,10 +393,13 @@ def run() -> int:
                     year=latest_year,
                     angle="trend",
                     narrative=narrative,
+                    total_crashes=latest.crashes,
+                    total_killed=latest.killed,
                 )
                 .on_conflict_do_update(
                     index_elements=["county_code", "year", "angle"],
-                    set_=dict(narrative=narrative),
+                    set_=dict(narrative=narrative, total_crashes=latest.crashes,
+                              total_killed=latest.killed),
                 )
             )
             db.execute(stmt)

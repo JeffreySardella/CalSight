@@ -90,6 +90,27 @@ describe("AiInsightCard", () => {
     expect(screen.getByText("12.8K")).toBeInTheDocument();
   });
 
+  it("shows the year the narrative describes beside its angle", async () => {
+    // The live Fresno card stated no year, so its figures could not be
+    // matched to the report card's.
+    render(
+      <Providers><AiInsightCard
+        onClose={vi.fn()}
+        countyName="Fresno"
+        data={POINT_A}
+        measureLabel="Per 100k"
+        compareMode={false}
+        onCompare={vi.fn()}
+        narrative="In 2025 Fresno County recorded 10,546 crashes and 142 deaths."
+        narrativeAngle="cause_focus"
+        narrativeYear={2025}
+      /></Providers>,
+    );
+    await expandCard();
+    expect(screen.getByText("Top Causes")).toBeInTheDocument();
+    expect(screen.getByText("2025")).toBeInTheDocument();
+  });
+
   it("calls onClose when close button is clicked", async () => {
     const onClose = vi.fn();
     render(

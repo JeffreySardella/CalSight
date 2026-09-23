@@ -486,6 +486,11 @@ class CountyInsightCard(Base):
     year = Column(Integer, nullable=False)
     angle = Column(String(40), nullable=False)
     narrative = Column(Text, nullable=False)
+    # The county-year totals the card was written from. The API serves a card
+    # only while these still match mv_crashes_by_year, so a data reload (or
+    # deaths filling in for a recent year) retires it. NULL = unverified.
+    total_crashes = Column(Integer)
+    total_killed = Column(Integer)
     created_at = Column(DateTime, server_default=func.now())
 
     __table_args__ = (

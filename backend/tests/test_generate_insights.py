@@ -169,7 +169,8 @@ _STATS = dict(total_crashes=1, total_killed=0, total_injured=0, crash_rate_per_c
               top_cause="dui", top_cause_pct=0.0, yoy_change_pct=None, peak_hour=0, dui_pct=0.0)
 
 
-_CTX = "total_crashes=52,310, yoy_change=-3.0%"
+# Shaped like _stats_parts: the top cause the cards name is in it.
+_CTX = "total_crashes=52,310, yoy_change=-3.0%, top_cause=unsafe_speed (31.2%)"
 
 
 @pytest.mark.parametrize("reply", ["Here is a 2-3 sentence summary", "", "**Los Angeles County**"])
@@ -236,6 +237,19 @@ def test_category_wording_survives_the_gate(monkeypatch):
     )
     monkeypatch.setattr(gi, "generate_narrative", lambda prompt: text)
     assert _fresh_narrative("prompt", "Los Angeles (2011)", _CTX, 2011) == text
+
+
+def test_unsupported_collision_type_is_not_written(monkeypatch):
+    """A named collision type the stats never mention (the live Fresno card's
+    "head-on collisions from unsafe passing") is dropped like an invented figure."""
+    text = "Los Angeles County recorded 52,310 crashes in 2011, many of them head-on."
+    monkeypatch.setattr(gi, "generate_narrative", lambda prompt: text)
+    assert _fresh_narrative("prompt", "Los Angeles (2011)", _CTX, 2011) is None
+
+
+def test_stats_parts_states_deaths_per_1000_crashes():
+    parts = _stats_parts(dict(total_crashes=10_546, total_killed=142), {})
+    assert "deaths_per_1000_crashes=13.5" in parts
 
 
 def test_stats_parts_feeds_both_prompt_and_gate():

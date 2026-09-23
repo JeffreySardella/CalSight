@@ -12,7 +12,7 @@ import etl.generate_llm_cards as llm_mod
 from etl import generate_county_cards as cc
 from etl import generate_fun_facts as ff
 from etl.audit_fun_facts import COUNTY_ANGLES, STATEWIDE_ANGLES, audit_row
-from etl.fact_check import CAUSAL_RE, check_fact, find_causal, numbers_context
+from etl.fact_check import CAUSAL_RE, check_claims, check_fact, find_causal, numbers_context
 
 _STATS = "total_crashes=150,000, killed=800, injured=70,000, county_share=33.33%"
 
@@ -158,18 +158,18 @@ def test_numbers_context_skips_keys_and_bools():
 # ── templates pass by construction ───────────────────────────────────────
 
 _BIG_COUNTY = {
-    "tc": 150_000, "tk": 800, "ti": 70_000, "fatality_rate": 0.53,
+    "tc": 150_000, "tk": 800, "ti": 70_000, "deaths_per_1k": 5.3,
     "dow": {0: 20_000, 4: 25_000, 6: 18_000}, "months": {1: 11_000, 10: 14_000},
     "peak_hour": (17, 12_000), "quiet_hour": (4, 900),
     "causes": [("unsafe_speed", 60_000), ("improper_turning", 20_000), ("dui", 9_000)],
     "dui_count": 9_000, "dui_pct": 6.0, "state_total": 450_000, "state_killed": 4_000,
-    "state_fatality_rate": 0.89, "state_dui_pct": 8.5, "county_share": 33.33,
+    "state_deaths_per_1k": 8.9, "state_dui_pct": 8.5, "county_share": 33.33,
     "pop": 9_800_000, "per_capita": 1531.0,
     "hist": [(2016, 160_000), (2017, 165_000), (2018, 170_000), (2019, 168_000), (2020, 100_000)],
     "yoy": -3.2, "rank": 1, "crashes_per_day": 411.0, "year": 2024,
 }
 _SMALL_COUNTY = {
-    **_BIG_COUNTY, "tc": 120, "tk": 3, "ti": 60, "fatality_rate": 2.5,
+    **_BIG_COUNTY, "tc": 120, "tk": 3, "ti": 60, "deaths_per_1k": 25.0,
     "dow": {0: 12, 5: 25}, "months": {3: 14, 8: 6}, "peak_hour": (15, 14), "quiet_hour": (3, 1),
     "causes": [("unsafe_speed", 70), ("dui", 20)], "dui_count": 20, "dui_pct": 16.7,
     "county_share": 0.03, "pop": 1_200, "per_capita": 10_000.0,
@@ -177,10 +177,10 @@ _SMALL_COUNTY = {
     "rank": 58, "crashes_per_day": 0.3,
 }
 _STATEWIDE = {
-    "tc": 450_000, "tk": 4_000, "ti": 200_000, "year": 2024, "fatality_rate": 0.89,
+    "tc": 450_000, "tk": 4_000, "ti": 200_000, "year": 2024, "deaths_per_1k": 8.9,
     "crashes_per_day": 1232.9, "top_county": ("Los Angeles", 150_000),
-    "small_county": ("Alpine", 40), "high_fat": ("Modoc", 3.5, 7),
-    "low_fat": ("San Francisco", 0.3), "top_cause": ("unsafe_speed", 130_000),
+    "small_county": ("Alpine", 40), "high_fat": ("Modoc", 35.0, 7),
+    "low_fat": ("San Francisco", 3.0), "top_cause": ("unsafe_speed", 130_000),
     "dui_count": 30_000, "dui_pct": 6.7, "high_dui": ("Inyo", 14.2),
     "peak_hour": (17, 36_000), "dow": {0: 60_000, 4: 70_000}, "yoy": -8.4,
 }
@@ -208,14 +208,14 @@ def test_fun_fact_statewide_templates_pass(stats):
 
 _CARD_DATA = {
     "tc": 150_000, "tk": 800, "ti": 70_000, "year": 2024, "rank": 1, "fat_rank": 50,
-    "fat_rate": 0.53, "st_fat_rate": 0.89, "months": [(10, 14_000), (1, 11_000)],
+    "deaths_per_1k": 5.3, "st_deaths_per_1k": 8.9, "months": [(10, 14_000), (1, 11_000)],
     "county_share": 33.33, "pop": 9_800_000,
 }
 
 
 @pytest.mark.parametrize("data", [
     _CARD_DATA,
-    {**_CARD_DATA, "tc": 5_000, "tk": 90, "rank": 30, "fat_rank": 2, "fat_rate": 1.8,
+    {**_CARD_DATA, "tc": 5_000, "tk": 90, "rank": 30, "fat_rank": 2, "deaths_per_1k": 18.0,
      "county_share": 1.1, "pop": 200_000, "months": [(7, 600)]},
     {**_CARD_DATA, "tc": 300, "tk": 0, "rank": 57, "county_share": 0.07, "pop": 3_000,
      "months": [(7, 40)]},
@@ -298,3 +298,122 @@ def test_narrative_audit_keeps_clean_row_and_skips_null():
     assert na.audit_row(None, 2019, boom, 2026) == []
     clean = "Alpine County recorded 68 crashes in 2019; the leading cause was unsafe speed."
     assert na.audit_row(clean, 2019, lambda: "total_crashes=68", 2026) == []
+
+
+# ── named causes and the rate unit (check_claims) ────────────────────────
+#
+# 2026-09-22 phone audit: the live Fresno "Top Causes" card said "1.2 per 100
+# crashes versus the statewide 0.68 average. High-speed rural road crashes,
+# particularly head-on collisions from unsafe passing, drive this elevated
+# severity." Nothing it was built from names head-on crashes or passing, and
+# the site states this rate per 1,000 crashes (13.5 vs 8.5).
+
+_FRESNO_STATS = (
+    "total_crashes=10,546, killed=142, injured=5,446, deaths_per_1000_crashes=13.5, "
+    "statewide_deaths_per_1000_crashes=8.5, top_causes=speeding(25.6%), "
+    "lane_change(12.0%), right_of_way(10.1%), peak_hour=17:00, rank=10/58, "
+    "state_total=401,710, county_share=2.63%, pedestrian_crashes=512, "
+    "cyclist_crashes=198, hit_run_crashes=1502, speeding_crashes=2697, dui_crashes=1150"
+)
+_AUDIT_SENTENCE = (
+    "Fresno County's 126 fatalities from 10,493 crashes give it one of the highest "
+    "fatality rates per crash among California's large counties — 1.2 per 100 crashes "
+    "versus the statewide 0.68 average. High-speed rural road crashes, particularly "
+    "head-on collisions from unsafe passing, drive this elevated severity."
+)
+_HONEST = (
+    "In 2025 Fresno County recorded 10,546 crashes and 142 deaths, 13.5 deaths per "
+    "1,000 crashes against 8.5 statewide. Speeding was the most common primary "
+    "factor at 25.6% of crashes, followed by unsafe lane changes and right-of-way "
+    "violations; 1,150 crashes involved DUI."
+)
+
+
+def test_audit_sentence_is_rejected():
+    assert check_claims(_AUDIT_SENTENCE, _FRESNO_STATS) == [
+        "causes not in stats: ['head-on', 'unsafe passing']",
+        "death rate not per 1,000 crashes: 'per 100 crashes'",
+    ]
+
+
+def test_honest_sentence_passes_every_gate():
+    assert check_claims(_HONEST, _FRESNO_STATS) == []
+    assert check_fact(_HONEST, _FRESNO_STATS, 2025, 2026) == []
+
+
+@pytest.mark.parametrize("text, label", [
+    ("Rear-end crashes dominate the freeway total.", "rear-end"),
+    ("T-bone collisions at intersections stand out.", "broadside"),
+    ("Rollovers are common on mountain grades.", "rollover"),
+    ("Distracted drivers on cell phones account for many crashes.", "distraction"),
+    ("Red-light running is a leading factor.", "red-light running"),
+    ("Wrong-way drivers on Highway 99 stand out.", "wrong-way"),
+])
+def test_named_cause_missing_from_stats_is_rejected(text, label):
+    assert check_claims(text, _FRESNO_STATS) == [f"causes not in stats: [{label!r}]"]
+
+
+@pytest.mark.parametrize("text", [
+    "Speeding led all factors.",
+    "Drunk and impaired drivers were involved in 1,150 crashes.",
+    "Unsafe lane changes ranked second.",
+    "Failure to yield the right of way ranked third.",
+    "Traffic moved ahead on schedule; the county sits on rural roads.",
+])
+def test_named_cause_in_stats_or_generic_wording_passes(text):
+    assert check_claims(text, _FRESNO_STATS) == []
+
+
+@pytest.mark.parametrize("text", [
+    "Fresno's fatality rate of 1.35% is above the state's.",
+    "The death rate was 1.3% last year.",
+    "That is 1.2 deaths per 100 collisions.",
+])
+def test_percent_or_per_100_death_rate_is_rejected(text):
+    assert check_claims(text, _FRESNO_STATS)[0].startswith("death rate not per 1,000 crashes")
+
+
+def test_llm_card_with_the_audit_sentence_is_never_stored(monkeypatch):
+    monkeypatch.setattr(llm_mod, "generate_narrative", lambda p: _AUDIT_SENTENCE)
+    assert llm_mod._generate_verified("p", _FRESNO_STATS, 2025, "fresno", "cause_focus") is None
+
+
+def test_llm_card_retry_with_honest_text_is_stored(monkeypatch):
+    answers = iter([_AUDIT_SENTENCE, _HONEST])
+    monkeypatch.setattr(llm_mod, "generate_narrative", lambda p: next(answers))
+    assert llm_mod._generate_verified("p", _FRESNO_STATS, 2025, "fresno", "cause_focus") == _HONEST
+
+
+def test_llm_guardrails_ask_for_per_1000_and_supported_causes():
+    assert "per 1,000 crashes" in llm_mod._GUARDRAILS
+    assert "collision type" in llm_mod._GUARDRAILS
+
+
+_FULL_CARD = {
+    "tc": 150_000, "tk": 800, "ti": 70_000, "deaths_per_1k": 5.3, "year": 2024,
+    "causes": [("speeding", 45_000, 30.0), ("lane_change", 20_000, 13.3), ("dui", 9_000, 6.0)],
+    "dui": 9_000, "dui_pct": 6.0, "sev": {}, "fatal_count": 700, "pdo_count": 90_000,
+    "peak_hour": (17, 12_000),
+    "months": [(10, 14_000), *((m, 12_500) for m in (1, 3, 4, 5, 6, 7, 8, 9, 11, 12)), (2, 10_000)],
+    "dow": [(4, 25_000), (6, 18_000), (0, 20_000)],
+    "hw_count": 50_000, "fw_count": 30_000, "hw_pct": 33.3,
+    "ped": 6_000, "cyc": 3_000, "ped_pct": 4.0, "cyc_pct": 2.0, "hr": 20_000, "hr_pct": 13.3,
+    "pop": 9_800_000, "per_cap": 1531, "density": 2_400, "income": 85_000, "poverty": 13.0,
+    "commute_drive": 70.0, "st_tc": 450_000, "st_tk": 4_000, "st_deaths_per_1k": 8.9,
+    "st_dui_pct": 8.5, "st_ped_pct": 3.0, "st_cyc_pct": 2.5, "st_hr_pct": 12.0,
+    "county_share": 33.33, "rank": 1, "fat_rank": 50,
+    "hist": [(y, 150_000 + y, 800) for y in range(2014, 2025)],
+}
+_RURAL_CARD = {
+    **_FULL_CARD, "tc": 300, "tk": 9, "ti": 150, "deaths_per_1k": 30.0,
+    "causes": [("speeding", 120, 40.0)], "dui": 0, "dui_pct": 0.0, "peak_hour": (23, 30),
+    "hw_pct": 45.0, "pop": 3_000, "per_cap": 10_000, "density": 20, "rank": 57, "fat_rank": 2,
+    "hist": [(y, 300, 9) for y in range(2014, 2025)],
+}
+
+
+@pytest.mark.parametrize("data", [_FULL_CARD, _RURAL_CARD])
+def test_county_card_templates_name_only_causes_in_their_data(data):
+    for angle, compose in cc.ANGLES.items():
+        text = compose("Kern", data)
+        assert check_claims(text, cc.claims_context(data)) == [], (angle, text)

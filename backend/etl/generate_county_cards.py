@@ -2,7 +2,8 @@
 
 Fills sparse angles (unique_factor, comparison, cause_focus, dui,
 safety_ranking, geography, seasonal) with data-driven analysis.
-Skips counties that already have a card for a given angle.
+Skips a county/angle whose card is current (its stored totals match the
+data); missing, stale and legacy cards are (re)written. No LLM calls.
 
 Usage::
 
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.database import EtlSessionLocal as SessionLocal  # write/DDL role
 from app.models import County, CountyInsightCard
-from etl.fact_check import numbers_context
+from etl.fact_check import check_claims, numbers_context
 from etl.generate_fun_facts import fact_fails
 
 logger = logging.getLogger(__name__)
@@ -178,7 +179,7 @@ def _query_full(db: Session, county_code: int, year: int) -> dict | None:
 
     return {
         "tc": tc, "tk": tk, "ti": ti,
-        "fat_rate": round(tk / tc * 100, 2),
+        "deaths_per_1k": round(tk / tc * 1000, 1),
         "causes": [(r.canonical_cause, r.cnt, round(r.cnt/tc*100,1)) for r in causes],
         "dui": dui, "dui_pct": round(dui/tc*100, 1),
         "sev": sev_map,
@@ -200,7 +201,7 @@ def _query_full(db: Session, county_code: int, year: int) -> dict | None:
         "poverty": demo.poverty_rate if demo else None,
         "commute_drive": demo.commute_drive_alone_pct if demo else None,
         "st_tc": st.tc, "st_tk": st.tk,
-        "st_fat_rate": round(st.tk/st.tc*100, 2) if st.tc > 0 else 0,
+        "st_deaths_per_1k": round(st.tk / st.tc * 1000, 1) if st.tc > 0 else 0,
         "st_dui_pct": round(st.dui/st.tc*100, 1) if st.tc > 0 else 0,
         "st_ped_pct": round(st.ped/st.tc*100, 1) if st.tc > 0 else 0,
         "st_cyc_pct": round(st.cyc/st.tc*100, 1) if st.tc > 0 else 0,
@@ -231,17 +232,17 @@ def compose_unique_factor(name: str, d: dict) -> str:
         )
 
     # Extremely high or low fatality rate vs state
-    if d["fat_rate"] > d["st_fat_rate"] * 2 and d["tc"] >= 100:
+    if d["deaths_per_1k"] > d["st_deaths_per_1k"] * 2 and d["tc"] >= 100:
         findings.append(
-            f"Crashes in {name} County are {round(d['fat_rate']/d['st_fat_rate'],1)}x "
-            f"more likely to be fatal than the state average — a {d['fat_rate']}% "
-            f"fatality rate compared to California's {d['st_fat_rate']}%. Rural highways "
+            f"Crashes in {name} County are {round(d['deaths_per_1k']/d['st_deaths_per_1k'],1)}x "
+            f"more likely to be fatal than the state average — {d['deaths_per_1k']} deaths "
+            f"per 1,000 crashes compared to California's {d['st_deaths_per_1k']}. Rural highways "
             f"with higher speeds and longer EMS response times are likely factors."
         )
-    elif d["fat_rate"] < d["st_fat_rate"] * 0.5 and d["tc"] >= 500:
+    elif d["deaths_per_1k"] < d["st_deaths_per_1k"] * 0.5 and d["tc"] >= 500:
         findings.append(
-            f"Despite high crash volume, {name} County's fatality rate of {d['fat_rate']}% "
-            f"is less than half the state average of {d['st_fat_rate']}%. Dense urban "
+            f"Despite high crash volume, {name} County's {d['deaths_per_1k']} deaths per "
+            f"1,000 crashes is less than half the state average of {d['st_deaths_per_1k']}. Dense urban "
             f"environments with lower speeds tend to produce fender-benders rather than "
             f"fatal collisions."
         )
@@ -366,7 +367,7 @@ def compose_dui(name: str, d: dict) -> str:
             "— impaired drivers are far more likely to be in high-speed, "
             "single-vehicle collisions."
         )
-        if d["dui_pct"] < 15 and d["fat_rate"] > 1:
+        if d["dui_pct"] < 15 and d["deaths_per_1k"] > 10:
             parts.append(dui_fatal_text)
 
     # Historical DUI trend
@@ -399,13 +400,13 @@ def compose_safety_ranking(name: str, d: dict) -> str:
     if d["fat_rank"] and d["tc"] >= 100:
         if d["fat_rank"] <= 10:
             parts.append(
-                f"More critically, it ranks {_ordinal(d['fat_rank'])} in fatality rate "
-                f"at {d['fat_rate']}% — meaning a higher proportion of crashes here are "
+                f"More critically, it ranks {_ordinal(d['fat_rank'])} in deaths per crash "
+                f"at {d['deaths_per_1k']} per 1,000 crashes — meaning a higher proportion of crashes here are "
                 f"deadly compared to most of the state."
             )
         elif d["fat_rank"] >= 40:
             parts.append(
-                f"On the positive side, its fatality rate of {d['fat_rate']}% places it "
+                f"On the positive side, its {d['deaths_per_1k']} deaths per 1,000 crashes places it "
                 f"{_ordinal(d['fat_rank'])} — crashes here are less likely to be fatal "
                 f"than in most California counties."
             )
@@ -717,7 +718,7 @@ def compose_highway(name: str, d: dict) -> str:
         fw_share = round(d["fw_count"] / d["hw_count"] * 100, 1)
         parts.append(
             f"Of the highway crashes, {fw_share}% involve freeways specifically — "
-            f"high-speed, limited-access roads where rear-end collisions dominate."
+            f"the high-speed, limited-access roads."
         )
     return " ".join(parts[:2])
 
@@ -725,21 +726,20 @@ def compose_highway(name: str, d: dict) -> str:
 def compose_fatality_paradox(name: str, d: dict) -> str:
     """Counties with high volume but low fatality rate, or vice versa."""
     parts = []
-    if d["tc"] >= 500 and d["fat_rate"] < d["st_fat_rate"] * 0.6:
+    if d["tc"] >= 500 and d["deaths_per_1k"] < d["st_deaths_per_1k"] * 0.6:
         parts.append(
             f"Despite ranking as a high-crash county with {_fmt(d['tc'])} collisions, "
-            f"{name} County has a fatality rate of just {d['fat_rate']}% — well below "
-            f"the state average of {d['st_fat_rate']}%."
+            f"{name} County has just {d['deaths_per_1k']} deaths per 1,000 crashes — well below "
+            f"the state average of {d['st_deaths_per_1k']}."
         )
         parts.append(
-            "Lower speeds in dense urban environments mean crashes are more frequent "
-            "but less deadly — fender-benders replace fatal head-on collisions."
+            "Crashes here are more frequent but less often deadly than the state average."
         )
-    elif d["tc"] < 500 and d["fat_rate"] > d["st_fat_rate"] * 1.5 and d["tc"] >= 50:
+    elif d["tc"] < 500 and d["deaths_per_1k"] > d["st_deaths_per_1k"] * 1.5 and d["tc"] >= 50:
         parts.append(
             f"{name} County sees relatively few crashes ({_fmt(d['tc'])}), but those that "
-            f"happen are disproportionately deadly: a {d['fat_rate']}% fatality rate versus "
-            f"the state's {d['st_fat_rate']}%."
+            f"happen are disproportionately deadly: {d['deaths_per_1k']} deaths per 1,000 crashes "
+            f"versus the state's {d['st_deaths_per_1k']}."
         )
         parts.append(
             "Rural roads with higher speed limits, longer emergency response times, and "
@@ -748,8 +748,8 @@ def compose_fatality_paradox(name: str, d: dict) -> str:
     else:
         volume_label = "high" if d["tc"] > 2000 else "moderate" if d["tc"] > 500 else "low"
         parts.append(
-            f"{name} County has {volume_label} crash volume ({_fmt(d['tc'])}) and a "
-            f"fatality rate of {d['fat_rate']}% (state: {d['st_fat_rate']}%)."
+            f"{name} County has {volume_label} crash volume ({_fmt(d['tc'])}) and "
+            f"{d['deaths_per_1k']} deaths per 1,000 crashes (state: {d['st_deaths_per_1k']})."
         )
         if d["tk"] > 0:
             parts.append(
@@ -967,9 +967,9 @@ def compose_fun_fact_records(name: str, d: dict) -> str:
         )
     elif d["fat_rank"] and d["fat_rank"] <= 3 and d["tc"] >= 100:
         parts.append(
-            f"{name} County has the {_ordinal(d['fat_rank'])} highest fatality rate among "
-            f"California counties with 100+ crashes: {d['fat_rate']}% of collisions are "
-            f"fatal, compared to {d['st_fat_rate']}% statewide."
+            f"{name} County has the {_ordinal(d['fat_rank'])} highest death rate among "
+            f"California counties with 100+ crashes: {d['deaths_per_1k']} deaths per 1,000 "
+            f"crashes, compared to {d['st_deaths_per_1k']} statewide."
         )
     else:
         parts.append(
@@ -1052,8 +1052,8 @@ def compose_severity_breakdown(name: str, d: dict) -> str:
     elif fatal_pct > 2:
         parts.append(
             f"A troubling {fatal_pct}% of crashes in {name} County were fatal — "
-            f"{_fmt(fatal)} collisions that claimed lives, far exceeding the state "
-            f"average of {d['st_fat_rate']}%."
+            f"{_fmt(fatal)} collisions that claimed lives, or {d['deaths_per_1k']} deaths "
+            f"per 1,000 crashes against {d['st_deaths_per_1k']} statewide."
         )
     else:
         parts.append(
@@ -1092,10 +1092,10 @@ def compose_nighttime(name: str, d: dict) -> str:
             f"role in after-dark incidents — impaired drivers are overrepresented in "
             f"nighttime fatalities."
         )
-    elif d["fat_rate"] > d["st_fat_rate"]:
+    elif d["deaths_per_1k"] > d["st_deaths_per_1k"]:
         parts.append(
-            f"With a fatality rate of {d['fat_rate']}% (above the state's "
-            f"{d['st_fat_rate']}%), the county's nighttime crashes are especially lethal."
+            f"With {d['deaths_per_1k']} deaths per 1,000 crashes (above the state's "
+            f"{d['st_deaths_per_1k']}), the county's nighttime crashes are especially lethal."
         )
     return " ".join(parts[:2])
 
@@ -1172,8 +1172,8 @@ def compose_what_if(name: str, d: dict) -> str:
             f"to the statewide average — scaling it up would produce roughly the same "
             f"{_fmt(actual_state)} total crashes."
         )
-    if d["fat_rate"] > 0 and d["st_fat_rate"] > 0:
-        projected_deaths = round(projected_crashes * d["fat_rate"] / 100)
+    if d["deaths_per_1k"] > 0 and d["st_deaths_per_1k"] > 0:
+        projected_deaths = round(projected_crashes * d["deaths_per_1k"] / 1000)
         actual_deaths = d["st_tk"]
         death_diff = actual_deaths - projected_deaths
         if abs(death_diff) > 50:
@@ -1207,10 +1207,10 @@ def compose_speeding(name: str, d: dict) -> str:
         f"— {_fmt(total_speed)} incidents in {d['year']} where excessive or unsafe speed "
         f"was a contributing factor."
     )
-    if d["fat_rate"] > d["st_fat_rate"] and total_pct > 10:
+    if d["deaths_per_1k"] > d["st_deaths_per_1k"] and total_pct > 10:
         parts.append(
-            f"Combined with a fatality rate of {d['fat_rate']}% (above the state's "
-            f"{d['st_fat_rate']}%), speed in {name} County doesn't just cause crashes "
+            f"Combined with {d['deaths_per_1k']} deaths per 1,000 crashes (above the state's "
+            f"{d['st_deaths_per_1k']}), speed in {name} County doesn't just cause crashes "
             f"— it makes them deadly."
         )
     elif d["hw_pct"] > 25 and total_pct > 5:
@@ -1339,11 +1339,30 @@ def fact_context(d: dict) -> str:
     )
 
 
-def _fun_fact_fails(county: str, year: int, angle: str, narrative: str, data: dict) -> bool:
-    """Only fun facts are gated; the other angles aren't served as facts."""
+def claims_context(d: dict) -> str:
+    """The causes the card data carries: DUI always (counted even when 0),
+    plus every canonical cause recorded for the county-year."""
+    return " ".join(["dui", *(c for c, _, _ in d["causes"])])
+
+
+def _card_fails(county: str, year: int, angle: str, narrative: str, data: dict) -> bool:
+    """Every angle must name only causes in its data; fun facts also get the
+    full fact check (the other angles aren't served as facts)."""
+    label = f"{county}/{year}/{angle}"
+    if reasons := check_claims(narrative, claims_context(data)):
+        logger.warning("Not writing %s — %s", label, "; ".join(reasons))
+        return True
     return angle.startswith("fun_fact") and fact_fails(
-        f"{county}/{year}/{angle}", narrative, fact_context(data), year,
+        label, narrative, fact_context(data), year,
     )
+
+
+def _is_current(existing, data: dict) -> bool:
+    """A stored card is kept only while its totals match the data; a stale or
+    legacy (NULL-totals) card is rewritten, and the API won't serve it."""
+    return existing is not None and (
+        existing.total_crashes, existing.total_killed,
+    ) == (data["tc"], data["tk"])
 
 
 # ---------------------------------------------------------------------------
@@ -1415,14 +1434,14 @@ def run() -> int:
                     .filter_by(county_code=county.code, year=year, angle=angle)
                     .first()
                 )
-                if existing:
+                if _is_current(existing, data):
                     skipped += 1
                     continue
 
                 narrative = composer(county.name, data)
                 if not narrative or len(narrative) < 30:
                     continue
-                if _fun_fact_fails(county.name, year, angle, narrative, data):
+                if _card_fails(county.name, year, angle, narrative, data):
                     continue
 
                 stmt = (
@@ -1433,10 +1452,13 @@ def run() -> int:
                         year=year,
                         angle=angle,
                         narrative=narrative,
+                        total_crashes=data["tc"],
+                        total_killed=data["tk"],
                     )
                     .on_conflict_do_update(
                         index_elements=["county_code", "year", "angle"],
-                        set_=dict(narrative=narrative),
+                        set_=dict(narrative=narrative, total_crashes=data["tc"],
+                                  total_killed=data["tk"]),
                     )
                 )
                 db.execute(stmt)
@@ -1481,14 +1503,14 @@ def run_all_years() -> int:
                         .filter_by(county_code=county.code, year=year, angle=angle)
                         .first()
                     )
-                    if existing:
+                    if _is_current(existing, data):
                         skipped += 1
                         continue
 
                     narrative = composer(county.name, data)
                     if not narrative or len(narrative) < 30:
                         continue
-                    if _fun_fact_fails(county.name, year, angle, narrative, data):
+                    if _card_fails(county.name, year, angle, narrative, data):
                         continue
 
                     stmt = (
@@ -1499,10 +1521,13 @@ def run_all_years() -> int:
                             year=year,
                             angle=angle,
                             narrative=narrative,
+                            total_crashes=data["tc"],
+                            total_killed=data["tk"],
                         )
                         .on_conflict_do_update(
                             index_elements=["county_code", "year", "angle"],
-                            set_=dict(narrative=narrative),
+                            set_=dict(narrative=narrative, total_crashes=data["tc"],
+                                      total_killed=data["tk"]),
                         )
                     )
                     db.execute(stmt)

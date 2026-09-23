@@ -86,7 +86,8 @@ def allowed_numbers(stats_str: str, year: int) -> set[float]:
     Derivations: per-day / per-week / per-month / minutes-between for the three
     totals, and floor/ceil of everything so "13%" passes for 12.6%.
     """
-    nums = set(_numbers(stats_str)) | {float(year), 58.0}
+    # 1,000 is the rate unit itself ("13.5 deaths per 1,000 crashes").
+    nums = set(_numbers(stats_str)) | {float(year), 58.0, 1000.0}
     # Both spellings: the fun-fact context writes "killed=/injured=", the
     # county-narrative context writes "total_killed=/total_injured=". Matching
     # only the short form silently dropped the derivations for deaths and
@@ -109,6 +110,57 @@ def unsupported_numbers(narrative: str, stats_str: str, year: int) -> list[float
         and not (n.is_integer() and 1990 <= n <= 2100)
         and not any(abs(n - a) <= 0.02 * a for a in allowed)
     ]
+
+
+# A named collision type or crash cause is a factual claim just like a number:
+# the stats the card was written from must carry it. 2026-09-22: the live
+# Fresno card blamed "head-on collisions from unsafe passing"; no figure it was
+# given (and nothing the site shows) mentions either. Each entry is a reader's
+# phrasing and the stats keys that back it. Collision types never reach the
+# prompts, so naming one always fails. Deliberately narrow: generic wording
+# ("rural roads", "higher speeds") is not a named cause and is left alone.
+_NAMED_CLAIMS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("head-on", r"\bhead[\s-]+on\b", ("head_on",)),
+    ("rear-end", r"\brear[\s-]+end", ("rear_end",)),
+    ("broadside", r"\bbroadside|\bt[\s-]?bone", ("broadside",)),
+    ("sideswipe", r"side[\s-]?swip", ("sideswipe",)),
+    ("rollover", r"roll[\s-]?over|overturn", ("overturn",)),
+    ("unsafe passing", r"(?:unsafe|improper|illegal)\s+passing", ("passing",)),
+    ("wrong-way", r"\bwrong[\s-]+way\b", ("wrong_way", "wrong_side")),
+    ("dui", r"\bDUI\b|drunk|alcohol|intoxicat|impaired", ("dui",)),
+    ("speeding", r"speeding|(?:unsafe|excessive)\s+speed", ("speed",)),
+    ("red-light running", r"\bred[\s-]+lights?\b|signal\s+violation", ("signal_violation",)),
+    ("lane change", r"lane[\s-]+chang", ("lane_change",)),
+    ("right of way", r"right[\s-]+of[\s-]+way|fail\w*\s+to\s+yield", ("right_of_way",)),
+    ("tailgating", r"tailgat|following\s+too\s+clos", ("following_too_close",)),
+    ("distraction", r"distract|cell\s*phone|texting", ("distract",)),
+)
+_NAMED_CLAIM_RES = [(label, re.compile(pat, re.IGNORECASE), keys) for label, pat, keys in _NAMED_CLAIMS]
+
+# The site states deaths relative to crashes in one unit: per 1,000 crashes.
+# "1.2 per 100 crashes" / "a fatality rate of 1.35%" read as a different
+# number from the report card's 13.5 for the same data.
+_WRONG_RATE_UNIT_RE = re.compile(
+    r"per\s+100\s+(?:crashes|collisions)"
+    r"|(?:fatality|death)\s+rate\s+(?:of\s+|at\s+|was\s+|is\s+)?(?:just\s+|about\s+)?\d+(?:\.\d+)?\s*%",
+    re.IGNORECASE,
+)
+
+
+def check_claims(text: str, stats_str: str) -> list[str]:
+    """Named causes/collision types absent from ``stats_str``, and off-unit
+    death rates; [] = pass. Used on LLM text and county-card templates."""
+    stats = stats_str.lower()
+    reasons = []
+    named = [
+        label for label, rx, keys in _NAMED_CLAIM_RES
+        if rx.search(text) and not any(k in stats for k in keys)
+    ]
+    if named:
+        reasons.append(f"causes not in stats: {named}")
+    if m := _WRONG_RATE_UNIT_RE.search(text):
+        reasons.append(f"death rate not per 1,000 crashes: {m.group(0)!r}")
+    return reasons
 
 
 def check_fact(
