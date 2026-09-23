@@ -7,8 +7,12 @@ import { useQuery } from "@tanstack/react-query";
  *
  * Mirrors useCountyGeoJson; the highway file is plain GeoJSON (one Feature
  * per canonical route, `properties.route_number`).
+ *
+ * `enabled` is the Highways layer toggle: the file is 219 KB and the layer is
+ * off by default, so fetching it on mount cost every first map view a
+ * download nobody looked at.
  */
-export function useHighwayGeoJson() {
+export function useHighwayGeoJson(enabled = true) {
   return useQuery<GeoJSON.FeatureCollection>({
     queryKey: ["ca-highways-geojson"],
     queryFn: async () => {
@@ -17,5 +21,6 @@ export function useHighwayGeoJson() {
       return res.json();
     },
     staleTime: Infinity,
+    enabled,
   });
 }

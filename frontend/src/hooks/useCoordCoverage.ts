@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { YEARS, yearsInRange, type DateRangeFilter } from "./useFilterParams";
 import { API_BASE } from "../config";
 
@@ -9,16 +8,11 @@ export type DataQualityRow = {
   crashes_with_coords: number | null;
 };
 
-export type CoordCoverage = {
-  mapped: number;
-  total: number;
-  pct: number;
-};
-
-/** The one /api/data-quality fetch, shared by this hook and the choropleth's
- *  coord_coverage measure (useChoroplethData) — same key, so selecting the
- *  measure costs no extra request. The response carries every scope (county x
- *  year, statewide per year, county all-time); each caller picks its own. */
+/** The /api/data-quality fetch behind the choropleth's coord_coverage measure
+ *  (useChoroplethData). The response carries every scope (county x year,
+ *  statewide per year, county all-time); the caller picks its own. The map
+ *  legend's statewide "X of Y mapped" line that also read it is gone: the heat
+ *  layer's line is the one coverage figure (see ChoroplethLegend). */
 export const DATA_QUALITY_QUERY = {
   queryKey: ["data-quality-statewide"] as const,
   queryFn: async (): Promise<DataQualityRow[]> => {
@@ -26,7 +20,7 @@ export const DATA_QUALITY_QUERY = {
     if (!res.ok) throw new Error("data-quality fetch failed");
     const body = await res.json();
     // A non-array body (an error envelope from a proxy, say) used to reach
-    // `.filter` below and throw during render, blanking the whole map behind
+    // the row loops and throw during render, blanking the whole map behind
     // the error boundary over a strictly optional coverage figure.
     if (!Array.isArray(body)) throw new Error("data-quality: expected an array");
     return body;
@@ -55,25 +49,4 @@ export function coordCoverageByCounty(
     out.set(r.county_code, prev);
   }
   return out;
-}
-
-export function useCoordCoverage(dateRange: DateRangeFilter | null): CoordCoverage | null {
-  const { data } = useQuery<DataQualityRow[]>(DATA_QUALITY_QUERY);
-
-  if (!data) return null;
-
-  // Only statewide per-year rows (county_code null, year present)
-  const statewide = data.filter((r) => r.county_code === null && r.year !== null);
-
-  const yearSet = yearsInRange(dateRange);
-  const allYears = yearSet.size === 0 || yearSet.size === YEARS.length;
-  const rows = allYears ? statewide : statewide.filter((r) => yearSet.has(r.year!));
-
-  if (!rows.length) return null;
-
-  const mapped = rows.reduce((s, r) => s + (r.crashes_with_coords ?? 0), 0);
-  const total = rows.reduce((s, r) => s + (r.total_crashes ?? 0), 0);
-
-  if (total === 0) return null;
-  return { mapped, total, pct: (mapped / total) * 100 };
 }

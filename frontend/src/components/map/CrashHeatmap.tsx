@@ -8,6 +8,7 @@ import type { PaletteKey } from "../../lib/choropleth/palettes";
 import { getPalette } from "../../lib/choropleth/palettes";
 import { useIsDark } from "../../context/ThemeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
+import { heatOpacityForZoom } from "../../lib/map/heatmapLod";
 
 /**
  * Private leaflet.heat internals this component relies on. These are not part
@@ -71,6 +72,15 @@ function removeHeatLayer(map: L.Map, layer: L.HeatLayer): void {
   const frame = heatInternals(layer)._frame;
   if (frame != null) L.Util.cancelAnimFrame(frame);
   map.removeLayer(layer);
+}
+
+/**
+ * Ease the heat canvas back as the crash dots take over (heatOpacityForZoom).
+ * Canvas opacity is a compositor property: no redraw, no reprojection.
+ */
+function fadeForZoom(map: L.Map, layer: L.HeatLayer): void {
+  const canvas = heatInternals(layer)._canvas;
+  if (canvas) canvas.style.opacity = String(heatOpacityForZoom(map.getZoom()));
 }
 
 const BASE_RADIUS: Record<HeatmapResolution, number> = {
@@ -151,6 +161,7 @@ export function useHeatLayer(
     if (internals._canvas) {
       internals._canvas.style.pointerEvents = "none";
     }
+    fadeForZoom(map, layer);
 
     // Keep leaflet.heat's own `zoomanim` handler bound. There are two ways to
     // survive a zoom: hide the canvas until zoomend (what this used to do), or
@@ -169,6 +180,7 @@ export function useHeatLayer(
         const newR = radiusForZoom(base, z);
         layerRef.current.setOptions({ radius: newR, blur: Math.max(1, Math.round(newR * 0.3)) });
       }
+      fadeForZoom(map, layerRef.current);
       current._reset();
     };
 
@@ -272,11 +284,13 @@ export function useFatalLayer(
     if (internals._canvas) {
       internals._canvas.style.pointerEvents = "none";
     }
+    fadeForZoom(map, layer);
 
     // Same as useHeatLayer: leave `zoomanim` bound so the canvas is transformed
     // with the map during a pinch instead of being hidden for the gesture.
     const onZoomEnd = () => {
       if (!layerRef.current) return;
+      fadeForZoom(map, layerRef.current);
       heatInternals(layerRef.current)._reset();
     };
 

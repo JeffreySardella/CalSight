@@ -6,6 +6,8 @@ import {
   HEAT_POINT_BUDGET_TOUCH,
   HEAT_POINT_BUDGET_DESKTOP,
   nextDotFetch,
+  heatOpacityForZoom,
+  DOT_MIN_ZOOM,
   type Bbox,
 } from "./heatmapLod";
 
@@ -58,6 +60,19 @@ describe("heatPointBudget", () => {
     expect(heatPointBudget(true)).toBe(HEAT_POINT_BUDGET_TOUCH);
     expect(heatPointBudget(false)).toBe(HEAT_POINT_BUDGET_DESKTOP);
     expect(HEAT_POINT_BUDGET_TOUCH).toBeLessThan(HEAT_POINT_BUDGET_DESKTOP);
+  });
+});
+
+describe("heatOpacityForZoom", () => {
+  it("is full until one zoom before the dots, then fades and stays low under them", () => {
+    expect(DOT_MIN_ZOOM).toBe(13);
+    expect(heatOpacityForZoom(7)).toBe(1);
+    expect(heatOpacityForZoom(11)).toBe(1);
+    expect(heatOpacityForZoom(12)).toBeLessThan(1);
+    expect(heatOpacityForZoom(13)).toBeLessThan(heatOpacityForZoom(12));
+    expect(heatOpacityForZoom(18)).toBe(heatOpacityForZoom(13));
+    // Fractional zooms (pinch) land on the rung below.
+    expect(heatOpacityForZoom(12.5)).toBe(heatOpacityForZoom(12));
   });
 });
 

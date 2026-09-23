@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useEffect } from "react";
+import { useEffect, type ComponentProps } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LayersStateProvider, useLayersState } from "../../hooks/useLayersState";
@@ -39,6 +39,27 @@ function Harness({
           <LayersStateProvider>
             <Seeder edges={edges} choroplethOn={choroplethOn} />
             <ChoroplethLegend demographicsAvailable={demographicsAvailable} dataSummary={dataSummary} />
+          </LayersStateProvider>
+        </CustomThemeProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+
+function MeasureHarness({
+  measure,
+  edges = [0, 10, 20, 30, 40, 50],
+  dataSummary = BASE_SUMMARY,
+  ...props
+}: { measure: MeasureKey; edges?: number[] } & Partial<ComponentProps<typeof ChoroplethLegend>>) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <CustomThemeProvider>
+          <LayersStateProvider>
+            <Seeder edges={edges} choroplethOn />
+            <MeasureSetter measure={measure} />
+            <ChoroplethLegend demographicsAvailable dataSummary={dataSummary} {...props} />
           </LayersStateProvider>
         </CustomThemeProvider>
       </ThemeProvider>
@@ -151,9 +172,55 @@ describe("ChoroplethLegend", () => {
     expect(screen.getByText(/loading data/i)).toBeInTheDocument();
   });
 
-  it("shows total crash count in data summary", () => {
-    render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, totalCrashes: 1_200_000 }} />);
+  it("shows the crash total under a count measure", () => {
+    render(<MeasureHarness measure="crashes_raw" dataSummary={{ ...BASE_SUMMARY, totalCrashes: 1_200_000 }} />);
     expect(screen.getByTestId("data-summary")).toHaveTextContent(/1\.2M crashes/);
+  });
+
+  it("drops the crash total under a rate measure", () => {
+    render(<MeasureHarness measure="fatalities_per_100k" dataSummary={{ ...BASE_SUMMARY, totalCrashes: 11_600_000 }} />);
+    expect(screen.getByTestId("choropleth-legend")).not.toHaveTextContent(/11\.6M crashes/);
+  });
+
+  it("totals the selected counties, not the state", () => {
+    render(<MeasureHarness measure="crashes_raw" dataSummary={{ ...BASE_SUMMARY, totalCrashes: 11_600_000 }} scopeCrashes={233_290} />);
+    expect(screen.getByTestId("data-summary")).toHaveTextContent(/233K crashes/);
+    expect(screen.getByTestId("choropleth-legend")).not.toHaveTextContent(/11\.6M/);
+  });
+
+  it("prints the break values under the ramp on a phone, in the measure's format", async () => {
+    render(<MeasureHarness measure="fatality_rate" edges={[0.5, 0.8, 1, 1.2, 1.6, 2.4]} />);
+    const breaks = await screen.findByTestId("legend-breaks");
+    // Visible without expanding the phone card (no hidden wrapper around it).
+    expect(breaks.closest(".hidden")).toBeNull();
+    expect(breaks).toHaveTextContent("0.5%");
+    expect(breaks).toHaveTextContent("2.4%");
+  });
+
+  it("reads the heat layer's coverage as crashes plotted out of crashes in scope", () => {
+    render(
+      <MeasureHarness
+        measure="crashes_per_100k"
+        scopeCrashes={233_290}
+        heatmapCrashes={107_112}
+        heatmapDisplayed={20_273}
+      />,
+    );
+    // Grid cells (20,273) are not crashes; they used to be the numerator.
+    expect(screen.getByTestId("heatmap-mapped")).toHaveTextContent("107K of 233K crashes mapped (46%)");
+  });
+
+  it("uses the same numerator and denominator once a county is focused", () => {
+    render(
+      <MeasureHarness
+        measure="crashes_per_100k"
+        countyActive
+        scopeCrashes={233_290}
+        heatmapCrashes={107_112}
+        heatmapDisplayed={20_273}
+      />,
+    );
+    expect(screen.getByTestId("heatmap-mapped")).toHaveTextContent("107K of 233K crashes mapped (46%)");
   });
 
   it("shows sparse year warning", () => {

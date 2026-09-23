@@ -52,7 +52,7 @@ export default memo(function HighwayDangerLayer({ onSelectHighway, selectedRoute
   const isDark = useIsDark();
   const rampColors = useMemo(() => dangerColors(palette, isDark), [palette, isDark]);
 
-  const { data: geo, isError: geoError } = useHighwayGeoJson();
+  const { data: geo, isError: geoError } = useHighwayGeoJson(enabled);
 
   const filters = useMemo<StatsFilters>(
     () => ({

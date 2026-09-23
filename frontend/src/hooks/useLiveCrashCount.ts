@@ -2,9 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { API_BASE } from "../config";
 import { formatYearMonth } from "./useFilterParams";
 import type { StagedFilters } from "./useStagedFilters";
+import { countyParam } from "./useFacetCounts";
 
-function buildCountUrl(staged: StagedFilters): string {
+export function buildCountUrl(staged: StagedFilters, county = ""): string {
   const p = new URLSearchParams();
+  // Same county scope as the facet chips (see useFacetCounts' countyParam):
+  // the button read "Show 11.6M Crashes" with Fresno picked.
+  if (county) p.set("county", county);
   if (staged.dateRange?.start || staged.dateRange?.end) {
     if (staged.dateRange.start) p.set("start", formatYearMonth(staged.dateRange.start));
     if (staged.dateRange.end) p.set("end", formatYearMonth(staged.dateRange.end));
@@ -33,7 +37,8 @@ function buildCountUrl(staged: StagedFilters): string {
   return `${API_BASE}/api/stats?${p}`;
 }
 
-export function useLiveCrashCount(staged: StagedFilters) {
+export function useLiveCrashCount(staged: StagedFilters, counties?: ReadonlySet<string>) {
+  const county = countyParam(counties);
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,7 +53,7 @@ export function useLiveCrashCount(staged: StagedFilters) {
       abortRef.current = abort;
       setLoading(true);
 
-      fetch(buildCountUrl(staged), { signal: abort.signal })
+      fetch(buildCountUrl(staged, county), { signal: abort.signal })
         .then((r) => {
           if (!r.ok) {
             console.warn(`[useLiveCrashCount] ${r.status} for ${r.url}`);
@@ -72,6 +77,7 @@ export function useLiveCrashCount(staged: StagedFilters) {
       if (abortRef.current) abortRef.current.abort();
     };
   }, [
+    county,
     staged.selectedYears.size,
     [...staged.selectedYears].join(","),
     staged.severities.size,

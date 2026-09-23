@@ -299,8 +299,6 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
       },
       {
         // Pre-computed fill rates per county x year — feeds coord_coverage.
-        // Same query as useCoordCoverage (the legend's statewide figure), so
-        // this is a cache hit rather than a second fetch.
         ...DATA_QUALITY_QUERY,
         gcTime: PERSISTED_QUERY_GC_TIME,
         enabled: MEASURES[measure]?.kind === "coverage",

@@ -6,6 +6,7 @@ import { useFacetCounts } from "../../../hooks/useFacetCounts";
 import SearchableMultiSelect from "../../ui/SearchableMultiSelect";
 import FilterChip from "./FilterChip";
 import FilterPresets from "./FilterPresets";
+import { yearLabel } from "../../../lib/partialYear";
 
 const RECENT_YEARS = YEARS.filter((y) => y >= 2016).reverse();
 const TOP_CAUSES = CAUSES.filter((c) =>
@@ -54,8 +55,8 @@ export default function SimpleFilterPanel({
     clearAll, reset,
   } = useStagedFilters(initial);
 
-  const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged);
-  const facets = useFacetCounts(staged);
+  const { count: liveCount, loading: countLoading } = useLiveCrashCount(staged, selectedCounties);
+  const facets = useFacetCounts(staged, selectedCounties);
 
   const handlePreset = useCallback((preset: Partial<StagedFilters>) => {
     const merged: StagedFilters = {
@@ -121,7 +122,7 @@ export default function SimpleFilterPanel({
             return (
               <FilterChip
                 key={year}
-                label={String(year)}
+                label={yearLabel(year)}
                 count={count != null ? fmtC(count) : undefined}
                 active={!allYears && staged.selectedYears.has(year)}
                 disabled={count != null && count === 0}

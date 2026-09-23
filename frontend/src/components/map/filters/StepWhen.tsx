@@ -3,6 +3,7 @@ import { YEARS } from "../../../hooks/useFilterParams";
 import type { StagedFilters } from "../../../hooks/useStagedFilters";
 import type { YearMonth } from "../../../hooks/useFilterParams";
 import FilterChip from "./FilterChip";
+import { yearLabel } from "../../../lib/partialYear";
 
 const MONTHS = [
   { value: 1, label: "Jan" }, { value: 2, label: "Feb" }, { value: 3, label: "Mar" },
@@ -85,7 +86,7 @@ export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDat
           return (
             <FilterChip
               key={year}
-              label={String(year)}
+              label={yearLabel(year)}
               count={count != null ? fmtCount(count) : undefined}
               active={usingYears && staged.selectedYears.has(year)}
               disabled={!hasData}
@@ -235,7 +236,7 @@ function MonthYearRow({ label, value, onChange }: {
         ariaLabel={`${label} year`}
         value={value?.year?.toString() ?? ""}
         placeholder="Year"
-        options={[...YEARS].reverse().map((y) => ({ value: y.toString(), label: y.toString() }))}
+        options={[...YEARS].reverse().map((y) => ({ value: y.toString(), label: yearLabel(y) }))}
         onChange={(v) => {
           if (v === "") { onChange(null); return; }
           onChange({ year: Number(v), month: value?.month ?? 1 });
