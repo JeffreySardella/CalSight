@@ -46,7 +46,7 @@ function buildPopularQuestions(county: string | null) {
 
 function AskAiPageInner() {
   const [inputValue, setInputValue] = useState("");
-  const { messages, isLoading, streamingText, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
+  const { messages, isLoading, streamingText, streamStatus, error, cooldownEnd, sendMessage, retry, clearConversation } = useAskAi();
   const { title, blocks, count } = useStoryCanvas();
   const [storyOpen, setStoryOpen] = useState(false);
   // "New Chat" only renders when there are messages, so opening the dialog
@@ -281,7 +281,7 @@ function AskAiPageInner() {
                 )}
               </div>
             ))}
-            {isLoading && streamingText === "" && <ThinkingIndicator status={error} />}
+            {isLoading && streamingText === "" && <ThinkingIndicator status={error} progress={streamStatus} />}
             {isLoading && streamingText !== "" && (
               <ChatMessage message={{ role: "assistant", content: streamingText, timestamp: 0 }} />
             )}

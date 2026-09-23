@@ -433,3 +433,23 @@ def test_endpoint_skips_cache_for_degraded_answers(ask_client, monkeypatch):
     assert r1.headers["x-cache"] == "MISS"
     assert r2.headers["x-cache"] == "MISS", "degraded answer must not be served from cache"
     assert calls["n"] == 2
+
+
+def test_contradicted_trend_word_is_flagged_and_not_cached():
+    """The audit answer's "modest rebound" over a falling series gets a
+    visible note, and the answer is not cached for the next visitor."""
+    answer = (
+        "Pedestrian crashes fell after 2018, with a modest rebound since.\n\n"
+        "- 2018: 5,980\n- 2019: 5,915\n- 2020: 4,422\n- 2021: 3,873\n\n"
+        'Suggested: ["And deaths?"]'
+    )
+    result, cacheable = ask_module._finalize_answer(
+        AskRequest(question="walking in LA?"), answer, "TestProvider",
+        ["query_crashes"], ["query_crashes"], ['{"n": 5980}'], degraded=False,
+    )
+    assert result.answer.endswith(
+        '> **Check the numbers:** The answer says "rebound", but the yearly '
+        "figures it shows do not rise again after 2018."
+    )
+    assert result.suggestions == ["And deaths?"]
+    assert cacheable is False

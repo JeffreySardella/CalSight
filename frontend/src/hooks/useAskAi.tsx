@@ -70,6 +70,9 @@ export interface AskAiApi {
   /** Answer text received so far on the current streamed request; "" until
    *  the first token arrives (show the thinking indicator until then). */
   streamingText: string;
+  /** What the server says it is doing before the answer starts ("Looking up
+   *  ... in Los Angeles..."); "" when it has said nothing. */
+  streamStatus: string;
   /** Resolves true when the question was accepted (appears in the
    * conversation), false when a guard refused it (cooldown, in-flight,
    * blank) — callers that clear an input must check this. */
@@ -118,6 +121,7 @@ function useAskAiState(): AskAiApi {
   const [messages, setMessages] = useState<ChatMessage[]>(loadMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+  const [streamStatus, setStreamStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [cooldownEnd, setCooldownEnd] = useState<number>(() => {
     const stored = sessionStorage.getItem(COOLDOWN_KEY);
@@ -201,6 +205,7 @@ function useAskAiState(): AskAiApi {
     // falls through to the JSON endpoint below, so behaviour is never worse
     // than it was before streaming existed.
     setStreamingText("");
+    setStreamStatus("");
     const streamController = new AbortController();
     let sawToken = false;
     let streamTimedOut = false;
@@ -230,6 +235,10 @@ function useAskAiState(): AskAiApi {
             // ("Let me check the data…"), not answering. Drop the preamble.
             raw = "";
             setStreamingText("");
+          } else if (ev.event === "status") {
+            // Tool rounds can run 20 s before the first token; say what is
+            // happening instead of showing a bare typing indicator.
+            setStreamStatus((JSON.parse(ev.data) as { text: string }).text);
           } else if (ev.event === "done") {
             done = JSON.parse(ev.data) as AskResponse;
           } else if (ev.event === "error") {
@@ -237,6 +246,7 @@ function useAskAiState(): AskAiApi {
           }
         }
         setStreamingText("");
+        setStreamStatus("");
         if (done !== null && done.answer.trim() !== "") {
           const final = done;
           setError(null);
@@ -252,6 +262,7 @@ function useAskAiState(): AskAiApi {
       }
     } catch {
       setStreamingText("");
+      setStreamStatus("");
       // Unmount or a newer question aborted us: leave the UI alone.
       if (streamController.signal.aborted && !streamTimedOut) return true;
       if (sawToken) {
@@ -345,6 +356,7 @@ function useAskAiState(): AskAiApi {
       // loop — so a completed request never blocks the next question.
       setIsLoading(false);
       setStreamingText("");
+      setStreamStatus("");
       inFlightRef.current = false;
       abortRef.current = null;
     }
@@ -378,6 +390,7 @@ function useAskAiState(): AskAiApi {
     messages,
     isLoading,
     streamingText,
+    streamStatus,
     error,
     cooldownEnd,
     sendMessage,

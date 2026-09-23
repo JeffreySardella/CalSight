@@ -23,6 +23,7 @@ from app.rate_limit import rate_limit_key
 from sqlalchemy.orm import Session
 
 from app.ai_prompt import (
+    _ALLOWED_COUNTIES,
     SIMPLE_MODE_TEMPLATE,
     SYSTEM_PROMPT_TEMPLATE,
     TOOL_DEFINITIONS,
@@ -31,7 +32,7 @@ from app.ai_prompt import (
 )
 from app.ai_tools import TOOL_REGISTRY, query_crashes
 from app.database import SessionLocal, apply_statement_timeout, get_db
-from app.grounding import answer_cites_tool_numbers
+from app.grounding import answer_cites_tool_numbers, trend_word_contradictions
 from app.llm_cache import get_ask_cache, make_cache_key
 from app.models import ChatFeedback
 from app.llm import (
@@ -75,6 +76,56 @@ class _AskAbandoned(Exception):
 # out to be a tool call: the prose was the model narrating ("Let me check the
 # data…"), it is discarded server-side, and the client must drop it too.
 _RESET = object()
+
+
+class _Status:
+    """A progress line for the reader ("Looking up ... in Los Angeles").
+
+    The tool rounds before the first answer token take 10-20 s on a long
+    question, and without these the stream sent nothing at all until then:
+    a phone showed a typing indicator for 25 s (audit 2026-09-22).
+    """
+
+    def __init__(self, text: str):
+        self.text = text
+
+
+# What each tool is doing, in words a visitor reads while waiting.
+_TOOL_STATUS = {
+    "query_crashes": "Querying crash records",
+    "rank_counties": "Ranking counties",
+    "compare_counties": "Comparing counties",
+    "get_trend": "Pulling the year-by-year trend",
+    "get_demographics": "Looking up Census demographics",
+    "get_weather": "Looking up weather",
+    "get_road_info": "Looking up roads",
+    "get_environmental": "Looking up CalEnviroScreen scores",
+    "get_party_demographics": "Looking up the drivers involved",
+    "get_victim_info": "Looking up injuries",
+    "get_unemployment": "Looking up unemployment",
+    "get_vehicle_stats": "Looking up registered vehicles",
+    "get_crash_rate": "Working out crash rates",
+    "get_top_intersections": "Finding the worst intersections",
+    "get_street_concentration": "Measuring street concentration",
+    "get_yoy_changes": "Comparing year over year",
+    "get_mode_breakdown": "Counting people hurt or killed by travel mode",
+    "get_vmt": "Looking up miles driven",
+    "get_school_crashes": "Looking up crashes near schools",
+    "get_tract_burden": "Looking up neighborhood burden",
+    "first_rain": "Looking up the first storm",
+}
+
+
+def _tool_status(fn_name: str, arguments: str) -> _Status:
+    text = _TOOL_STATUS.get(fn_name, "Querying the CalSight database")
+    try:
+        county = json.loads(arguments).get("county")
+    except (ValueError, AttributeError):
+        county = None
+    # The county is model output: only a real county name reaches the reader.
+    if isinstance(county, str) and county.replace("-", " ").lower() in _ALLOWED_COUNTIES:
+        text += f" in {county.replace('-', ' ').title()}"
+    return _Status(text + "...")
 
 
 # Control characters have no legitimate use in chat text but do show up in
@@ -284,7 +335,12 @@ def _sse_tokens(tokens: Iterator[Any], deadline: float) -> Iterator[bytes]:
             if time.monotonic() >= deadline:
                 raise _AskAbandoned()
             item = next(tokens)
-            yield _sse("reset", {}) if item is _RESET else _sse("token", {"t": item})
+            if item is _RESET:
+                yield _sse("reset", {})
+            elif isinstance(item, _Status):
+                yield _sse("status", {"text": item.text})
+            else:
+                yield _sse("token", {"t": item})
     except StopIteration as stop:
         return stop.value
 
@@ -310,6 +366,9 @@ def _stream_ask(body: AskRequest) -> Iterator[bytes]:
             return
 
         deadline = time.monotonic() + _ASK_TIMEOUT_SECONDS
+        # First byte now, not after the first tool round: it also gets the
+        # response headers through every proxy straight away.
+        yield _sse("status", {"text": "Choosing what to look up..."})
         db = SessionLocal()
         _apply_statement_timeout(db)
         messages = _build_messages(body, db)
@@ -491,6 +550,15 @@ def _finalize_answer(
     # answers, so it downgrades the reported flag without evicting the answer.
     cacheable = not degraded and tool_grounded
 
+    # A trend word its own figures contradict ("a modest rebound" over a
+    # series that kept falling) is flagged to the reader, not silently
+    # rewritten, and never cached: the next ask may word it correctly.
+    trend_notes = trend_word_contradictions(clean_answer, chart)
+    if trend_notes:
+        logger.warning("Answer's trend words contradict its own figures: %s", trend_notes)
+        clean_answer += "\n\n> **Check the numbers:** " + " ".join(trend_notes)
+        cacheable = False
+
     grounded = tool_grounded
     # Calling a tool is not the same as citing it: cross-check that the raw
     # answer (chart included) shares at least one distinctive number with the
@@ -587,6 +655,11 @@ def _run_with_tools_gen(
                         "id": tc.id,
                         "type": "function",
                         "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                        # Gemini's thought signature; app.llm fits it per provider.
+                        **(
+                            {"extra_content": tc.extra_content}
+                            if getattr(tc, "extra_content", None) else {}
+                        ),
                     }
                     for tc in capped_calls
                 ],
@@ -594,6 +667,7 @@ def _run_with_tools_gen(
             messages.append(assistant_msg)
             for tool_call in capped_calls:
                 fn_name = tool_call.function.name
+                yield _tool_status(fn_name, tool_call.function.arguments)
                 tools_called.append(fn_name)
                 succeeded = False
                 try:
@@ -629,6 +703,7 @@ def _run_with_tools_gen(
                     "tool_call_id": tool_call.id,
                     "content": serialized,
                 })
+            yield _Status("Reading the results...")
         else:
             return message.content or "", provider
 
