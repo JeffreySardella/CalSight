@@ -223,6 +223,35 @@ describe("ChoroplethLegend", () => {
     expect(screen.getByTestId("heatmap-mapped")).toHaveTextContent("107K of 233K crashes mapped (46%)");
   });
 
+  it("hides the choropleth ramp breaks and measure picker while the heat layer covers the fill", () => {
+    render(<MeasureHarness measure="fatality_rate" edges={[0.5, 0.8, 1, 1.2, 1.6, 2.4]} heatmapActive />);
+    // CountyBoundaries draws fillOpacity 0 under heatmapActive, so the
+    // choropleth's own breaks and its measure picker would be describing
+    // colors that aren't actually on the map.
+    expect(screen.queryByTestId("legend-breaks")).toBeNull();
+    expect(screen.queryByText("Measure")).toBeNull();
+    expect(screen.getAllByText("Heat Intensity").length).toBeGreaterThan(0);
+    expect(screen.getByText("Low")).toBeInTheDocument();
+    expect(screen.getByText("High")).toBeInTheDocument();
+  });
+
+  it("shows the crash-dot severity key once dots take over from the heat canvas", () => {
+    render(<MeasureHarness measure="fatality_rate" edges={[0.5, 0.8, 1, 1.2, 1.6, 2.4]} heatmapActive dotZoomActive={false} />);
+    expect(screen.queryByTestId("heat-severity-key")).toBeNull();
+
+    render(<MeasureHarness measure="fatality_rate" edges={[0.5, 0.8, 1, 1.2, 1.6, 2.4]} heatmapActive dotZoomActive />);
+    const keys = screen.getAllByTestId("heat-severity-key");
+    const key = keys[keys.length - 1];
+    expect(key).toHaveTextContent("Fatal");
+    expect(key).toHaveTextContent("Injury");
+  });
+
+  it("leaves the ordinary choropleth ramp and breaks alone when the heat layer is off", () => {
+    render(<MeasureHarness measure="fatality_rate" edges={[0.5, 0.8, 1, 1.2, 1.6, 2.4]} />);
+    expect(screen.getByTestId("legend-breaks")).toBeInTheDocument();
+    expect(screen.queryByText("Low")).toBeNull();
+  });
+
   it("shows sparse year warning", () => {
     render(<Harness edges={[0, 10, 20, 30, 40, 50]} dataSummary={{ ...BASE_SUMMARY, sparseYears: [{ year: 2026, count: 487 }] }} />);
     expect(screen.getByTestId("data-summary")).toHaveTextContent(/2026: 487 crashes \(in progress\)/);

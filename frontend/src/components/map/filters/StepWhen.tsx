@@ -124,8 +124,8 @@ export default function StepWhen({ staged, onToggleYear, onSetAllYears, onSetDat
             <div className="space-y-3 bg-surface-container rounded-xl p-3">
               <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-widest">Month Range</p>
               <div className="space-y-2">
-                <MonthYearRow label="From" value={start} onChange={(v) => handleSetRange(v, end)} />
-                <MonthYearRow label="To" value={end} onChange={(v) => handleSetRange(start, v)} />
+                <MonthYearRow label="From" value={start} defaultMonth={1} onChange={(v) => handleSetRange(v, end)} />
+                <MonthYearRow label="To" value={end} defaultMonth={12} onChange={(v) => handleSetRange(start, v)} />
               </div>
               {(start || end) && (
                 <button
@@ -212,9 +212,11 @@ function InlineSelect({ ariaLabel, value, placeholder, options, onChange }: {
   );
 }
 
-function MonthYearRow({ label, value, onChange }: {
+function MonthYearRow({ label, value, defaultMonth, onChange }: {
   label: string;
   value: YearMonth | null;
+  /** Month used when only the year is picked (1 for From, 12 for To — see StepWhen). */
+  defaultMonth: number;
   onChange: (v: YearMonth | null) => void;
 }) {
   return (
@@ -239,7 +241,7 @@ function MonthYearRow({ label, value, onChange }: {
         options={[...YEARS].reverse().map((y) => ({ value: y.toString(), label: yearLabel(y) }))}
         onChange={(v) => {
           if (v === "") { onChange(null); return; }
-          onChange({ year: Number(v), month: value?.month ?? 1 });
+          onChange({ year: Number(v), month: value?.month ?? defaultMonth });
         }}
       />
     </div>

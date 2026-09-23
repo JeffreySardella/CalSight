@@ -1,5 +1,5 @@
 import type { DateRangeFilter } from "../../hooks/useFilterParams";
-import { formatYearMonth } from "../../hooks/useFilterParams";
+import { formatDateRange } from "../../hooks/useFilterParams";
 
 interface ActiveFiltersBannerProps {
   dateRange: DateRangeFilter | null;
@@ -51,9 +51,7 @@ export default function ActiveFiltersBanner({
   const chips: string[] = [];
 
   if (dateRange) {
-    const s = dateRange.start ? formatYearMonth(dateRange.start) : "earliest";
-    const e = dateRange.end ? formatYearMonth(dateRange.end) : "latest";
-    chips.push(`${s} – ${e}`);
+    chips.push(formatDateRange(dateRange.start, dateRange.end));
   }
   if (severities.size > 0 && severities.size < 3) {
     chips.push(...severities);

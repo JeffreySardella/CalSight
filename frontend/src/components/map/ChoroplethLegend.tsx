@@ -36,6 +36,13 @@ type Props = {
   heatmapStreaming?: boolean;
   countyActive?: boolean;
   mismatchCount?: number | null;
+  /** The heat layer is on and covering the choropleth fill (CountyBoundaries
+   *  draws fillOpacity 0 while this is true) — the ramp needs to describe the
+   *  heat, not the (invisible) choropleth buckets. */
+  heatmapActive?: boolean;
+  /** Crash dots are visible at the current zoom (>= DOT_MIN_ZOOM, see
+   *  lib/map/heatmapLod) — shows the severity key the dots use. */
+  dotZoomActive?: boolean;
 };
 
 /** "2024, 2025" for short runs, "2001-2004, 2024-2026" for longer ones. */
@@ -58,7 +65,29 @@ function formatCount(n: number): string {
 
 const EMPTY_SUMMARY: DataSummary = { totalCrashes: 0, missingDemoYears: [], partialDemoYears: [], estimatedDemoYears: [], estimatedFromYears: [], sparseYears: [] };
 
-export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, scopeCrashes = dataSummary.totalCrashes, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, heatmapStreaming, countyActive, mismatchCount }: Props) {
+/** Fatal/Injury/PDO dot swatches — shared by the county "Crash Detail" key
+ *  and the statewide heat layer's key (both describe the same CrashDotLayer
+ *  dots, just with a different set of layers active around them). */
+function SeverityDotKey({ severityColors }: { severityColors: { fatal: string; injury: string; pdo: string } }) {
+  return (
+    <>
+      <div className="flex items-center gap-1.5">
+        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.fatal }} />
+        <span className="text-[10px] text-on-surface-variant font-semibold">Fatal</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.injury }} />
+        <span className="text-[10px] text-on-surface-variant font-semibold">Injury</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.pdo }} />
+        <span className="text-[10px] text-on-surface-variant font-semibold"><JargonTerm term="PDO" /></span>
+      </div>
+    </>
+  );
+}
+
+export default function ChoroplethLegend({ demographicsAvailable, dataSummary = EMPTY_SUMMARY, scopeCrashes = dataSummary.totalCrashes, isLoading, isError, is422, searchOpen, onRetry, heatmapCrashes, heatmapDisplayed, heatmapLoading, heatmapStreaming, countyActive, mismatchCount, heatmapActive, dotZoomActive }: Props) {
   const { choroplethOn, measure, palette, bucketEdges, setMeasure } = useLayersState();
   const coordValidation = useCoordValidation();
   const isDark = useIsDark();
@@ -90,6 +119,10 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
       : null;
   const allMeasures = Object.values(MEASURES);
   const showTotal = !countyActive && !isLoading && activeMeasure.kind === "raw" && scopeCrashes != null && scopeCrashes > 0;
+  // choroplethOn is guaranteed true whenever !countyActive here (the early
+  // return above bails unless choroplethOn || countyActive) — the fill CountyBoundaries
+  // draws is what's actually hidden, so the ramp below needs relabeling, not the ramp itself.
+  const showHeatLegend = !!heatmapActive && !countyActive;
 
   return (
     <div
@@ -114,20 +147,29 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMobileExpanded((v) => !v); } }}
             aria-expanded={mobileExpanded}
           >
-            <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">{activeMeasure.label}</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">{showHeatLegend ? "Heat Intensity" : activeMeasure.label}</span>
             <span className="material-symbols-outlined text-[14px] text-on-surface-variant transition-transform" style={{ transform: mobileExpanded ? "rotate(180deg)" : undefined }}>
               expand_less
             </span>
           </div>
-          <span
-            className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2"
-            id="choropleth-measure-label"
-          >
-            Measure
-          </span>
+          {/* The heat layer covers the choropleth fill (see CountyBoundaries'
+              heatmapActive branch), so the measure picker — which only
+              changes choropleth buckets — is meaningless while it's on. */}
+          {showHeatLegend ? (
+            <span className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
+              Heat Intensity
+            </span>
+          ) : (
+            <span
+              className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2"
+              id="choropleth-measure-label"
+            >
+              Measure
+            </span>
+          )}
         </>
       )}
-      <div ref={containerRef} className={`relative mb-3 ${countyActive ? "hidden" : mobileExpanded ? "" : "hidden md:block"}`}>
+      <div ref={containerRef} className={`relative mb-3 ${countyActive || showHeatLegend ? "hidden" : mobileExpanded ? "" : "hidden md:block"}`}>
         <button
           type="button"
           aria-labelledby="choropleth-measure-label"
@@ -198,18 +240,7 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors[colors.length - 1] }} />
             <span className="text-[10px] text-on-surface-variant font-semibold">Crash</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.fatal }} />
-            <span className="text-[10px] text-on-surface-variant font-semibold">Fatal</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.injury }} />
-            <span className="text-[10px] text-on-surface-variant font-semibold">Injury</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.pdo }} />
-            <span className="text-[10px] text-on-surface-variant font-semibold"><JargonTerm term="PDO" /></span>
-          </div>
+          <SeverityDotKey severityColors={severityColors} />
           {mismatchCount != null && mismatchCount > 0 && (
             <div className="flex items-center gap-1.5">
               <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: MISMATCH_DOT_COLORS[palette] }} />
@@ -224,7 +255,14 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
           alone unless the card was expanded. */}
       {!countyActive && (
         <div>
-          {isLoading ? (
+          {showHeatLegend ? (
+            // Heat has no buckets — same Low/High labels as StatewideHeatmapCard,
+            // the heat-only legend shown when the choropleth is off entirely.
+            <div className="flex justify-between text-[10px] text-on-surface-variant mt-1 font-mono">
+              <span>Low</span>
+              <span>High</span>
+            </div>
+          ) : isLoading ? (
             <div className="text-[10px] text-on-surface-variant mt-1 italic">
               Loading data…
             </div>
@@ -264,6 +302,14 @@ export default function ChoroplethLegend({ demographicsAvailable, dataSummary = 
               Pan or zoom out to compute scale
             </div>
           )}
+        </div>
+      )}
+
+      {/* CrashDotLayer takes over from the heat canvas at DOT_MIN_ZOOM —
+          show what its colors mean once they're actually on screen. */}
+      {showHeatLegend && dotZoomActive && (
+        <div data-testid="heat-severity-key" className="flex items-center gap-3 mt-1.5 flex-wrap">
+          <SeverityDotKey severityColors={severityColors} />
         </div>
       )}
 
