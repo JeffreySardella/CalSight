@@ -36,6 +36,7 @@ function renderApp(initialEntry: string) {
         <Route element={<Layout />}>
           <Route path="/stats" element={<><div>stats page</div><Nav /></>} />
           <Route path="/water" element={<div>water page</div>} />
+          <Route path="/ask" element={<div>ask page</div>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -75,5 +76,18 @@ describe("Layout scroll-on-navigate", () => {
     await userEvent.click(screen.getByText("go-to-water-hash"));
     expect(await screen.findByText("water page")).toBeInTheDocument();
     expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
+
+describe("Layout bottom-nav clearance on /ask", () => {
+  // The fixed BottomTabBar (h-14 + env(safe-area-inset-bottom)) grows on
+  // devices with a gesture-nav/home-indicator inset. A flat pb-14 here
+  // under-reserves space by that inset and the sticky input bar's send
+  // button ends up clipped behind the nav (reported: "Ask AI cut off on
+  // mobile"). The wrapper must reserve the same env()-aware amount.
+  it("reserves env(safe-area-inset-bottom) below the fixed bottom nav", () => {
+    const { container } = renderApp("/ask");
+    const wrapper = container.querySelector(".page-enter");
+    expect(wrapper?.className).toContain("pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]");
   });
 });

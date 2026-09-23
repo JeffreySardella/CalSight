@@ -357,7 +357,8 @@ function AskAiPageInner() {
             type="button"
             onClick={handleSend}
             disabled={!inputValue.trim() || isLoading || cooldownRemaining > 0}
-            className="bg-primary text-on-primary px-3 py-2 md:px-4 md:py-2.5 rounded-lg flex items-center gap-1 md:gap-1.5 hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+            aria-label="Send question"
+            className="bg-primary text-on-primary px-3 py-2 md:px-4 md:py-2.5 min-h-[46px] min-w-[46px] rounded-lg flex items-center justify-center gap-1 md:gap-1.5 hover:opacity-95 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
           >
             {cooldownRemaining > 0 ? (
               <span>{cooldownRemaining}s</span>
