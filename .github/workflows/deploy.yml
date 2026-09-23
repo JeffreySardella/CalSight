@@ -386,35 +386,12 @@ jobs:
       - name: Warm the heatmap cache for the busiest counties
         # The county heat layer is served from an in-process TTL cache
         # (heatmap.py, 6 h). Every deploy restarts the container cold, and the
-        # first uncached Los Angeles aggregation took 13.6 s on a phone. Ask
-        # for exactly what the map asks for (both point budgets, plus the
-        # fatal slice) so the first visitor after a deploy gets the cached
-        # answer. The key ignores batch numbers, so one request per budget is
-        # enough. Best effort: a slow or failed warm never fails the deploy
-        # (curl failures are ignored; nothing here exits non-zero).
-        run: |
-          base="http://127.0.0.1:8000/api/crashes/heatmap"
-          # gunicorn runs 4 workers (Dockerfile), each with its own in-process
-          # cache, and one request lands on one worker: after a single warm a
-          # public probe still took 13.4 s. Eight parallel copies reach every
-          # worker (measured: six follow-up probes all ~1.7 s); a worker that
-          # gets two computes once, the sync query serialises them.
-          warm() {
-            for i in 1 2 3 4 5 6 7 8; do
-              ( curl -s --max-time 90 -o /dev/null -w "$1 %{http_code} %{time_total}s" "$base?$1"; echo ) &
-            done
-            wait
-          }
-          for county in los-angeles san-diego orange san-bernardino riverside santa-clara alameda sacramento; do
-            for q in "max_points=25000" "max_points=80000" "severity=fatal&max_points=25000"; do
-              warm "county=$county&resolution=raw&detail=slim&$q"
-            done
-          done
-          for res in low medium; do
-            for budget in 25000 80000; do
-              warm "resolution=$res&max_points=$budget"
-            done
-          done
+        # first uncached Los Angeles aggregation took 13.6 s on a phone. Logic
+        # lives in backend/deploy/warm_heatmap_cache.sh, shared with the
+        # standing warm-heatmap-cache.yml cron that re-warms the same cache
+        # mid-TTL on days without a deploy. Best effort here too: the script
+        # never exits non-zero, so a slow or failed warm never fails the deploy.
+        run: bash backend/deploy/warm_heatmap_cache.sh
 
       - name: Verify pipeline container is stable (not crash-looping)
         # A pipeline container that dies at startup restarts forever and is

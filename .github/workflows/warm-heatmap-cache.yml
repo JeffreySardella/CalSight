@@ -1,0 +1,44 @@
+name: Warm Heatmap Cache
+
+# Keeps backend/app/routers/heatmap.py's in-process TTL cache (6 h) warm
+# around the clock. deploy.yml already warms it right after every deploy,
+# but deploys don't happen daily -- on a quiet day the cache goes cold again
+# mid-afternoon and the next visitor eats the ~13s Los Angeles aggregation.
+# Runs every 5h (just under the 6h TTL) on the same self-hosted runner the
+# deploy step uses, since 127.0.0.1:8000 is only reachable from that box.
+#
+# Shares its warm logic with deploy.yml via backend/deploy/warm_heatmap_cache.sh
+# so the two never drift apart.
+
+on:
+  schedule:
+    - cron: "0 */5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Its own group, NOT prod-mutex: prod-mutex has a single pending slot
+  # shared by deploy.yml and run-etl.yml, and a cache warm must never queue
+  # behind (or displace) a real deploy or ETL run. cancel-in-progress: true
+  # because a backed-up queue of warms is pointless -- only the newest run
+  # matters, same reasoning as uptime.yml.
+  group: warm-heatmap-cache
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Warm the heatmap cache for the busiest counties
+        # Best effort by design (see script header): logs failures but always
+        # exits 0. A total failure means the API is down, which uptime.yml
+        # already alerts on from outside -- this workflow failing too would
+        # just be a second, noisier alarm (GitHub emails the actor on every
+        # failed scheduled run).
+        run: bash backend/deploy/warm_heatmap_cache.sh
