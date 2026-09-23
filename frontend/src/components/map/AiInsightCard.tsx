@@ -375,7 +375,7 @@ export default function AiInsightCard({
                 {!isStatewide && onClearCounty && (
                   <button
                     onClick={onClearCounty}
-                    className="w-full text-center text-[11px] font-semibold text-on-surface-variant hover:text-on-surface hover:underline py-1"
+                    className="w-full min-h-11 text-center text-[11px] font-semibold text-on-surface-variant hover:text-on-surface hover:underline"
                   >
                     Clear county selection
                   </button>

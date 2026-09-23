@@ -7,7 +7,7 @@ import { useLiteMode } from "../../context/LiteModeContext";
 import { useDesignTokens } from "../../hooks/useDesignTokens";
 import { getMapSeverityColors } from "../../lib/theme/tokens";
 import { DOT_MIN_ZOOM } from "../../lib/map/heatmapLod";
-import { toReadableCase } from "../../lib/readableCase";
+import { toReadableCase, toRoadName } from "../../lib/readableCase";
 
 interface CrashDotLayerProps {
   points: HeatmapPoint[];
@@ -127,7 +127,7 @@ export default memo(function CrashDotLayer({ points, enabled, palette }: CrashDo
                     {p.primary_road && (
                       <tr>
                         <td style={{ color: "rgb(var(--on-surface-variant))", paddingRight: 12, paddingBottom: 4, whiteSpace: "nowrap", verticalAlign: "top" }}>Road</td>
-                        <td style={{ paddingBottom: 4 }}>{toReadableCase(p.primary_road)}</td>
+                        <td style={{ paddingBottom: 4 }}>{toRoadName(p.primary_road)}</td>
                       </tr>
                     )}
                     <tr>
