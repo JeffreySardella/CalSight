@@ -76,6 +76,23 @@ const FOLSOM: ReservoirCondition = {
   pct_of_average: null,
 };
 
+/** Sits almost on top of Shasta and is smaller, so it draws after Shasta
+ *  (big-first order) and its hit circle covers Shasta's centre — the exact
+ *  live-site overlap (Trinity over Shasta) the nearest-centre rule fixes. */
+const TRINITY: ReservoirCondition = {
+  station_id: "TRI",
+  name: "Trinity Lake",
+  capacity_af: 2_448_000,
+  county_code: 45,
+  lat: 37.2,
+  lon: -121.49,
+  latest_date: "2026-07-09",
+  storage_af: 1_700_000,
+  pct_of_capacity: 70.0,
+  avg_storage_af: 1_545_000,
+  pct_of_average: 110.0,
+};
+
 /** Pre-coordinate row: the layer must skip it, not crash on the nulls. */
 const NO_COORDS: ReservoirCondition = {
   ...FOLSOM,
@@ -370,6 +387,31 @@ describe("DroughtMap reservoir layer", () => {
     await userEvent.click(circles[0]);
     await userEvent.click(screen.getByRole("button", { name: /show in list/i }));
     expect(onShowInList).toHaveBeenCalledWith("SHA");
+  });
+
+  it("resolves an overlapping tap to the nearest reservoir centre, not whichever circle is on top", async () => {
+    renderMap(COUNTIES, [SHASTA, TRINITY]);
+    const circles = await findCircles();
+    // Shasta (4.55M AF) is bigger and drawn first; Trinity (2.45M AF) is
+    // drawn after and sits on top where their hit circles overlap.
+    expect(circles[0]).toHaveAttribute("aria-label", expect.stringContaining("Shasta"));
+    expect(circles[1]).toHaveAttribute("aria-label", expect.stringContaining("Trinity"));
+
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+      left: 0, top: 0, right: 400, bottom: 460, width: 400, height: 460,
+      x: 0, y: 0, toJSON: () => ({}),
+    } as DOMRect);
+
+    const shastaDot = document.querySelector("[data-testid='reservoir-dot-SHA']")!;
+    const shastaCx = Number(shastaDot.getAttribute("cx"));
+    const shastaCy = Number(shastaDot.getAttribute("cy"));
+
+    // A click dispatched on Trinity's (topmost) hit circle, landing exactly
+    // at Shasta's own centre, must still select Shasta — that's the whole
+    // point of resolving by nearest centre instead of DOM/paint order.
+    fireEvent.click(circles[1], { clientX: shastaCx, clientY: shastaCy });
+    expect(screen.getByRole("group", { name: /shasta lake detail/i })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /trinity lake detail/i })).toBeNull();
   });
 
   it("adds a reservoir legend only when circles are drawn", async () => {
