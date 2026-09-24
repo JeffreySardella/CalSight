@@ -9,23 +9,24 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: null,
       manifest: false,
-      includeAssets: [
-        'favicon.ico',
-        'favicon.svg',
-        'favicon-96x96.png',
-        'apple-touch-icon.png',
-        'web-app-manifest-192x192.png',
-        'web-app-manifest-512x512.png',
-        'site.webmanifest',
-        'ca-counties.topo.json',
-      ],
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,webp,geojson}'],
-        // The 1.3 MB raw counties file stays out of the precache; the
-        // 500 KB ca-counties.topo.json (in includeAssets above) covers it.
-        globIgnores: ['**/ca-counties.geojson'],
+        // The precache is the app shell only: index.html plus the build's
+        // hashed files. On a first visit the worker downloads all of it one
+        // file at a time, competing with the page, so on a slow phone every
+        // extra file costs a round trip. What's left out:
+        // - public/: icons and og-default.png, which no page renders, and the
+        //   map geometry, runtime-cached below.
+        //   Precaching ca-counties.topo.json downloaded it twice per first
+        //   visit: Workbox refetches unhashed files with cache: 'reload'.
+        // - Font subsets other than latin: the @font-face unicode-range means
+        //   the browser only fetches them for text that needs them.
+        // - jspdf's optional dependencies (html2canvas, dompurify, canvg):
+        //   jspdf imports them only for .html() and addSvgAsImage(), which
+        //   CalSight never calls, so no page ever loads these chunks.
+        globPatterns: ['index.html', 'assets/*.{js,css,svg,png,webp}', 'assets/*-latin-wght-*.woff2'],
+        globIgnores: ['assets/{html2canvas.esm,purify.es,index.es}-*.js'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/admin\//],
@@ -51,6 +52,20 @@ export default defineConfig({
               cacheName: 'carto-tiles',
               expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
               cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Map geometry (counties, highways, tracts) left out of the
+            // precache: cached on first use instead, so the map still draws
+            // offline on later visits. functions/_middleware.ts 404s an HTML
+            // answer for these paths, so a 200 here is always the real file.
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && /^\/ca-[\w-]+\.(?:topo\.json|geojson)$/.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'map-geometry',
+              expiration: { maxEntries: 10 },
+              cacheableResponse: { statuses: [200] },
             },
           },
           {
