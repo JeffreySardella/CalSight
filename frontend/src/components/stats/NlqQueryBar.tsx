@@ -1,14 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import type { Dimension, Measure, ChartType, ChartOptions } from "../../lib/dashboard/types";
 import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from "../../lib/dashboard/types";
-import { parseNlq, resolveNlq, SUGGESTIONS } from "../../lib/dashboard/nlqParser";
+import { parseNlq, resolveNlq, SUGGESTIONS, describeFilterUpdate, type NlqFilterUpdate } from "../../lib/dashboard/nlqParser";
 
 interface Props {
   /** May return a sentence saying where the chart went (e.g. another tab). */
   onAddChart: (config: { dimension: Dimension; measure: Measure; chartType: ChartType; options?: ChartOptions }) => string | void;
+  /** Applies filter words the query recognized (pedestrian, cyclist, alcohol, drug, distracted, speeding) instead of just reporting them as ignored. */
+  onApplyFilters?: (updates: NlqFilterUpdate[]) => void;
 }
 
-export default function NlqQueryBar({ onAddChart }: Props) {
+export default function NlqQueryBar({ onAddChart, onApplyFilters }: Props) {
   const [value, setValue] = useState("");
   // What the last query added, what it ignored and where the chart went,
   // so nothing about the result is silent.
@@ -41,10 +43,12 @@ export default function NlqQueryBar({ onAddChart }: Props) {
     const chart = resolveNlq(result);
     if (chart) {
       const where = onAddChart(chart.options && Object.keys(chart.options).length > 0 ? chart : { ...chart, options: undefined });
+      if (result.filters.length > 0) onApplyFilters?.(result.filters);
       const m = measureLabel(chart.dimension, chart.measure);
       setNotice([
         // Named as ChartCard titles it.
         `Added “${m === "Crash Count" ? "Crashes" : m} by ${DIMENSION_LABELS[chart.dimension]}”.`,
+        result.filters.length > 0 && `Filtered to ${result.filters.map(describeFilterUpdate).join(", ")}.`,
         result.ignored.length > 0 && `Ignored ${result.ignored.map((w) => `“${w}”`).join(", ")}: use Filters to narrow the charts.`,
         where,
       ].filter(Boolean).join(" "));
@@ -113,6 +117,11 @@ export default function NlqQueryBar({ onAddChart }: Props) {
           {parsed.dimension && <span className="px-1.5 py-0.5 bg-primary-container/30 rounded">{DIMENSION_LABELS[parsed.dimension]}</span>}
           {parsed.measure && <span className="px-1.5 py-0.5 bg-tertiary-container/30 rounded">{MEASURE_LABELS[parsed.measure]}</span>}
           {parsed.chartType && <span className="px-1.5 py-0.5 bg-secondary-container/30 rounded">{parsed.chartType}</span>}
+          {parsed.filters.length > 0 && (
+            <span className="px-1.5 py-0.5 bg-tertiary-container/30 rounded">
+              Filter: {parsed.filters.map(describeFilterUpdate).join(", ")}
+            </span>
+          )}
           {parsed.ignored.length > 0 && (
             <span className="px-1.5 py-0.5 bg-error-container text-on-error-container rounded">
               Ignored: {parsed.ignored.join(", ")}

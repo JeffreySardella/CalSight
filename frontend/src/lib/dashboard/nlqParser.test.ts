@@ -145,28 +145,66 @@ describe("nlqParser", () => {
   });
 
   describe("filter words", () => {
-    it("reports a filter word it cannot apply and lowers confidence", () => {
-      // The audit query: it used to parse as Year + Fatalities at "high".
+    it("parses a filter word with a real toggle instead of dropping it", () => {
+      // The audit query: it used to silently drop "pedestrian"; #521 made it
+      // visible as "ignored"; now it's applied as a Filters-sheet toggle.
       const result = parseNlq("pedestrian deaths by year");
       expect(result.dimension).toBe("year");
       expect(result.measure).toBe("killed");
-      expect(result.ignored).toEqual(["pedestrian"]);
+      expect(result.ignored).toEqual([]);
+      expect(result.filters).toEqual([{ type: "bool", key: "pedestrian" }]);
+      expect(result.confidence).toBe("high");
+    });
+
+    it("maps DUI/alcohol words to the alcohol filter", () => {
+      const result = parseNlq("DUI crashes by county");
+      expect(result.dimension).toBe("county");
+      expect(result.ignored).toEqual([]);
+      expect(result.filters).toEqual([{ type: "bool", key: "alcohol" }]);
+    });
+
+    it("maps cyclist to a filter but leaves motorcyclist ignored (no toggle exists)", () => {
+      const result = parseNlq("cyclist and motorcyclist injuries by month");
+      expect(result.dimension).toBe("month");
+      expect(result.measure).toBe("injured");
+      expect(result.filters).toEqual([{ type: "bool", key: "cyclist" }]);
+      expect(result.ignored).toEqual(["motorcyclist"]);
+    });
+
+    it("maps speeding to the speeding cause filter", () => {
+      const result = parseNlq("speeding crashes by hour");
+      expect(result.ignored).toEqual([]);
+      expect(result.filters).toEqual([{ type: "cause", value: "speeding" }]);
+    });
+
+    it("still reports a word with no matching filter or dimension as ignored", () => {
+      // No boolean flag exists for motorcyclist/motorcycle, so this one really
+      // can't be applied — it must stay visible, not silently dropped.
+      const result = parseNlq("motorcycle crashes by county");
+      expect(result.dimension).toBe("county");
+      expect(result.filters).toEqual([]);
+      expect(result.ignored).toEqual(["motorcycle"]);
       expect(result.confidence).toBe("medium");
     });
 
-    it("catches involvement and cause words", () => {
-      expect(parseNlq("DUI crashes by county").ignored).toEqual(["dui"]);
-      expect(parseNlq("cyclist and motorcyclist injuries by month").ignored).toEqual(["cyclist", "motorcyclist"]);
-      expect(parseNlq("speeding crashes by hour").ignored).toEqual(["speeding"]);
-      // One matched part plus a dropped word is too little to build a chart.
-      expect(resolveNlq(parseNlq("alcohol crashes"))).toBeNull();
+    it("a filter word alone is enough to build a chart (defaults the rest)", () => {
+      // One matched measure plus an applied filter is a usable chart now
+      // that the filter word isn't dropped — unlike a genuinely ignored word.
+      const result = parseNlq("alcohol crashes");
+      expect(result.filters).toEqual([{ type: "bool", key: "alcohol" }]);
+      const resolved = resolveNlq(result);
+      expect(resolved).not.toBeNull();
+      expect(resolved!.dimension).toBe("year");
+      expect(resolved!.measure).toBe("count");
     });
 
     it("does not ignore road-user words the mode dimension answers", () => {
       const result = parseNlq("pedestrians vs cyclists");
       expect(result.dimension).toBe("mode");
       expect(result.ignored).toEqual([]);
+      expect(result.filters).toEqual([]);
       expect(parseNlq("pedestrian deaths").ignored).toEqual([]);
+      expect(parseNlq("pedestrian deaths").filters).toEqual([]);
     });
 
     it("leaves ordinary queries alone", () => {

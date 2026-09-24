@@ -33,6 +33,7 @@ import YoyChangesPanel from "../components/stats/YoyChangesPanel";
 import { encodeDashboard } from "../lib/dashboard/urlCodec";
 import SavedDashboardsPanel from "../components/stats/SavedDashboardsPanel";
 import NlqQueryBar from "../components/stats/NlqQueryBar";
+import type { NlqFilterUpdate } from "../lib/dashboard/nlqParser";
 import MetaTags, { buildOgImageUrl } from "../components/seo/MetaTags";
 import { buildDatasetSchema, buildBreadcrumbSchema } from "../components/seo/JsonLd";
 import SharePanel, { buildShareUrl } from "../components/seo/SharePanel";
@@ -246,6 +247,28 @@ function StatsPageInner() {
     crossFilter.clearCrossFilter();
     dashboard.setPreset(key);
   }, [timelapse, resetDrill, crossFilter, dashboard]);
+
+  // The NLQ chart box parses filter words (pedestrian, cyclist, alcohol/DUI,
+  // drug, distracted, speeding) it can't fold into a dimension; apply them to
+  // the real filters instead of only reporting them as ignored. Each toggle*
+  // flips, so only fire it when the filter isn't already on.
+  const handleNlqFilters = useCallback((updates: NlqFilterUpdate[]) => {
+    const boolToggle: Record<Extract<NlqFilterUpdate, { type: "bool" }>["key"], [boolean | undefined, () => void]> = {
+      pedestrian: [filters.selectedPedestrian, filters.togglePedestrian],
+      cyclist: [filters.selectedCyclist, filters.toggleCyclist],
+      alcohol: [filters.selectedAlcohol, filters.toggleAlcohol],
+      drug: [filters.selectedDrug, filters.toggleDrug],
+      distracted: [filters.selectedDistracted, filters.toggleDistracted],
+    };
+    for (const u of updates) {
+      if (u.type === "bool") {
+        const [active, toggle] = boolToggle[u.key];
+        if (!active) toggle();
+      } else if (!filters.selectedCauses.has(u.value)) {
+        filters.toggleCause(u.value);
+      }
+    }
+  }, [filters]);
 
   // Dashboard keyboard shortcuts: 1-8 presets, B for builder, Escape to close config
   useDashboardKeyboard({
@@ -796,7 +819,7 @@ function StatsPageInner() {
                 onSetSpeed={timelapse.setSpeed}
               />
             )}
-            {!printPreview && <NlqQueryBar onAddChart={(cfg) => {
+            {!printPreview && <NlqQueryBar onApplyFilters={handleNlqFilters} onAddChart={(cfg) => {
               dashboard.addChart(cfg);
               // Presets can't hold added charts, so the chart lives on the
               // Builder tab. Say so: the switch used to be silent, and the
