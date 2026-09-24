@@ -61,10 +61,11 @@ const OPTION_PATTERNS: [RegExp, Partial<ChartOptions>][] = [
   [/\bforecast\b/i, { forecast: true }],
 ];
 
-// Filter words the chart box cannot apply: a chart is only a dimension and a
-// measure, and filters live in the Filters sheet. They are reported back as
-// ignored rather than dropped, so "pedestrian deaths by year" can no longer
-// pass (at "high" confidence) for a chart of pedestrian deaths.
+// Filter words the chart box cannot fold into a dimension: a chart is only a
+// dimension and a measure. A word with a real toggle in the Filters sheet
+// (FILTER_WORD_MAP) is applied there via NlqResult.filters instead of being
+// dropped; the rest are reported back as ignored so nothing disappears
+// silently.
 const FILTER_WORDS: RegExp[] = [
   /\bpedestrians?\b/i, /\bbicyclists?\b/i, /\bcyclists?\b/i, /\bbikes?\b/i,
   /\bmotorcyclists?\b/i, /\bmotorcycles?\b/i,
@@ -74,14 +75,46 @@ const FILTER_WORDS: RegExp[] = [
 // Road-user words the mode dimension answers itself ("pedestrians vs cyclists").
 const MODE_WORDS = /^(pedestrians?|(bi)?cyclists?|bikes?|motorcyclists?|motorcycles?)$/i;
 
+export type NlqFilterUpdate =
+  | { type: "bool"; key: "pedestrian" | "cyclist" | "alcohol" | "drug" | "distracted" }
+  | { type: "cause"; value: string };
+
+// Words that have a real filter to land in (StatsFilters booleans, or a
+// CAUSES value). No entry here for motorcyclist/motorcycle or hit-and-run:
+// there's no boolean flag for either, so those stay in `ignored`.
+const FILTER_WORD_MAP: [RegExp, NlqFilterUpdate][] = [
+  [/\bpedestrians?\b/i, { type: "bool", key: "pedestrian" }],
+  [/\b(bi)?cyclists?\b/i, { type: "bool", key: "cyclist" }],
+  [/\bbikes?\b/i, { type: "bool", key: "cyclist" }],
+  [/\bdui\b/i, { type: "bool", key: "alcohol" }],
+  [/\bdrunk\b/i, { type: "bool", key: "alcohol" }],
+  [/\balcohol\b/i, { type: "bool", key: "alcohol" }],
+  [/\bimpaired\b/i, { type: "bool", key: "alcohol" }],
+  [/\bdrugs?\b/i, { type: "bool", key: "drug" }],
+  [/\bdistracted\b/i, { type: "bool", key: "distracted" }],
+  [/\bspeeding\b/i, { type: "cause", value: "speeding" }],
+];
+
+const FILTER_UPDATE_LABELS: Record<string, string> = {
+  pedestrian: "pedestrian", cyclist: "cyclist", alcohol: "alcohol-involved",
+  drug: "drug-involved", distracted: "distracted driving", speeding: "speeding",
+};
+
+export function describeFilterUpdate(f: NlqFilterUpdate): string {
+  const key = f.type === "bool" ? f.key : f.value;
+  return FILTER_UPDATE_LABELS[key] ?? key;
+}
+
 export interface NlqResult {
   dimension: Dimension | null;
   measure: Measure | null;
   chartType: ChartType | null;
   options: ChartOptions;
   confidence: "high" | "medium" | "low";
-  /** Filter words in the query that the chart cannot reflect. */
+  /** Filter words the chart cannot reflect and that have no filter to apply either. */
   ignored: string[];
+  /** Filter words that map to a real toggle in the Filters sheet — apply these, don't just report them. */
+  filters: NlqFilterUpdate[];
 }
 
 function matchFirst(input: string, synonyms: [string, string][]): string | null {
@@ -109,16 +142,33 @@ export function parseNlq(input: string): NlqResult {
 
   const chartType = matchFirst(chartTypeInput, CHART_TYPE_SYNONYMS) as ChartType | null;
 
-  const ignored = FILTER_WORDS
-    .map((re) => re.exec(input)?.[0].toLowerCase())
-    .filter((w): w is string => !!w && !(dimension === "mode" && MODE_WORDS.test(w)));
+  const ignored: string[] = [];
+  const filters: NlqFilterUpdate[] = [];
+  const seenFilters = new Set<string>();
+  for (const re of FILTER_WORDS) {
+    const word = re.exec(input)?.[0].toLowerCase();
+    if (!word) continue;
+    // The mode dimension already answers a road-user word directly.
+    if (dimension === "mode" && MODE_WORDS.test(word)) continue;
+    const mapping = FILTER_WORD_MAP.find(([wordRe]) => wordRe.test(word));
+    if (!mapping) {
+      ignored.push(word);
+      continue;
+    }
+    const update = mapping[1];
+    const dedupeKey = update.type === "bool" ? `bool:${update.key}` : `cause:${update.value}`;
+    if (seenFilters.has(dedupeKey)) continue;
+    seenFilters.add(dedupeKey);
+    filters.push(update);
+  }
 
   const matched = [dimension, measure, chartType].filter(Boolean).length;
   // A dropped word means the chart answers a different question: one step down.
+  // A word folded into `filters` isn't dropped, so it doesn't cost a level.
   const level = Math.min(matched, 2) - (ignored.length > 0 ? 1 : 0);
   const confidence = (["low", "medium", "high"] as const)[Math.max(0, level)];
 
-  return { dimension, measure, chartType, options, confidence, ignored };
+  return { dimension, measure, chartType, options, confidence, ignored, filters };
 }
 
 export function resolveNlq(result: NlqResult): { dimension: Dimension; measure: Measure; chartType: ChartType; options: ChartOptions } | null {
