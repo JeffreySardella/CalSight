@@ -20,8 +20,12 @@ const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(__filename), "..");
 
 async function loadTsModule(relPath) {
-  const src = readFileSync(path.join(ROOT, relPath), "utf8");
-  const { code } = esbuild.transformSync(src, { loader: "ts", format: "esm" });
+  // Bundled, not just transpiled: stories.ts imports its callout helpers, and
+  // a data: URL module can't resolve relative imports on its own.
+  const { outputFiles } = esbuild.buildSync({
+    entryPoints: [path.join(ROOT, relPath)], bundle: true, format: "esm", write: false,
+  });
+  const code = outputFiles[0].text;
   const dataUrl = "data:text/javascript;base64," + Buffer.from(code).toString("base64");
   return import(dataUrl);
 }

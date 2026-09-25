@@ -1,5 +1,7 @@
 import { useMemo } from "react";
-import type { DataStory, StoryBlock, ChartBlock, StoryContext } from "../../lib/dashboard/stories";
+import { useQuery } from "@tanstack/react-query";
+import { API_BASE } from "../../config";
+import type { DataStory, StoryBlock, ChartBlock, StatCalloutBlock, StoryContext } from "../../lib/dashboard/stories";
 import { slotKey, type ChartSlot } from "../../lib/dashboard/types";
 import type { StatsFilters } from "../../hooks/useStats";
 import { useDashboardData } from "../../hooks/useDashboardData";
@@ -168,21 +170,7 @@ function StoryBlockRenderer({
       );
 
     case "stat-callout":
-      return (
-        <div className="bg-primary-container/20 rounded-xl px-4 sm:px-6 py-4 sm:py-5 text-center space-y-1">
-          <p className="text-3xl sm:text-4xl font-headline font-bold text-primary tracking-tight break-words">
-            {block.value}
-          </p>
-          <p className="text-sm font-semibold text-on-surface">
-            {block.label}
-          </p>
-          {block.context && (
-            <p className="text-xs text-on-surface-variant mt-1">
-              {block.context}
-            </p>
-          )}
-        </div>
-      );
+      return <StatCallout block={block} />;
 
     case "chart": {
       // Charts with filterOverrides get their own data fetch
@@ -227,6 +215,49 @@ function StoryBlockRenderer({
     default:
       return null;
   }
+}
+
+/**
+ * A story's headline figure, computed from its sources on every render so it
+ * tracks the data. While loading, and if a fetch or the derivation fails, the
+ * label stays and the number is withheld: no figure beats a wrong one.
+ */
+function StatCallout({ block }: { block: StatCalloutBlock }) {
+  const { data, isError } = useQuery({
+    queryKey: ["story-callout", block.label, ...block.sources],
+    queryFn: async () => {
+      const bodies = await Promise.all(block.sources.map(async (path) => {
+        const res = await fetch(`${API_BASE}/api/${path}`);
+        // Status first: queryClient's retry policy reads the first 3-digit token.
+        if (!res.ok) throw new Error(`story callout ${res.status} ${path}`);
+        return res.json() as Promise<unknown>;
+      }));
+      return block.compute(bodies);
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+
+  return (
+    <div className="bg-primary-container/20 rounded-xl px-4 sm:px-6 py-4 sm:py-5 text-center space-y-1" aria-busy={!data && !isError}>
+      {data ? (
+        <p className="text-3xl sm:text-4xl font-headline font-bold text-primary tracking-tight break-words">
+          {data.value}
+        </p>
+      ) : isError ? (
+        <p className="text-sm text-on-surface-variant">This figure could not be loaded right now.</p>
+      ) : (
+        <div className="h-9 sm:h-10 w-24 mx-auto rounded-md bg-surface-container animate-pulse" />
+      )}
+      <p className="text-sm font-semibold text-on-surface">
+        {data?.label ?? block.label}
+      </p>
+      {data && (
+        <p className="text-xs text-on-surface-variant mt-1">
+          {data.context}
+        </p>
+      )}
+    </div>
+  );
 }
 
 /**

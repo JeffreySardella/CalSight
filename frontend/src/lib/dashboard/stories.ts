@@ -1,4 +1,10 @@
 import type { ChartOptions, ChartType, Dimension, Measure } from "./types";
+import type { CalEnviroScreenRow, DemographicsRow, DimensionRow, VehiclesRow } from "../../types/api";
+import {
+  calEnviroScreenCallout, duiClockCallout, evCallout, povertyCallout, seasonalCallout,
+  speedEnforcementCallout, twentyYearsCallout, twoCaliforniasCallout, wfhCallout,
+  youngDriversCallout, type CalloutFigure,
+} from "./storyCallouts";
 
 export type StoryContext = {
   countyCount: number;
@@ -32,12 +38,30 @@ export type ChartBlock = {
   caption?: string;
 };
 
-type StatCalloutBlock = {
+/** A headline figure computed from live data when the story renders, never
+ *  typed in: hand-typed figures drifted as crash years loaded (#461). */
+export type StatCalloutBlock = {
   type: "stat-callout";
-  value: string;
+  /** Shown while loading and when the figure is unavailable; `compute` can
+   *  replace it when the label names data years. */
   label: string;
-  context?: string;
+  /** Paths under /api/, fetched in parallel. Statewide on purpose: these
+   *  figures back the story's fixed claims, so page filters don't apply. */
+  sources: string[];
+  /** Gets the sources' JSON bodies in order; throws if the data is missing. */
+  compute: (bodies: unknown[]) => CalloutFigure;
 };
+
+/** First year of the crash record (SWITRS starts in 2001). */
+const FIRST_CRASH_YEAR = 2001;
+/** Newest full calendar year; the in-progress year is always partial. */
+const LAST_FULL_YEAR = new Date().getFullYear() - 1;
+
+const RURAL_COUNTIES = "siskiyou,modoc,lassen,trinity,alpine";
+const URBAN_COUNTIES = "los-angeles,san-diego,san-francisco,santa-clara,alameda";
+const BAY_TECH_COUNTIES = "san-francisco,santa-clara,san-mateo,alameda,marin";
+
+type Rows = DimensionRow[];
 
 /** Daily crash counts around a county's most recent first-rain day — a
  *  live chart off /api/first-rain, outside the /api/stats dimensions. */
@@ -107,9 +131,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "4.1x",
         label: "Rural vs urban deaths per crash",
-        context: "In the five rural counties below, 24.4 people died per 1,000 crashes, against 6.0 in the five urban ones (2001 to 2025)",
+        sources: [`stats?group_by=year&county=${RURAL_COUNTIES}`, `stats?group_by=year&county=${URBAN_COUNTIES}`],
+        compute: ([rural, urban]) => twoCaliforniasCallout(rural as Rows, urban as Rows),
       },
       {
         type: "chart",
@@ -117,7 +141,7 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "severity",
         measure: "count",
         chartType: "donut",
-        filterOverrides: { counties: ["los-angeles", "san-diego", "san-francisco", "santa-clara", "alameda"] },
+        filterOverrides: { counties: URBAN_COUNTIES.split(",") },
         caption: "Urban counties: high volume, lower fatality share",
       },
       {
@@ -126,13 +150,13 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "severity",
         measure: "count",
         chartType: "donut",
-        filterOverrides: { counties: ["siskiyou", "modoc", "lassen", "trinity", "alpine"] },
+        filterOverrides: { counties: RURAL_COUNTIES.split(",") },
         caption: "Rural counties: lower volume, higher fatality share",
       },
       {
         type: "narrative",
         heading: "What this means",
-        body: "The data shows the gap; it does not show why. Commonly cited reasons include higher rural speeds, longer distances to trauma care, and fewer controlled intersections, but none of those are measured here. What the data does rule out is volume: rural counties have far fewer crashes, yet each one is about four times as likely to kill.",
+        body: "The data shows the gap; it does not show why. Commonly cited reasons include higher rural speeds, longer distances to trauma care, and fewer controlled intersections, but none of those are measured here. What the data does rule out is volume: rural counties have far fewer crashes, yet each one is several times as likely to kill.",
       },
     ],
   },
@@ -170,9 +194,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "10 PM",
         label: "Peak hour for alcohol-involved crashes",
-        context: "9 PM through midnight run nearly level, and 39% of alcohol-involved crashes fall between 10 PM and 3 AM. Saturday and Sunday are effectively tied as the worst days",
+        sources: ["stats?group_by=hour&alcohol=true", "stats?group_by=day_of_week&alcohol=true"],
+        compute: ([hours, days]) => duiClockCallout(hours as Rows, days as Rows),
       },
       {
         type: "chart",
@@ -223,9 +247,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "-31%",
-        label: "Crashes, 2002 peak to 2020 low",
-        context: "From 542,301 crashes in 2002 to 374,756 in 2020. Deaths moved differently: they peaked at 4,661 in 2022, then fell to 3,402 in 2025, a figure still rising as late death records arrive",
+        label: "Crashes, peak year to low year",
+        sources: ["stats?group_by=year"],
+        compute: ([years]) => twentyYearsCallout(years as Rows),
       },
       {
         type: "chart",
@@ -240,7 +264,7 @@ export const DATA_STORIES: DataStory[] = [
       {
         type: "narrative",
         heading: "Progress is uneven",
-        body: "Crashes fell for most of two decades, but deaths did not track them. From 2019 to 2022 crashes dropped while deaths climbed to their highest level since at least 2001, and only in 2025 did deaths fall below the 2019 level, on a preliminary count that will rise as late death records arrive. Pedestrian deaths followed the same arc, rising from 984 in 2016 to 1,278 in 2022 before falling back. This data shows the pattern; it cannot say how much airbags, road design or enforcement contributed.",
+        body: "Crashes fell for most of two decades, but deaths did not track them. From 2019 to 2022 crashes dropped while deaths climbed to their highest level since at least 2001. The newest years' death counts are preliminary and will rise as late death records arrive. Pedestrian deaths followed the same arc, rising from 984 in 2016 to 1,278 in 2022 before falling back. This data shows the pattern; it cannot say how much airbags, road design or enforcement contributed.",
       },
     ],
   },
@@ -257,7 +281,7 @@ export const DATA_STORIES: DataStory[] = [
           ? `Statewide, counties with higher poverty rates tend to see deadlier crashes. The link is real but moderate, and it holds between counties, not individual people, so it says little about ${ctx.countyNames[0]} County on its own.`
           : ctx.isFiltered
           ? `Across California, counties with higher poverty rates tend to see deadlier crashes. The link is real but moderate, and it holds between counties, not individual people. Compare where the ${ctx.countyCount} selected counties fall below.`
-          : `Traffic deaths are not spread evenly. Counties with higher poverty rates tend to see more deaths per crash, but the link is moderate (r = 0.49 across 58 counties), not the lockstep it is sometimes described as. It holds between counties, not individual people.`,
+          : `Traffic deaths are not spread evenly. Counties with higher poverty rates tend to see more deaths per crash, but the link is moderate, not the lockstep it is sometimes described as. It holds between counties, not individual people.`,
         isThesis: true,
       },
       {
@@ -276,9 +300,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "r = 0.49",
         label: "Poverty rate vs deaths per crash",
-        context: "Across 58 counties, 2019 to 2023. The poorest quarter of counties had a median of 19.3 deaths per 1,000 crashes, 1.35 times the median county",
+        sources: ["stats?group_by=county&start=2019-01&end=2023-12", "demographics"],
+        compute: ([counties, demo]) => povertyCallout(counties as Rows, demo as DemographicsRow[], "2019 to 2023"),
       },
       {
         type: "chart",
@@ -297,7 +321,7 @@ export const DATA_STORIES: DataStory[] = [
   {
     id: "ev-paradox",
     title: "EVs and Pedestrian Deaths",
-    subtitle: "EV registrations quadrupled. Pedestrian deaths rose, then fell",
+    subtitle: "EV registrations more than quadrupled. Pedestrian deaths rose, then fell",
     icon: "timeline",
     blocks: [
       {
@@ -321,9 +345,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "+338%",
-        label: "EV registrations, 2019 to 2025",
-        context: "From 423,017 to 1,854,887. Over the same years, pedestrian deaths went from 1,050 to a peak of 1,278 in 2022, then down to 958 in 2025",
+        label: "EV registrations",
+        sources: ["vehicles", "stats?group_by=year&pedestrian=true"],
+        compute: ([vehicles, ped]) => evCallout(vehicles as VehiclesRow[], ped as Rows),
       },
       {
         type: "chart",
@@ -351,10 +375,10 @@ export const DATA_STORIES: DataStory[] = [
         type: "narrative",
         heading: "Empty commutes, safer roads?",
         body: (ctx) => ctx.countyCount === 1
-          ? `The post-2020 shift to remote work thinned out rush-hour traffic. Statewide, 7 to 9 AM crashes fell 28% between 2019 and 2023. The charts below show how ${ctx.countyNames[0]} County's crash hours compare.`
+          ? `The post-2020 shift to remote work thinned out rush-hour traffic. Statewide, 7 to 9 AM crashes fell by about a quarter between 2019 and 2023. The charts below show how ${ctx.countyNames[0]} County's crash hours compare.`
           : ctx.isFiltered
-          ? `The post-2020 shift to remote work thinned out rush-hour traffic. Statewide, 7 to 9 AM crashes fell 28% between 2019 and 2023. The charts below show how the ${ctx.countyCount} selected counties compare.`
-          : `The post-2020 shift to remote work thinned out rush-hour traffic. Between 2019 and 2023, 7 to 9 AM crashes fell 28% statewide. The Bay Area's five tech-heavy counties fell 26%, no more than the state as a whole, so the drop was not confined to white-collar areas.`,
+          ? `The post-2020 shift to remote work thinned out rush-hour traffic. Statewide, 7 to 9 AM crashes fell by about a quarter between 2019 and 2023. The charts below show how the ${ctx.countyCount} selected counties compare.`
+          : `The post-2020 shift to remote work thinned out rush-hour traffic. Between 2019 and 2023, 7 to 9 AM crashes fell by about a quarter statewide. The Bay Area's five tech-heavy counties fell about as much as the state as a whole, so the drop was not confined to white-collar areas.`,
         isThesis: true,
       },
       {
@@ -371,14 +395,19 @@ export const DATA_STORIES: DataStory[] = [
         dimension: "hour",
         measure: "count",
         chartType: "bar",
-        filterOverrides: { counties: ["san-francisco", "santa-clara", "san-mateo", "alameda", "marin"] },
+        filterOverrides: { counties: BAY_TECH_COUNTIES.split(",") },
         caption: "Bay Area tech counties (San Francisco, Santa Clara, San Mateo, Alameda, Marin), all years",
       },
       {
         type: "stat-callout",
-        value: "-28%",
         label: "7 to 9 AM crashes, 2019 to 2023",
-        context: "Statewide, from 49,130 to 35,429. The five Bay Area tech counties fell 26%, about the same",
+        sources: [
+          "stats?group_by=hour&start=2019-01&end=2019-12",
+          "stats?group_by=hour&start=2023-01&end=2023-12",
+          `stats?group_by=hour&start=2019-01&end=2019-12&county=${BAY_TECH_COUNTIES}`,
+          `stats?group_by=hour&start=2023-01&end=2023-12&county=${BAY_TECH_COUNTIES}`,
+        ],
+        compute: ([s19, s23, b19, b23]) => wfhCallout(s19 as Rows, s23 as Rows, b19 as Rows, b23 as Rows),
       },
       {
         type: "chart",
@@ -409,7 +438,7 @@ export const DATA_STORIES: DataStory[] = [
           ? `Statewide, drivers aged 18 to 24 show up among at-fault drivers far more often than their share of the population. The chart below shows the age mix of at-fault drivers in ${ctx.countyNames[0]} County.`
           : ctx.isFiltered
           ? `Statewide, drivers aged 18 to 24 show up among at-fault drivers far more often than their share of the population. The chart below shows the age mix of at-fault drivers in the ${ctx.countyCount} selected counties.`
-          : `Drivers aged 18 to 24 were 23% of at-fault drivers with a recorded age, while that age group is about 9.5% of Californians. The comparison is rough: the population figure includes children too young to drive, and nearly half of crash records carry no driver age.`,
+          : `Drivers aged 18 to 24 make up a far larger share of at-fault drivers with a recorded age than of Californians. The comparison is rough: the population figure includes children too young to drive, and many crash records carry no driver age.`,
         isThesis: true,
       },
       {
@@ -430,9 +459,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "23%",
         label: "At-fault drivers aged 18 to 24",
-        context: "Among at-fault drivers with a recorded age. The group is about 9.5% of Californians, but nearly half of crash records have no driver age",
+        sources: ["stats?group_by=at_fault_age_bracket", "demographics"],
+        compute: ([ages, demo]) => youngDriversCallout(ages as Rows, demo as DemographicsRow[]),
       },
       {
         type: "chart",
@@ -491,9 +520,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "+25%",
         label: "October vs February deaths",
-        context: "Over 2001 to 2025. Part of that is the calendar, since February is short: per day, October runs 14% above February",
+        sources: [`stats?group_by=month&start=${FIRST_CRASH_YEAR}-01&end=${LAST_FULL_YEAR}-12`],
+        compute: ([months]) => seasonalCallout(months as Rows, FIRST_CRASH_YEAR, LAST_FULL_YEAR),
       },
       {
         type: "chart",
@@ -524,7 +553,7 @@ export const DATA_STORIES: DataStory[] = [
           ? `CalEnviroScreen scores communities on pollution, poverty and health burdens. Across California's 58 counties, those scores barely track how deadly crashes are. County averages also blur the neighborhood differences that matter most inside ${ctx.countyNames[0]} County.`
           : ctx.isFiltered
           ? `CalEnviroScreen scores communities on pollution, poverty and health burdens. Across California's 58 counties, those scores barely track how deadly crashes are, and county averages blur neighborhood differences inside the ${ctx.countyCount} selected counties.`
-          : `California's CalEnviroScreen scores communities on pollution, poverty and health burdens. A natural question is whether the same places also have deadlier roads. At the county level the answer is barely: across 58 counties, the correlation between CalEnviroScreen score and deaths per crash is 0.14, close to none.`,
+          : `California's CalEnviroScreen scores communities on pollution, poverty and health burdens. A natural question is whether the same places also have deadlier roads. At the county level the answer is barely: across 58 counties, CalEnviroScreen score and deaths per crash are close to uncorrelated.`,
         isThesis: true,
       },
       {
@@ -537,9 +566,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "r = 0.14",
         label: "CalEnviroScreen score vs deaths per crash",
-        context: "Across 58 counties, 2019 to 2023. Close to no relationship at the county level",
+        sources: ["stats?group_by=county&start=2019-01&end=2023-12", "calenviroscreen"],
+        compute: ([counties, ces]) => calEnviroScreenCallout(counties as Rows, ces as CalEnviroScreenRow[], "2019 to 2023"),
       },
       {
         type: "chart",
@@ -566,10 +595,10 @@ export const DATA_STORIES: DataStory[] = [
         type: "narrative",
         heading: "Two long declines",
         body: (ctx) => ctx.countyCount === 1
-          ? `Statewide, crashes with speeding as the primary factor fell 30% from 2016 to 2025, and deaths in alcohol-involved crashes fell 35% (2025 deaths are still preliminary). The charts below show ${ctx.countyNames[0]} County's trends. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
+          ? `Statewide, crashes with speeding as the primary factor and deaths in alcohol-involved crashes have both fallen since 2016 (the newest year's deaths are still preliminary). The charts below show ${ctx.countyNames[0]} County's trends. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
           : ctx.isFiltered
-          ? `Statewide, crashes with speeding as the primary factor fell 30% from 2016 to 2025, and deaths in alcohol-involved crashes fell 35% (2025 deaths are still preliminary). The charts below show the ${ctx.countyCount} selected counties. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
-          : `Speeding and drunk driving are two of the oldest targets of traffic enforcement. From 2016 to 2025, crashes with speeding as the primary factor fell 30%, and deaths in alcohol-involved crashes fell 35% (2025 deaths are still preliminary), while alcohol-involved crashes themselves fell only 7%. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit those drops to enforcement.`,
+          ? `Statewide, crashes with speeding as the primary factor and deaths in alcohol-involved crashes have both fallen since 2016 (the newest year's deaths are still preliminary). The charts below show the ${ctx.countyCount} selected counties. This data records crashes, not patrols, checkpoints or cameras, so it cannot credit the drops to enforcement.`
+          : `Speeding and drunk driving are two of the oldest targets of traffic enforcement. Since 2016, crashes with speeding as the primary factor have fallen, and so have deaths in alcohol-involved crashes (the newest year's deaths are still preliminary). This data records crashes, not patrols, checkpoints or cameras, so it cannot credit those drops to enforcement.`,
         isThesis: true,
       },
       {
@@ -593,9 +622,9 @@ export const DATA_STORIES: DataStory[] = [
       },
       {
         type: "stat-callout",
-        value: "-30%",
-        label: "Speeding crashes, 2016 to 2025",
-        context: "From 163,095 to 114,480. Deaths in alcohol-involved crashes fell 35% over the same years (2025 deaths preliminary), while alcohol-involved crashes fell only 7%",
+        label: "Speeding crashes since 2016",
+        sources: ["stats?group_by=year&cause=speeding", "stats?group_by=year&alcohol=true"],
+        compute: ([speeding, alcohol]) => speedEnforcementCallout(speeding as Rows, alcohol as Rows),
       },
       {
         type: "chart",
