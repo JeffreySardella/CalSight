@@ -88,6 +88,9 @@ describe("useStats", () => {
     expect(body.end).toBe("2023-12");
     const demoCall = spy.mock.calls.find(c => String(c[0]).includes("/api/demographics"));
     expect(String(demoCall![0])).toContain("nearest=true");
+    // DemoRow only reads population — the KSI hero tile shouldn't pull the
+    // other ~33 ACS columns down over a phone connection.
+    expect(new URL(String(demoCall![0]), "http://localhost").searchParams.get("fields")).toBe("population");
   });
 
   it("maps at-fault demographic responses to chart data points", async () => {

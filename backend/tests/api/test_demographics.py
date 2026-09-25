@@ -3,6 +3,7 @@
 import pytest
 
 from app.models import Demographic
+from app.schemas.demographics import DemographicOut
 
 pytestmark = pytest.mark.integration
 
@@ -110,3 +111,41 @@ def test_demographics_nearest_fills_years_without_data(client, db_session):
     # Without the flag the D-1 contract is unchanged: no rows for the gap.
     resp = client.get(f"{base}&start=2025-01&end=2025-12")
     assert resp.json() == []
+
+
+# --- `fields` allowlist (lean response for the map) -------------------------
+
+
+def test_demographics_default_fields_unchanged(client):
+    """Omitting `fields` must stay byte-identical to the pre-existing shape."""
+    resp = client.get("/api/demographics")
+    assert set(resp.json()[0].keys()) == set(DemographicOut.model_fields)
+
+
+def test_demographics_fields_subset_returns_only_those_plus_keys(client):
+    resp = client.get("/api/demographics?fields=population,median_income")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) >= 2
+    for row in body:
+        assert set(row.keys()) == {"county_code", "year", "population", "median_income"}
+
+
+def test_demographics_fields_unknown_name_is_422(client):
+    resp = client.get("/api/demographics?fields=population,not_a_real_column")
+    assert resp.status_code == 422
+    assert "not_a_real_column" in resp.json()["detail"]
+
+
+def test_demographics_fields_key_columns_always_present(client):
+    # Even when neither key column is explicitly requested.
+    resp = client.get("/api/demographics?fields=poverty_rate")
+    assert resp.status_code == 200
+    for row in resp.json():
+        assert "county_code" in row and "year" in row and "poverty_rate" in row
+        assert len(row) == 3
+
+
+def test_demographics_fields_keeps_cache_header(client):
+    resp = client.get("/api/demographics?fields=population")
+    assert resp.headers.get("cache-control") == "public, max-age=86400, stale-while-revalidate=604800"
