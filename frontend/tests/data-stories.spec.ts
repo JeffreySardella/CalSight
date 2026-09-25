@@ -25,9 +25,24 @@ const BATCH_RESPONSE = {
   day_of_week: Array.from({ length: 7 }, (_, d) => ({ day_of_week: d, crash_count: 2_000 + d * 100, total_killed: d * 3, total_injured: d * 40 })),
 };
 
+// GET /api/stats feeds the stat-callouts, which compute their figure from
+// these rows. Rural counties lose 24 people per 1,000 crashes and urban ones
+// 6, so the two-californias callout must read 4.0x.
+function statsRows(url: URL) {
+  const group = url.searchParams.get("group_by");
+  if (group === "year") {
+    const perThousand = url.searchParams.get("county")?.includes("siskiyou") ? 24 : 6;
+    return [2020, 2021, 2022].map((year) => ({ year, crash_count: 1_000, total_killed: perThousand }));
+  }
+  if (group === "hour") return BATCH_RESPONSE.hour;
+  if (group === "day_of_week") return BATCH_RESPONSE.day_of_week;
+  return [];
+}
+
 async function mockStatsApi(page: Page) {
   await page.route("**/api/**", (route) => route.fulfill({ status: 404, body: "not mocked" }));
   await page.route("**/api/stats/batch", (route) => route.fulfill({ json: BATCH_RESPONSE }));
+  await page.route(/\/api\/stats\?/, (route) => route.fulfill({ json: statsRows(new URL(route.request().url())) }));
   await page.route("**/api/demographics**", (route) => route.fulfill({ json: [] }));
 }
 
@@ -46,9 +61,8 @@ test("two-californias story renders its callout with digits and no NaN/undefined
 
   await expect(page.getByRole("heading", { name: "The Two Californias" })).toBeVisible();
 
-  const callout = page.locator("p", { hasText: "4.1x" });
-  await expect(callout).toBeVisible();
-  await expect(callout).toHaveText(/\d/);
+  await expect(page.getByText("4.0x", { exact: true })).toBeVisible();
+  await expect(page.getByText(/24\.0 people died per 1,000 crashes, against 6\.0/)).toBeVisible();
 
   await expectNoBrokenNumbers(page);
 });
@@ -58,8 +72,18 @@ test("DUI Clock story renders its callout with digits and no NaN/undefined", asy
 
   await expect(page.getByRole("heading", { name: "The DUI Clock" })).toBeVisible();
 
-  const callout = page.getByText("10 PM", { exact: true });
-  await expect(callout).toBeVisible();
+  // The fixture's busiest hour is 23:00 and its busiest day Sunday.
+  await expect(page.getByText("11 PM", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Sunday is the worst day/)).toBeVisible();
 
+  await expectNoBrokenNumbers(page);
+});
+
+test("a callout whose data fails to load shows no number rather than a stale or broken one", async ({ page }) => {
+  await page.route(/\/api\/stats\?/, (route) => route.fulfill({ status: 404, body: "gone" }));
+  await page.goto(`${BASE_URL}/stats?story=two-californias`);
+
+  await expect(page.getByText("This figure could not be loaded right now.")).toBeVisible();
+  await expect(page.getByText("Rural vs urban deaths per crash")).toBeVisible();
   await expectNoBrokenNumbers(page);
 });

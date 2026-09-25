@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE } from "../config";
 import { formatYearMonth, type DateRangeFilter } from "./useFilterParams";
+import { pearsonR } from "../lib/dashboard/stats";
 import type {
   CalEnviroScreenRow,
   CountyStatsRow,
@@ -60,23 +61,6 @@ export const CORRELATION_FIELDS: CorrelationField[] = [
   { key: "pct_unrestrained", label: "Unrestrained %", source: "fars" },
   { key: "weighted_density", label: "Lived Density", source: "census" },
 ];
-
-function pearsonR(xs: number[], ys: number[]): number {
-  const n = xs.length;
-  if (n < 3) return 0;
-  const xMean = xs.reduce((s, x) => s + x, 0) / n;
-  const yMean = ys.reduce((s, y) => s + y, 0) / n;
-  let num = 0, denX = 0, denY = 0;
-  for (let i = 0; i < n; i++) {
-    const dx = xs[i] - xMean;
-    const dy = ys[i] - yMean;
-    num += dx * dy;
-    denX += dx * dx;
-    denY += dy * dy;
-  }
-  const den = Math.sqrt(denX * denY);
-  return den === 0 ? 0 : num / den;
-}
 
 export type CountyRow = Record<string, number | string | undefined>;
 
