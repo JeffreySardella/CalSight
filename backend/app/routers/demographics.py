@@ -1,6 +1,7 @@
 """Census ACS demographics per county × year."""
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from app.rate_limit import rate_limit_key
 from sqlalchemy.orm import Session
@@ -20,6 +21,33 @@ router = APIRouter(tags=["demographics"])
 
 _limiter = Limiter(key_func=rate_limit_key)
 
+_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800"
+
+# Public column allowlist for `?fields=`. Sourced from the response schema
+# (not Demographic.__table__.columns) so internal columns like id/created_at
+# can never be requested even though they're real DB columns.
+_ALLOWED_FIELDS = set(DemographicOut.model_fields)
+_KEY_FIELDS = ("county_code", "year")
+
+
+def _parse_fields(fields: str | None) -> list[str] | None:
+    """Validate a comma-separated column allowlist.
+
+    None (param omitted) means "full response" — the caller keeps the
+    existing behavior byte-identical. Every accepted name is looked up with
+    getattr() against the ORM model, never spliced into SQL, so an unknown
+    name is a 422 rather than a query.
+    """
+    if fields is None:
+        return None
+    requested = [f.strip() for f in fields.split(",") if f.strip()]
+    unknown = sorted(set(requested) - _ALLOWED_FIELDS)
+    if unknown:
+        raise HTTPException(422, detail=f"Unknown field(s): {', '.join(unknown)}")
+    # Key columns are always selected; de-dupe while keeping key columns first.
+    ordered = list(_KEY_FIELDS) + [f for f in requested if f not in _KEY_FIELDS]
+    return list(dict.fromkeys(ordered))
+
 
 @router.get("/demographics", response_model=list[DemographicOut])
 @_limiter.limit("1000/minute;20000/hour")
@@ -33,6 +61,13 @@ def list_demographics(
     nearest: bool = Query(
         False,
         description="Also return the nearest available year for requested years with no ACS rows",
+    ),
+    fields: str | None = Query(
+        None,
+        description=(
+            "Comma-separated column allowlist (e.g. 'population,median_income'). "
+            "Omit for the full ~34-column response. Unknown names return 422."
+        ),
     ),
     db: Session = Depends(get_db),
 ):
@@ -49,9 +84,19 @@ def list_demographics(
     denominators (e.g. crashes_per_100k) aligned with the date-filtered crash
     counts — without it the frontend divides an N-year crash count by the
     population summed across *all* seeded years.
+
+    ``fields`` trims the SELECT to just the requested columns (plus
+    county_code/year) for callers like the map that only need a fraction of
+    the ~34 ACS columns — the full response (all columns, list[DemographicOut])
+    is the default and is unaffected by this parameter's presence.
     """
-    response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=604800"
-    q = db.query(Demographic)
+    response.headers["Cache-Control"] = _CACHE_CONTROL
+    selected = _parse_fields(fields)
+    q = (
+        db.query(*(getattr(Demographic, f) for f in selected))
+        if selected is not None
+        else db.query(Demographic)
+    )
     if county:
         codes = parse_county_codes(county, get_slug_map(db))
         if codes:
@@ -79,4 +124,10 @@ def list_demographics(
         q = q.filter(Demographic.year.in_(wanted))
 
     rows = q.order_by(Demographic.county_code, Demographic.year).all()
+    if selected is not None:
+        # Bypass response_model (it would re-inflate every omitted column as
+        # null) — return exactly the requested keys via a plain JSONResponse.
+        resp = JSONResponse([dict(r._mapping) for r in rows])
+        resp.headers["Cache-Control"] = _CACHE_CONTROL
+        return resp
     return [DemographicOut.model_validate(r) for r in rows]

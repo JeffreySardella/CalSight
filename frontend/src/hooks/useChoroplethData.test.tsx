@@ -50,6 +50,32 @@ describe("useChoroplethData", () => {
     expect(urls.every((u) => !u.includes("county="))).toBe(true);
   });
 
+  it("requests only the demographic columns the choropleth measures read", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/stats")) {
+        return new Response(JSON.stringify([]));
+      }
+      return new Response(JSON.stringify([]));
+    });
+
+    const { result } = renderHook(
+      () => useChoroplethData("crashes_per_100k", FILTERS),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const demoUrl = fetchSpy.mock.calls.map((c) => String(c[0])).find((u) => u.includes("/api/demographics"));
+    expect(demoUrl).toBeDefined();
+    const fields = new URL(demoUrl!, "http://localhost").searchParams.get("fields");
+    // Every field the choropleth's CountyYearDemo type (measures.ts) reads,
+    // and nothing more — a lean map fetch shouldn't drag along the other
+    // ~28 ACS columns it never looks at.
+    expect(fields?.split(",").sort()).toEqual(
+      ["population", "median_income", "poverty_rate", "pct_no_vehicle", "pct_bachelors_or_higher", "pct_65_plus"].sort(),
+    );
+  });
+
   it("joins stats + demographics and computes the measure per county", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);

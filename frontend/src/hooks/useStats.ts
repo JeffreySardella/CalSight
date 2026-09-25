@@ -158,6 +158,9 @@ function buildDemoUrl(filters: StatsFilters): string {
     p.set("nearest", "true");
   }
   if (filters.counties.length) p.set("county", filters.counties.join(","));
+  // DemoRow only reads population — the KSI headline tile doesn't need the
+  // other ~32 ACS columns, so ask the backend to skip them (backend/app/routers/demographics.py).
+  p.set("fields", "population");
   const qs = p.toString();
   return `${API_BASE}/api/demographics${qs ? `?${qs}` : ""}`;
 }
@@ -283,7 +286,7 @@ export function useStats(rawFilters: StatsFilters): UseStatsResult {
   });
 
   const demoQuery = useQuery({
-    queryKey: ["stats", "demographics", { d: dateKey, co: filters.counties }],
+    queryKey: ["stats", "demographics", { d: dateKey, co: filters.counties, fields: "population" }],
     queryFn: () => fetchJson<DemoRow[]>(buildDemoUrl(filters)),
     staleTime: 60_000,
     // Persisted offline (queryPersistence.ts whitelist) — must outlive the

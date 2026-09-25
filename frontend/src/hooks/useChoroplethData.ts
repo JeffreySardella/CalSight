@@ -141,12 +141,20 @@ function buildYearStatsUrl(filters: ChoroplethFilters): string {
   return `${API_BASE}/api/stats?${p}`;
 }
 
+// The only demographic columns any choropleth measure reads (measures.ts'
+// CountyYearDemo type) — population plus the 5 fields backing the pure
+// demographic / hybrid measures (poverty_rate, median_income, etc). Keep
+// this in sync with CountyYearDemo, since a field used there but missing
+// here silently reads as undefined instead of erroring.
+const DEMO_FIELDS = "population,median_income,poverty_rate,pct_no_vehicle,pct_bachelors_or_higher,pct_65_plus";
+
 function buildDemoUrl(filters: ChoroplethFilters): string {
   const p = new URLSearchParams();
   appendDateRange(p, filters.dateRange);
   // Years past the latest ACS release come back as the nearest year instead
   // of nothing, so per-capita maps for recent years aren't blank.
   if (filters.dateRange) p.set("nearest", "true");
+  p.set("fields", DEMO_FIELDS);
   const qs = p.toString();
   return `${API_BASE}/api/demographics${qs ? `?${qs}` : ""}`;
 }
@@ -214,7 +222,7 @@ export function useChoroplethData(measure: MeasureKey, rawFilters: ChoroplethFil
         },
       },
       {
-        queryKey: ["choropleth", "demographics", dateKey],
+        queryKey: ["choropleth", "demographics", dateKey, DEMO_FIELDS],
         gcTime: PERSISTED_QUERY_GC_TIME,
         placeholderData: (prev: CountyYearDemo[] | undefined) => prev,
         queryFn: async (): Promise<CountyYearDemo[]> => {
