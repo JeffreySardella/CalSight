@@ -315,8 +315,10 @@ _PACKAGE_RESOURCES = [
 def _clear_discovery_cache():
     from etl import ckan_api
     getattr(ckan_api, "_DISCOVERY_CACHE", {}).clear()
+    getattr(ckan_api, "_INACTIVE_YEARS", {}).clear()
     yield
     getattr(ckan_api, "_DISCOVERY_CACHE", {}).clear()
+    getattr(ckan_api, "_INACTIVE_YEARS", {}).clear()
 
 
 class TestDiscoverResourceIds:
@@ -444,3 +446,19 @@ class TestMergedResourceIds:
         static = {2025: "static-2025", 2026: "static-2026"}
 
         assert merged_resource_ids("Crashes", static) == static
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_year_listed_with_datastore_off_drops_static_id(self, mock_get):
+        """2026-10: Parties_2025 was published with datastore_active=False. The
+        static map still offered its id, every page 404'd and the job (plus
+        everything downstream) failed nightly. A listed-but-inactive year must
+        be skipped; unlisted static years stay."""
+        from etl.ckan_api import merged_resource_ids
+        mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
+        static = {2025: "static-2025", 2028: "static-2028"}
+
+        merged = merged_resource_ids("Crashes", static)
+
+        assert 2028 not in merged                 # listed, DataStore off -> skipped
+        assert merged[2025] == "static-2025"      # not listed at all -> static kept
+        assert merged[2026] == "crashes-2026-id"
