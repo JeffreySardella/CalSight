@@ -19,6 +19,11 @@ updates:
       # 714 findings here). Bump it by hand together with the lint fixes.
       - dependency-name: "ruff"
         update-types: ["version-update:semver-minor"]
+      # SQLAlchemy 2.1 makes psycopg (v3) the default driver for bare
+      # postgresql:// URLs; we ship psycopg2, so every import fails (#548).
+      # Moving means postgresql+psycopg:// URLs + psycopg[binary] — do it by hand.
+      - dependency-name: "sqlalchemy"
+        versions: [">=2.1"]
 
   - package-ecosystem: npm
     directory: /frontend
