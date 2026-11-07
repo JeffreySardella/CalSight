@@ -237,6 +237,33 @@ def test_run_job_writes_naive_utc_timestamps(monkeypatch):
     assert record.finished_at.tzinfo is None
 
 
+def test_failed_job_error_message_keeps_error_lines(monkeypatch):
+    """2026-11-06: the parties failure's ERROR line scrolled out of the 1800-char
+    stderr tail, so the alert showed only "upserted ... failed". ERROR lines
+    must survive however much INFO follows them."""
+    import types
+
+    from etl import orchestrator
+
+    stderr = (
+        "2026 INFO     x — start\n"
+        "2026 ERROR    x — Parties year 2025 failed at offset 0: 404\n"
+        + "2026 INFO     x — 606724 upserted\n" * 200
+    )
+    job = Job(name="x", module="etl.x", table_name=None, source_type="none")
+    monkeypatch.setattr(orchestrator, "SessionLocal", lambda: _FakeSession())
+    monkeypatch.setattr(
+        orchestrator.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(returncode=1, stdout="", stderr=stderr),
+    )
+
+    record = orchestrator.run_job(job, force_refresh=True)
+
+    assert "Parties year 2025 failed at offset 0: 404" in record.error_message
+    assert "606724 upserted" in record.error_message
+
+
 def test_cli_dry_run():
     result = subprocess.run(
         [sys.executable, "-m", "etl.run_all", "--dry-run"],

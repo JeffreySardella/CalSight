@@ -269,6 +269,11 @@ def _run_job_tracked(db, job: Job, triggered_by: str, force_refresh: bool) -> Et
             record.status = "error"
             desc = _describe_exit_code(result.returncode)
             stderr_tail = result.stderr[-1800:] if result.stderr else ""
+            # The tail alone can scroll the real cause out (2026-11-06: only
+            # "606724 upserted ... failed" survived). Lead with ERROR lines.
+            errors = [ln for ln in (result.stderr or "").splitlines() if " ERROR " in ln]
+            if errors:
+                stderr_tail = "\n".join(errors[-5:])[-600:] + "\n...\n" + stderr_tail[-1200:]
             record.error_message = f"{desc}\n{stderr_tail}".strip() if stderr_tail else desc
             record.validation_status = "skipped"
         else:
