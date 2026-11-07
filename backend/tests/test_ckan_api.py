@@ -436,7 +436,6 @@ class TestMergedResourceIds:
         merged = merged_resource_ids("Crashes", static)
 
         assert merged[2027] == "crashes-2027-id"  # new year discovered
-        assert merged[2025] == "static-2025"      # static entries preserved
         assert merged[2026] == "crashes-2026-id"  # discovery is fresher, wins
 
     @patch("etl.ckan_api.httpx.get")
@@ -451,14 +450,33 @@ class TestMergedResourceIds:
     def test_year_listed_with_datastore_off_drops_static_id(self, mock_get):
         """2026-10: Parties_2025 was published with datastore_active=False. The
         static map still offered its id, every page 404'd and the job (plus
-        everything downstream) failed nightly. A listed-but-inactive year must
-        be skipped; unlisted static years stay."""
+        everything downstream) failed nightly."""
         from etl.ckan_api import merged_resource_ids
         mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
-        static = {2025: "static-2025", 2028: "static-2028"}
 
-        merged = merged_resource_ids("Crashes", static)
+        merged = merged_resource_ids("Crashes", {2028: "static-2028"})
 
         assert 2028 not in merged                 # listed, DataStore off -> skipped
-        assert merged[2025] == "static-2025"      # not listed at all -> static kept
         assert merged[2026] == "crashes-2026-id"
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_year_removed_from_listing_drops_static_id(self, mock_get):
+        """2026-11-06: CHP removed Parties_2025 from the package entirely. Its
+        static id 404'd and failed the job nightly. A successful listing is the
+        truth, so a static year it no longer contains is skipped."""
+        from etl.ckan_api import merged_resource_ids
+        mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
+
+        merged = merged_resource_ids("Parties", {2025: "dead-2025", 2026: "static-2026"})
+
+        assert merged == {2026: "parties-2026-id"}
+
+    @patch("etl.ckan_api.httpx.get")
+    def test_listing_without_prefix_keeps_static(self, mock_get):
+        """A listing with no <prefix>_* resources at all (renamed upstream) must
+        not wipe every year; fall back to the static map."""
+        from etl.ckan_api import merged_resource_ids
+        mock_get.return_value = _mock_package_show(_PACKAGE_RESOURCES)
+        static = {2025: "static-2025"}
+
+        assert merged_resource_ids("Nonexistent", static) == static

@@ -77,10 +77,6 @@ RESOURCE_IDS = {
 #     daily — not restart-or-weekly — cadence.
 _DISCOVERY_TTL_SECONDS = 12 * 60 * 60
 _DISCOVERY_CACHE: dict[str, tuple[float, dict[int, str]]] = {}
-# Years whose resource IS listed but whose DataStore is off, per prefix, from
-# the last successful discovery. merged_resource_ids() drops their static ids
-# too, so a CHP-side DataStore outage skips that year instead of 404ing the job.
-_INACTIVE_YEARS: dict[str, set[int]] = {}
 
 
 def discover_resource_ids(prefix: str) -> dict[int, str]:
@@ -117,7 +113,6 @@ def discover_resource_ids(prefix: str) -> dict[int, str]:
 
     pattern = re.compile(rf"{re.escape(prefix)}_(20\d\d)")
     found: dict[int, str] = {}
-    inactive: set[int] = set()
     for res in resources:
         match = pattern.fullmatch(str(res.get("name", "")).strip())
         if not match:
@@ -126,35 +121,34 @@ def discover_resource_ids(prefix: str) -> dict[int, str]:
         # isn't loaded — datastore_search would 404, so don't offer it.
         if res.get("datastore_active") and res.get("id"):
             found[int(match.group(1))] = res["id"]
-        else:
-            inactive.add(int(match.group(1)))
 
     logger.info("Discovered %d %s_* resources: %s", len(found), prefix, sorted(found))
     _DISCOVERY_CACHE[prefix] = (time.monotonic(), found)
-    _INACTIVE_YEARS[prefix] = inactive - set(found)
     return found
 
 
 def merged_resource_ids(prefix: str, static_ids: dict[int, str]) -> dict[int, str]:
-    """The static year->resource map with freshly discovered years merged over it.
+    """Year->resource map: the live package listing, or the static map if it can't be read.
 
-    Discovery wins on conflict (CHP occasionally re-creates a resource under a
-    new id); the static map covers discovery outages and is never mutated.
+    When discovery succeeds the listing is the truth. A static year missing
+    from it (removed upstream, or listed with its DataStore off) can only 404,
+    and a 404 fails the whole job plus everything downstream every night until
+    CHP fixes it (2026-10: Parties_2025 listed with DataStore off; 2026-11-06:
+    Parties_2025 removed entirely). Skipping it leaves that year's existing
+    rows in place, and a re-published year comes back under its new id.
 
-    A year the package lists with its DataStore OFF is dropped, static id
-    included: datastore_search on it can only 404, and a 404 there failed the
-    whole job (and everything downstream) every night until CHP fixed it
-    (2026-10: Parties_2025 published with datastore_active=False). Skipping
-    it leaves that year's existing rows in place until CHP turns it back on.
+    The static map is only the fallback for a discovery outage (or a listing
+    with no <prefix>_* resources at all), and is never mutated.
     """
     discovered = discover_resource_ids(prefix)
-    skip = _INACTIVE_YEARS.get(prefix, set()) if prefix in _DISCOVERY_CACHE else set()
-    for year in sorted(skip & set(static_ids)):
+    if prefix not in _DISCOVERY_CACHE or not discovered:
+        return dict(static_ids)
+    for year in sorted(set(static_ids) - set(discovered)):
         logger.warning(
-            "%s_%d is listed but its DataStore is off upstream; skipping it this run",
+            "%s_%d is not loadable upstream (missing or DataStore off); skipping it this run",
             prefix, year,
         )
-    return {y: rid for y, rid in {**static_ids, **discovered}.items() if y not in skip}
+    return dict(discovered)
 
 
 def _safe_int(value):
